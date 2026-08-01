@@ -1,0 +1,62 @@
+/*
+ * 全体リセット・アクセシビリティ骨格
+ *
+ * import は次ラウンド（App.tsx / main.tsx 担当）が行う。
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+img {
+  max-width: 100%;
+}
+
+body {
+  background-color: var(--ground);
+  color: var(--ink);
+  font-family: var(--f-body);
+  font-size: var(--fs-base);
+  line-height: var(--lh-body);
+}
+
+/*
+ * skip link — 画面外に置き :focus で出現させる。
+ * display: none / visibility: hidden はフォーカス自体を奪うので使わない。
+ */
+.skip-link {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: translateY(-100%);
+  padding: var(--space-2xs) var(--space-sm);
+  background-color: var(--surface);
+  color: var(--ink);
+  z-index: 100;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+/* :focus-visible — outline を消さずアクセントで明示する */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

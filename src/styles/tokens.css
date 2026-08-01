@@ -1,0 +1,97 @@
+/*
+ * デザイントークン — 色・タイポグラフィ・間隔・モーション
+ *
+ * コンポーネントはここの変数だけを参照し、@media 内で直接スタイルを書かない。
+ * そうすることで prefers-color-scheme と data-theme の両方が同じトークンを上書きできる。
+ *
+ * 上書きの優先順位（実装した順に強くなる）:
+ *   1. :root                                    — ライトを既定値とする
+ *   2. @media (prefers-color-scheme: dark) :root — OS 設定がダークならここが効く
+ *   3. :root[data-theme='dark']                  — 属性セレクタなので 2 より詳細度が高く、OS 設定より勝つ
+ *   4. :root[data-theme='light']                 — 同様に OS がダークでもライト固定を勝たせる
+ * 属性セレクタは疑似クラス単体より詳細度が高いため、実際にはこの順序を入れ替えても
+ * data-theme が prefers-color-scheme に必ず勝つ。ソース順は仕様書の例に合わせている。
+ */
+
+:root {
+  /* ===== 色 — 冷たい紙の上に藍寄りの黒、差し色は錆浅葱。純粋な中間グレーは使わない ===== */
+  --ground: #ebeeec; /* 冷たい紙 */
+  --surface: #f7f9f8; /* カード等の一段明るい面 */
+  --ink: #17222b; /* 藍寄りの黒 */
+  --ink-mid: #55636d; /* 青みを帯びたグレー（本文の弱形） */
+  --rule: #cfd6d4; /* 罫線・区切り線（装飾用途のみ） */
+  --accent: #1f6663; /* 錆浅葱 */
+  --accent-ink: #ffffff; /* accent を背景にしたときの文字色 */
+  --marker: #7a5615; /* 黄土 — wip 状態専用 */
+
+  /* ===== タイポグラフィ — 外部フォントは読み込まずシステムスタックのみ ===== */
+  --f-display: ui-serif, 'Iowan Old Style', Georgia, serif;
+  --f-body:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Kaku Gothic ProN', 'Yu Gothic UI',
+    'Noto Sans JP', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  --f-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --fs-sm: 0.875rem;
+  --fs-base: 1rem;
+  --fs-lg: 1.25rem;
+  --fs-xl: 1.5rem;
+  --fs-2xl: 2rem;
+  --fs-3xl: 2.75rem;
+
+  --lh-body: 1.7;
+  --lh-heading: 1.3;
+
+  --fw-regular: 400;
+  --fw-bold: 700;
+
+  --measure: 68ch;
+
+  /* ===== 間隔 ===== */
+  --space-3xs: 0.25rem;
+  --space-2xs: 0.5rem;
+  --space-xs: 0.75rem;
+  --space-sm: 1rem;
+  --space-md: 1.5rem;
+  --space-lg: 2rem;
+  --space-xl: 3rem;
+  --space-2xl: 4rem;
+
+  /* ===== モーション ===== */
+  --motion: 180ms;
+  --motion-ease: ease;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #10171b;
+    --surface: #182229;
+    --ink: #e6ecea;
+    --ink-mid: #9fb0b3;
+    --rule: #33454b;
+    --accent: #5fc1b8;
+    --accent-ink: #10171b;
+    --marker: #e0b25c;
+  }
+}
+
+:root[data-theme='dark'] {
+  --ground: #10171b;
+  --surface: #182229;
+  --ink: #e6ecea;
+  --ink-mid: #9fb0b3;
+  --rule: #33454b;
+  --accent: #5fc1b8;
+  --accent-ink: #10171b;
+  --marker: #e0b25c;
+}
+
+:root[data-theme='light'] {
+  --ground: #ebeeec;
+  --surface: #f7f9f8;
+  --ink: #17222b;
+  --ink-mid: #55636d;
+  --rule: #cfd6d4;
+  --accent: #1f6663;
+  --accent-ink: #ffffff;
+  --marker: #7a5615;
+}
