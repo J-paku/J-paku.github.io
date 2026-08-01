@@ -5,6 +5,7 @@ import { LocaleProvider } from '@/contexts/LocaleContext'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { useContent } from '@/hooks/use-content'
 import Header from '@/components/Header'
+import Footer from '@/components/Footer'
 import Home from '@/pages/Home'
 import WorkDetail from '@/pages/WorkDetail'
 import NotFound from '@/pages/NotFound'
@@ -41,6 +42,7 @@ function AppShell() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
+      <Footer />
     </>
   )
 }
