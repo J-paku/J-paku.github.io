@@ -28,29 +28,26 @@ jobs:
       - run: npm run test
       - run: npm run build
       # emit-routes.mjs 済みの dist/ に対して品質計測を行う。計測はビルドの後(順序が重要 — 05-pipeline.md)
-      - name: Setup Chrome
-        id: setup-chrome
-        uses: browser-actions/setup-chrome@v1
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
       - name: Start preview server
         run: npx vite preview --port 4173 &
       - run: npx wait-on http://localhost:4173
-      # Home のスタガーリビールが opacity:0 から始まるため、リビール完了(最大400ms遅延+600ms)を
-      # 待たずに axe を走らせると合成色で color-contrast が誤検出される(実測45件)。
-      # --load-delay で 1.5秒待ってから監査させ、誤検出を避ける
+      # @axe-core/cli は selenium-webdriver + chromedriver 経由でクロムを起動するため
+      # session not created で落ちる(05-pipeline.md)。Playwright 注入方式に置き換えている。
+      # emulateMedia(reduced motion)でスタガーリビールを止めて計測するため load-delay は不要
       - name: axe accessibility check
         run: |
-          npx @axe-core/cli \
-            http://localhost:4173/ \
-            http://localhost:4173/ko \
-            http://localhost:4173/works/seatmap-demo \
-            http://localhost:4173/works/ai-harness \
-            --chrome-path '${{ steps.setup-chrome.outputs.chrome-path }}' \
-            --load-delay 1500 \
-            --exit
+          node scripts/check-a11y.mjs http://localhost:4173 \
+            / \
+            /ko \
+            /works/seatmap-demo \
+            /works/ai-harness
+      # setup-chrome は廃止した(axe が chromedriver 経由で CI から起動できなかったため)。
+      # Lighthouse も axe と同じ Playwright 管理の Chromium を使う。二重に用意しない
       - name: Lighthouse CI
-        env:
-          CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
         run: |
+          export CHROME_PATH="$(node -e "console.log(require('playwright').chromium.executablePath())")"
           npx lhci autorun \
             --collect.url=http://localhost:4173/ \
             --collect.numberOfRuns=1 \
