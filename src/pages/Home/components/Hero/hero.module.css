@@ -1,0 +1,31 @@
+.hero {
+  padding-block: var(--space-2xl);
+  padding-inline: var(--space-lg);
+}
+
+.name {
+  margin: 0 0 var(--space-sm);
+  font-family: var(--f-display);
+  font-size: var(--fs-3xl);
+  line-height: var(--lh-heading);
+  color: var(--ink);
+}
+
+.headline {
+  max-width: var(--measure);
+  margin: 0 0 var(--space-sm);
+  font-size: var(--fs-lg);
+  color: var(--ink);
+}
+
+.goal {
+  max-width: var(--measure);
+  margin: 0 0 var(--space-sm);
+  color: var(--ink-mid);
+}
+
+.location {
+  margin: 0;
+  color: var(--ink-mid);
+  font-size: var(--fs-sm);
+}

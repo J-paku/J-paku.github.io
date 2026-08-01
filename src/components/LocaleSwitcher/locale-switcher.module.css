@@ -1,0 +1,53 @@
+.wrapper {
+  position: relative;
+}
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background-color: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + var(--space-2xs));
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 8rem;
+  padding: var(--space-3xs);
+  border: 1px solid var(--rule);
+  border-radius: var(--space-2xs);
+  background-color: var(--surface);
+  z-index: 10;
+}
+
+.item {
+  padding: var(--space-2xs) var(--space-xs);
+  border-radius: var(--space-3xs);
+  color: var(--ink);
+  text-decoration: none;
+  font-size: var(--fs-sm);
+}
+
+.item:hover {
+  background-color: var(--ground);
+}
+
+/* 現在の言語は罫線ではなく accent 色と太字で示す(--rule は状態表現に使わない) */
+.item[aria-current='true'] {
+  color: var(--accent);
+  font-weight: var(--fw-bold);
+}
