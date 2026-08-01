@@ -2,7 +2,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router'
 import { LocaleProvider } from '@/contexts/LocaleContext'
 import { ThemeProvider } from '@/contexts/ThemeContext'
-import { useLocale } from '@/hooks/use-locale'
+import { useContent } from '@/hooks/use-content'
 import Header from '@/components/Header'
 import Home from '@/pages/Home'
 import WorkDetail from '@/pages/WorkDetail'
@@ -10,7 +10,7 @@ import NotFound from '@/pages/NotFound'
 
 // skip link の文言は ui.skipToMain に依るため、LocaleProvider の内側で consume する入れ物
 function AppShell() {
-  const { ui } = useLocale()
+  const { ui } = useContent()
 
   return (
     <>

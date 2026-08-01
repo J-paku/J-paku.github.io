@@ -1,6 +1,6 @@
 // テーマの巡回ボタン。system → light → dark → system の順に1ボタンで切り替える
 import { useTheme } from '@/hooks/use-theme'
-import { useLocale } from '@/hooks/use-locale'
+import { useContent } from '@/hooks/use-content'
 import type { ThemePreference } from '@/lib/preferences'
 import styles from './theme-toggle.module.css'
 
@@ -51,7 +51,7 @@ function ThemeIcon({ theme }: ThemeIconProps) {
 
 function ThemeToggle() {
   const { theme, setTheme } = useTheme()
-  const { ui } = useLocale()
+  const { ui } = useContent()
 
   return (
     <button

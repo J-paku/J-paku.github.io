@@ -2,13 +2,15 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import { Link } from 'react-router'
 import { useLocale } from '@/hooks/use-locale'
+import { useContent } from '@/hooks/use-content'
 import type { Locale } from '@/types/content'
 import styles from './locale-switcher.module.css'
 
 const LOCALES: Locale[] = ['ja', 'ko']
 
 function LocaleSwitcher() {
-  const { locale, ui, switchTo } = useLocale()
+  const { locale, switchTo } = useLocale()
+  const { ui } = useContent()
   const [open, setOpen] = useState(false)
   const menuId = useId()
   const triggerRef = useRef<HTMLButtonElement>(null)
