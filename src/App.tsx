@@ -1,16 +1,31 @@
 // ルート定義と Provider の組み立てのみを行う。個々のロジックは各 Provider・ページ側に持たせる
-import { BrowserRouter, Routes, Route } from 'react-router'
+import { useEffect } from 'react'
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router'
 import { LocaleProvider } from '@/contexts/LocaleContext'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { useContent } from '@/hooks/use-content'
 import Header from '@/components/Header'
+import Footer from '@/components/Footer'
 import Home from '@/pages/Home'
 import WorkDetail from '@/pages/WorkDetail'
 import NotFound from '@/pages/NotFound'
 
+// SPAはルートが変わってもスクロール位置が保持されるため、遷移直後に
+// 記事の途中から見える現象を防ぐ。ただしハッシュ付き遷移(#worksなどの
+// アンカーリンク)はブラウザ標準のアンカー挙動を優先し、上端へは戻さない
+function useScrollRestoration(): void {
+  const { pathname, hash } = useLocation()
+
+  useEffect(() => {
+    if (hash) return
+    window.scrollTo(0, 0)
+  }, [pathname, hash])
+}
+
 // skip link の文言は ui.skipToMain に依るため、LocaleProvider の内側で consume する入れ物
 function AppShell() {
   const { ui } = useContent()
+  useScrollRestoration()
 
   return (
     <>
@@ -27,6 +42,7 @@ function AppShell() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
+      <Footer />
     </>
   )
 }

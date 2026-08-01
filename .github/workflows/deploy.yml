@@ -27,6 +27,60 @@ jobs:
       - run: npm run typecheck
       - run: npm run test
       - run: npm run build
+      # emit-routes.mjs 済みの dist/ に対して品質計測を行う。計測はビルドの後(順序が重要 — 05-pipeline.md)
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Start preview server
+        run: npx vite preview --port 4173 &
+      - run: npx wait-on http://localhost:4173
+      # @axe-core/cli は selenium-webdriver + chromedriver 経由でクロムを起動するため
+      # session not created で落ちる(05-pipeline.md)。Playwright 注入方式に置き換えている。
+      # emulateMedia(reduced motion)でスタガーリビールを止めて計測するため load-delay は不要
+      - name: axe accessibility check
+        run: |
+          node scripts/check-a11y.mjs http://localhost:4173 \
+            / \
+            /ko \
+            /works/seatmap-demo \
+            /works/ai-harness
+      # setup-chrome は廃止した(axe が chromedriver 経由で CI から起動できなかったため)。
+      # Lighthouse も axe と同じ Playwright 管理の Chromium を使う。二重に用意しない
+      - name: Lighthouse CI
+        run: |
+          export CHROME_PATH="$(node -e "console.log(require('playwright').chromium.executablePath())")"
+          npx lhci autorun \
+            --collect.url=http://localhost:4173/ \
+            --collect.numberOfRuns=1 \
+            --collect.settings.chromeFlags='--no-sandbox' \
+            --upload.target=temporary-public-storage
+      # dist/quality.json はビルド成果物ではなく計測結果。public/ に置くと循環するため
+      # ここで dist/ に直接書き込み、サイト側は実行時 fetch で読む(05-pipeline.md)
+      - name: Write quality.json
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          node <<'JS'
+          const { readFileSync, writeFileSync, readdirSync } = require('node:fs')
+          const path = require('node:path')
+          // lhci は manifest.json を作らず、.lighthouseci/ 直下に lhr-*.json を1本ずつ置く。
+          // --collect.numberOfRuns=1 のため常に1本のみ存在する前提で読む
+          const lhciDir = '.lighthouseci'
+          const lhrFile = readdirSync(lhciDir).find((name) => name.startsWith('lhr-') && name.endsWith('.json'))
+          if (!lhrFile) throw new Error('quality.json: .lighthouseci に lhr-*.json が見つからない')
+          const lhr = JSON.parse(readFileSync(path.join(lhciDir, lhrFile), 'utf-8'))
+          const toScore = (category) => Math.round((lhr.categories[category].score || 0) * 100)
+          const quality = {
+            measuredAt: new Date().toISOString(),
+            performance: toScore('performance'),
+            accessibility: toScore('accessibility'),
+            bestPractices: toScore('best-practices'),
+            seo: toScore('seo'),
+            axeViolations: 0,
+            runUrl: process.env.RUN_URL,
+          }
+          writeFileSync('dist/quality.json', JSON.stringify(quality, null, 2))
+          console.log(quality)
+          JS
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
