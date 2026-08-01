@@ -41,6 +41,12 @@
   color: var(--ink);
 }
 
+/* 現在表示中のセクションは罫線ではなく accent 色と太字で示す(--rule は状態表現に使わない) */
+.navLink[aria-current='true'] {
+  color: var(--accent);
+  font-weight: var(--fw-bold);
+}
+
 .controls {
   display: flex;
   align-items: center;
