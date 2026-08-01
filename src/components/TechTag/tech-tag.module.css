@@ -1,0 +1,11 @@
+.tag {
+  display: inline-block;
+  padding: var(--space-3xs) var(--space-2xs);
+  /* 罫線は装飾用途のみ。状態は表さない */
+  border: 1px solid var(--rule);
+  border-radius: var(--space-3xs);
+  background-color: var(--ground);
+  color: var(--ink-mid);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+}

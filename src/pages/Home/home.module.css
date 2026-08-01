@@ -1,0 +1,63 @@
+/*
+ * Home 全体の縦積みレイアウトと、初回ペイント時のみのスタガーリビール。
+ * 各セクション自体の内間隔(padding-block)はセクション側 CSS が既に持つため、
+ * ここでは並び順と初回出現アニメーションだけを扱う。
+ */
+
+.home {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 各直下の子(Hero・各セクションの外側ラッパー)を初期状態で透明にし、
+   順にフェード＋わずかな浮き上がりで出現させる。JSタイマーは使わない */
+.home > * {
+  opacity: 0;
+  animation: home-reveal 0.6s var(--motion-ease) forwards;
+}
+
+.home > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+
+.home > *:nth-child(2) {
+  animation-delay: 100ms;
+}
+
+.home > *:nth-child(3) {
+  animation-delay: 200ms;
+}
+
+.home > *:nth-child(4) {
+  animation-delay: 300ms;
+}
+
+.home > *:nth-child(5) {
+  animation-delay: 400ms;
+}
+
+@keyframes home-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/*
+ * global.css の全体 `animation-duration: 0.01ms !important` だけに頼ると、
+ * アニメーション開始前の初期値 `opacity: 0` がペイントに残り得る。
+ * ここで明示的に opacity: 1 に戻し、アニメーションが実質無効な状態でも
+ * コンテンツが必ず見えるようにする
+ */
+@media (prefers-reduced-motion: reduce) {
+  .home > * {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
