@@ -1,18 +1,12 @@
 .card {
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
+  gap: var(--space-xs);
   min-width: 0;
-  padding: var(--space-md);
-  /* 罫線は境界の装飾用途のみ。wip かどうかの表現には使わない */
-  border: 1px solid var(--rule);
-  border-radius: var(--space-2xs);
-  background-color: var(--surface);
 }
 
 .featured {
   gap: var(--space-md);
-  padding: var(--space-lg);
 }
 
 .thumbnail {
@@ -27,16 +21,22 @@
   min-width: 0;
 }
 
+/* その他(featuredでない)の見出し。小サイズなので明朝(--f-display)は使わず、
+   太字のゴシックで強さを補う(明朝は1.5rem未満だと視認性が落ちるため) */
 .title {
   margin: 0;
-  font-family: var(--f-display);
-  font-size: var(--fs-lg);
+  font-family: var(--f-body);
+  font-size: var(--fs-base);
+  font-weight: var(--fw-bold);
   line-height: var(--lh-heading);
   color: var(--ink);
 }
 
+/* Featuredの見出しだけ明朝+大サイズにする。1.5rem以上なので視認性を保てる */
 .featured .title {
+  font-family: var(--f-display);
   font-size: var(--fs-xl);
+  font-weight: var(--fw-regular);
 }
 
 .titleLink {
@@ -67,15 +67,32 @@
 }
 
 .featured .tagline {
-  font-size: var(--fs-base);
+  font-size: var(--fs-lg);
 }
 
+/* その他は一覧として一瞥できるよう、taglineを1行に収める */
+.card:not(.featured) .tagline {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 期間・役割・規模。40rem以上は横1行に圧縮し、未満はdtの折り返し崩れを避けるため縦積みに戻す。
+   dl/dtの意味論は保ったまま見た目だけ変える */
 .meta {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3xs);
+  row-gap: var(--space-3xs);
   margin: 0;
   font-size: var(--fs-sm);
+}
+
+@media (min-width: 40rem) {
+  .meta {
+    flex-direction: row;
+    flex-wrap: wrap;
+    column-gap: var(--space-sm);
+  }
 }
 
 .metaItem {
@@ -83,15 +100,26 @@
   gap: var(--space-2xs);
 }
 
+/* 横1行時のみ、2つ目以降を箱ではなくヘアライン1本だけで区切る。
+   縦積み時に残すと区切り線ではなく字下げに見えるため出さない */
+@media (min-width: 40rem) {
+  .metaItem + .metaItem {
+    padding-inline-start: var(--space-sm);
+    border-inline-start: 1px solid var(--rule);
+  }
+}
+
+/* ラベルはあえて弱く。読むのは値(dd)の方。折り返すと「規」「模」のように割れるため禁止 */
 .metaItem dt {
   margin: 0;
-  color: var(--ink);
-  font-weight: var(--fw-bold);
+  color: var(--ink-mid);
+  font-weight: var(--fw-regular);
+  white-space: nowrap;
 }
 
 .metaItem dd {
   margin: 0;
-  color: var(--ink-mid);
+  color: var(--ink);
 }
 
 .stack {
