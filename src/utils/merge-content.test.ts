@@ -45,6 +45,17 @@ const makeContent = (overrides: Partial<Content> = {}): Content => ({
     },
     quality: { title: 'quality', measuredAt: 'measuredAt', violations: 'violations', viewRun: 'viewRun' },
     notFound: { title: 'notFound', body: 'body', backHome: 'backHome' },
+    commandPalette: {
+      openButtonLabel: 'openButtonLabel',
+      title: 'commandPaletteTitle',
+      searchLabel: 'searchLabel',
+      placeholder: 'placeholder',
+      resultCount: 'resultCount',
+      groupWorks: 'groupWorks',
+      groupLocale: 'groupLocale',
+      groupTheme: 'groupTheme',
+      groupExternal: 'groupExternal',
+    },
   },
   profile: {
     name: 'name',

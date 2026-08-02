@@ -5,7 +5,9 @@ import { CASE_SECTION_ORDER, type CaseSection } from '@/types/content'
 import { useContent } from '@/hooks/use-content'
 import { useLocale } from '@/hooks/use-locale'
 import { withLocale } from '@/utils/locale-path'
-import TechTag from '@/components/TechTag'
+import WorkMeta from '@/components/WorkMeta'
+import WorkStack from '@/components/WorkStack'
+import WorkLinks from '@/components/WorkLinks'
 import CaseStudySection from '@/components/CaseStudySection'
 import NotFound from '@/pages/NotFound'
 import styles from './work-detail.module.css'
@@ -28,57 +30,12 @@ function WorkDetail() {
     work.sections.find((section) => section.key === key),
   ).filter((section): section is CaseSection => section !== undefined)
 
-  const hasMeta = work.period !== undefined || work.role !== undefined || work.scale !== undefined
-  const hasLinks = work.links.live !== undefined || work.links.repo !== undefined
-
   return (
     <article className={styles.article}>
       <h1 className={styles.title}>{work.title}</h1>
-      {hasMeta ? (
-        <dl className={styles.meta}>
-          {work.period !== undefined ? (
-            <div className={styles.metaItem}>
-              <dt>{ui.work.period}</dt>
-              <dd>{work.period}</dd>
-            </div>
-          ) : null}
-          {work.role !== undefined ? (
-            <div className={styles.metaItem}>
-              <dt>{ui.work.role}</dt>
-              <dd>{work.role}</dd>
-            </div>
-          ) : null}
-          {work.scale !== undefined ? (
-            <div className={styles.metaItem}>
-              <dt>{ui.work.scale}</dt>
-              <dd>{work.scale}</dd>
-            </div>
-          ) : null}
-        </dl>
-      ) : null}
-      {work.stack.length > 0 ? (
-        <ul className={styles.stack} aria-label={ui.work.stack}>
-          {work.stack.map((tech) => (
-            <li key={tech}>
-              <TechTag label={tech} />
-            </li>
-          ))}
-        </ul>
-      ) : null}
-      {hasLinks ? (
-        <div className={styles.links}>
-          {work.links.live !== undefined ? (
-            <a href={work.links.live} rel="noreferrer" className={styles.link}>
-              {ui.work.live}
-            </a>
-          ) : null}
-          {work.links.repo !== undefined ? (
-            <a href={work.links.repo} rel="noreferrer" className={styles.link}>
-              {ui.work.repo}
-            </a>
-          ) : null}
-        </div>
-      ) : null}
+      <WorkMeta variant="detail" period={work.period} role={work.role} scale={work.scale} />
+      <WorkStack stack={work.stack} />
+      <WorkLinks live={work.links.live} repo={work.links.repo} />
       {orderedSections.map((section) => (
         <CaseStudySection key={section.key} heading={section.heading} body={section.body} />
       ))}

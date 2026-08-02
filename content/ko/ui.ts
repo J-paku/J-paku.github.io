@@ -42,4 +42,15 @@ export const ui: UiStrings = {
     body: '찾으시는 페이지가 존재하지 않거나 이동 또는 삭제되었을 수 있습니다.',
     backHome: '홈으로 돌아가기',
   },
+  commandPalette: {
+    openButtonLabel: '커맨드 팔레트 열기',
+    title: '커맨드 팔레트',
+    searchLabel: '명령 검색',
+    placeholder: '작품・언어・테마 검색',
+    resultCount: '{count}개의 명령을 찾았습니다',
+    groupWorks: '작품',
+    groupLocale: '언어',
+    groupTheme: '테마',
+    groupExternal: '외부 링크',
+  },
 }

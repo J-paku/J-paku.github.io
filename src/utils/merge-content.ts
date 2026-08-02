@@ -46,6 +46,7 @@ const mergeUi = (ja: UiStrings, ko: UiStrings): UiStrings => ({
   work: mergeStringRecord(ja.work, ko.work, 'ui.work'),
   quality: mergeStringRecord(ja.quality, ko.quality, 'ui.quality'),
   notFound: mergeStringRecord(ja.notFound, ko.notFound, 'ui.notFound'),
+  commandPalette: mergeStringRecord(ja.commandPalette, ko.commandPalette, 'ui.commandPalette'),
 })
 
 const mergeProfile = (ja: Profile, ko: Profile): Profile => ({

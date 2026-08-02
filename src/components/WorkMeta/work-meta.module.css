@@ -1,0 +1,69 @@
+/* variant: card(一覧)。40rem以上は横1行に圧縮し、未満はdtの折り返し崩れを避けるため縦積みに戻す。
+   dl/dtの意味論は保ったまま見た目だけ変える */
+.metaCard {
+  display: flex;
+  flex-direction: column;
+  row-gap: var(--space-3xs);
+  margin: 0;
+  font-size: var(--fs-sm);
+}
+
+@media (min-width: 40rem) {
+  .metaCard {
+    flex-direction: row;
+    flex-wrap: wrap;
+    column-gap: var(--space-sm);
+  }
+}
+
+.metaItemCard {
+  display: flex;
+  gap: var(--space-2xs);
+}
+
+/* 横1行時のみ、2つ目以降を箱ではなくヘアライン1本だけで区切る。
+   縦積み時に残すと区切り線ではなく字下げに見えるため出さない */
+@media (min-width: 40rem) {
+  .metaItemCard + .metaItemCard {
+    padding-inline-start: var(--space-sm);
+    border-inline-start: 1px solid var(--rule);
+  }
+}
+
+/* ラベルはあえて弱く。読むのは値(dd)の方。折り返すと「規」「模」のように割れるため禁止 */
+.metaItemCard dt {
+  margin: 0;
+  color: var(--ink-mid);
+  font-weight: var(--fw-regular);
+  white-space: nowrap;
+}
+
+.metaItemCard dd {
+  margin: 0;
+  color: var(--ink);
+}
+
+/* variant: detail(詳細)。常に縦積みで、区切り線は出さない */
+.metaDetail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+  margin: 0;
+  font-size: var(--fs-sm);
+}
+
+.metaItemDetail {
+  display: flex;
+  gap: var(--space-2xs);
+}
+
+.metaItemDetail dt {
+  margin: 0;
+  color: var(--ink);
+  font-weight: var(--fw-bold);
+}
+
+.metaItemDetail dd {
+  margin: 0;
+  color: var(--ink-mid);
+}

@@ -2,6 +2,8 @@
 // @axe-core/cli は selenium-webdriver + chromedriver 経由でクロムを起動するため
 // GitHub Actions ランナーで頻繁に session not created で落ちる(05-pipeline.md)。
 // Playwright が管理する Chromium を使い axe.min.js をページに直接注入する方式に置き換えている。
+// 各経路について、閉じた状態に加えCtrl+Kでコマンドパレットを開いた状態でも同じ検査を実行する
+// (07-redesign.md §3-5)。呼び出し方(引数・終了コード)は変更していない
 //
 // 使い方: node scripts/check-a11y.mjs <baseUrl> <path> [path...]
 import { readFileSync } from 'node:fs'
@@ -58,6 +60,41 @@ async function auditPath(browser, targetPath) {
   return { targetPath, wcagViolations, bestPracticeViolations }
 }
 
+// パレットを Ctrl+K で開いた状態でも axe を実行する。06-command-palette.md はこの検査を
+// 「CLIでは難しくブラウザ拡張で手動確認」としていたが、このスクリプトが既にPlaywright+axe注入方式
+// のため、開いた状態でaxe.run()を呼ぶだけで自動化できる(06作成後に確立した判断。07-redesign.md §3-5)
+async function auditPathWithPaletteOpen(browser, targetPath) {
+  const page = await browser.newPage()
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+
+  const url = new URL(targetPath, baseUrl).toString()
+  await page.goto(url, { waitUntil: 'networkidle' })
+  await page.waitForFunction(() => {
+    const root = document.querySelector('#root')
+    return root !== null && root.childElementCount > 0
+  })
+
+  await page.keyboard.press('Control+k')
+  await page.waitForFunction(() => document.querySelector('dialog')?.open === true, null, { timeout: 5000 })
+
+  await page.addScriptTag({ content: axeSource })
+  const result = await page.evaluate(
+    async ({ wcagTags, bestPracticeTag }) =>
+      window.axe.run(document, { runOnly: { type: 'tag', values: [...wcagTags, bestPracticeTag] } }),
+    { wcagTags: WCAG_TAGS, bestPracticeTag: BEST_PRACTICE_TAG },
+  )
+  await page.close()
+
+  const wcagViolations = result.violations.filter((violation) =>
+    violation.tags.some((tag) => WCAG_TAGS.includes(tag)),
+  )
+  const bestPracticeViolations = result.violations.filter(
+    (violation) => !violation.tags.some((tag) => WCAG_TAGS.includes(tag)),
+  )
+
+  return { targetPath, wcagViolations, bestPracticeViolations }
+}
+
 function printViolation(violation) {
   const firstTarget = violation.nodes[0]?.target.join(' ') ?? '(不明)'
   console.error(`  - ${violation.id} [${violation.impact}] 対象${violation.nodes.length}件 例: ${firstTarget}`)
@@ -66,10 +103,14 @@ function printViolation(violation) {
 async function main() {
   const browser = await chromium.launch()
   const reports = []
+  const paletteReports = []
 
   try {
     for (const targetPath of targetPaths) {
       reports.push(await auditPath(browser, targetPath))
+    }
+    for (const targetPath of targetPaths) {
+      paletteReports.push(await auditPathWithPaletteOpen(browser, targetPath))
     }
   } finally {
     await browser.close()
@@ -88,12 +129,25 @@ async function main() {
     }
   }
 
+  for (const { targetPath, wcagViolations, bestPracticeViolations } of paletteReports) {
+    totalWcagViolations += wcagViolations.length
+
+    if (wcagViolations.length === 0) {
+      console.log(
+        `[OK] ${targetPath} (パレットを開いた状態): WCAG違反 0件(best-practice違反 ${bestPracticeViolations.length}件・参考のみ)`,
+      )
+    } else {
+      console.error(`[NG] ${targetPath} (パレットを開いた状態): WCAG違反 ${wcagViolations.length}件`)
+      wcagViolations.forEach(printViolation)
+    }
+  }
+
   if (totalWcagViolations > 0) {
     console.error(`axe: WCAG違反が合計${totalWcagViolations}件見つかった`)
     process.exit(1)
   }
 
-  console.log('axe: 全経路でWCAG違反 0件')
+  console.log('axe: 全経路でWCAG違反 0件(閉状態・パレットを開いた状態とも)')
 }
 
 main().catch((error) => {

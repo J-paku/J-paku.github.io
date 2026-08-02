@@ -42,4 +42,15 @@ export const ui: UiStrings = {
     body: 'お探しのページは存在しないか、移動または削除された可能性があります。',
     backHome: 'ホームへ戻る',
   },
+  commandPalette: {
+    openButtonLabel: 'コマンドパレットを開く',
+    title: 'コマンドパレット',
+    searchLabel: 'コマンドを検索',
+    placeholder: '作品・言語・テーマを検索',
+    resultCount: '{count}件のコマンドが見つかりました',
+    groupWorks: '作品',
+    groupLocale: '言語',
+    groupTheme: 'テーマ',
+    groupExternal: '外部リンク',
+  },
 }

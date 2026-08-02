@@ -7,6 +7,24 @@
 .home {
   display: flex;
   flex-direction: column;
+  /* セクション同士の間だけを広く取る。セクション内部の間隔は各セクション側のpaddingに委ねる */
+  gap: var(--space-section);
+}
+
+/*
+ * セクション見出し(h2)の頭に「座席一枠」を模した正方形を置く。
+ * 内容ではなく純粋な装飾のため疑似要素で作り、DOMやaria-hiddenは増やさない。
+ * 各セクションはここでは <section id="…"><section class="…">…<h2>…</h2> という
+ * 二重ネストになっており、h2はhome直下の子ではないため子孫結合子(スペース)で拾う
+ */
+.home section h2::before {
+  content: '';
+  display: inline-block;
+  width: 0.5em;
+  height: 0.5em;
+  margin-inline-end: var(--space-2xs);
+  background-color: var(--accent);
+  vertical-align: middle;
 }
 
 /* 各直下の子(Hero・各セクションの外側ラッパー)を初期状態で透明にし、
