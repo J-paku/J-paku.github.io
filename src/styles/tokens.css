@@ -11,49 +11,82 @@
  *   4. :root[data-theme='light']                 — 同様に OS がダークでもライト固定を勝たせる
  * 属性セレクタは疑似クラス単体より詳細度が高いため、実際にはこの順序を入れ替えても
  * data-theme が prefers-color-scheme に必ず勝つ。ソース順は仕様書の例に合わせている。
+ *
+ * D1（このラウンド）: DESIGN.md（Stripi 分析）の値へトークンの「値」だけを差し替える。
+ * 既存のトークン名は一切変更していない。コンポーネント側（*.module.css）は未着手。
  */
 
 :root {
-  /* ===== 色 — 冷たい紙の上に藍寄りの黒、差し色は錆浅葱。純粋な中間グレーは使わない ===== */
-  --ground: #ebeeec; /* 冷たい紙 */
-  --surface: #f7f9f8; /* カード等の一段明るい面 */
-  --ink: #17222b; /* 藍寄りの黒 */
-  --ink-mid: #55636d; /* 青みを帯びたグレー（本文の弱形） */
-  --rule: #cfd6d4; /* 罫線・区切り線（装飾用途のみ） */
-  --accent: #1f6663; /* 錆浅葱 */
-  --accent-ink: #ffffff; /* accent を背景にしたときの文字色 */
-  --marker: #7a5615; /* 黄土 — wip 状態専用 */
+  /* ===== 色 — DESIGN.md の canvas/ink/primary 系に合わせる ===== */
+  --ground: #ffffff; /* canvas */
+  --surface: #f6f9fc; /* canvas-soft */
+  --surface-cream: #f5e9d4; /* canvas-cream。暖色の緩衝帯カード用（D2）。テーマに依らず固定の一色として扱う */
+  --ink: #0d253d; /* ink */
+  --ink-secondary: #273951; /* ink-secondary。ink より一段弱い本文用（D2） */
+  --ink-mid: #61718a; /* ink-mute-2。ink-mute(#64748d) は canvas-soft 上で 4.49:1 となり AA を僅かに割るため使わない */
+  --rule: #e3e8ee; /* hairline（装飾用途のみ） */
+  --rule-input: #7d94b0; /* DESIGN.md の hairline-input(#a8c3de) は白背景で 1.82:1 と非text用としても弱いため、
+                             同系色のまま暗めに調整（3.12:1）。text-input はまだ未実装(D2)なので先んじて安全側に振る */
+  --accent: #533afd; /* primary */
+  --accent-deep: #4434d4; /* primary-deep（押下前段・グラデーション中間色。D2） */
+  --accent-press: #2e2b8c; /* primary-press（押下状態。D2） */
+  --accent-soft: #665efd; /* primary-soft（プロダクトUIアクセント。D2） */
+  --accent-subtle: #cacaf9; /* primary-bg-subdued-hover。DESIGN.md の値(#b9b9f9)だと accent-deep とのペアで
+                                4.23:1 となりAA(4.5)未達のため、同系のまま僅かに明るく調整して4.96:1にした */
+  --accent-ink: #ffffff; /* accent（primary）を背景にしたときの文字色。on-primary */
+  --marker: #9b6829; /* lemon — wip 状態専用 */
+  --gradient-ruby: #ea2261; /* ruby。グラデーションメッシュの差し色専用。白地で4.29:1のため文字色・ボタンには使わない(D2) */
+  --gradient-magenta: #f96bee; /* magenta。グラデーションメッシュの差し色専用（D2） */
+  --brand-dark-900: #1c1e54; /* brand-dark-900。featured カードやダッシュボード面の固定の濃紺(D2)。
+                                 サイト全体のライト/ダーク切り替えとは独立した文字通りのブランド色として扱う */
 
-  /* ===== タイポグラフィ — 外部フォントは読み込まずシステムスタックのみ ===== */
-  /* 日本語の明朝スタック。ラテン文字のみのserif(ui-serif等)はCJKグリフで
-     ゴシックへフォールバックし、括弧や中点だけ書体が変わる事故を起こすため使わない。
-     明朝は1.5rem以上の大きい見出しでのみ使う(Windowsでの明朝は小さいと視認性が弱い) */
-  --f-display: 'Hiragino Mincho ProN', 'Yu Mincho', YuMincho, 'Noto Serif JP', 'Nanum Myeongjo', var(--f-body);
-  --f-body:
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Kaku Gothic ProN', 'Yu Gothic UI',
+  /* ===== タイポグラフィ =====
+     Sohne は独占フォントのため Inter を自己ホストで代替する（fonts.css の @font-face、unicode-range でラテンに限定）。
+     Inter の直後に日本語ゴシック(Light系優先)→韓国語ゴシック→sans-serif の順で繋ぎ、
+     チェーンの末尾を serif にしない（ラテン専用フォントとCJKの混在事故を避けるため）。
+     見出し(--f-display)も従来の明朝スタックをやめ、DESIGN.md のブランド識別(Sohne/Inter thin)に合わせる。 */
+  --f-display:
+    'Inter', -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic UI',
     'Noto Sans JP', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  --f-body:
+    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN',
+    'Yu Gothic UI', 'Noto Sans JP', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
   --f-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  --fs-sm: 0.875rem;
-  --fs-base: 1rem;
-  --fs-lg: 1.25rem;
-  --fs-xl: 1.5rem;
-  --fs-2xl: 2rem;
-  --fs-3xl: 2.75rem;
-  /* Hero見出し(headline)専用の可変サイズ。ビューポート幅に追従して大きく見せる */
-  --fs-hero-headline: clamp(1.75rem, 4.2vw, 3.25rem);
+  --fs-sm: 0.875rem; /* 14px。DESIGN.md button-sm/body-tabular と一致のため据え置き */
+  --fs-base: 0.9375rem; /* 15px。DESIGN.md body-md(既定UI本文)に合わせて16pxから調整 */
+  --fs-lg: 1.25rem; /* 20px。DESIGN.md heading-md と一致のため据え置き */
+  --fs-xl: 1.625rem; /* 26px。DESIGN.md display-md(コンパクトなカード見出し)に合わせて24pxから調整 */
+  --fs-2xl: 2rem; /* 32px。DESIGN.md display-lg と一致のため据え置き */
+  --fs-3xl: 3rem; /* 48px。DESIGN.md display-xl に合わせて44pxから調整 */
+  /* Hero見出し(headline)専用の可変サイズ。上限をDESIGN.md display-xxl(56px)に合わせる */
+  --fs-hero-headline: clamp(2rem, 5vw, 3.5rem);
 
-  --lh-body: 1.7;
-  --lh-heading: 1.3;
-  /* Hero見出しは行送りをやや広めに取り、複数行でも詰まって見えないようにする */
-  --lh-hero: 1.4;
+  --lh-body: 1.4; /* DESIGN.md body-md/body-lg と一致のため1.7から調整 */
+  --lh-heading: 1.15; /* DESIGN.md の見出し系(1.03〜1.4)の中間、display-lg/xl寄りの値に集約 */
+  /* Hero見出しは複数行の日本語を想定するため、DESIGN.md display-xxl の最も詰まった値(1.03)ではなく
+     同じ表内のdisplay-xl(1.15)を採用した。CJK見出しが複数行でも詰まって見えないようにする配慮 */
+  --lh-hero: 1.15;
 
-  --fw-regular: 400;
-  --fw-bold: 700;
+  --fw-regular: 400; /* 本文の太さ。DESIGN.mdは本文も300指定だが、和文は同じ字面でも画数がラテンよりずっと多く
+                         15〜16pxのLightは可読性を落とすため、本文はここを400のまま据え置く(意図的な逸脱) */
+  --fw-bold: 700; /* DESIGN.md の型には無い、この場での既存の強調用途を維持 */
+  --fw-light: 300; /* 新規。display階層(ブランドの本体)専用。今ラウンドではコンポーネント側は未配線(D2で使用) */
 
-  --measure: 68ch;
+  /* 新規。負の字送りはラテン専用フォント(Inter)の効果が強く、CJKにそのまま適用すると字が重なるため
+     日本語見出しに実害が出ない範囲(-0.01em)まで丸めた。ラテン専用要素へ限定する方法もあったが、
+     その限定にはコンポーネント側CSSの編集が要り今ラウンドの担当外のため、この丸めを採用した */
+  --tracking-display: -0.01em;
+  /* body-tabular(tnum)用。対象は数字(ASCII)のみのため和文への影響が無く、DESIGN.mdの値をそのまま使う */
+  --tracking-tabular: -0.42px;
 
-  /* ===== 間隔 ===== */
+  /* DESIGN.mdに明示的な値が無いため、Overviewの「editorial density」の文言に沿って
+     68chから若干引き締めた(判断値であり、DESIGN.mdの実測値ではない) */
+  --measure: 62ch;
+
+  /* ===== 間隔 =====
+     px換算では 4/8/12/16/24/32/64 となり、DESIGN.md spacing(xxs2,xs4,sm8,md12,lg16,xl24,xxl32,huge64)と
+     最小の2pxを除いて既に一致している。トークン名の粒度がずれているだけで値の変更は不要 */
   --space-3xs: 0.25rem;
   --space-2xs: 0.5rem;
   --space-xs: 0.75rem;
@@ -62,46 +95,60 @@
   --space-lg: 2rem;
   --space-xl: 3rem;
   --space-2xl: 4rem;
-  /* セクション同士の間隔専用。セクション内部の間隔(--space-lg等)より広く取り、
-     "セクション間は広く・セクション内は狭く"のリズムを作る */
-  --space-section: clamp(5rem, 11vh, 9rem);
+  /* セクション同士の間隔専用。DESIGN.mdの「マーケティング面のセクションpaddingは64〜96px」に合わせて
+     上限を9remから6rem(96px)へ、下限を5remから4rem(64px)へ調整した */
+  --space-section: clamp(4rem, 8vh, 6rem);
 
-  /* ===== モーション ===== */
+  /* ===== 角丸 — 新規。DESIGN.md rounded スケールをそのまま採用(D2で使用) ===== */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 9999px;
+
+  /* ===== モーション — DESIGN.mdに値の指定が無いため据え置き ===== */
   --motion: 180ms;
   --motion-ease: ease;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --ground: #10171b;
-    --surface: #182229;
-    --ink: #e6ecea;
-    --ink-mid: #9fb0b3;
-    --rule: #33454b;
-    --accent: #5fc1b8;
-    --accent-ink: #10171b;
-    --marker: #e0b25c;
+    --ground: #1c1e54; /* brand-dark-900。ダッシュボード面の"シェル"背景 */
+    --surface: #0d253d; /* ink。DESIGN.mdでは"ダッシュボードモックアップの塗り"の役割のため、
+                            シェルの上に載るパネル/カードの面として採用。brand-dark-900とほぼ同じ明度
+                            (相対輝度 0.0182 対 0.0175)のため、明暗ではなく色相(紫寄り/青緑寄り)で
+                            面を区別する意図的な設計 */
+    --ink: #f4f7fb;
+    --ink-secondary: #c7cee4;
+    --ink-mid: #a6b0c9;
+    --rule: #3a4278;
+    --accent: #8a80ff; /* primaryそのまま(#533afd)は brand-dark-900 上で2.49:1しか出ずAA未達のため明るく振った */
+    --accent-ink: #0d253d;
+    --marker: #e3a75c;
   }
 }
 
 :root[data-theme='dark'] {
-  --ground: #10171b;
-  --surface: #182229;
-  --ink: #e6ecea;
-  --ink-mid: #9fb0b3;
-  --rule: #33454b;
-  --accent: #5fc1b8;
-  --accent-ink: #10171b;
-  --marker: #e0b25c;
+  --ground: #1c1e54;
+  --surface: #0d253d;
+  --ink: #f4f7fb;
+  --ink-secondary: #c7cee4;
+  --ink-mid: #a6b0c9;
+  --rule: #3a4278;
+  --accent: #8a80ff;
+  --accent-ink: #0d253d;
+  --marker: #e3a75c;
 }
 
 :root[data-theme='light'] {
-  --ground: #ebeeec;
-  --surface: #f7f9f8;
-  --ink: #17222b;
-  --ink-mid: #55636d;
-  --rule: #cfd6d4;
-  --accent: #1f6663;
+  --ground: #ffffff;
+  --surface: #f6f9fc;
+  --ink: #0d253d;
+  --ink-secondary: #273951;
+  --ink-mid: #61718a;
+  --rule: #e3e8ee;
+  --accent: #533afd;
   --accent-ink: #ffffff;
-  --marker: #7a5615;
+  --marker: #9b6829;
 }
