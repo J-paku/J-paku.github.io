@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { useLocale } from '@/hooks/use-locale'
 import { useContent } from '@/hooks/use-content'
 import { useScrollSpy } from '@/hooks/use-scroll-spy'
+import { withLocale } from '@/utils/locale-path'
 import LocaleSwitcher from '@/components/LocaleSwitcher'
 import ThemeToggle from '@/components/ThemeToggle'
 import styles from './header.module.css'
@@ -20,7 +21,7 @@ const SECTION_IDS = NAV_ITEMS.map((item) => item.key)
 function Header() {
   const { locale } = useLocale()
   const { ui } = useContent()
-  const homePath = locale === 'ko' ? '/ko' : '/'
+  const homePath = withLocale('/', locale)
   // Home以外のルート(WorkDetail・NotFound等)ではセクションが存在せず、フックは黙って null を返す
   const currentSectionId = useScrollSpy(SECTION_IDS)
 

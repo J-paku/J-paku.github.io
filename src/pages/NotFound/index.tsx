@@ -2,11 +2,12 @@
 import { Link } from 'react-router'
 import { useLocale } from '@/hooks/use-locale'
 import { useContent } from '@/hooks/use-content'
+import { withLocale } from '@/utils/locale-path'
 
 function NotFound() {
   const { locale } = useLocale()
   const { ui } = useContent()
-  const homePath = locale === 'ko' ? '/ko' : '/'
+  const homePath = withLocale('/', locale)
 
   return (
     <div>
