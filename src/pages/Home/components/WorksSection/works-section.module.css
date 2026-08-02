@@ -11,28 +11,46 @@
   color: var(--ink);
 }
 
+/* Featuredは1列で大きく見せ、区切りは箱ではなくヘアライン1本だけにする */
 .featuredList {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
-  gap: var(--space-lg);
+  display: flex;
+  flex-direction: column;
   margin: 0 0 var(--space-xl);
   padding: 0;
   list-style: none;
 }
 
-.featuredList li {
+.featuredList > li {
   min-width: 0;
+  padding-block: var(--space-lg);
 }
 
+.featuredList > li:first-child {
+  padding-block-start: 0;
+}
+
+.featuredList > li + li {
+  border-top: 1px solid var(--rule);
+}
+
+/* その他はFeaturedより明らかに軽い、密な一覧にする */
 .restList {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
-  gap: var(--space-md);
+  display: flex;
+  flex-direction: column;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.restList li {
+.restList > li {
   min-width: 0;
+  padding-block: var(--space-sm);
+}
+
+.restList > li:first-child {
+  padding-block-start: 0;
+}
+
+.restList > li + li {
+  border-top: 1px solid var(--rule);
 }

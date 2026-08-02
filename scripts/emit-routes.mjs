@@ -1,45 +1,80 @@
 // SPA の直リンクを実 200 にするため、ルートごとに dist/index.html の複製を配置するスクリプト。
 // `npm run build`(vite build)の直後に実行する前提。
 //
-// ラウト一覧は content/ja/works/*.ts から status: 'published' の slug を都度読み取って作る。
-// 作品ファイルを1個追加すればラウトも自動で増え、このスクリプト自体は書き換えない。
+// ラウト一覧は content/ja/works/*.ts を実際にモジュールとして読み込み、work.status / work.slug から作る。
+// 「公開作品」の判定はアプリ側(src/utils/content-loader.ts)と同じ work.status を直接見るため、
+// 判定基準が二重化しない。作品ファイルを1個追加すればラウトも自動で増え、このスクリプト自体は書き換えない。
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { transformSync } from 'esbuild'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = path.resolve(__dirname, '..')
 const WORKS_DIR = path.join(ROOT_DIR, 'content/ja/works')
 const DIST_DIR = path.join(ROOT_DIR, 'dist')
 
-// 【脆弱性の注記】content/ja/works/*.ts は Node から直接 import できない(TypeScript のまま)ため、
-// `slug: '...'` `status: '...'` を正規表現で抜き出す簡易パースに頼っている。
-// この方式は Work オブジェクトの記法(引用符の種類・キー名・改行位置)が変わると
-// マッチせず沈黙で0件になりうる。より頑丈にするなら tsx/esbuild-register 等で実際に
-// モジュールを読み込む方式へ切り替える必要がある。
-function extractPublishedSlugs() {
+// content/ 配下の import は type-only のみ(値の import は無い)ことを前提に、
+// esbuild で TypeScript の型注釈だけを落として ESM コードへ変換し、data: URL 経由で直接評価する。
+// モジュール解決を行わないため tsconfig の path alias 等には依存しない。
+function transformWorkFile(file) {
+  const source = readFileSync(path.join(WORKS_DIR, file), 'utf-8')
+  const { code } = transformSync(source, { loader: 'ts', format: 'esm' })
+  return code
+}
+
+// 変換済みコードを実際に import して Work オブジェクトを取り出す。
+// export忘れ・想定外の形は失敗として扱い、スキップせず例外を投げる
+async function loadWork(file) {
+  const code = transformWorkFile(file)
+  const dataUrl = `data:text/javascript;base64,${Buffer.from(code).toString('base64')}`
+  const moduleExports = await import(dataUrl)
+  const work = Object.values(moduleExports)[0]
+  if (!work || typeof work.slug !== 'string' || typeof work.status !== 'string') {
+    throw new Error(`${file} から Work のexportを取得できなかった`)
+  }
+  return work
+}
+
+// content/ja/works/*.ts を全件読み込み、published な slug 一覧を返す。
+// 読み込み・評価の失敗、件数不一致、published が0件のいずれも例外を投げて呼び出し元で非ゼロ終了させる
+async function loadPublishedSlugs() {
   const files = readdirSync(WORKS_DIR).filter((name) => name.endsWith('.ts'))
-  const slugs = []
 
+  const works = []
   for (const file of files) {
-    const source = readFileSync(path.join(WORKS_DIR, file), 'utf-8')
-    const slugMatch = source.match(/slug:\s*'([^']+)'/)
-    const statusMatch = source.match(/status:\s*'([^']+)'/)
-
-    if (!slugMatch || !statusMatch) {
-      console.warn(`emit-routes: ${file} から slug/status を抽出できなかった(スキップ)`)
-      continue
-    }
-
-    if (statusMatch[1] === 'published') {
-      slugs.push(slugMatch[1])
+    try {
+      works.push(await loadWork(file))
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error)
+      throw new Error(`emit-routes: ${file} の読み込みに失敗した — ${reason}`)
     }
   }
 
-  return slugs
+  if (works.length !== files.length) {
+    throw new Error(
+      `emit-routes: 読み込めた作品数(${works.length})がファイル数(${files.length})と一致しない`,
+    )
+  }
+
+  const publishedSlugs = works
+    .filter((work) => work.status === 'published')
+    .map((work) => work.slug)
+
+  if (publishedSlugs.length === 0) {
+    throw new Error('emit-routes: published な作品が1件も見つからない')
+  }
+
+  return publishedSlugs
 }
 
-const publishedSlugs = extractPublishedSlugs()
+let publishedSlugs
+try {
+  publishedSlugs = await loadPublishedSlugs()
+} catch (error) {
+  console.error(error instanceof Error ? error.message : error)
+  process.exit(1)
+}
 console.log('emit-routes: published slugs =', publishedSlugs)
 
 const shellHtmlPath = path.join(DIST_DIR, 'index.html')
