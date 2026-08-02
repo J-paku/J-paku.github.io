@@ -6,6 +6,7 @@ import { useScrollSpy } from '@/hooks/use-scroll-spy'
 import { withLocale } from '@/utils/locale-path'
 import LocaleSwitcher from '@/components/LocaleSwitcher'
 import ThemeToggle from '@/components/ThemeToggle'
+import CommandPalette from '@/components/CommandPalette'
 import styles from './header.module.css'
 
 const NAV_ITEMS = [
@@ -46,6 +47,7 @@ function Header() {
         </ul>
       </nav>
       <div className={styles.controls}>
+        <CommandPalette />
         <LocaleSwitcher />
         <ThemeToggle />
       </div>
