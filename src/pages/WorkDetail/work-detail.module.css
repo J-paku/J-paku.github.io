@@ -21,53 +21,6 @@
   color: var(--ink);
 }
 
-.meta {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3xs);
-  margin: 0;
-  font-size: var(--fs-sm);
-}
-
-.metaItem {
-  display: flex;
-  gap: var(--space-2xs);
-}
-
-.metaItem dt {
-  margin: 0;
-  color: var(--ink);
-  font-weight: var(--fw-bold);
-}
-
-.metaItem dd {
-  margin: 0;
-  color: var(--ink-mid);
-}
-
-.stack {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2xs);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
-}
-
-.link {
-  color: var(--accent);
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-bold);
-}
-
 .nav {
   padding-top: var(--space-md);
   border-top: 1px solid var(--rule);

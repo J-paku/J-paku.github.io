@@ -5,7 +5,9 @@ import type { Work } from '@/types/content'
 import { useContent } from '@/hooks/use-content'
 import { useLocale } from '@/hooks/use-locale'
 import { withLocale } from '@/utils/locale-path'
-import TechTag from '@/components/TechTag'
+import WorkMeta from '@/components/WorkMeta'
+import WorkStack from '@/components/WorkStack'
+import WorkLinks from '@/components/WorkLinks'
 import styles from './work-card.module.css'
 
 type WorkCardProps = {
@@ -19,8 +21,6 @@ function WorkCard({ work, featured = false }: WorkCardProps) {
 
   const isPublished = work.status === 'published'
   const workPath = withLocale(`/works/${work.slug}`, locale)
-  const hasMeta = work.period !== undefined || work.role !== undefined || work.scale !== undefined
-  const hasLinks = work.links.live !== undefined || work.links.repo !== undefined
 
   const cardClassName = featured ? `${styles.card} ${styles.featured}` : styles.card
 
@@ -42,51 +42,9 @@ function WorkCard({ work, featured = false }: WorkCardProps) {
         </h3>
         {work.status === 'wip' ? <span className={styles.wipBadge}>{ui.work.wipBadge}</span> : null}
         <p className={styles.tagline}>{work.tagline}</p>
-        {hasMeta ? (
-          <dl className={styles.meta}>
-            {work.period !== undefined ? (
-              <div className={styles.metaItem}>
-                <dt>{ui.work.period}</dt>
-                <dd>{work.period}</dd>
-              </div>
-            ) : null}
-            {work.role !== undefined ? (
-              <div className={styles.metaItem}>
-                <dt>{ui.work.role}</dt>
-                <dd>{work.role}</dd>
-              </div>
-            ) : null}
-            {work.scale !== undefined ? (
-              <div className={styles.metaItem}>
-                <dt>{ui.work.scale}</dt>
-                <dd>{work.scale}</dd>
-              </div>
-            ) : null}
-          </dl>
-        ) : null}
-        {work.stack.length > 0 ? (
-          <ul className={styles.stack} aria-label={ui.work.stack}>
-            {work.stack.map((tech) => (
-              <li key={tech}>
-                <TechTag label={tech} />
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        {hasLinks ? (
-          <div className={styles.links}>
-            {work.links.live !== undefined ? (
-              <a href={work.links.live} rel="noreferrer" className={styles.link}>
-                {ui.work.live}
-              </a>
-            ) : null}
-            {work.links.repo !== undefined ? (
-              <a href={work.links.repo} rel="noreferrer" className={styles.link}>
-                {ui.work.repo}
-              </a>
-            ) : null}
-          </div>
-        ) : null}
+        <WorkMeta variant="card" period={work.period} role={work.role} scale={work.scale} />
+        <WorkStack stack={work.stack} />
+        <WorkLinks live={work.links.live} repo={work.links.repo} />
       </div>
     </article>
   )

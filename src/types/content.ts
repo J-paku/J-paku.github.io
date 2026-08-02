@@ -23,6 +23,18 @@ export type UiStrings = {
   }
   quality: { title: string; measuredAt: string; violations: string; viewRun: string }
   notFound: { title: string; body: string; backHome: string }
+  // 06段階: コマンドパレット用文字列。resultCountは'{count}'をJS側で件数へ置換して使う
+  commandPalette: {
+    openButtonLabel: string
+    title: string
+    searchLabel: string
+    placeholder: string
+    resultCount: string
+    groupWorks: string
+    groupLocale: string
+    groupTheme: string
+    groupExternal: string
+  }
 }
 
 // ---------- 作品 ----------

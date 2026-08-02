@@ -16,6 +16,12 @@ type QualityData = {
   runUrl: string
 }
 
+// measuredAt が Date として解釈可能かを検査する。ここを通さず Intl.DateTimeFormat に渡すと
+// 不正な日付文字列で RangeError が render 中に投げられ、ErrorBoundary が無いため白画面化する
+function isValidDateString(value: string): boolean {
+  return !Number.isNaN(new Date(value).getTime())
+}
+
 // fetch自体が成功してもJSONの形が期待と違えば描画しないための実行時検査。
 // unknown はこの型ガードの引数としてのみ使う
 function isQualityData(value: unknown): value is QualityData {
@@ -23,6 +29,7 @@ function isQualityData(value: unknown): value is QualityData {
   const data = value as Record<string, unknown>
   return (
     typeof data.measuredAt === 'string' &&
+    isValidDateString(data.measuredAt) &&
     typeof data.performance === 'number' &&
     typeof data.accessibility === 'number' &&
     typeof data.bestPractices === 'number' &&

@@ -77,12 +77,21 @@ export const sortWorks = (works: Work[]): Work[] =>
   })
 
 const collectWorks = (modules: Record<string, Record<string, Work>>): Work[] => {
-  const works = Object.entries(modules).map(([filePath, moduleExports]) => {
-    const work = Object.values(moduleExports)[0]
-    assertSlugMatchesFilename(work.slug, filePath)
-    assertSectionsIntegrity(work)
-    return work
-  })
+  const works = Object.entries(modules)
+    .map((entry): Work | null => {
+      const [filePath, moduleExports] = entry
+      // export忘れのファイルは Object.values が空配列を返し、[0] は undefined になる。
+      // 型を明示することで as に頼らず undefined 経由を追跡できるようにする
+      const work: Work | undefined = Object.values(moduleExports)[0]
+      if (!work) {
+        reportIntegrityIssue(`content-loader: ファイル "${filePath}" に export が見つからない`)
+        return null
+      }
+      assertSlugMatchesFilename(work.slug, filePath)
+      assertSectionsIntegrity(work)
+      return work
+    })
+    .filter((work): work is Work => work !== null)
   return sortWorks(works)
 }
 

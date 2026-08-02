@@ -2,7 +2,10 @@
  * 全体リセット・アクセシビリティ骨格
  *
  * import は次ラウンド（App.tsx / main.tsx 担当）が行う。
+ * fonts.css（自己ホストInterの@font-face）はここから読み込む。main.tsx側の
+ * import列は増やさず、既にimportされている本ファイル経由でぶら下げる。
  */
+@import './fonts.css';
 
 *,
 *::before,
@@ -24,6 +27,8 @@ body {
   font-family: var(--f-body);
   font-size: var(--fs-base);
   line-height: var(--lh-body);
+  /* DESIGN.md: ss01(単ストーリーのaなど)をbody全体に適用する */
+  font-feature-settings: 'ss01';
 }
 
 /*

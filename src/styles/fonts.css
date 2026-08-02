@@ -1,0 +1,22 @@
+/*
+ * 自己ホストする Inter（ラテン専用サブセット・可変フォント）。
+ *
+ * unicode-range をラテン範囲だけに絞っているため、日本語しかないページでは
+ * ブラウザがこのフォントを一切ダウンロードしない。CJK文字は --f-body / --f-display
+ * の次点（システムゴシック）へそのまま進む。つまりラテン/CJKの書体混在は
+ * 「フォールバックの事故」ではなく、この unicode-range による意図した分業。
+ *
+ * 実体: public/fonts/inter-latin-var.woff2（Google Fonts配布 Inter v20 latin subset,
+ * 実測48,256 bytes）。ライセンス文は public/fonts/OFL.txt を参照（SIL Open Font License 1.1）。
+ * unicode-range の値は Google Fonts が実際に配信している latin サブセットの指定と同一。
+ */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/inter-latin-var.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}

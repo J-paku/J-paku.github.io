@@ -14,8 +14,8 @@
 .careerList {
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
-  margin: 0 0 var(--space-xl);
+  gap: var(--space-xl);
+  margin: 0 0 var(--space-2xl);
   padding: 0;
   list-style: none;
 }
@@ -23,8 +23,8 @@
 .careerItem {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2xs);
-  padding-top: var(--space-lg);
+  gap: var(--space-sm);
+  padding-top: var(--space-xl);
   /* 罫線は項目間の装飾区切りのみ。状態表現には使わない */
   border-top: 1px solid var(--rule);
 }
@@ -34,10 +34,11 @@
   border-top: none;
 }
 
+/* 1.5rem以上のため明朝(--f-display)を使い、本文との重みの差を広げる */
 .careerTitle {
   margin: 0;
   font-family: var(--f-display);
-  font-size: var(--fs-lg);
+  font-size: var(--fs-xl);
   line-height: var(--lh-heading);
   color: var(--ink);
 }
@@ -75,7 +76,7 @@
 .highlights {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3xs);
+  gap: var(--space-xs);
   max-width: var(--measure);
   margin: 0;
   padding-left: var(--space-md);
@@ -85,7 +86,7 @@
 .strengthList {
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
+  gap: var(--space-lg);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -94,13 +95,14 @@
 .strengthItem {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3xs);
+  gap: var(--space-xs);
 }
 
+/* 1.5rem以上のため明朝(--f-display)を使い、本文との重みの差を広げる */
 .strengthTitle {
   margin: 0;
   font-family: var(--f-display);
-  font-size: var(--fs-lg);
+  font-size: var(--fs-xl);
   line-height: var(--lh-heading);
   color: var(--ink);
 }
