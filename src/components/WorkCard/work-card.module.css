@@ -95,26 +95,14 @@
 }
 
 /*
- * カード面と画面枠の地色を入れ替える。ライトでは枠(--surface)がカード(--ground)より沈み、
- * ダークではカード(--surface)が地(--ground)より浮く。トークンの明度関係が反転するため
- * テーマごとに指定を分ける
+ * ライトでは画面枠(--surface)がカード面(--ground)より沈む。
+ * ダークは --ground と --surface の明度がほぼ同じ(0.0182 対 0.0175)ため同じ手が使えない。
+ * 枠だけ地色に戻すとカードの上半分が地面と繋がって「穴が空いた」ように見えたので、
+ * ダークではカード全体(枠を含む)を --surface で一枚の面にし、地との境界は --rule の1pxに任せる
  */
-@media (prefers-color-scheme: dark) {
-  .card {
-    background-color: var(--surface);
-  }
-
-  .shot {
-    background-color: var(--ground);
-  }
-}
-
-:root[data-theme='dark'] .card {
-  background-color: var(--surface);
-}
-
+:root[data-theme='dark'] .card,
 :root[data-theme='dark'] .shot {
-  background-color: var(--ground);
+  background-color: var(--surface);
 }
 
 :root[data-theme='light'] .card {

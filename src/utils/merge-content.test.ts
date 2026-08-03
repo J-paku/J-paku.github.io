@@ -34,7 +34,7 @@ const makeContent = (overrides: Partial<Content> = {}): Content => ({
     skipToMain: 'skip',
     nav: { label: 'nav', works: 'works', now: 'now', skills: 'skills', about: 'about' },
     localeMenu: { label: 'locale', ja: 'ja', ko: 'ko' },
-    theme: { label: 'theme', system: 'system', light: 'light', dark: 'dark' },
+    theme: { label: 'theme', light: 'light', dark: 'dark' },
     work: {
       wipBadge: 'wip',
       period: 'period',

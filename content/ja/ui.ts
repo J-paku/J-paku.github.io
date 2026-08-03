@@ -17,7 +17,6 @@ export const ui: UiStrings = {
   },
   theme: {
     label: 'テーマを切り替え',
-    system: 'システム',
     light: 'ライト',
     dark: 'ダーク',
   },

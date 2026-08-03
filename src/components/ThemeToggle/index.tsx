@@ -1,15 +1,11 @@
-// テーマの巡回ボタン。system → light → dark → system の順に1ボタンで切り替える
+// テーマの切替ボタン。light ⇄ dark の2状態のみ(OS追従の system は廃止)
 import { useTheme } from '@/hooks/use-theme'
 import { useContent } from '@/hooks/use-content'
 import type { ThemePreference } from '@/lib/preferences'
 import styles from './theme-toggle.module.css'
 
-const THEME_ORDER: ThemePreference[] = ['system', 'light', 'dark']
-
-function nextTheme(current: ThemePreference): ThemePreference {
-  const index = THEME_ORDER.indexOf(current)
-  return THEME_ORDER[(index + 1) % THEME_ORDER.length]
-}
+const nextTheme = (current: ThemePreference): ThemePreference =>
+  current === 'dark' ? 'light' : 'dark'
 
 type ThemeIconProps = {
   theme: ThemePreference
@@ -29,22 +25,14 @@ function ThemeIcon({ theme }: ThemeIconProps) {
       </svg>
     )
   }
-  if (theme === 'dark') {
-    return (
-      <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" className={styles.icon}>
-        <path
-          d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-        />
-      </svg>
-    )
-  }
   return (
     <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" className={styles.icon}>
-      <rect x="3" y="4" width="18" height="12" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M8 20h8M12 16v4" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
     </svg>
   )
 }

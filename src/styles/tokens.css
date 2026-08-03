@@ -1,19 +1,17 @@
 /*
  * デザイントークン — 色・タイポグラフィ・間隔・モーション
  *
- * コンポーネントはここの変数だけを参照し、@media 内で直接スタイルを書かない。
- * そうすることで prefers-color-scheme と data-theme の両方が同じトークンを上書きできる。
+ * コンポーネントはここの変数だけを参照し、色を直接書かない。
  *
- * 上書きの優先順位（実装した順に強くなる）:
- *   1. :root                                    — ライトを既定値とする
- *   2. @media (prefers-color-scheme: dark) :root — OS 設定がダークならここが効く
- *   3. :root[data-theme='dark']                  — 属性セレクタなので 2 より詳細度が高く、OS 設定より勝つ
- *   4. :root[data-theme='light']                 — 同様に OS がダークでもライト固定を勝たせる
- * 属性セレクタは疑似クラス単体より詳細度が高いため、実際にはこの順序を入れ替えても
- * data-theme が prefers-color-scheme に必ず勝つ。ソース順は仕様書の例に合わせている。
+ * テーマは data-theme 属性の light / dark だけで決まる（08段階でOS追従の system を廃止）。
+ * 上書きの優先順位:
+ *   1. :root                     — ライトを既定値とする。data-theme が付く前の初回ペイント用
+ *   2. :root[data-theme='dark']  — ThemeProvider が常に立てる
+ *   3. :root[data-theme='light'] — 同上
+ * prefers-color-scheme の分岐は持たない。持つと「ライトを選んでいるのに OS がダークだから
+ * 地色だけ入れ替わる」状態が起きる。
  *
- * D1（このラウンド）: DESIGN.md（Stripi 分析）の値へトークンの「値」だけを差し替える。
- * 既存のトークン名は一切変更していない。コンポーネント側（*.module.css）は未着手。
+ * D1: DESIGN.md（Stripe 分析）の値へトークンの「値」だけを差し替えた回。
  */
 
 :root {
@@ -112,32 +110,27 @@
   --motion-ease: ease;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --ground: #1c1e54; /* brand-dark-900。ダッシュボード面の"シェル"背景 */
-    --surface: #0d253d; /* ink。DESIGN.mdでは"ダッシュボードモックアップの塗り"の役割のため、
-                            シェルの上に載るパネル/カードの面として採用。brand-dark-900とほぼ同じ明度
-                            (相対輝度 0.0182 対 0.0175)のため、明暗ではなく色相(紫寄り/青緑寄り)で
-                            面を区別する意図的な設計 */
-    --ink: #f4f7fb;
-    --ink-secondary: #c7cee4;
-    --ink-mid: #a6b0c9;
-    --rule: #3a4278;
-    --accent: #8a80ff; /* primaryそのまま(#533afd)は brand-dark-900 上で2.49:1しか出ずAA未達のため明るく振った */
-    --accent-ink: #0d253d;
-    --marker: #e3a75c;
-  }
-}
-
+/*
+ * テーマは data-theme(light / dark)だけで決まる。OS設定への追従(prefers-color-scheme)は持たない。
+ * 以前あった @media (prefers-color-scheme: dark) ブロックは削除した — 「system」を廃止したので、
+ * 残すとユーザーが light を選んでいてもOSがダークの環境で地色だけ入れ替わる事故になる。
+ */
 :root[data-theme='dark'] {
-  --ground: #1c1e54;
-  --surface: #0d253d;
+  --ground: #1c1e54; /* brand-dark-900。ダッシュボード面の"シェル"背景 */
+  --surface: #0d253d; /* ink。シェルの上に載るパネル/カードの面。brand-dark-900とほぼ同じ明度
+                          (相対輝度 0.0182 対 0.0175)のため、明暗ではなく色相(紫寄り/青緑寄り)で
+                          面を区別する。境界の判別は --rule の1pxが担う */
   --ink: #f4f7fb;
   --ink-secondary: #c7cee4;
   --ink-mid: #a6b0c9;
   --rule: #3a4278;
-  --accent: #8a80ff;
+  --accent: #8a80ff; /* primaryそのまま(#533afd)は brand-dark-900 上で2.49:1しか出ずAA未達のため明るく振った */
   --accent-ink: #0d253d;
+  /* accent-deep / accent-subtle をダーク側で再定義していなかったため、ライトの値(#4434d4 / #cacaf9)が
+     そのまま漏れていた。作品カードのタグが --surface 上で 1.99:1 しか出ず読めなかった(実測)。
+     文字用の deep は 6.90:1、非テキストの subtle(枠線)は 3.12:1 になる値へ振り直した */
+  --accent-deep: #a9a2ff;
+  --accent-subtle: #6b62c9;
   --marker: #e3a75c;
 }
 

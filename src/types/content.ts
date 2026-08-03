@@ -52,7 +52,7 @@ export type UiStrings = {
   // <nav> ランドマークのアクセシブルネーム。01段階では英語固定だった分をロケール化する
   nav: { label: string; works: string; now: string; skills: string; about: string }
   localeMenu: { label: string; ja: string; ko: string }
-  theme: { label: string; system: string; light: string; dark: string }
+  theme: { label: string; light: string; dark: string }
   work: {
     wipBadge: string
     period: string
