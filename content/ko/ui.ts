@@ -30,12 +30,33 @@ export const ui: UiStrings = {
     live: '공개 페이지',
     repo: '리포지토리',
     backToList: '작품 목록으로 돌아가기',
+    shotPlaceholder: '화면 캡처는 준비 중',
   },
   quality: {
     title: '품질 지표',
     measuredAt: '측정 일시',
     violations: '위반 건수',
     viewRun: '실행 결과 보기',
+    // 히어로의 계측표(가로 기준선 게이지). axe·Lighthouse 값은 quality.json에서 실행 시점에 오므로
+    // 여기에는 라벨과 조건 층만 둔다
+    hero: {
+      items: [
+        { label: 'AXE', labelScript: 'latin' },
+        { label: 'PERFORMANCE', labelScript: 'latin' },
+        { label: 'ACCESSIBILITY', labelScript: 'latin' },
+        { label: 'BEST PRACTICES', labelScript: 'latin' },
+      ],
+      source: 'WCAG 위반 / axe-core · Performance · Accessibility · Best Practices',
+      gate: '배포 게이트로 CI에서 매번 계측',
+    },
+    // 푸터의 계측표. 값은 두지 않고 계측 환경과 알려진 약점을 먼저 말한다
+    footer: {
+      label: 'MEASURED',
+      environment:
+        'Lighthouse는 「/」만 1회 계측. axe-core는 「/」「/ko」「/works/seatmap-demo」「/works/ai-harness」 4개 URL을 검사',
+      limitation:
+        '커맨드 팔레트를 펼친 상태나 wip 작품 페이지의 내부 상태는 대상 밖 — 실측이 닿는 범위만 담보한다',
+    },
   },
   notFound: {
     title: '페이지를 찾을 수 없습니다',

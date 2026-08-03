@@ -30,12 +30,33 @@ export const ui: UiStrings = {
     live: '公開ページ',
     repo: 'リポジトリ',
     backToList: '作品一覧へ戻る',
+    shotPlaceholder: '画面キャプチャは準備中',
   },
   quality: {
     title: '品質指標',
     measuredAt: '計測日時',
     violations: '違反件数',
     viewRun: '実行結果を見る',
+    // ヒーローの計測票(横基準線ゲージ)。axe・Lighthouseの値はquality.jsonから実行時に来るため、
+    // ここにはラベルと条件層のみを置く
+    hero: {
+      items: [
+        { label: 'AXE', labelScript: 'latin' },
+        { label: 'PERFORMANCE', labelScript: 'latin' },
+        { label: 'ACCESSIBILITY', labelScript: 'latin' },
+        { label: 'BEST PRACTICES', labelScript: 'latin' },
+      ],
+      source: 'WCAG 違反 / axe-core · Performance · Accessibility · Best Practices',
+      gate: 'デプロイのゲートとして CI で毎回計測',
+    },
+    // フッターの計測票。値を持たず、計測環境と既知の弱点だけを先に言う
+    footer: {
+      label: 'MEASURED',
+      environment:
+        'Lighthouseは「/」を1回のみ計測。axe-coreは「/」「/ko」「/works/seatmap-demo」「/works/ai-harness」の4URLを検査',
+      limitation:
+        'コマンドパレット展開時やwip作品ページの内部状態は対象外 — 実測が届く範囲だけを担保している',
+    },
   },
   notFound: {
     title: 'ページが見つかりません',

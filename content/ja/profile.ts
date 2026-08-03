@@ -2,15 +2,21 @@
 import type { Profile } from '@/types/content'
 
 export const profile: Profile = {
-  name: '朴 裁弘(パク・ジェホン)',
-  headline: '社内業務システムのUIを、モバイルの操作感まで設計して運用まで持つフロントエンドエンジニア',
+  name: 'J-Paku',
+  role: 'フロントエンド',
+  scope: ['Web', 'iOS', '業務アプリ基盤', 'DB'],
+  headline: '業務システムのUIを、モバイルの操作感まで設計し運用まで持つ',
   location: '大阪',
   goal: 'UI/UXをほぼ全て自分で設計してきたが、その判断が本当に良いのかを検証する手段がない。反論が返ってくる環境で、自分の設計判断の精度を上げたい。',
+  links: {
+    github: 'https://github.com/J-paku',
+  },
   careers: [
     {
       // ※社名は非公開とし、業種表記にしている。公開して問題なければこの行を差し替える
       company: '医療・介護用品商社(社内システム開発)',
       period: '2025.01 - 現在',
+      stack: ['Next.js', 'React', 'TypeScript', 'Swift', 'Claude Code'],
       role: 'Web開発チームリーダー(メンバー4名 + テスター1名)',
       summary:
         '社内業務システムのフロントエンド全域を設計・実装。入社9か月でチームリーダー。Web・iOSの両方を1人で横断している。',
@@ -25,6 +31,7 @@ export const profile: Profile = {
       // ※入社・退社月は要確認。在籍2年10か月
       company: 'システム受託開発会社(客先常駐)',
       period: '2022 - 2024(2年10か月)',
+      stack: ['Nuxt.js', 'Vue.js', 'Delphi', 'Oracle', 'PostgreSQL'],
       role: 'フロントエンドエンジニア / コーダー',
       summary:
         'SPA新規構築とレガシー基幹システムの移行を担当。AI補助のない環境で、ブラウザ挙動と非同期制御の基礎をここで作った。',

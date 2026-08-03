@@ -6,6 +6,8 @@ export const aiHarness: Work = {
   status: 'published',
   title: 'AIエージェント開発環境(ハーネス)',
   tagline: '同じ依頼を、いつも同じ結果へ。再現性を環境の設計で担保する',
+  context: '実務での自作ツール — 社内配布・定着まで',
+  contextKind: 'work',
   period: '2026.02 - 現在',
   role: '設計・実装・社内配布(個人)',
   scale: 'フック25個 / eval 36ケース / 利用者4名 / 2か月でAIチーム自動実行105件',
@@ -14,6 +16,19 @@ export const aiHarness: Work = {
     live: 'https://j-paku.github.io/ai-harness/',
     repo: 'https://github.com/J-paku/ai-harness',
   },
+  // カード画面枠のキャプチャ。2026-08-03 に live を実機幅1280×720で撮ったもの(デモを作り直したら撮り直す)
+  thumbnail: '/shots/ai-harness.jpg',
+  // 作品自身の計測票(DIRECTION-FINAL §2-4)。増加分の大半が構築者本人由来である弱点を先に言う
+  measurements: [
+    {
+      items: [
+        { label: 'EVAL', labelScript: 'latin', value: '36' },
+        { label: '一次採択率', labelScript: 'local', value: '90.7%' },
+        { label: 'N', labelScript: 'latin', value: '105' },
+      ],
+      condition: '増加分の約85%は構築者本人に由来しており「誰にでも効いた」とは言えない',
+    },
+  ],
   sections: [
     {
       key: 'overview',

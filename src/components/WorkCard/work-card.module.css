@@ -1,17 +1,45 @@
+/*
+ * カード。寸法・挙動は 08-layout-restructure.md §1 のモックアップ実測値、
+ * 色・角丸はトークン参照(モックアップの 3px は --radius-sm=6px に置き換え。
+ * research/B-stripe-actual.md の実測でカードは6px)。
+ */
 .card {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
   min-width: 0;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background-color: var(--ground);
+  overflow: hidden;
+  transition:
+    transform var(--motion) var(--motion-ease),
+    border-color var(--motion) var(--motion-ease);
 }
 
-.featured {
-  gap: var(--space-md);
+.card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+}
+
+/* 画面キャプチャ枠。資産がまだ無いので、空でも枠が潰れないよう比率で高さを確保する */
+.shot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 16 / 9;
+  border-bottom: 1px solid var(--rule);
+  background-color: var(--surface);
 }
 
 .thumbnail {
   width: 100%;
-  border-radius: var(--space-3xs);
+  height: 100%;
+  object-fit: cover;
+}
+
+.shotPlaceholder {
+  font-size: var(--fs-sm);
+  color: var(--ink-mid);
 }
 
 .body {
@@ -19,34 +47,33 @@
   flex-direction: column;
   gap: var(--space-2xs);
   min-width: 0;
+  padding: 20px 22px 18px;
 }
 
-/* その他(featuredでない)の見出し。小サイズなので明朝(--f-display)は使わず、
-   太字のゴシックで強さを補う(明朝は1.5rem未満だと視認性が落ちるため) */
+/* 実務由来。文脈を先に言う1行なので、本文より小さく・弱く置く */
+.tag {
+  align-self: flex-start;
+  margin: 0;
+  padding: 2px var(--space-2xs);
+  border: 1px solid var(--accent-subtle);
+  border-radius: var(--radius-xs);
+  font-size: var(--fs-sm);
+  color: var(--accent-deep);
+}
+
+/* 個人開発。同じ形のまま彩度を落として区別する */
+.tagPersonal {
+  border-color: var(--rule);
+  color: var(--ink-mid);
+}
+
 .title {
   margin: 0;
   font-family: var(--f-body);
-  font-size: var(--fs-base);
+  font-size: var(--fs-lg);
   font-weight: var(--fw-bold);
   line-height: var(--lh-heading);
   color: var(--ink);
-}
-
-/* Featuredの見出しだけ明朝+大サイズにする。1.5rem以上なので視認性を保てる */
-.featured .title {
-  font-family: var(--f-display);
-  font-size: var(--fs-xl);
-  font-weight: var(--fw-regular);
-}
-
-.titleLink {
-  color: inherit;
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
-}
-
-.titleLink:hover {
-  color: var(--accent);
 }
 
 /* wip状態のみ。塗りつぶし背景ではなく marker 色の文字+枠線で表現する(コントラスト用の対色トークンが無いため) */
@@ -54,7 +81,7 @@
   align-self: flex-start;
   padding: var(--space-3xs) var(--space-2xs);
   border: 1px solid var(--marker);
-  border-radius: var(--space-3xs);
+  border-radius: var(--radius-xs);
   color: var(--marker);
   font-size: var(--fs-sm);
   font-weight: var(--fw-bold);
@@ -62,18 +89,48 @@
 
 .tagline {
   margin: 0;
-  color: var(--ink-mid);
+  color: var(--ink-secondary);
   font-size: var(--fs-sm);
+  line-height: var(--lh-body);
 }
 
-.featured .tagline {
-  font-size: var(--fs-lg);
+/*
+ * カード面と画面枠の地色を入れ替える。ライトでは枠(--surface)がカード(--ground)より沈み、
+ * ダークではカード(--surface)が地(--ground)より浮く。トークンの明度関係が反転するため
+ * テーマごとに指定を分ける
+ */
+@media (prefers-color-scheme: dark) {
+  .card {
+    background-color: var(--surface);
+  }
+
+  .shot {
+    background-color: var(--ground);
+  }
 }
 
-/* その他は一覧として一瞥できるよう、taglineを1行に収める */
-.card:not(.featured) .tagline {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+:root[data-theme='dark'] .card {
+  background-color: var(--surface);
 }
 
+:root[data-theme='dark'] .shot {
+  background-color: var(--ground);
+}
+
+:root[data-theme='light'] .card {
+  background-color: var(--ground);
+}
+
+:root[data-theme='light'] .shot {
+  background-color: var(--surface);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: none;
+  }
+
+  .card:hover {
+    transform: none;
+  }
+}

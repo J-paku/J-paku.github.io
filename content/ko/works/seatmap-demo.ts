@@ -6,6 +6,8 @@ export const seatmapDemo: Work = {
   status: 'published',
   title: '좌석 맵 데모',
   tagline: '오피스의 좌석과 팀 배치를, 손가락 조작 그대로 다룬다',
+  context: '실무의 재구성 — 사내 좌석 관리 툴을 업무 데이터 없이',
+  contextKind: 'work',
   period: '2026.07 - 2026.08',
   role: '설계·구현(개인)',
   scale: '주요 화면 3(맵 / 디렉터리 / 편집)· 데이터는 전부 목 JSON',
@@ -22,6 +24,18 @@ export const seatmapDemo: Work = {
     live: 'https://j-paku.github.io/seatmap-demo/',
     repo: 'https://github.com/J-paku/seatmap-demo',
   },
+  // カード画面枠のキャプチャ。2026-08-03 に live を実機幅1280×720で撮ったもの(デモを作り直したら撮り直す)
+  thumbnail: '/shots/seatmap-demo.jpg',
+  // 작품 자체의 계측표(DIRECTION-FINAL §2-4). 자동 테스트가 없다는 약점을 먼저 말한다
+  measurements: [
+    {
+      items: [
+        { label: '주요 화면', labelScript: 'local', value: '3' },
+        { label: '자동 테스트', labelScript: 'local', value: '0' },
+      ],
+      condition: '실기 iPhone과 실측 대조에 의존한다. 자동 테스트는 미도입 — 약점으로 남아 있다',
+    },
+  ],
   sections: [
     {
       key: 'overview',

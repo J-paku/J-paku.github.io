@@ -1,12 +1,18 @@
+/* 08段階: 共通ヘッダーを廃したため、この1個だけが全ルートで固定表示される。
+   背景を透過のままにすると左列の文字の上に重なった時に読めなくなるので地色を敷く */
 .toggle {
+  position: fixed;
+  top: 16px;
+  right: 20px;
+  z-index: 10;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 34px;
+  height: 34px;
   border: 1px solid var(--rule);
   border-radius: 999px;
-  background-color: transparent;
+  background-color: var(--ground);
   color: var(--ink);
   cursor: pointer;
 }

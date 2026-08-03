@@ -6,6 +6,8 @@ export const gatchanko: Work = {
   status: 'wip',
   title: 'Gatchanko',
   tagline: '이미지 그리드와 어노테이션을 데스크톱 앱에서 다룬다. Tauri로 구축 중',
+  context: '개인 개발 — 데스크톱 앱',
+  contextKind: 'personal',
   stack: ['Tauri', 'Next.js', 'TypeScript', 'Rust'],
   links: {},
   sections: [],

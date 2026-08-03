@@ -56,6 +56,14 @@ body {
   outline-offset: 3px;
 }
 
+/* ::selection — ブラウザ既定の青のままにしない(07-redesign.md §4 ルール#11)。
+   accent とその対色は「accent を地にした時の文字色」として組で定義済みのトークンなので、
+   ライト・ダークどちらでも対比が崩れない */
+::selection {
+  background-color: var(--accent);
+  color: var(--accent-ink);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

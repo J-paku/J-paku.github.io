@@ -1,11 +1,15 @@
 // 「AIが作った感(AI tell)」を機械判定するスクリプト。
-// portfolio-hub-spec/07-redesign.md §4 の14ルールを実装する。
+// portfolio-hub-spec/07-redesign.md §4 の14ルール + DIRECTION-FINAL.md §3 追加分を実装する。
 // check-a11y.mjs と同じ構造(Playwright + 経路巡回 + 非零終了コードゲート)を踏襲する。
 //
 // FAIL = 終了コード非零(仕様書がFAILと明記したものだけ)。
 // WARN = 出力のみで終了コードに影響しない(誤検知リスクが仕様書に明記されたルール:
-//        #1 border-radius種類数の上限超過、#5 線形スタガー等差数列、#7 カード左ストライプ)。
+//        #5 線形スタガー等差数列、#7 カード左ストライプ)。
 // SKIP = 現状のプロジェクトに対象が存在しないため判定を見送る(#12 アイコンライブラリ)。
+//
+// #1 border-radius種類数の上限は DIRECTION.md §4-1 で3種(2/4/6px)に確定済みのため、
+// 1種のみ(唯一の値)だけでなく4種以上もFAILにする(WARNからFAILへ格上げ、DIRECTION-FINAL.md §3-3)。
+// #15(本文行間)・#16(均等カード横並び限定)は DIRECTION-FINAL.md §3-1・§3-2 で新設された判定式。
 //
 // データソースは2種類:
 //   - computed style: Playwright で経路を開き page.evaluate() で取得
@@ -22,14 +26,9 @@ import { chromium } from 'playwright'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = path.resolve(__dirname, '..')
 
-const DEFAULT_PATHS = [
-  '/',
-  '/ko',
-  '/works/seatmap-demo',
-  '/works/ai-harness',
-  '/ko/works/seatmap-demo',
-  '/ko/works/ai-harness',
-]
+// 08段階でケーススタディ詳細ルートを廃したため、巡回先は2経路だけになった。
+// 消したルートを残すとNotFoundを検査して通ってしまい、検査したつもりの空振りになる
+const DEFAULT_PATHS = ['/', '/ko']
 
 const [, , baseUrl, ...cliPaths] = process.argv
 
@@ -397,27 +396,12 @@ function evaluateSparkleRule(contentFiles) {
   report(10, 'スパークル絵文字', 'PASS', `content/JSX ${allFiles.length}件で✨検出0件`, true)
 }
 
-// ===== ルール1(上限比較のみ): DIRECTION.md との対照 =====
+// ===== ルール1: border-radius種類数の上限(DIRECTION.md §4-1 で3種に確定) =====
 
-function reportBorderRadiusUpperBound(speciesCount) {
-  const directionPath = path.join(ROOT_DIR, 'DIRECTION.md')
-  if (!existsSync(directionPath)) {
-    console.log('  参考: DIRECTION.md未作成のためborder-radius上限比較はスキップ(ゲート対象外)')
-    return
-  }
-  const text = readFileSync(directionPath, 'utf-8')
-  const match = text.match(/(?:border-)?radius[^\n]*?(\d+)\s*種/i)
-  if (match === null) {
-    console.log('  参考: DIRECTION.mdにborder-radius種類数の明記なし(ゲート対象外)')
-    return
-  }
-  const declared = Number(match[1])
-  if (speciesCount > declared) {
-    console.log(`  [WARN] 参考: DIRECTION.md明記の${declared}種を超過(実測${speciesCount}種)。ゲート対象外`)
-  } else {
-    console.log(`  参考: DIRECTION.md明記の${declared}種以内(実測${speciesCount}種)`)
-  }
-}
+// DIRECTION-FINAL.md §3-3: 07-redesign.md §4 ルール#1がDIRECTION.mdへ委ねた上限値は
+// --radius-chip(2px) / --radius-control(4px) / --radius-surface(6px) の3種で確定済み。
+// 4種以上ならWARNではなくFAILに格上げする。
+const RADIUS_SPECIES_UPPER_BOUND = 3
 
 // ===== Playwright 経由の computed style 収集 =====
 
@@ -503,12 +487,105 @@ async function auditPath(browser, targetPath) {
       }
     })
 
+    // ルール15(N4) — 本文行間。サイズではなく「実際に2行以上レンダされたか」で判定する
+    // (DIRECTION-FINAL.md §3-1)。boundingRect.height / lineHeight で行数を数えてはいけない —
+    // padding(kbdチップ)とgridアイテムの既定 align-self:stretch(meta__label)を行数と誤認する。
+    // Range.getClientRects() の「異なるtopの個数」なら両方に影響されない。
+    const lineHeightViolations = []
+    for (const el of document.querySelectorAll('body *')) {
+      // 自分で直接テキストを持つ要素だけ(子要素だけで構成されたコンテナは除外)
+      const hasOwnText = [...el.childNodes].some(
+        (n) => n.nodeType === Node.TEXT_NODE && n.textContent.trim().length > 0,
+      )
+      if (!hasOwnText) continue
+
+      const cs = window.getComputedStyle(el)
+      if (cs.display === 'none' || cs.visibility === 'hidden') continue
+
+      const fontSize = parseFloat(cs.fontSize)
+      const lineHeight = parseFloat(cs.lineHeight)
+      if (!Number.isFinite(fontSize) || !Number.isFinite(lineHeight)) continue
+
+      // 除外1: 見出し階層。DIRECTION §0-4 が 1.25 / 1.4 を実測で確定している
+      if (fontSize >= 24) continue
+
+      // 除外2: 1行しか描画されていない要素。行間は行が変わるときにだけ存在する
+      const range = document.createRange()
+      range.selectNodeContents(el)
+      const tops = new Set(
+        [...range.getClientRects()]
+          .filter((r) => r.width > 0 || r.height > 0)
+          .map((r) => Math.round(r.top)),
+      )
+      if (tops.size < 2) continue
+
+      const ratio = lineHeight / fontSize
+      if (ratio < 1.5) {
+        lineHeightViolations.push({
+          tag: el.tagName,
+          cls: el.className,
+          fontSize,
+          lineHeight,
+          ratio: Number(ratio.toFixed(3)),
+          lines: tops.size,
+          text: el.textContent.trim().slice(0, 30),
+        })
+      }
+    }
+
+    // ルール16(N6) — 均等カード検査に「横に並んでいる」条件を加える(DIRECTION-FINAL.md §3-2)。
+    // 上下に積まれた全幅セクションは幅が当然同じになるため、条件1(同じ段)で除外する。
+    const uniformSiblingViolations = []
+    for (const parent of document.querySelectorAll('body *')) {
+      const kids = [...parent.children].filter((el) => {
+        const cs = window.getComputedStyle(el)
+        return cs.display !== 'none' && cs.visibility !== 'hidden'
+      })
+      if (kids.length < 3) continue
+
+      const boxes = kids.map((el) => ({ el, r: el.getBoundingClientRect(), cs: window.getComputedStyle(el) }))
+
+      // 条件1: 全員の上辺が4px以内に揃っている(= 同じ段に並んでいる)
+      const tops = boxes.map((b) => b.r.top)
+      if (Math.max(...tops) - Math.min(...tops) > 4) continue
+
+      // 条件2: x範囲が互いに重ならない(= 縦積みではなく横並び)
+      const sorted = [...boxes].sort((a, b) => a.r.left - b.r.left)
+      const overlaps = sorted.some((b, i) => i > 0 && b.r.left < sorted[i - 1].r.right - 1)
+      if (overlaps) continue
+
+      // 条件3: 幅が互いに±2px以内
+      const widths = boxes.map((b) => b.r.width)
+      if (Math.max(...widths) - Math.min(...widths) > 2) continue
+
+      // 条件4: 全員が箱として描かれている(borderかbackgroundを持つ)
+      const boxed = boxes.every((b) => {
+        const hasBorder = ['Top', 'Right', 'Bottom', 'Left'].some(
+          (s) =>
+            parseFloat(b.cs[`border${s}Width`]) > 0 &&
+            b.cs[`border${s}Style`] !== 'none' &&
+            !/rgba\(.*,\s*0\)$/.test(b.cs[`border${s}Color`]),
+        )
+        const bg = b.cs.backgroundColor
+        const hasBg = bg !== 'transparent' && !/rgba\(.*,\s*0\)$/.test(bg)
+        return hasBorder || hasBg
+      })
+      if (!boxed) continue
+
+      uniformSiblingViolations.push({
+        parent: parent.tagName + (parent.className ? '.' + parent.className : ''),
+        count: kids.length,
+      })
+    }
+
     return {
       borderRadii: [...borderRadii],
       fontWeights: [...fontWeights],
       stickyBackdropHeader,
       cardStripeCandidates,
       sectionPaddings,
+      lineHeightViolations,
+      uniformSiblingViolations,
       innerText: document.body.innerText,
     }
   })
@@ -563,10 +640,17 @@ function evaluateBorderRadiusRule(pageResults) {
   }
   if (allRadii.size === 1) {
     report(1, 'border-radius種類数', 'FAIL', `唯一の値のみ検出(${[...allRadii][0]})`, true)
+  } else if (allRadii.size > RADIUS_SPECIES_UPPER_BOUND) {
+    report(
+      1,
+      'border-radius種類数',
+      'FAIL',
+      `上限${RADIUS_SPECIES_UPPER_BOUND}種を超過(実測${allRadii.size}種: ${[...allRadii].join(', ')})`,
+      true,
+    )
   } else {
     report(1, 'border-radius種類数', 'PASS', `${allRadii.size}種検出(${[...allRadii].join(', ')})`, true)
   }
-  reportBorderRadiusUpperBound(allRadii.size)
 }
 
 function evaluateFontWeightRule(pageResults) {
@@ -605,6 +689,52 @@ function evaluateCardStripeRule(pageResults) {
   }
 }
 
+// ===== ルール15(N4): 本文行間 — 実際に2行以上レンダされた要素だけを対象にする =====
+// DIRECTION-FINAL.md §3-1。サイズによる除外(18px以下限定・24px以上除外)はどちらも不完全で、
+// 15px `--fs-ui` + `--lh-ui:1.3` が2行になる違反(密UIの行間を折り返し要素に流用)を見逃す。
+// 「実際に折り返されたか」で判定すればサイズによらずこの違反も拾える。
+function evaluateLineHeightRule(pageResults) {
+  const allViolations = pageResults.flatMap((r) =>
+    r.lineHeightViolations.map((v) => ({ ...v, targetPath: r.targetPath })),
+  )
+  if (allViolations.length > 0) {
+    const example = allViolations[0]
+    const cls = example.cls || '(no class)'
+    report(
+      15,
+      '本文行間(折り返し要素限定)',
+      'FAIL',
+      `${allViolations.length}件検出(例: ${example.targetPath} ${example.tag}.${cls} ` +
+        `${example.fontSize}px/lh${example.lineHeight}=${example.ratio} ${example.lines}行 「${example.text}」)`,
+      true,
+    )
+  } else {
+    report(15, '本文行間(折り返し要素限定)', 'PASS', '2行以上レンダされた要素で行間比1.5未満は0件', true)
+  }
+}
+
+// ===== ルール16(N6): 均等カード — 横並びの兄弟だけを対象にする =====
+// DIRECTION-FINAL.md §3-2。旧判定式は「横に並んでいること」が条件に無く、上下に積まれた
+// 全幅セクション(幅が当然同一)まで誤検出していた。同じ段(top差4px以内)かつx範囲が
+// 重ならない(横並び)場合だけを対象に加える。
+function evaluateUniformSiblingRule(pageResults) {
+  const allViolations = pageResults.flatMap((r) =>
+    r.uniformSiblingViolations.map((v) => ({ ...v, targetPath: r.targetPath })),
+  )
+  if (allViolations.length > 0) {
+    const example = allViolations[0]
+    report(
+      16,
+      '均等カード(横並び限定)',
+      'FAIL',
+      `${allViolations.length}件検出(例: ${example.targetPath} ${example.parent} 子要素${example.count}個)`,
+      true,
+    )
+  } else {
+    report(16, '均等カード(横並び限定)', 'PASS', '横並び・等幅・箱型を同時に満たす兄弟グループは0件', true)
+  }
+}
+
 async function main() {
   const cssText = loadDistCss()
 
@@ -637,6 +767,8 @@ async function main() {
   evaluateCardStripeRule(pageResults)
   evaluateFontWeightRule(pageResults)
   evaluatePowerWordRule(contentFiles, pageResults)
+  evaluateLineHeightRule(pageResults)
+  evaluateUniformSiblingRule(pageResults)
 
   const failures = results.filter((r) => r.gating && r.status === 'FAIL')
   const warnings = results.filter((r) => r.status === 'WARN')

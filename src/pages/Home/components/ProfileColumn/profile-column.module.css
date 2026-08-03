@@ -1,0 +1,136 @@
+/*
+ * 左列。モックアップの幾何(08-layout-restructure.md §1)をそのまま採るが、
+ * 色・書体・角丸はトークン参照に置き換えている。
+ *
+ * sticky はこの要素自身が持つ。親(home.module.css の .layout)は grid を定義するだけで、
+ * 子孫結合子で中身に触らない — 内側の部品を巻き込む事故を避けるため。
+ */
+.column {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: 64px 0 36px;
+  min-width: 0;
+}
+
+.name {
+  margin: 0;
+  font-family: var(--f-display);
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-light);
+  line-height: var(--lh-heading);
+  letter-spacing: var(--tracking-display);
+  color: var(--ink);
+}
+
+.role {
+  margin: var(--space-2xs) 0 0;
+  font-size: var(--fs-base);
+  color: var(--ink-secondary);
+}
+
+.scope {
+  margin: var(--space-3xs) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--ink-mid);
+}
+
+/* 折り返して2行以上になる本文。--lh-body(1.4)のままだと check-ai-tells.mjs ルール#15
+   (DIRECTION-FINAL §3-1: 実際に2行以上描かれた本文は行間1.5以上)にFAILする。
+   リサーチCの収束値(本文1.7〜1.8)の下限を採る */
+.claim {
+  margin: var(--space-md) 0 0;
+  font-size: var(--fs-base);
+  line-height: 1.7;
+  color: var(--ink-secondary);
+}
+
+.cv {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin: var(--space-lg) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cvItem {
+  min-width: 0;
+}
+
+.when {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--tracking-tabular);
+  color: var(--ink-mid);
+}
+
+.org {
+  margin: var(--space-3xs) 0 0;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-bold);
+  color: var(--ink);
+}
+
+.post {
+  margin: var(--space-3xs) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--ink-secondary);
+}
+
+.tech {
+  margin: var(--space-3xs) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--ink-mid);
+}
+
+/* モックアップの .out。margin-top: auto で列の底に固定する */
+.out {
+  margin-top: auto;
+  padding-top: var(--space-lg);
+}
+
+.location {
+  margin: 0 0 var(--space-2xs);
+  font-size: var(--fs-sm);
+  color: var(--ink-mid);
+}
+
+.outLinks {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.outLink {
+  color: var(--ink-secondary);
+  font-size: var(--fs-sm);
+  text-decoration: none;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 2px;
+}
+
+.outLink:hover {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/*
+ * 1列に畳む幅では sticky を解除する。height: 100vh のまま static にすると
+ * 右列との間に画面1つ分の空白が空くため、高さも auto に戻す
+ */
+@media (max-width: 900px) {
+  .column {
+    position: static;
+    height: auto;
+    padding: 40px 0 0;
+  }
+
+  .out {
+    margin-top: var(--space-lg);
+  }
+}

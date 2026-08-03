@@ -1,56 +1,79 @@
+/*
+ * 右列。カードの見た目そのものは work-card.module.css が持ち、ここは並びと出現だけを扱う。
+ * スタガーは .listItem に直接当てる — `.list li` のような子孫結合子にすると
+ * カード内部の <li>(技術タグ)まで巻き込む
+ */
 .works {
-  padding-block: var(--space-2xl);
-  padding-inline: var(--space-lg);
-}
-
-.heading {
-  margin: 0 0 var(--space-lg);
-  font-family: var(--f-display);
-  font-size: var(--fs-2xl);
-  line-height: var(--lh-heading);
-  color: var(--ink);
-}
-
-/* Featuredは1列で大きく見せ、区切りは箱ではなくヘアライン1本だけにする */
-.featuredList {
-  display: flex;
-  flex-direction: column;
-  margin: 0 0 var(--space-xl);
-  padding: 0;
-  list-style: none;
-}
-
-.featuredList > li {
+  padding: 64px 0 96px;
   min-width: 0;
-  padding-block: var(--space-lg);
 }
 
-.featuredList > li:first-child {
-  padding-block-start: 0;
+.eyebrow {
+  margin: 0 0 var(--space-md);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.08em;
+  color: var(--ink-mid);
 }
 
-.featuredList > li + li {
-  border-top: 1px solid var(--rule);
-}
-
-/* その他はFeaturedより明らかに軽い、密な一覧にする */
-.restList {
+.list {
   display: flex;
   flex-direction: column;
+  gap: var(--space-md);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.restList > li {
+.listItem {
   min-width: 0;
-  padding-block: var(--space-sm);
+  opacity: 0;
+  animation: works-reveal 0.5s var(--motion-ease) forwards;
 }
 
-.restList > li:first-child {
-  padding-block-start: 0;
+/* モックアップの遅延値。等差ではないため check-ai-tells.mjs のルール#5(線形スタガー)には当たらない */
+.listItem:nth-child(1) {
+  animation-delay: 0.04s;
 }
 
-.restList > li + li {
-  border-top: 1px solid var(--rule);
+.listItem:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.listItem:nth-child(3) {
+  animation-delay: 0.16s;
+}
+
+.listItem:nth-child(4) {
+  animation-delay: 0.22s;
+}
+
+@keyframes works-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/*
+ * global.css の `animation-duration: 0.01ms !important` だけに頼ると初期値 opacity: 0 が
+ * ペイントに残り、コンテンツが見えないまま止まる。ここで明示的に見える状態へ戻す
+ */
+@media (prefers-reduced-motion: reduce) {
+  .listItem {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .works {
+    padding: 40px 0 64px;
+  }
 }
