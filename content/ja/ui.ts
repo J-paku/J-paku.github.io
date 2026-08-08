@@ -52,7 +52,7 @@ export const ui: UiStrings = {
     footer: {
       label: 'MEASURED',
       environment:
-        'Lighthouseは「/」を1回のみ計測。axe-coreは「/」「/ko」「/works/seatmap-demo」「/works/ai-harness」の4URLを検査',
+        'Lighthouseは「/」を1回のみ計測。axe-coreは「/」「/ko」の2URLを検査',
       limitation:
         'コマンドパレット展開時やwip作品ページの内部状態は対象外 — 実測が届く範囲だけを担保している',
     },
