@@ -1,13 +1,28 @@
 /*
- * 作品カード。10段階で左 = 画面キャプチャ(330px) / 右 = 情報の固定2列へ変えた。
+ * 作品カード。デスクトップは 左 = 画面キャプチャ(330px) / 右 = 情報の2列。
  * ジグザグ(nth-child での左右交互)は仕様表が入ると読み順が壊れるため廃止。
+ *
+ * DOM順は「見出し(intro) → キャプチャ(shot) → 事実(panel)」で、これはモバイルの読み順そのもの。
+ * 以前は shot が先頭で、1列に畳んだときキャプチャが先に来ていた — 何の作品かを判別する前に
+ * 画面の3割(390px幅で233px)を使い、wip カードでは中身の無いプレースホルダが先頭に立っていた。
+ * デスクトップの左右配置は grid-template-areas が作る。order で視覚順だけ入れ替えると
+ * タブ順・読み上げ順がDOMのまま残り、覆いのリンクを持つこのカードでは実害が出る。
+ *
  * 色は必ずトークン経由。赤(--accent)は NO. 番号のみ — 本文・タグには使わない
  */
 .card {
   position: relative;
   display: grid;
   grid-template-columns: 330px minmax(0, 1fr);
-  gap: 40px;
+  /* DOM順は 見出し → キャプチャ → 事実(モバイルの読み順)。デスクトップの左右2列はここが作る。
+     order を使わないのは、視覚順だけ入れ替えるとタブ順・読み上げ順がDOMのまま残るため */
+  grid-template-areas:
+    'shot intro'
+    'shot panel';
+  column-gap: 40px;
+  /* 行間は .tagline の margin が持つ。row-gap を足すと見出しと事実の間だけ倍になる */
+  row-gap: 0;
+  align-content: start;
   min-width: 0;
   /* リビール前の初期状態。表示は .cardRevealed(use-reveal が付ける)が受け持つ */
   opacity: 0;
@@ -22,9 +37,9 @@
   transform: translateY(0);
 }
 
-.meta {
-  display: flex;
-  flex-direction: column;
+/* 見出しの塊(NO.行・タイトル・一行説明)。カードの先頭に来る */
+.intro {
+  grid-area: intro;
   min-width: 0;
 }
 
@@ -94,12 +109,12 @@
   color: var(--ink-mid);
 }
 
-/* 下部パネル。仕様表・タグ・リンクを枠で束ね、カードの終端を明示する */
+/* 事実のパネル。仕様表・タグ・リンクを枠で束ね、カードの終端を明示する */
 .panel {
+  grid-area: panel;
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
-  margin-top: auto;
   padding: var(--space-sm) var(--space-md);
   border: 1px solid var(--rule);
   background-color: var(--surface-cream);
@@ -107,6 +122,7 @@
 
 /* 画面キャプチャ枠。資産がまだ無いカードでも枠が潰れないよう比率で高さを確保する */
 .shot {
+  grid-area: shot;
   position: relative;
   display: flex;
   align-items: center;
@@ -279,7 +295,18 @@
 @media (max-width: 1024px) {
   .card {
     grid-template-columns: minmax(0, 1fr);
-    gap: 24px;
+    /* 1列。DOM順のまま 見出し → キャプチャ → 事実 で縦に積む */
+    grid-template-areas:
+      'intro'
+      'shot'
+      'panel';
+    column-gap: 0;
+    row-gap: 24px;
+  }
+
+  /* 行間は row-gap が持つので、ここの下マージンは二重になる */
+  .tagline {
+    margin-bottom: 0;
   }
 }
 

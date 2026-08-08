@@ -58,6 +58,25 @@ function WorkCard({ work, index }: WorkCardProps) {
 
   return (
     <article ref={ref} className={cardClassName}>
+      {/* 読み順は「見出し → キャプチャ → 事実」。モバイルではこのDOM順がそのまま縦に並ぶ。
+          キャプチャを先頭に置くと、何の作品かを判別する前に画面の3割を使う(390px幅で実測233px)。
+          並べ替えを CSS の order で行うとタブ順・読み上げ順がDOMのまま残って視覚順とずれるため、
+          DOM側をこの順にし、デスクトップの左右2列は grid-template-areas が作る */}
+      <div className={styles.intro}>
+        {/* NO. 行。番号(赤)と文脈をドットリーダーで結び、行として1本に見せる */}
+        <div className={styles.head}>
+          <span className={styles.serial}>NO.{serial}</span>
+          <span className={styles.leader} aria-hidden="true" />
+          <span className={styles.context}>{work.context}</span>
+        </div>
+
+        <h3 className={styles.title}>
+          {work.title}
+          {work.status === 'wip' ? <span className={styles.wipBadge}>{ui.work.wipBadge}</span> : null}
+        </h3>
+        <p className={styles.tagline}>{work.tagline}</p>
+      </div>
+
       {/* グリフは背景装飾。要素として置くと支援技術から隠しても色コントラスト検査に掛かるため、
           data 属性で渡して CSS の疑似要素として描く */}
       <div ref={shotRef} className={shotClassName} data-glyph={work.glyph}>
@@ -102,28 +121,11 @@ function WorkCard({ work, index }: WorkCardProps) {
         ) : null}
       </div>
 
-      <div className={styles.meta}>
-        {/* NO. 行。番号(赤)と文脈をドットリーダーで結び、行として1本に見せる */}
-        <div className={styles.head}>
-          <span className={styles.serial}>NO.{serial}</span>
-          <span className={styles.leader} aria-hidden="true" />
-          <span className={styles.context}>{work.context}</span>
-        </div>
-
-        <h3 className={styles.title}>
-          {work.title}
-          {work.status === 'wip' ? (
-            <span className={styles.wipBadge}>{ui.work.wipBadge}</span>
-          ) : null}
-        </h3>
-        <p className={styles.tagline}>{work.tagline}</p>
-
-        {/* 下部パネル。仕様表 → タグ → リンクの順に積み、カードの終端を枠で明示する */}
-        <div className={styles.panel}>
-          <WorkSpec work={work} />
-          <WorkStack stack={work.stack} />
-          <WorkLinks live={work.links.live} repo={work.links.repo} />
-        </div>
+      {/* 事実のパネル。仕様表 → タグ → リンクの順に積み、カードの終端を枠で明示する */}
+      <div className={styles.panel}>
+        <WorkSpec work={work} />
+        <WorkStack stack={work.stack} />
+        <WorkLinks live={work.links.live} repo={work.links.repo} />
       </div>
     </article>
   )
