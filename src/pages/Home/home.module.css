@@ -4,18 +4,12 @@
  * (過去にこのファイルの `.featuredList li` が カード内部の技術タグまで巻き込んだ事故がある)
  *
  * 数値はモノクロ版モックアップの main そのまま(400px 1fr / min-height 100vh)。
- * 全幅で組む — 背景の縦罫線(GridLines)は画面固定で全幅に引かれるため、
- * 中央寄せの max-width や横 padding を挟むと内容と罫線の位置が噛み合わなくなる。
- * よって列の左右余白は各列(ProfileColumn / WorksSection)が自分で持つ。
- *
- * position/z-index は罫線(z-index: 0)より前に出すため。ここが重なり文脈を作る。
+ * 全幅で組み、列の左右余白は各列(ProfileColumn / WorksSection)が自分で持つ。
  */
 .layout {
   display: grid;
   grid-template-columns: 400px minmax(0, 1fr);
   min-height: 100vh;
-  position: relative;
-  z-index: 1;
 }
 
 /* モックアップと同じ 1024px で1列に畳む */

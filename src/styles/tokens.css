@@ -34,7 +34,6 @@
   --ink-mid: #666666; /* 補助テキスト。原案 light の --accent(#666)。
                           --ground 上で 5.74:1、--surface 上で 5.27:1 と、いずれもAA(4.5)を満たす */
   --rule: rgba(0, 0, 0, 0.1); /* 罫線。原案 light の --border */
-  --rule-faint: rgba(0, 0, 0, 0.05); /* 新規。背面の縦グリッド線用。原案 light の --line-color */
   --rule-input: #8c8c8c; /* 入力枠。非テキストのため 3:1 が下限で、--ground 上で 3.36:1 */
   --accent: #000000; /* モノクロでは強調＝インクそのもの。--ink と同値 */
   --accent-deep: #333333; /* accent より一段退いた文字色（タグ等）。--ground 上で 12.63:1 */
@@ -152,7 +151,6 @@
   --ink-mid: #888888; /* 原案 dark の --accent(#888)。--ground 上で 5.92:1、--surface 上で 4.91:1 と
                           いずれもAA(4.5)を満たす。これ以上暗くすると --surface 上で割る */
   --rule: rgba(255, 255, 255, 0.1); /* 原案 dark の --border */
-  --rule-faint: rgba(255, 255, 255, 0.05); /* 原案 dark の --line-color */
   --rule-input: #808080; /* 非テキスト。--ground 上で 5.32:1 */
   --accent: #ffffff; /* --ink と同値 */
   --accent-deep: #cccccc; /* タグ等の文字色。カードが --surface になるダークでは 10.84:1 */
@@ -174,7 +172,6 @@
   --ink-secondary: #333333;
   --ink-mid: #666666;
   --rule: rgba(0, 0, 0, 0.1);
-  --rule-faint: rgba(0, 0, 0, 0.05);
   --rule-input: #8c8c8c;
   --accent: #000000;
   --accent-deep: #333333;
