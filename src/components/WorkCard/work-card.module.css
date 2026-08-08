@@ -134,7 +134,12 @@
     filter 0.8s var(--ease-reveal);
 }
 
-/* ホバーで寄って色が戻る。既定は単色に沈めておき、触れたときだけ実物の色を見せる */
+/* 画面に丸ごと収まっている間は実物の色を見せる。縁に掛かっている間は単色に沈む */
+.shotInView .thumbnail {
+  filter: grayscale(0%) contrast(100%);
+}
+
+/* ホバーは位置に関係なく色を戻す。寄りもここだけが持つ */
 .card:hover .thumbnail {
   transform: scale(1.05);
   filter: grayscale(0%) contrast(100%);

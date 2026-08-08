@@ -4,6 +4,7 @@
 import type { Work } from '@/types/content'
 import { useContent } from '@/hooks/use-content'
 import { useReveal } from '@/hooks/use-reveal'
+import { useFullyVisible } from '@/hooks/use-fully-visible'
 import WorkStack from '@/components/WorkStack'
 import WorkLinks from '@/components/WorkLinks'
 import styles from './work-card.module.css'
@@ -17,8 +18,12 @@ type WorkCardProps = {
 function WorkCard({ work, index }: WorkCardProps) {
   const { ui } = useContent()
   const { ref, isRevealed } = useReveal()
+  // 画面に丸ごと収まっている間だけ写真の色を戻す。縁に掛かっている間は灰色のまま
+  const { ref: shotRef, isFullyVisible } = useFullyVisible<HTMLDivElement>()
 
   const cardClassName = isRevealed ? `${styles.card} ${styles.cardRevealed}` : styles.card
+
+  const shotClassName = isFullyVisible ? `${styles.shot} ${styles.shotInView}` : styles.shot
 
   const tagClassName =
     work.contextKind === 'personal' ? `${styles.tag} ${styles.tagPersonal}` : styles.tag
@@ -47,7 +52,7 @@ function WorkCard({ work, index }: WorkCardProps) {
       </div>
       {/* グリフは背景装飾。要素として置くと支援技術から隠しても色コントラスト検査に掛かるため、
           data 属性で渡して CSS の疑似要素として描く */}
-      <div className={styles.shot} data-glyph={work.glyph}>
+      <div ref={shotRef} className={shotClassName} data-glyph={work.glyph}>
         {work.thumbnail !== undefined ? (
           <img src={work.thumbnail} alt="" className={styles.thumbnail} />
         ) : (
