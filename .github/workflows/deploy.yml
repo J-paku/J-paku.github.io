@@ -36,13 +36,11 @@ jobs:
       # @axe-core/cli は selenium-webdriver + chromedriver 経由でクロムを起動するため
       # session not created で落ちる(05-pipeline.md)。Playwright 注入方式に置き換えている。
       # emulateMedia(reduced motion)でスタガーリビールを止めて計測するため load-delay は不要
+      # 巡回先は「/」「/ko」だけ。08段階で作品詳細ルートを廃したので、以前の4経路指定は
+      # NotFound を2回検査していただけで、詳細ページを見たことにはなっていなかった
       - name: axe accessibility check
         run: |
-          node scripts/check-a11y.mjs http://localhost:4173 \
-            / \
-            /ko \
-            /works/seatmap-demo \
-            /works/ai-harness
+          node scripts/check-a11y.mjs http://localhost:4173 / /ko
       # setup-chrome は廃止した(axe が chromedriver 経由で CI から起動できなかったため)。
       # Lighthouse も axe と同じ Playwright 管理の Chromium を使う。二重に用意しない
       - name: Lighthouse CI
