@@ -18,15 +18,9 @@ if (!baseUrl) {
   process.exit(1)
 }
 
-// 公開作品2件(seatmap-demo・ai-harness) × 2ロケール + ルート2件 = 6経路(07-redesign.md §3-2の基準線と同一)
-const DEFAULT_PATHS = [
-  '/',
-  '/ko',
-  '/works/seatmap-demo',
-  '/works/ai-harness',
-  '/ko/works/seatmap-demo',
-  '/ko/works/ai-harness',
-]
+// 08段階で作品詳細ルートを廃したため、巡回先はルート2件だけ。
+// 消えたルートを残すと #root が生成されず waitForFunction がタイムアウトして検査が最後まで走らない
+const DEFAULT_PATHS = ['/', '/ko']
 const targetPaths = argPaths.length > 0 ? argPaths : DEFAULT_PATHS
 
 const THEMES = ['light', 'dark']

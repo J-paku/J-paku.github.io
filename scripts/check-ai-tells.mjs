@@ -535,6 +535,8 @@ async function auditPath(browser, targetPath) {
 
     // ルール16(N6) — 均等カード検査に「横に並んでいる」条件を加える(DIRECTION-FINAL.md §3-2)。
     // 上下に積まれた全幅セクションは幅が当然同じになるため、条件1(同じ段)で除外する。
+    // 背景に敷く装飾の縦罫線(1px)は等幅・横並び・背景ありを全て満たすがカードではないため、条件4で除外する
+    const CARD_MIN_WIDTH = 4
     const uniformSiblingViolations = []
     for (const parent of document.querySelectorAll('body *')) {
       const kids = [...parent.children].filter((el) => {
@@ -558,7 +560,10 @@ async function auditPath(browser, targetPath) {
       const widths = boxes.map((b) => b.r.width)
       if (Math.max(...widths) - Math.min(...widths) > 2) continue
 
-      // 条件4: 全員が箱として描かれている(borderかbackgroundを持つ)
+      // 条件4: 全員がカードと呼べる幅を持つ(背景に敷く1pxの装飾罫線を外す)
+      if (widths.some((w) => w < CARD_MIN_WIDTH)) continue
+
+      // 条件5: 全員が箱として描かれている(borderかbackgroundを持つ)
       const boxed = boxes.every((b) => {
         const hasBorder = ['Top', 'Right', 'Bottom', 'Left'].some(
           (s) =>
