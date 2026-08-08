@@ -29,6 +29,33 @@ body {
   line-height: var(--lh-body);
   /* DESIGN.md: ss01(単ストーリーのaなど)をbody全体に適用する */
   font-feature-settings: 'ss01';
+  /* 製図的な照準線。原案デザインの署名にあたる要素で、cursor は継承するので
+     ここ一箇所で全体に効く（原案は * に当てていたが、それだと下の例外指定と
+     詳細度が並んで打ち消し合うため body に置く） */
+  cursor: crosshair;
+  /* テーマ反転はトークンの値が一斉に入れ替わるだけなので、ここで地色と文字色を繋ぐ。
+     prefers-reduced-motion 時は下のブロックが duration を潰す */
+  transition:
+    background-color var(--motion-slow) var(--ease-reveal),
+    color var(--motion-slow) var(--ease-reveal);
+}
+
+/*
+ * crosshair の例外。操作できる要素まで照準線にすると「押せる」ことが伝わらなくなる。
+ * body からの継承は宣言に負けるので、対象を名指しして戻す。
+ */
+a,
+button,
+[role='button'],
+summary {
+  cursor: pointer;
+}
+
+/* 文字入力・選択は既定のカーソル(入力欄ならキャレット)に任せる */
+input,
+select,
+textarea {
+  cursor: auto;
 }
 
 /*

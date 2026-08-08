@@ -1,33 +1,126 @@
 /*
- * カード。寸法・挙動は 08-layout-restructure.md §1 のモックアップ実測値、
- * 色・角丸はトークン参照(モックアップの 3px は --radius-sm=6px に置き換え。
- * research/B-stripe-actual.md の実測でカードは6px)。
+ * 作品カード。原案 .project-card の「メタ / 画像」2列グリッドを移植する。
+ * 40px・2rem・0.9rem などの数値は原案の値。色は必ずトークン経由で参照する。
  */
 .card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  min-width: 0;
+  /* リビール前の初期状態。表示は .cardRevealed(use-reveal が付ける)が受け持つ */
+  opacity: 0;
+  transform: translateY(40px);
+  transition:
+    opacity 1s var(--ease-reveal),
+    transform 1s var(--ease-reveal);
+}
+
+.cardRevealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/*
+ * 偶数枚目は左右を入れ替える。カードが一覧グリッドの直接の子である前提(WorksSection と合意済み)。
+ * direction は使わない — 列だけでなく中の文字の並びまで反転してしまう
+ */
+.card:nth-child(even) .meta {
+  order: 2;
+}
+
+.card:nth-child(even) .shot {
+  order: 1;
+}
+
+.meta {
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
+  gap: 2rem;
   min-width: 0;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius-sm);
-  background-color: var(--ground);
-  overflow: hidden;
-  transition:
-    transform var(--motion) var(--motion-ease),
-    border-color var(--motion) var(--motion-ease);
 }
 
-.card:hover {
-  transform: translateY(-2px);
-  border-color: var(--accent);
+.metaTop {
+  min-width: 0;
 }
 
-/* 画面キャプチャ枠。資産がまだ無いので、空でも枠が潰れないよう比率で高さを確保する */
+.metaBottom {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+/* 通し番号・文脈タグ・wip バッジを1行に並べる。原案の .project-id と同じくタイトルの上に置く */
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 1rem;
+}
+
+.serial {
+  font-family: var(--f-mono);
+  font-size: 0.7rem;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.05em;
+  color: var(--ink-mid);
+}
+
+/* 実務由来。文脈を先に言うラベルなので、枠線と文字を本文と同じ濃さで置く */
+.tag {
+  padding: 4px 10px;
+  border: 1px solid var(--ink);
+  font-size: 0.7rem;
+  font-weight: var(--fw-medium);
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+/* 個人開発。同じ形のまま罫線・文字を一段弱めて区別する(色相ではなく濃度で分ける) */
+.tagPersonal {
+  border-color: var(--rule);
+  color: var(--ink-mid);
+}
+
+/* wip状態のみ。塗りではなく marker 色の文字+枠線で表す */
+.wipBadge {
+  padding: 4px 10px;
+  border: 1px solid var(--marker);
+  font-size: 0.65rem;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.05em;
+  line-height: 1.6;
+  text-transform: uppercase;
+  color: var(--marker);
+}
+
+.title {
+  margin: 0 0 1.5rem;
+  font-family: var(--f-display);
+  font-size: 2rem;
+  font-weight: var(--fw-display);
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.tagline {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--ink-mid);
+}
+
+/* 画面キャプチャ枠。資産がまだ無いカードでも枠が潰れないよう比率で高さを確保する */
 .shot {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  aspect-ratio: 16 / 9;
-  border-bottom: 1px solid var(--rule);
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
   background-color: var(--surface);
 }
 
@@ -35,90 +128,71 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  filter: grayscale(100%) contrast(110%);
+  transition:
+    transform 0.8s var(--ease-reveal),
+    filter 0.8s var(--ease-reveal);
+}
+
+/* ホバーで寄って色が戻る。既定は単色に沈めておき、触れたときだけ実物の色を見せる */
+.card:hover .thumbnail {
+  transform: scale(1.05);
+  filter: grayscale(0%) contrast(100%);
+}
+
+/* 背景の字。枠の角から食み出させ、overflow: hidden で断ち落とす */
+/* 背景に敷く装飾グリフ。data-glyph が無いカードでは content が空になり何も描かれない */
+.shot::before {
+  content: attr(data-glyph);
+  position: absolute;
+  top: -20px;
+  right: -40px;
+  font-family: var(--f-body);
+  font-size: 10rem;
+  line-height: 1;
+  color: var(--ink);
+  opacity: 0.03;
+  pointer-events: none;
 }
 
 .shotPlaceholder {
-  font-size: var(--fs-sm);
+  padding: 0 1rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  line-height: 1.6;
+  text-align: center;
   color: var(--ink-mid);
 }
 
-.body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2xs);
-  min-width: 0;
-  padding: 20px 22px 18px;
-}
+@media (max-width: 1024px) {
+  .card {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
 
-/* 実務由来。文脈を先に言う1行なので、本文より小さく・弱く置く */
-.tag {
-  align-self: flex-start;
-  margin: 0;
-  padding: 2px var(--space-2xs);
-  border: 1px solid var(--accent-subtle);
-  border-radius: var(--radius-xs);
-  font-size: var(--fs-sm);
-  color: var(--accent-deep);
-}
-
-/* 個人開発。同じ形のまま彩度を落として区別する */
-.tagPersonal {
-  border-color: var(--rule);
-  color: var(--ink-mid);
-}
-
-.title {
-  margin: 0;
-  font-family: var(--f-body);
-  font-size: var(--fs-lg);
-  font-weight: var(--fw-bold);
-  line-height: var(--lh-heading);
-  color: var(--ink);
-}
-
-/* wip状態のみ。塗りつぶし背景ではなく marker 色の文字+枠線で表現する(コントラスト用の対色トークンが無いため) */
-.wipBadge {
-  align-self: flex-start;
-  padding: var(--space-3xs) var(--space-2xs);
-  border: 1px solid var(--marker);
-  border-radius: var(--radius-xs);
-  color: var(--marker);
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-bold);
-}
-
-.tagline {
-  margin: 0;
-  color: var(--ink-secondary);
-  font-size: var(--fs-sm);
-  line-height: var(--lh-body);
+  /* 1列では左右交互という表現自体が成立しないため、読み順をメタ→画像に揃える */
+  .card:nth-child(even) .meta,
+  .card:nth-child(even) .shot {
+    order: 0;
+  }
 }
 
 /*
- * ライトでは画面枠(--surface)がカード面(--ground)より沈む。
- * ダークは --ground と --surface の明度がほぼ同じ(0.0182 対 0.0175)ため同じ手が使えない。
- * 枠だけ地色に戻すとカードの上半分が地面と繋がって「穴が空いた」ように見えたので、
- * ダークではカード全体(枠を含む)を --surface で一枚の面にし、地との境界は --rule の1pxに任せる
+ * global.css の transition-duration 上書きだけに頼ると初期値 opacity: 0 がペイントに残る。
+ * ここで明示的に見える状態へ戻す(use-reveal 側も観察せず即時表示する)
  */
-:root[data-theme='dark'] .card,
-:root[data-theme='dark'] .shot {
-  background-color: var(--surface);
-}
-
-:root[data-theme='light'] .card {
-  background-color: var(--ground);
-}
-
-:root[data-theme='light'] .shot {
-  background-color: var(--surface);
-}
-
 @media (prefers-reduced-motion: reduce) {
   .card {
+    opacity: 1;
+    transform: none;
     transition: none;
   }
 
-  .card:hover {
+  .thumbnail {
+    transition: none;
+  }
+
+  .card:hover .thumbnail {
     transform: none;
   }
 }

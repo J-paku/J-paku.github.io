@@ -1,11 +1,14 @@
+/* 原案 .tech-stack li の移植。角丸を持たない矩形のラベルで、状態は表さない装飾罫線のみ */
 .tag {
   display: inline-block;
-  padding: var(--space-3xs) var(--space-2xs);
-  /* 罫線は装飾用途のみ。状態は表さない */
+  padding: 4px 10px;
   border: 1px solid var(--rule);
-  border-radius: var(--space-3xs);
-  background-color: var(--ground);
+  border-radius: 0;
+  font-size: 0.65rem;
+  font-weight: var(--fw-medium);
+  line-height: 1.6;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
   color: var(--ink-mid);
-  font-size: var(--fs-sm);
   white-space: nowrap;
 }

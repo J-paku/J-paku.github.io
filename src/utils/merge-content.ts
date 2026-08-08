@@ -151,6 +151,7 @@ const mergeWork = (ja: Work, ko: Work): Work => ({
   },
   sections: mergeSections(ja.sections, ko.sections, ko.slug),
   thumbnail: pickOptionalString(ja.thumbnail, ko.thumbnail, `works.${ko.slug}.thumbnail`),
+  glyph: pickOptionalString(ja.glyph, ko.glyph, `works.${ko.slug}.glyph`),
   measurements: pickOptionalMeasurements(ja.measurements, ko.measurements, `works.${ko.slug}.measurements`),
 })
 

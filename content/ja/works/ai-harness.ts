@@ -6,6 +6,7 @@ export const aiHarness: Work = {
   status: 'published',
   title: 'AIエージェント開発環境(ハーネス)',
   tagline: '同じ依頼を、いつも同じ結果へ。再現性を環境の設計で担保する',
+  glyph: '検証',
   context: '実務での自作ツール — 社内配布・定着まで',
   contextKind: 'work',
   period: '2026.02 - 現在',

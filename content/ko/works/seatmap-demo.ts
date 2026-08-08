@@ -6,6 +6,7 @@ export const seatmapDemo: Work = {
   status: 'published',
   title: '좌석 맵 데모',
   tagline: '오피스의 좌석과 팀 배치를, 손가락 조작 그대로 다룬다',
+  glyph: '座席',
   context: '실무의 재구성 — 사내 좌석 관리 툴을 업무 데이터 없이',
   contextKind: 'work',
   period: '2026.07 - 2026.08',

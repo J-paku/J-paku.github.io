@@ -3,22 +3,24 @@
  * ここからは子孫結合子で中身に触らない。
  * (過去にこのファイルの `.featuredList li` が カード内部の技術タグまで巻き込んだ事故がある)
  *
- * 数値は 08-layout-restructure.md §1「採用 — 骨格・寸法・挙動」の実測表そのまま。
- * 色・書体・角丸だけがトークン参照へ置き換わっている。
+ * 数値はモノクロ版モックアップの main そのまま(400px 1fr / min-height 100vh)。
+ * 全幅で組む — 背景の縦罫線(GridLines)は画面固定で全幅に引かれるため、
+ * 中央寄せの max-width や横 padding を挟むと内容と罫線の位置が噛み合わなくなる。
+ * よって列の左右余白は各列(ProfileColumn / WorksSection)が自分で持つ。
+ *
+ * position/z-index は罫線(z-index: 0)より前に出すため。ここが重なり文脈を作る。
  */
 .layout {
   display: grid;
-  grid-template-columns: minmax(0, 380px) minmax(0, 1fr);
-  gap: 0 72px;
-  max-width: 1180px;
-  margin: 0 auto;
-  padding: 0 40px;
+  grid-template-columns: 400px minmax(0, 1fr);
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
 }
 
-@media (max-width: 900px) {
+/* モックアップと同じ 1024px で1列に畳む */
+@media (max-width: 1024px) {
   .layout {
     grid-template-columns: minmax(0, 1fr);
-    gap: 0;
-    padding: 0 24px;
   }
 }

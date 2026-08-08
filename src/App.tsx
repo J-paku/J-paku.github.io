@@ -4,7 +4,6 @@ import { BrowserRouter, Routes, Route, useLocation } from 'react-router'
 import { LocaleProvider } from '@/contexts/LocaleContext'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { useContent } from '@/hooks/use-content'
-import ThemeToggle from '@/components/ThemeToggle'
 import Home from '@/pages/Home'
 import NotFound from '@/pages/NotFound'
 
@@ -30,9 +29,8 @@ function AppShell() {
       <a className="skip-link" href="#main">
         {ui.skipToMain}
       </a>
-      {/* 08段階: サイト共通ヘッダーは持たない。左列(Home内)が識別の役目を担い、
-          テーマ切り替えだけが全ルートで固定表示される */}
-      <ThemeToggle />
+      {/* サイト共通ヘッダーは持たない。左列(Home内)が識別の役目を担う。
+          テーマ切り替えは原本の .section-header と同じく右列の見出し行が持つため、ここには置かない */}
       <main id="main">
         <Routes>
           <Route path="/" element={<Home />} />

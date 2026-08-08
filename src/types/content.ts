@@ -133,6 +133,8 @@ export type Work = {
   status: WorkStatus
   title: string
   tagline: string
+  // カードの背景装飾グリフ(漢字2文字程度)。装飾専用のためロケール間で同一値でよい
+  glyph?: string
   // 作品カードのタグ1行。どういう文脈で作ったものかを先に言う(08段階)。wipも持つ
   context: string
   contextKind: WorkContextKind

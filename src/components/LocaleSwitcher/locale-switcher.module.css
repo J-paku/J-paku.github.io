@@ -1,22 +1,36 @@
-/* 左列の .out 行に並ぶインラインの言語リンク。ドロップダウンを廃したため箱を持たない */
+/*
+ * 左列の底に並ぶインラインの言語リンク。ドロップダウンを廃したため箱を持たない。
+ * 原案 .lang-switch をそのまま採る — 小さい大文字・字送り 0.1em・横並び gap 1rem
+ */
 .switcher {
   display: flex;
   align-items: center;
-  gap: var(--space-xs);
+  gap: var(--space-sm);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
+/* 下罫線は透明で最初から確保しておく。現在言語に切り替わったとき行が動かないため */
 .link {
-  color: var(--ink-mid);
-  font-size: var(--fs-sm);
+  padding-bottom: 2px;
+  border-bottom: 1px solid transparent;
+  font-weight: var(--fw-medium);
+  line-height: 1.6;
+  color: var(--ink);
   text-decoration: none;
+  /* 0.4 では実効色が light #999(2.84:1)・dark #666(3.65:1) となり 11.2px の文字が AA を割る。
+     0.6 まで上げると light 5.74:1・dark 7.37:1。現在言語との差は不透明度に加えて下罫線が担う */
+  opacity: 0.6;
+  transition: opacity var(--motion) var(--ease-reveal);
 }
 
 .link:hover {
-  color: var(--accent);
+  opacity: 1;
 }
 
-/* 現在の言語は罫線ではなく accent 色と太字で示す(--rule は状態表現に使わない) */
+/* 現在の言語は色ではなく不透明度と下罫線で示す(モノクロなので色の差を使わない) */
 .link[aria-current='true'] {
-  color: var(--accent);
-  font-weight: var(--fw-bold);
+  opacity: 1;
+  border-bottom-color: var(--ink);
 }

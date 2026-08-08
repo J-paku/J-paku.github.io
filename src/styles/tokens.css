@@ -12,40 +12,53 @@
  * 地色だけ入れ替わる」状態が起きる。
  *
  * D1: DESIGN.md（Stripe 分析）の値へトークンの「値」だけを差し替えた回。
+ * D3: モノクローム・アーキテクチュラルへの差し替え回。色相を一切持たず、
+ *     ライト(白地/黒字)とダーク(黒地/白字)は互いの反転として定義する。
+ *     変数名は D1 のまま据え置き、値だけを無彩色へ置き換えた（参照側のCSSを触らないため）。
+ *     色相での区別（accent の紫、marker の橙など）が使えなくなるので、
+ *     区別は「明度の段階」と「枠線の有無」が担う。
+ *
+ * ダーク側では、ライトで定義した色変数を一つ残らず再定義する。
+ * D2 で accent-deep / accent-subtle の再定義漏れがあり、ライトの値が漏れてダークの
+ * 作品カードのタグが 1.99:1 になった事故があるため、意味が薄れた変数も削除せず必ず両テーマに置く。
  */
 
 :root {
-  /* ===== 色 — DESIGN.md の canvas/ink/primary 系に合わせる ===== */
-  --ground: #ffffff; /* canvas */
-  --surface: #f6f9fc; /* canvas-soft */
-  --surface-cream: #f5e9d4; /* canvas-cream。暖色の緩衝帯カード用（D2）。テーマに依らず固定の一色として扱う */
-  --ink: #0d253d; /* ink */
-  --ink-secondary: #273951; /* ink-secondary。ink より一段弱い本文用（D2） */
-  --ink-mid: #61718a; /* ink-mute-2。ink-mute(#64748d) は canvas-soft 上で 4.49:1 となり AA を僅かに割るため使わない */
-  --rule: #e3e8ee; /* hairline（装飾用途のみ） */
-  --rule-input: #7d94b0; /* DESIGN.md の hairline-input(#a8c3de) は白背景で 1.82:1 と非text用としても弱いため、
-                             同系色のまま暗めに調整（3.12:1）。text-input はまだ未実装(D2)なので先んじて安全側に振る */
-  --accent: #533afd; /* primary */
-  --accent-deep: #4434d4; /* primary-deep（押下前段・グラデーション中間色。D2） */
-  --accent-press: #2e2b8c; /* primary-press（押下状態。D2） */
-  --accent-soft: #665efd; /* primary-soft（プロダクトUIアクセント。D2） */
-  --accent-subtle: #cacaf9; /* primary-bg-subdued-hover。DESIGN.md の値(#b9b9f9)だと accent-deep とのペアで
-                                4.23:1 となりAA(4.5)未達のため、同系のまま僅かに明るく調整して4.96:1にした */
-  --accent-ink: #ffffff; /* accent（primary）を背景にしたときの文字色。on-primary */
-  --marker: #9b6829; /* lemon — wip 状態専用 */
-  --gradient-ruby: #ea2261; /* ruby。グラデーションメッシュの差し色専用。白地で4.29:1のため文字色・ボタンには使わない(D2) */
-  --gradient-magenta: #f96bee; /* magenta。グラデーションメッシュの差し色専用（D2） */
-  --brand-dark-900: #1c1e54; /* brand-dark-900。featured カードやダッシュボード面の固定の濃紺(D2)。
-                                 サイト全体のライト/ダーク切り替えとは独立した文字通りのブランド色として扱う */
+  /* ===== 色 — ライト(白地/黒字)。無彩色のみ ===== */
+  --ground: #ffffff; /* 地。原案 light の --bg */
+  --surface: #f5f5f5; /* 地の上に載る面（カード内の画像枠など） */
+  --surface-cream: #f0f0f0; /* D1では暖色の緩衝帯だったが、モノクロ化で色相を落とし
+                                「地から一段沈んだ面」の意味だけを残す */
+  --ink: #000000; /* 文字の基準色。原案 light の --fg。--ground 上で 21.00:1 */
+  --ink-secondary: #333333; /* ink より一段弱い本文用。--ground 上で 12.63:1 */
+  --ink-mid: #666666; /* 補助テキスト。原案 light の --accent(#666)。
+                          --ground 上で 5.74:1、--surface 上で 5.27:1 と、いずれもAA(4.5)を満たす */
+  --rule: rgba(0, 0, 0, 0.1); /* 罫線。原案 light の --border */
+  --rule-faint: rgba(0, 0, 0, 0.05); /* 新規。背面の縦グリッド線用。原案 light の --line-color */
+  --rule-input: #8c8c8c; /* 入力枠。非テキストのため 3:1 が下限で、--ground 上で 3.36:1 */
+  --accent: #000000; /* モノクロでは強調＝インクそのもの。--ink と同値 */
+  --accent-deep: #333333; /* accent より一段退いた文字色（タグ等）。--ground 上で 12.63:1 */
+  --accent-press: #4d4d4d; /* 押下状態。--ground 上で 8.45:1 */
+  --accent-soft: #4d4d4d; /* プロダクトUIアクセント。押下と同段の明度 */
+  --accent-subtle: #8c8c8c; /* 枠線用の弱いアクセント。--ground 上で 3.36:1、--surface 上でも 3.08:1 */
+  --accent-ink: #ffffff; /* accent を地にしたときの文字色。--ground と同値 */
+  --marker: #333333; /* wip 状態専用。橙が使えないので、インクより一段弱い明度で「まだ弱い」を示す。
+                         --ground 上で 12.63:1 */
+  --gradient-ruby: #4d4d4d; /* グラデーションの差し色。モノクロ化で明度差だけの指定になった */
+  --gradient-magenta: #808080; /* 同上。ruby より一段明るい側 */
+  --brand-dark-900: #1a1a1a; /* テーマ切り替えとは独立した固定の暗面。原案の画像プレースホルダと同値。
+                                 両テーマで同じ値だが、漏れと区別するため各ブロックに明示する */
 
   /* ===== タイポグラフィ =====
-     Sohne は独占フォントのため Inter を自己ホストで代替する（fonts.css の @font-face、unicode-range でラテンに限定）。
-     Inter の直後に日本語ゴシック(Light系優先)→韓国語ゴシック→sans-serif の順で繋ぎ、
-     チェーンの末尾を serif にしない（ラテン専用フォントとCJKの混在事故を避けるため）。
-     見出し(--f-display)も従来の明朝スタックをやめ、DESIGN.md のブランド識別(Sohne/Inter thin)に合わせる。 */
+     見出し(--f-display)は原案の 'Playfair Display'（セリフ）を先頭に置く。自己ホストの
+     ラテン専用サブセットのため、CJKはこのフォントに当たらず次点のゴシックへ進む(fonts.css参照)。
+     チェーンの末尾は sans-serif にする — serif で締めると、Playfair が拾わないCJKが
+     環境依存の明朝に落ちてラテン(セリフ)とCJK(明朝)で線の太さが揃わない事故になる。
+     本文(--f-body)は Inter のまま据え置き、書体のコントラスト（セリフの見出し × ゴシックの本文）を
+     この2つのスタックの差で作る。 */
   --f-display:
-    'Inter', -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic UI',
-    'Noto Sans JP', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+    'Playfair Display', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic UI', 'Noto Sans JP',
+    'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
   --f-body:
     'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN',
     'Yu Gothic UI', 'Noto Sans JP', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
@@ -69,12 +82,20 @@
   --fw-regular: 400; /* 本文の太さ。DESIGN.mdは本文も300指定だが、和文は同じ字面でも画数がラテンよりずっと多く
                          15〜16pxのLightは可読性を落とすため、本文はここを400のまま据え置く(意図的な逸脱) */
   --fw-bold: 700; /* DESIGN.md の型には無い、この場での既存の強調用途を維持 */
-  --fw-light: 300; /* 新規。display階層(ブランドの本体)専用。今ラウンドではコンポーネント側は未配線(D2で使用) */
+  /* 小さい大文字ラベル(字送りを広げた 0.65〜0.75rem)専用の太さ。400 のままだと
+     字画が細って読みにくく、700 では見出しと競合するため、その間を1段だけ設ける */
+  --fw-medium: 500;
+  /* D3で新規。display階層(セリフ見出し)の太さ。原案の Playfair Display は 400 指定で、
+     自己ホストする可変フォントの軸も 400〜900 しか持たない。見出しは必ずこれを参照する */
+  --fw-display: 400;
+  /* D1では display階層に 300 を当てる前提だったが、D3でその前提は消えた(セリフの見出しは400)。
+     Playfair の可変軸が400始まりのため 300 指定は 400 にクランプされる。残っている参照は
+     --fw-display へ移すこと。値自体は他用途のために据え置く */
+  --fw-light: 300;
 
-  /* 新規。負の字送りはラテン専用フォント(Inter)の効果が強く、CJKにそのまま適用すると字が重なるため
-     日本語見出しに実害が出ない範囲(-0.01em)まで丸めた。ラテン専用要素へ限定する方法もあったが、
-     その限定にはコンポーネント側CSSの編集が要り今ラウンドの担当外のため、この丸めを採用した */
-  --tracking-display: -0.01em;
+  /* D1では Inter の負の字送り(-0.01em)を入れていたが、セリフの見出しは字間を詰めると
+     セリフ同士が触れて可読性が落ちるため 0 に戻した。原案も見出しに字送りを与えていない */
+  --tracking-display: 0;
   /* body-tabular(tnum)用。対象は数字(ASCII)のみのため和文への影響が無く、DESIGN.mdの値をそのまま使う */
   --tracking-tabular: -0.42px;
 
@@ -105,43 +126,64 @@
   --radius-xl: 16px;
   --radius-pill: 9999px;
 
-  /* ===== モーション — DESIGN.mdに値の指定が無いため据え置き ===== */
-  --motion: 180ms;
+  /* ===== モーション ===== */
+  --motion: 180ms; /* 既存の即応系(hover等)。据え置き */
   --motion-ease: ease;
+  /* D3で新規。テーマ反転やスクロール連動の出現など、面が大きく変わる動き用。
+     原案の --transition: 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) をそのまま採る */
+  --motion-slow: 0.4s;
+  --ease-reveal: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 /*
  * テーマは data-theme(light / dark)だけで決まる。OS設定への追従(prefers-color-scheme)は持たない。
  * 以前あった @media (prefers-color-scheme: dark) ブロックは削除した — 「system」を廃止したので、
- * 残すとユーザーが light を選んでいてもOSがダークの環境で地色だけ入れ替わる事故になる。
+ * 残すとユーザーが light を選んでいてもOSがダークだから地色だけ入れ替わる事故になる。
+ *
+ * ライトに存在する色変数はここで全て再定義する（値が同じ --brand-dark-900 も明示する）。
+ * 一つでも欠けるとライトの値がそのまま漏れ、黒地の上に黒系の文字が出る。
  */
 :root[data-theme='dark'] {
-  --ground: #1c1e54; /* brand-dark-900。ダッシュボード面の"シェル"背景 */
-  --surface: #0d253d; /* ink。シェルの上に載るパネル/カードの面。brand-dark-900とほぼ同じ明度
-                          (相対輝度 0.0182 対 0.0175)のため、明暗ではなく色相(紫寄り/青緑寄り)で
-                          面を区別する。境界の判別は --rule の1pxが担う */
-  --ink: #f4f7fb;
-  --ink-secondary: #c7cee4;
-  --ink-mid: #a6b0c9;
-  --rule: #3a4278;
-  --accent: #8a80ff; /* primaryそのまま(#533afd)は brand-dark-900 上で2.49:1しか出ずAA未達のため明るく振った */
-  --accent-ink: #0d253d;
-  /* accent-deep / accent-subtle をダーク側で再定義していなかったため、ライトの値(#4434d4 / #cacaf9)が
-     そのまま漏れていた。作品カードのタグが --surface 上で 1.99:1 しか出ず読めなかった(実測)。
-     文字用の deep は 6.90:1、非テキストの subtle(枠線)は 3.12:1 になる値へ振り直した */
-  --accent-deep: #a9a2ff;
-  --accent-subtle: #6b62c9;
-  --marker: #e3a75c;
+  --ground: #000000; /* 原案 dark の --bg */
+  --surface: #1a1a1a; /* 原案の画像プレースホルダ(#1a1a1a)。地(#000)から一段浮いた面 */
+  --surface-cream: #242424; /* surface より更に一段浮いた面。地との差 1.35:1 で、境界は --rule が担う */
+  --ink: #ffffff; /* --ground 上で 21.00:1、--surface 上で 17.40:1 */
+  --ink-secondary: #cccccc; /* --ground 上で 13.08:1、--surface 上で 10.84:1 */
+  --ink-mid: #888888; /* 原案 dark の --accent(#888)。--ground 上で 5.92:1、--surface 上で 4.91:1 と
+                          いずれもAA(4.5)を満たす。これ以上暗くすると --surface 上で割る */
+  --rule: rgba(255, 255, 255, 0.1); /* 原案 dark の --border */
+  --rule-faint: rgba(255, 255, 255, 0.05); /* 原案 dark の --line-color */
+  --rule-input: #808080; /* 非テキスト。--ground 上で 5.32:1 */
+  --accent: #ffffff; /* --ink と同値 */
+  --accent-deep: #cccccc; /* タグ等の文字色。カードが --surface になるダークでは 10.84:1 */
+  --accent-press: #b3b3b3; /* --ground 上で 10.02:1、--surface 上で 8.30:1 */
+  --accent-soft: #b3b3b3;
+  --accent-subtle: #808080; /* 枠線。--surface 上で 4.41:1、--ground 上で 5.32:1 と 3:1 を満たす */
+  --accent-ink: #000000; /* --ground と同値 */
+  --marker: #cccccc; /* wip。--surface 上で 10.84:1 */
+  --gradient-ruby: #b3b3b3;
+  --gradient-magenta: #808080; /* 明度の中点なので両テーマで同値。漏れではなく意図的に一致させている */
+  --brand-dark-900: #1a1a1a; /* 固定の暗面。ライトと同値だが、漏れと区別するため明示する */
 }
 
 :root[data-theme='light'] {
   --ground: #ffffff;
-  --surface: #f6f9fc;
-  --ink: #0d253d;
-  --ink-secondary: #273951;
-  --ink-mid: #61718a;
-  --rule: #e3e8ee;
-  --accent: #533afd;
+  --surface: #f5f5f5;
+  --surface-cream: #f0f0f0;
+  --ink: #000000;
+  --ink-secondary: #333333;
+  --ink-mid: #666666;
+  --rule: rgba(0, 0, 0, 0.1);
+  --rule-faint: rgba(0, 0, 0, 0.05);
+  --rule-input: #8c8c8c;
+  --accent: #000000;
+  --accent-deep: #333333;
+  --accent-press: #4d4d4d;
+  --accent-soft: #4d4d4d;
+  --accent-subtle: #8c8c8c;
   --accent-ink: #ffffff;
-  --marker: #9b6829;
+  --marker: #333333;
+  --gradient-ruby: #4d4d4d;
+  --gradient-magenta: #808080;
+  --brand-dark-900: #1a1a1a;
 }

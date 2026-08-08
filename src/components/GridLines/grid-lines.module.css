@@ -1,0 +1,21 @@
+/*
+ * 背景の縦罫線。モックアップの .grid-lines / .line の幾何をそのまま採る。
+ *
+ * 画面に固定して常に同じ位置に出す。内容側(Home の .layout)が z-index: 1 を持つので
+ * ここは 0 のまま最背面に沈む。装飾専用のため入力は全て透過させる。
+ */
+.lines {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.line {
+  width: 1px;
+  height: 100%;
+  background-color: var(--rule-faint);
+}

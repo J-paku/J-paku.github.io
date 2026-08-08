@@ -20,3 +20,28 @@
     U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
     U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
+
+/*
+ * 自己ホストする Playfair Display（ラテン専用サブセット・可変フォント）。見出し(--f-display)専用。
+ *
+ * Inter と同じ unicode-range をそのまま使う。したがってCJKの見出しはこのセリフには当たらず、
+ * --f-display の次点（システムゴシック）へ進む。ラテンはセリフ・和文韓文はゴシックという
+ * 混在は事故ではなく、この unicode-range による意図した分業（原案のデザインも同じ構成）。
+ * 末尾を serif で締めないのは、CJKが環境依存の明朝に落ちて線の太さが揃わなくなるため。
+ *
+ * 可変軸は wght のみで範囲は 400〜900。原案の見出しは 400 指定なので、
+ * トークン側の --fw-display も 400 に合わせてある（300 を渡すと 400 にクランプされる）。
+ *
+ * 実体: public/fonts/playfair-display-latin-var.woff2（Google Fonts配布 latin subset,
+ * 実測38,404 bytes）。ライセンス文は public/fonts/OFL.txt を参照（SIL Open Font License 1.1）。
+ */
+@font-face {
+  font-family: 'Playfair Display';
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url('/fonts/playfair-display-latin-var.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}

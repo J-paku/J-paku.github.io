@@ -1,3 +1,7 @@
+/*
+ * live / repo リンク。原本デザインの .links に倣い、下線と有彩色を持たない
+ * 字送りの広い小さな大文字として置く。区別は色ではなく hover の減光で示す。
+ */
 .links {
   display: flex;
   flex-wrap: wrap;
@@ -5,9 +9,16 @@
 }
 
 .link {
-  color: var(--accent);
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-bold);
+  color: var(--ink);
+  text-decoration: none;
+  /* 原案 .links a の値。12px 相当のトークンが無いため原案の実値をそのまま採る */
+  font-size: 0.75rem;
+  font-weight: var(--fw-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  transition: opacity var(--motion);
+}
+
+.link:hover {
+  opacity: 0.5;
 }

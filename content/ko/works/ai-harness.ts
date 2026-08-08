@@ -6,6 +6,7 @@ export const aiHarness: Work = {
   status: 'published',
   title: 'AI 에이전트 개발 환경(하네스)',
   tagline: '같은 의뢰를 언제나 같은 결과로. 재현성을 환경 설계로 담보한다',
+  glyph: '検証',
   context: '실무에서의 자작 툴 — 사내 배포·정착까지',
   contextKind: 'work',
   period: '2026.02 - 현재',

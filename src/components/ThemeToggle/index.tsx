@@ -49,6 +49,9 @@ function ThemeToggle() {
       onClick={() => setTheme(nextTheme(theme))}
     >
       <ThemeIcon theme={theme} />
+      {/* 原本の枠線ボタンは文字を持つ形。文言は content の ui.theme.* をそのまま使い、ここでは作らない。
+          読み上げ名は aria-label 側が持つため、この文字列は aria-label に含まれる語と一致させる */}
+      <span className={styles.label}>{ui.theme[theme]}</span>
     </button>
   )
 }

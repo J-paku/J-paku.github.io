@@ -6,6 +6,7 @@ export const gatchanko: Work = {
   status: 'wip',
   title: 'Gatchanko',
   tagline: '画像グリッドとアノテーションをデスクトップアプリで扱う。Tauriで構築中',
+  glyph: '画像',
   context: '個人開発 — デスクトップアプリ',
   contextKind: 'personal',
   stack: ['Tauri', 'Next.js', 'TypeScript', 'Rust'],

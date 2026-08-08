@@ -6,6 +6,7 @@ export const seatmapDemo: Work = {
   status: 'published',
   title: '座席マップデモ',
   tagline: 'オフィスの座席とチーム配置を、指の操作でそのまま扱う',
+  glyph: '座席',
   context: '実務の再構成 — 社内座席管理ツールを業務データ抜きで',
   contextKind: 'work',
   period: '2026.07 - 2026.08',
