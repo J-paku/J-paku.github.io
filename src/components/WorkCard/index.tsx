@@ -24,7 +24,8 @@ function WorkCard({ work, index }: WorkCardProps) {
   // 画面に丸ごと収まっている間だけ写真の色を戻す。縁に掛かっている間は灰色のまま
   const { ref: shotRef, isFullyVisible } = useFullyVisible<HTMLDivElement>()
 
-  // サムネイルのクリックでリンクの覆いを開く(ホバーではなくクリック)。リンクが無い作品では付けない
+  // リンクの覆い。ポインタ環境ではホバー(と focus-within)で出し、タッチ環境ではタップで開閉する。
+  // この state はタップ用 — ホバー表示は CSS 側の @media (hover: hover) が担う
   const hasLinks = work.links.live !== undefined || work.links.repo !== undefined
   const [isLinksOpen, setIsLinksOpen] = useState(false)
 
@@ -75,9 +76,14 @@ function WorkCard({ work, index }: WorkCardProps) {
             <span className={styles.srOnly}>{ui.work.openLinks}</span>
           </button>
         ) : null}
-        {isLinksOpen ? (
-          /* 覆いのどこを押しても閉じる。リンク自身のクリックは遷移した上で覆いも閉じるので分岐不要 */
-          <div className={styles.shotOverlay} onClick={() => setIsLinksOpen(false)}>
+        {hasLinks ? (
+          /* 常に描画し、表示は CSS が切り替える(隠れている間も pointer-events: none でクリックを透過)。
+             タブ移動でリンクへ入れば focus-within で現れるため、キーボードでも到達できる。
+             覆いのどこを押しても閉じる。リンク自身のクリックは遷移した上で覆いも閉じるので分岐不要 */
+          <div
+            className={isLinksOpen ? `${styles.shotOverlay} ${styles.shotOverlayOpen}` : styles.shotOverlay}
+            onClick={() => setIsLinksOpen(false)}
+          >
             {work.links.live !== undefined ? (
               <a href={work.links.live} rel="noreferrer" className={styles.overlayPrimary}>
                 {ui.work.live}

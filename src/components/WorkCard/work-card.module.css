@@ -186,7 +186,12 @@
 /*
  * リンクの覆い。写真を隠し切らないよう薄いスクリムに留め、ボタンは下端の横並びにする。
  * 文字の対比はスクリムではなくボタン自身の塗り/地が担うので、スクリムは読みやすさに関与しない。
- * トリガーの上に重なるので、覆いのどこを押しても閉じる(WorkCard 側の onClick)
+ *
+ * 常に描画して既定は不可視。見せる条件は3つ —
+ *   1. ポインタ環境のホバー(下の @media)
+ *   2. focus-within(キーボードでリンクへ入ったとき)
+ *   3. .shotOverlayOpen(タッチ環境のタップ。WorkCard の state が付ける)
+ * 不可視の間は pointer-events: none でクリックを下のトリガーへ透過する
  */
 .shotOverlay {
   position: absolute;
@@ -197,19 +202,27 @@
   gap: var(--space-2xs);
   padding: var(--space-sm);
   background-color: color-mix(in srgb, var(--ground) 30%, transparent);
-  animation: overlay-in var(--motion) var(--ease-reveal);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion) var(--ease-reveal);
 }
 
-@keyframes overlay-in {
-  from {
-    opacity: 0;
-  }
-  to {
+.shotOverlayOpen,
+.shot:focus-within .shotOverlay {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ホバーで出すのはポインタ環境だけ。タッチでタップした瞬間の :hover 残留を避ける */
+@media (hover: hover) and (pointer: fine) {
+  .shot:hover .shotOverlay {
     opacity: 1;
+    pointer-events: auto;
   }
 }
 
-/* 主リンク(公開ページ)。塗りで一番強く。2つで下端の帯を等分する */
+/* 主リンク(公開ページ)。塗りで一番強く。2つで下端の帯を等分する。
+   出現は覆いの transition に任せ、ボタン自身は僅かに持ち上がる */
 .overlayPrimary,
 .overlaySecondary {
   flex: 1;
@@ -221,7 +234,22 @@
   line-height: 1.6;
   text-align: center;
   text-decoration: none;
-  animation: overlay-link-in var(--motion-slow) var(--ease-reveal);
+  transform: translateY(8px);
+  transition: transform var(--motion-slow) var(--ease-reveal);
+}
+
+.shotOverlayOpen .overlayPrimary,
+.shotOverlayOpen .overlaySecondary,
+.shot:focus-within .overlayPrimary,
+.shot:focus-within .overlaySecondary {
+  transform: translateY(0);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .shot:hover .overlayPrimary,
+  .shot:hover .overlaySecondary {
+    transform: translateY(0);
+  }
 }
 
 .overlayPrimary {
@@ -244,17 +272,6 @@
   margin-right: 6px;
   vertical-align: -1px;
   fill: currentColor;
-}
-
-@keyframes overlay-link-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 @media (max-width: 1024px) {
@@ -286,6 +303,11 @@
   .shotOverlay,
   .overlayPrimary,
   .overlaySecondary {
-    animation: none;
+    transition: none;
+  }
+
+  .overlayPrimary,
+  .overlaySecondary {
+    transform: none;
   }
 }
