@@ -12,13 +12,13 @@ export const aiHarness: Work = {
   period: '2026.02 - 현재',
   role: '설계·구현·사내 배포(개인)',
   scale: '훅 25개 / eval 36케이스 / 이용자 4명 / 2개월간 AI팀 자동 실행 105건',
-  stack: ['Claude Code', 'Node.js', 'Bash', 'Git worktree', 'JSONL trace'],
+  stack: ['Claude', 'Codex', 'Node.js', 'Bash', 'Git worktree', 'JSONL trace'],
   links: {
     live: 'https://j-paku.github.io/ai-harness/',
     repo: 'https://github.com/J-paku/ai-harness',
   },
   // カード画面枠のキャプチャ。2026-08-03 に live を実機幅1280×720で撮ったもの(デモを作り直したら撮り直す)
-  thumbnail: '/shots/ai-harness.jpg',
+  thumbnail: '/shots/ai-harness.png',
   // 작품 자체의 계측표(DIRECTION-FINAL §2-4). 증가분 대부분이 구축자 본인에게서 나온 약점을 먼저 말한다
   measurements: [
     {

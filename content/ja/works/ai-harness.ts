@@ -12,13 +12,13 @@ export const aiHarness: Work = {
   period: '2026.02 - 現在',
   role: '設計・実装・社内配布(個人)',
   scale: 'フック25個 / eval 36ケース / 利用者4名 / 2か月でAIチーム自動実行105件',
-  stack: ['Claude Code', 'Node.js', 'Bash', 'Git worktree', 'JSONL trace'],
+  stack: ['Claude', 'Codex', 'Node.js', 'Bash', 'Git worktree', 'JSONL trace'],
   links: {
     live: 'https://j-paku.github.io/ai-harness/',
     repo: 'https://github.com/J-paku/ai-harness',
   },
-  // カード画面枠のキャプチャ。2026-08-03 に live を実機幅1280×720で撮ったもの(デモを作り直したら撮り直す)
-  thumbnail: '/shots/ai-harness.jpg',
+  // カード用サムネイル。実機キャプチャは左端が切れて見えたため、デモのヒーローを1200×900で組み直した自作画像
+  thumbnail: '/shots/ai-harness.png',
   // 作品自身の計測票(DIRECTION-FINAL §2-4)。増加分の大半が構築者本人由来である弱点を先に言う
   measurements: [
     {
