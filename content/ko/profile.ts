@@ -32,7 +32,7 @@ export const profile: Profile = {
       company: '시스템 수탁개발 회사(고객사 상주)',
       period: '2022 - 2024',
       stack: ['Nuxt.js', 'Vue.js', 'Delphi', 'Oracle', 'PostgreSQL'],
-      role: '프론트엔드 엔지니어 / 코더',
+      role: '프론트엔드 엔지니어',
       summary:
         'SPA 신규 구축과 레거시 기간계 시스템 이관을 담당. AI 보조가 없는 환경에서 브라우저 동작과 비동기 제어의 기초를 여기서 만들었다.',
       highlights: [

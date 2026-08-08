@@ -41,8 +41,7 @@ function ProfileColumn() {
 
       {/* 下塊。space-between のもう一方の端で、ここだけが外部への導線 */}
       <div className={styles.out}>
-        {/* 位置1行(10段階)。タイムゾーンはラテン表記の事実なのでここで繋ぐ。座標は持たない */}
-        <p className={styles.location}>{profile.location} / GMT+9</p>
+        <p className={styles.location}>{profile.location}</p>
         <div className={styles.outLinks}>
           {profile.links.github !== undefined ? (
             <a href={profile.links.github} rel="noreferrer" className={styles.outLink}>

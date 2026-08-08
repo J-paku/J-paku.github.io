@@ -32,7 +32,7 @@ export const profile: Profile = {
       company: 'システム受託開発会社(客先常駐)',
       period: '2022 - 2024',
       stack: ['Nuxt.js', 'Vue.js', 'Delphi', 'Oracle', 'PostgreSQL'],
-      role: 'フロントエンドエンジニア / コーダー',
+      role: 'フロントエンドエンジニア',
       summary:
         'SPA新規構築とレガシー基幹システムの移行を担当。AI補助のない環境で、ブラウザ挙動と非同期制御の基礎をここで作った。',
       highlights: [
