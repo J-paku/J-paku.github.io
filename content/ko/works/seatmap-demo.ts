@@ -25,8 +25,9 @@ export const seatmapDemo: Work = {
     live: 'https://j-paku.github.io/seatmap-demo/',
     repo: 'https://github.com/J-paku/seatmap-demo',
   },
-  // カード画面枠のキャプチャ。2026-08-03 に live を実機幅1280×720で撮ったもの(デモを作り直したら撮り直す)
-  thumbnail: '/shots/seatmap-demo.jpg',
+  // カード用サムネイル。実キャプチャは社内データ(氏名・連絡先)が写るため使えないので、
+  // 主要3画面(座席マップ / 社員一覧 / 社員詳細)と拠点平面図を文字なしの図解へ起こした自作SVG
+  thumbnail: '/shots/seatmap-demo.svg',
   // 작품 자체의 계측표(DIRECTION-FINAL §2-4). 자동 테스트가 없다는 약점을 먼저 말한다
   measurements: [
     {
