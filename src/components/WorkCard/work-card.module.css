@@ -220,7 +220,6 @@
   letter-spacing: 0.1em;
   line-height: 1.6;
   text-align: center;
-  text-transform: uppercase;
   text-decoration: none;
   animation: overlay-link-in var(--motion-slow) var(--ease-reveal);
 }

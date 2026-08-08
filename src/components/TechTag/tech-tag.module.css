@@ -6,11 +6,11 @@
   padding: 4px 10px;
   border: 1px solid var(--rule);
   border-radius: 0;
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   font-weight: var(--fw-medium);
   line-height: 1.6;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  /* 大文字変換はしない — Next.js や GitHub のようなブランド表記をそのまま見せる */
   color: var(--ink-mid);
   white-space: nowrap;
 }

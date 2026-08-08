@@ -165,8 +165,7 @@
   font-size: 0.75rem;
   font-weight: var(--fw-medium);
   line-height: 1.6;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: var(--ink);
   text-decoration: none;
   transition: opacity var(--motion) var(--ease-reveal);
