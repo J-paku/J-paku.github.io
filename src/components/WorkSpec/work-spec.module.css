@@ -15,7 +15,8 @@
 
 /* 赤はラベル専用(10段階 §4)。値・本文には使わない */
 .label {
-  font-family: var(--f-mono);
+  /* ラベルは期間・役割・規模 — 全てCJKで、--f-mono では等幅が当たる文字が1つも無い */
+  font-family: var(--f-label);
   font-size: 0.65rem;
   font-weight: var(--fw-medium);
   letter-spacing: 0.1em;

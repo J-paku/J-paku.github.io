@@ -41,6 +41,13 @@ jobs:
       - name: axe accessibility check
         run: |
           node scripts/check-a11y.mjs http://localhost:4173 / /ko
+      # 日本語・韓国語のフォントは「描画された文字だけ」を持つサブセット(fonts.css)。
+      # コンテンツに文字が増えるとその文字だけシステムフォントへ落ち、1つの文字列の中で
+      # 書体が割れる。型チェックもビルドも通ってしまうので、配信物を見るこの検査で止める。
+      # 落ちたときは scripts/build-font-subsets.mjs を走らせてフォントを作り直す
+      - name: Font glyph coverage check
+        run: |
+          node scripts/check-glyph-coverage.mjs http://localhost:4173 / /ko/
       # setup-chrome は廃止した(axe が chromedriver 経由で CI から起動できなかったため)。
       # Lighthouse も axe と同じ Playwright 管理の Chromium を使う。二重に用意しない
       - name: Lighthouse CI

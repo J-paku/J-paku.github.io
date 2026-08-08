@@ -23,7 +23,8 @@
 /* 索引文言。大見出しをやめ、モノのラベルとして置く(ページの h1 は左列の名前が担う) */
 .title {
   margin: 0;
-  font-family: var(--f-mono);
+  /* 『作品一覧』は全てCJKなので --f-mono では字送りだけ残って書体が割れる */
+  font-family: var(--f-label);
   font-size: 0.7rem;
   font-weight: var(--fw-medium);
   letter-spacing: 0.14em;

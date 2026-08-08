@@ -22,16 +22,24 @@ if (!existsSync(shellHtmlPath)) {
 }
 const shellHtml = readFileSync(shellHtmlPath, 'utf-8')
 
-// routeDir へ dist/index.html の複製を書き出す。routeDir は DIST_DIR からの相対パス
-function emitRoute(routeDir) {
+// routeDir へ dist/index.html の複製を書き出す。routeDir は DIST_DIR からの相対パス。
+// lang を渡すと <html lang> を差し替える — D5でフォントのチェーンを
+// :root[lang='ko'] で切り替えたため、JSが lang を立てる前の初回ペイントで
+// 日本語フォントが要求されてしまうのを防ぐ(韓国語ページで45KBの無駄になる)
+function emitRoute(routeDir, lang) {
   const dir = path.join(DIST_DIR, routeDir)
   mkdirSync(dir, { recursive: true })
   const outPath = path.join(dir, 'index.html')
-  writeFileSync(outPath, shellHtml)
-  console.log(`emit-routes: ${path.relative(ROOT_DIR, outPath)}`)
+  const html = lang === undefined ? shellHtml : shellHtml.replace(/<html lang="[^"]*"/, `<html lang="${lang}"`)
+  if (lang !== undefined && html === shellHtml) {
+    console.error(`emit-routes: <html lang> を差し替えられなかった(${routeDir})`)
+    process.exit(1)
+  }
+  writeFileSync(outPath, html)
+  console.log(`emit-routes: ${path.relative(ROOT_DIR, outPath)} (lang=${lang ?? 'ja'})`)
 }
 
-emitRoute('ko')
+emitRoute('ko', 'ko')
 
 // 404.html は index.html の複製 — 上記以外の未知パスを拾う最後の網
 writeFileSync(path.join(DIST_DIR, '404.html'), shellHtml)

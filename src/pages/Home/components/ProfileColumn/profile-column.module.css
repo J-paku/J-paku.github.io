@@ -100,7 +100,9 @@
 
 .when {
   margin: 0;
-  font-family: var(--f-mono);
+  /* 『2025.01 - 現在』のようにラテンとCJKが混ざる。--f-mono だと現在だけ別書体になるため
+     1書体で通す(数字の桁揃えは font-variant-numeric が担う) */
+  font-family: var(--f-label);
   font-size: 0.7rem;
   line-height: 1.6;
   letter-spacing: 0.1em;

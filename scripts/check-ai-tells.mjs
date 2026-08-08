@@ -297,6 +297,10 @@ const CJK_FAMILY_KEYWORDS = [
   'Hiragino',
   'Gothic',
   'Noto Sans',
+  // D5でCJKのセリフ(明朝)を自己ホストしたため、ゴシック名だけでは代替の有無を判定できない
+  'Noto Serif',
+  'Mincho',
+  'Myeongjo',
   'Malgun',
   'Apple SD',
   'Meiryo',
@@ -309,7 +313,8 @@ const CJK_FAMILY_KEYWORDS = [
 
 function evaluateFontStackRule() {
   const tokensSource = readFileSync(path.join(ROOT_DIR, 'src/styles/tokens.css'), 'utf-8')
-  const targets = ['--f-display', '--f-body']
+  // D5で見出し(--f-title)とラベル(--f-label)が独立したチェーンになったので検査対象に加える
+  const targets = ['--f-display', '--f-title', '--f-body', '--f-label']
   const offenders = []
   const details = []
 

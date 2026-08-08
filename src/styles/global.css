@@ -59,6 +59,20 @@ textarea {
 }
 
 /*
+ * フォーム系の書体はブラウザ実装の既定(Chromium は Arial)で、親からは継承されない。
+ * 放置すると button の中の文字だけトークンのチェーンから外れ、CJKが環境依存のフォントになる。
+ * D5でボタンの読み上げ用テキストが Arial 経由でシステムフォントに落ちていたのを
+ * check-glyph-coverage が検出したため、原因側をここで塞ぐ。
+ * サイズ・太さは各コンポーネントが指定しているので、ここでは書体だけを継承させる。
+ */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+/*
  * skip link — 画面外に置き :focus で出現させる。
  * display: none / visibility: hidden はフォーカス自体を奪うので使わない。
  */

@@ -57,19 +57,29 @@
                                  両テーマで同じ値だが、漏れと区別するため各ブロックに明示する */
 
   /* ===== タイポグラフィ =====
-     見出し(--f-display)は原案の 'Playfair Display'（セリフ）を先頭に置く。自己ホストの
-     ラテン専用サブセットのため、CJKはこのフォントに当たらず次点のゴシックへ進む(fonts.css参照)。
-     チェーンの末尾は sans-serif にする — serif で締めると、Playfair が拾わないCJKが
-     環境依存の明朝に落ちてラテン(セリフ)とCJK(明朝)で線の太さが揃わない事故になる。
-     本文(--f-body)は Inter のまま据え置き、書体のコントラスト（セリフの見出し × ゴシックの本文）を
-     この2つのスタックの差で作る。 */
-  --f-display:
-    'Playfair Display', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic UI', 'Noto Sans JP',
-    'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+     D5: 全階層で「1つの文字列をラテンとCJKで割らない」ことを優先へ変えた回。
+     10段階の初版は Playfair(ラテン専用サブセット)だけを自己ホストしていたため、CJKは
+     環境依存のゴシックへ落ち、『AIエージェント開発環境』のように1語の中で
+     セリフとゴシックが入れ替わっていた(実測: A=16.0px/Playfair・座=26.0px/システムゴシック)。
+     日本語・韓国語も自己ホストのサブセットを持たせ、システムフォントより前に置く。
+
+     --f-display  名前(J-Paku)専用。ラテンだけの文字列なので Playfair の字面をそのまま使う
+     --f-title    作品カードの見出し。ラテンもCJKも Noto Serif の1書体で組む
+     --f-body     本文。ラテンは Inter、CJKは Noto Sans — どちらもグロテスクで線の太さが揃う
+     --f-label    字送りを広げた小ラベルのうちCJKを含むもの(期間・役割・規模・作品一覧・現在)。
+                  --f-mono だと等幅が当たる文字が1つも無く、字送りだけ残って書体が割れる
+     --f-mono     ラテンの数字・記号だけのラベル(NO.01 / PORTFOLIO — 2026 / MEASURED)。
+                  将来CJKが混ざっても環境依存にならないよう Noto Sans を後段に置く
+
+     サブセットは配信ページに描画された文字だけを持つ。足りない文字が出たときは
+     システムの明朝/ゴシックへ落ちるので、被覆は scripts/check-glyph-coverage.mjs が機械検査する。 */
+  --f-display: 'Playfair Display', 'Noto Serif JP', 'Yu Mincho', serif;
+  --f-title: 'Noto Serif JP', 'Hiragino Mincho ProN', 'Yu Mincho', serif;
   --f-body:
-    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN',
-    'Yu Gothic UI', 'Noto Sans JP', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
-  --f-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    'Inter', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans',
+    'Yu Gothic UI', sans-serif;
+  --f-label: 'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic UI', sans-serif;
+  --f-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Noto Sans JP', monospace;
 
   --fs-sm: 0.875rem; /* 14px。DESIGN.md button-sm/body-tabular と一致のため据え置き */
   --fs-base: 0.9375rem; /* 15px。DESIGN.md body-md(既定UI本文)に合わせて16pxから調整 */
@@ -140,6 +150,29 @@
      原案の --transition: 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) をそのまま採る */
   --motion-slow: 0.4s;
   --ease-reveal: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/*
+ * 書体のチェーンはロケールで切り替える。上の :root が ja、ここが ko。
+ *
+ * 両方のフォントを1本のチェーンに並べると、ja のページでも韓国語フォントが、
+ * ko のページでも日本語フォントがダウンロードされる(実測: 併記時の総転送量は
+ * ja 161KB / ko 170KB で、片方は1文字も描画しないのに落ちてきていた)。
+ * 各サブセットは相手ロケールの言語切替ラベル(日本語 / 한국어)も含むため、
+ * 自分のロケールのフォント1組だけで描画文字が全て揃う。
+ *
+ * lang は LocaleContext が pathname から立てるが、それはJSが動いた後になる。
+ * 初回ペイントで ja のチェーンを引かないよう、/ko/ の静的HTMLには
+ * scripts/emit-routes.mjs が lang="ko" を焼き込んでいる。
+ */
+:root[lang='ko'] {
+  --f-display: 'Playfair Display', 'Noto Serif KR', 'Nanum Myeongjo', serif;
+  --f-title: 'Noto Serif KR', 'Nanum Myeongjo', serif;
+  --f-body:
+    'Inter', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo',
+    'Malgun Gothic', sans-serif;
+  --f-label: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  --f-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Noto Sans KR', monospace;
 }
 
 /*

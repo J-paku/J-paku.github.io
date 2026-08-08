@@ -65,7 +65,9 @@
   flex-wrap: wrap;
   gap: 12px;
   margin: 0 0 var(--space-2xs);
-  font-family: var(--f-display);
+  /* ラテンもCJKも Noto Serif の1書体で組む。Playfair(--f-display)はCJKを持たないため、
+     『AIエージェント開発環境』のように1語の中でセリフとゴシックが割れていた */
+  font-family: var(--f-title);
   font-size: 1.75rem;
   font-weight: var(--fw-display);
   line-height: 1.2;
