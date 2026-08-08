@@ -9,10 +9,14 @@
 }
 
 .link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   color: var(--ink);
   text-decoration: none;
   /* 原案 .links a の値。12px 相当のトークンが無いため原案の実値をそのまま採る */
   font-size: 0.75rem;
+  line-height: 1.6;
   font-weight: var(--fw-medium);
   text-transform: uppercase;
   letter-spacing: 0.15em;
@@ -21,4 +25,12 @@
 
 .link:hover {
   opacity: 0.5;
+}
+
+/* GitHub ロゴ。文字色をそのまま継ぐ */
+.icon {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  fill: currentColor;
 }

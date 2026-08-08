@@ -6,6 +6,7 @@ import type { Work } from '@/types/content'
 import { useContent } from '@/hooks/use-content'
 import { useReveal } from '@/hooks/use-reveal'
 import { useFullyVisible } from '@/hooks/use-fully-visible'
+import { getTechIconPath } from '@/utils/tech-icons'
 import WorkSpec from '@/components/WorkSpec'
 import WorkStack from '@/components/WorkStack'
 import WorkLinks from '@/components/WorkLinks'
@@ -27,15 +28,26 @@ function WorkCard({ work, index }: WorkCardProps) {
   const hasLinks = work.links.live !== undefined || work.links.repo !== undefined
   const [isLinksOpen, setIsLinksOpen] = useState(false)
 
-  // Esc で閉じる。開いている間だけ購読する
+  // Esc と「キャプチャ枠の外側クリック」で閉じる。開いている間だけ購読する。
+  // 外側判定は shotRef(枠そのもの)基準 — 枠内のトリガー・リンクは各自の onClick が処理する
   useEffect(() => {
     if (!isLinksOpen) return
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setIsLinksOpen(false)
     }
+    const onPointerDown = (event: PointerEvent) => {
+      const shot = shotRef.current
+      if (shot !== null && event.target instanceof Node && !shot.contains(event.target)) {
+        setIsLinksOpen(false)
+      }
+    }
     window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [isLinksOpen])
+    window.addEventListener('pointerdown', onPointerDown)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('pointerdown', onPointerDown)
+    }
+  }, [isLinksOpen, shotRef])
 
   const cardClassName = isRevealed ? `${styles.card} ${styles.cardRevealed}` : styles.card
   const shotClassName = isFullyVisible ? `${styles.shot} ${styles.shotInView}` : styles.shot
@@ -73,6 +85,10 @@ function WorkCard({ work, index }: WorkCardProps) {
             ) : null}
             {work.links.repo !== undefined ? (
               <a href={work.links.repo} rel="noreferrer" className={styles.overlaySecondary}>
+                {/* ラベルが GitHub なのでブランドロゴを添える。装飾なので aria-hidden */}
+                <svg className={styles.overlayIcon} viewBox='0 0 24 24' aria-hidden='true'>
+                  <path d={getTechIconPath(ui.work.repo)} />
+                </svg>
                 {ui.work.repo}
               </a>
             ) : null}

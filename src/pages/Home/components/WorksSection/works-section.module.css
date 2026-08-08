@@ -31,12 +31,6 @@
   color: var(--ink);
 }
 
-.headerTools {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-}
-
 .grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -70,6 +64,22 @@
   line-height: 1.6;
 }
 
+/* 奥付。計測票よりさらに一段引いた最下行 */
+.colophon {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+  font-size: 0.65rem;
+  letter-spacing: 0.05em;
+  color: var(--ink-mid);
+}
+
+.colophonItem {
+  margin: 0;
+  line-height: 1.6;
+}
+
 /*
  * 1列に畳まれる幅。親(.layout)は横 padding を持たない約束なので、ここでも横余白を0にしない。
  * 横 40px は上に積まれる左列(ProfileColumn の padding 60px 40px)と揃えた値
@@ -91,6 +101,10 @@
     flex-direction: column;
     gap: 16px;
     margin-top: 88px;
+  }
+
+  .colophon {
+    margin-top: var(--space-md);
   }
 
   .footerNote {

@@ -6,6 +6,8 @@
 // 直下は .top / .out の2塊だけに保つ。列が justify-content: space-between で
 // 上下の端へ振り分けるため、ここに3つ目の直下要素を足すと分配が崩れる
 import { useContent } from '@/hooks/use-content'
+import { getTechIconPath } from '@/utils/tech-icons'
+import LocaleSwitcher from '@/components/LocaleSwitcher'
 import styles from './profile-column.module.css'
 
 // 区切り文字はコンテンツ側に持たせない(型の定義どおり配列で受け取り、ここで繋ぐ)
@@ -44,9 +46,14 @@ function ProfileColumn() {
         <div className={styles.outLinks}>
           {profile.links.github !== undefined ? (
             <a href={profile.links.github} rel="noreferrer" className={styles.outLink}>
+              {/* ラベルが GitHub なのでブランドロゴを添える。装飾なので aria-hidden */}
+              <svg className={styles.outIcon} viewBox='0 0 24 24' aria-hidden='true'>
+                <path d={getTechIconPath('GitHub')} />
+              </svg>
               GitHub
             </a>
           ) : null}
+          <LocaleSwitcher />
         </div>
       </div>
     </div>

@@ -29,7 +29,7 @@ export const ui: UiStrings = {
     scale: '規模',
     stack: '技術',
     live: '公開ページ',
-    repo: 'リポジトリ',
+    repo: 'GitHub',
     backToList: '作品一覧へ戻る',
     shotPlaceholder: '画面キャプチャは準備中',
   },
@@ -46,6 +46,10 @@ export const ui: UiStrings = {
       limitation:
         'コマンドパレット展開時やwip作品ページの内部状態は対象外 — 実測が届く範囲だけを担保している',
     },
+  },
+  colophon: {
+    copyright: '© 2026 朴',
+    credit: 'Design explored with Variant',
   },
   notFound: {
     title: 'ページが見つかりません',

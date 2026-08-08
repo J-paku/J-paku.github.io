@@ -29,7 +29,7 @@ export const ui: UiStrings = {
     scale: '규모',
     stack: '기술',
     live: '공개 페이지',
-    repo: '리포지토리',
+    repo: 'GitHub',
     backToList: '작품 목록으로 돌아가기',
     shotPlaceholder: '화면 캡처는 준비 중',
   },
@@ -46,6 +46,10 @@ export const ui: UiStrings = {
       limitation:
         '커맨드 팔레트를 펼친 상태나 wip 작품 페이지의 내부 상태는 대상 밖 — 실측이 닿는 범위만 담보한다',
     },
+  },
+  colophon: {
+    copyright: '© 2026 朴',
+    credit: 'Design explored with Variant',
   },
   notFound: {
     title: '페이지를 찾을 수 없습니다',

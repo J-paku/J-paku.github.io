@@ -1,8 +1,7 @@
 /*
- * 言語切替。10段階で画面右端の縦レールにした(モックアップの vertical language rail)。
- * 描画位置は WorksSection のヘッダーバー内の1箇所だけで、広い幅ではこのCSSが
- * position: fixed で右端へ引き剥がし、1024px以下ではヘッダーバー内へ静的に戻る。
- * 罫線・不透明度だけで現在言語を示す — 赤はラベル専用なのでここでは使わない
+ * 言語切替。左列の底(位置・GitHub の下)に横並びで置く。
+ * 10段階で試した画面右端の縦レールは、ユーザー判断で廃止して元の位置へ戻した。
+ * 階調と下罫線だけで現在言語を示す — 赤はラベル専用なのでここでは使わない
  */
 .switcher {
   display: flex;
@@ -33,22 +32,4 @@
 .link[aria-current='true'] {
   color: var(--ink);
   border-bottom-color: var(--ink);
-}
-
-/*
- * 広い幅: 画面右端の縦レール。スクロールバーと重ならないよう右余白を確保する。
- * writing-mode で縦書きにし、下罫線は縦書きでは文字列の右側に描かれる
- */
-@media (min-width: 1025px) {
-  .switcher {
-    position: fixed;
-    top: 50%;
-    right: 0;
-    transform: translateY(-50%);
-    flex-direction: column;
-    gap: var(--space-md);
-    width: 40px;
-    padding: 0;
-    writing-mode: vertical-rl;
-  }
 }

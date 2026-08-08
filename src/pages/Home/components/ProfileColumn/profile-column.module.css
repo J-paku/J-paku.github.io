@@ -159,6 +159,9 @@
 }
 
 .outLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 0.75rem;
   font-weight: var(--fw-medium);
   line-height: 1.6;
@@ -171,6 +174,14 @@
 
 .outLink:hover {
   opacity: 0.5;
+}
+
+/* GitHub ロゴ。文字色をそのまま継ぐ */
+.outIcon {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  fill: currentColor;
 }
 
 /*

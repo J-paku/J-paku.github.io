@@ -1,11 +1,9 @@
 // 右列の作品ストリーム。並び順はローダーが確定済みのものをそのまま使い、ここで再ソートしない。
 // 10段階でジグザグを廃したためカードは単純に縦へ積む。index は NO. 表示のためカードへ渡す。
-// LocaleSwitcher はここで描画する — 広い幅では自身のCSSが画面右端の縦レールとして固定し、
-// 1024px以下ではヘッダーバー内へ静的に戻る(描画位置は1箇所のまま両対応させる)
+// 言語切替は左列の底(位置・GitHub の下)にある — 縦レール案は試したうえで廃止した
 import { useContent } from '@/hooks/use-content'
 import WorkCard from '@/components/WorkCard'
 import ThemeToggle from '@/components/ThemeToggle'
-import LocaleSwitcher from '@/components/LocaleSwitcher'
 import styles from './works-section.module.css'
 
 function WorksSection() {
@@ -18,10 +16,7 @@ function WorksSection() {
         <h2 id="works-heading" className={styles.title}>
           {ui.work.index}
         </h2>
-        <div className={styles.headerTools}>
-          <LocaleSwitcher />
-          <ThemeToggle />
-        </div>
+        <ThemeToggle />
       </header>
 
       <div className={styles.grid}>
@@ -36,6 +31,12 @@ function WorksSection() {
         <p className={styles.footerNote}>{ui.quality.footer.environment}</p>
         <p className={styles.footerNote}>{ui.quality.footer.limitation}</p>
       </footer>
+
+      {/* 奥付。著作権と、デザイン探索に Variant を使った旨をさりげなく1行で */}
+      <div className={styles.colophon}>
+        <p className={styles.colophonItem}>{ui.colophon.copyright}</p>
+        <p className={styles.colophonItem}>{ui.colophon.credit}</p>
+      </div>
     </section>
   )
 }

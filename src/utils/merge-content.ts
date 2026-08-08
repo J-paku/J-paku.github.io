@@ -80,6 +80,7 @@ const mergeUi = (ja: UiStrings, ko: UiStrings): UiStrings => ({
   work: mergeStringRecord(ja.work, ko.work, 'ui.work'),
   quality: mergeQuality(ja.quality, ko.quality),
   notFound: mergeStringRecord(ja.notFound, ko.notFound, 'ui.notFound'),
+  colophon: mergeStringRecord(ja.colophon, ko.colophon, 'ui.colophon'),
   commandPalette: mergeStringRecord(ja.commandPalette, ko.commandPalette, 'ui.commandPalette'),
 })
 

@@ -184,18 +184,19 @@
 }
 
 /*
- * リンクの覆い。地色の半透明で写真を沈め、中央にリンク2つを積む。
+ * リンクの覆い。写真を隠し切らないよう薄いスクリムに留め、ボタンは下端の横並びにする。
+ * 文字の対比はスクリムではなくボタン自身の塗り/地が担うので、スクリムは読みやすさに関与しない。
  * トリガーの上に重なるので、覆いのどこを押しても閉じる(WorkCard 側の onClick)
  */
 .shotOverlay {
   position: absolute;
   inset: 0;
   display: flex;
-  flex-direction: column;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
   gap: var(--space-2xs);
-  background-color: color-mix(in srgb, var(--ground) 88%, transparent);
+  padding: var(--space-sm);
+  background-color: color-mix(in srgb, var(--ground) 30%, transparent);
   animation: overlay-in var(--motion) var(--ease-reveal);
 }
 
@@ -208,11 +209,12 @@
   }
 }
 
-/* 主リンク(公開ページ)。塗りで一番強く */
+/* 主リンク(公開ページ)。塗りで一番強く。2つで下端の帯を等分する */
 .overlayPrimary,
 .overlaySecondary {
-  min-width: 11rem;
-  padding: 10px 20px;
+  flex: 1;
+  max-width: 13rem;
+  padding: 10px 16px;
   font-size: 0.75rem;
   font-weight: var(--fw-medium);
   letter-spacing: 0.1em;
@@ -233,6 +235,16 @@
   border: 1px solid var(--ink);
   background-color: var(--ground);
   color: var(--ink);
+}
+
+/* 覆いの GitHub ボタンのロゴ。文字色をそのまま継ぐ */
+.overlayIcon {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  margin-right: 6px;
+  vertical-align: -1px;
+  fill: currentColor;
 }
 
 @keyframes overlay-link-in {

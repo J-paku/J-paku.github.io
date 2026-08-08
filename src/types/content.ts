@@ -62,6 +62,8 @@ export type UiStrings = {
     footer: FooterMeasurement
   }
   notFound: { title: string; body: string; backHome: string }
+  // ページ最下部の奥付(10段階)。著作権表記とデザイン出自の1行
+  colophon: { copyright: string; credit: string }
   // 06段階: コマンドパレット用文字列。resultCountは'{count}'をJS側で件数へ置換して使う
   commandPalette: {
     openButtonLabel: string

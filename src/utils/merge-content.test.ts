@@ -56,6 +56,7 @@ const makeContent = (overrides: Partial<Content> = {}): Content => ({
       footer: { label: 'MEASURED', environment: 'environment', limitation: 'limitation' },
     },
     notFound: { title: 'notFound', body: 'body', backHome: 'backHome' },
+    colophon: { copyright: 'copyright', credit: 'credit' },
     commandPalette: {
       openButtonLabel: 'openButtonLabel',
       title: 'commandPaletteTitle',

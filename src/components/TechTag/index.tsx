@@ -1,5 +1,5 @@
 // 技術スタックの1項目を描画するだけの最小部品。<ul>/<li> などの一覧セマンティクスは呼び出し側が決める
-import { getTechIconPath } from './utils/tech-icons'
+import { getTechIconPath } from '@/utils/tech-icons'
 import styles from './tech-tag.module.css'
 
 type TechTagProps = {
