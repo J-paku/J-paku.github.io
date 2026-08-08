@@ -16,7 +16,7 @@ export const profile: Profile = {
       // ※회사명은 비공개로 두고 업종 표기. 공개해도 무방하면 이 줄을 교체
       company: '의료·간병용품 상사(사내 시스템 개발)',
       period: '2025.01 - 현재',
-      stack: ['Next.js', 'React', 'TypeScript', 'Swift', 'Claude Code'],
+      stack: ['Next.js', 'React', 'TypeScript', 'Swift', 'Claude'],
       role: '웹개발팀 리더(팀원 4명 + 테스터 1명)',
       summary:
         '사내 업무 시스템의 프론트엔드 전 영역을 설계·구현. 입사 9개월 만에 팀 리더. 웹과 iOS를 혼자 횡단하고 있다.',
