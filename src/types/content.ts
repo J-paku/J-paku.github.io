@@ -23,21 +23,6 @@ export type Measurement = {
   condition: string
 }
 
-// ヒーロー専用(§2-3)。axe・Lighthouseの値はCIの quality.json から実行時に来るため、
-// 値をcontentに持たせない(実測値とズレた瞬間にサイトの論旨が壊れる)。ラベルと条件層2行のみ持つ
-export type HeroMetricLabel = {
-  label: string
-  labelScript: MeasurementLabelScript
-}
-
-export type HeroMeasurement = {
-  items: HeroMetricLabel[]
-  // 条件層1行目: 指標の出典
-  source: string
-  // 条件層2行目の固定テキスト。計測日時・実行結果リンクは実行時に付加する
-  gate: string
-}
-
 // フッター専用(§2-8)。値を持たない計測票。ラベルは固定表記 MEASURED
 export type FooterMeasurement = {
   label: string
@@ -54,6 +39,10 @@ export type UiStrings = {
   localeMenu: { label: string; ja: string; ko: string }
   theme: { label: string; light: string; dark: string }
   work: {
+    // 右列ヘッダーバー左側の索引文言(10段階)
+    index: string
+    // サムネイルのリンクオーバーレイを開くボタンの読み上げ名(10段階)
+    openLinks: string
     wipBadge: string
     period: string
     role: string
@@ -70,7 +59,6 @@ export type UiStrings = {
     measuredAt: string
     violations: string
     viewRun: string
-    hero: HeroMeasurement
     footer: FooterMeasurement
   }
   notFound: { title: string; body: string; backHome: string }

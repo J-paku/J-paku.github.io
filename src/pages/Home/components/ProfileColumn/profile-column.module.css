@@ -26,6 +26,17 @@
   min-width: 0;
 }
 
+/* キッカー(10段階)。赤はラベル専用 — ここと NO. 行と仕様表ラベルにしか使わない */
+.kicker {
+  margin: 0 0 var(--space-md);
+  font-family: var(--f-mono);
+  font-size: 0.65rem;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
 /* ページの識別そのもの。display 階層の太さはトークンに委ねる */
 .name {
   margin: 0;
@@ -75,6 +86,16 @@
 
 .cvItem {
   min-width: 0;
+}
+
+/* モックアップの「+ 経歴」接頭。文言ではなく装飾なので CSS で持つ */
+.cvItem::before {
+  content: '+';
+  display: block;
+  margin-bottom: var(--space-3xs);
+  font-family: var(--f-mono);
+  font-size: 0.7rem;
+  color: var(--ink-mid);
 }
 
 .when {

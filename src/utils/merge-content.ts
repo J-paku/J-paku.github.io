@@ -4,8 +4,6 @@ import type {
   CaseSection,
   Content,
   FooterMeasurement,
-  HeroMeasurement,
-  HeroMetricLabel,
   Measurement,
   Profile,
   SkillCategory,
@@ -60,13 +58,6 @@ const mergeStringRecord = <T extends Record<string, string>>(ja: T, ko: T, path:
   return result
 }
 
-// ヒーローの計測票(ラベルのみ・値はquality.jsonから実行時)。ラベル配列は丸ごと単位でのみ判定する
-const mergeHeroMeasurement = (ja: HeroMeasurement, ko: HeroMeasurement): HeroMeasurement => ({
-  items: pick<HeroMetricLabel[]>(ja.items, ko.items, 'ui.quality.hero.items'),
-  source: pick(ja.source, ko.source, 'ui.quality.hero.source'),
-  gate: pick(ja.gate, ko.gate, 'ui.quality.hero.gate'),
-})
-
 const mergeFooterMeasurement = (ja: FooterMeasurement, ko: FooterMeasurement): FooterMeasurement => ({
   label: pick(ja.label, ko.label, 'ui.quality.footer.label'),
   environment: pick(ja.environment, ko.environment, 'ui.quality.footer.environment'),
@@ -78,7 +69,6 @@ const mergeQuality = (ja: UiStrings['quality'], ko: UiStrings['quality']): UiStr
   measuredAt: pick(ja.measuredAt, ko.measuredAt, 'ui.quality.measuredAt'),
   violations: pick(ja.violations, ko.violations, 'ui.quality.violations'),
   viewRun: pick(ja.viewRun, ko.viewRun, 'ui.quality.viewRun'),
-  hero: mergeHeroMeasurement(ja.hero, ko.hero),
   footer: mergeFooterMeasurement(ja.footer, ko.footer),
 })
 

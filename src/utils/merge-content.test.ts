@@ -36,6 +36,8 @@ const makeContent = (overrides: Partial<Content> = {}): Content => ({
     localeMenu: { label: 'locale', ja: 'ja', ko: 'ko' },
     theme: { label: 'theme', light: 'light', dark: 'dark' },
     work: {
+      index: 'index',
+      openLinks: 'openLinks',
       wipBadge: 'wip',
       period: 'period',
       role: 'role',
@@ -51,11 +53,6 @@ const makeContent = (overrides: Partial<Content> = {}): Content => ({
       measuredAt: 'measuredAt',
       violations: 'violations',
       viewRun: 'viewRun',
-      hero: {
-        items: [{ label: 'AXE', labelScript: 'latin' }],
-        source: 'source',
-        gate: 'gate',
-      },
       footer: { label: 'MEASURED', environment: 'environment', limitation: 'limitation' },
     },
     notFound: { title: 'notFound', body: 'body', backHome: 'backHome' },

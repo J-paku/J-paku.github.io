@@ -1,0 +1,31 @@
+/* 仕様表。ラベル(赤モノ)+ 値の2列を行として積む。枠はパネル(WorkCard 側)が持つ */
+.spec {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  margin: 0;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+  gap: var(--space-sm);
+  align-items: baseline;
+}
+
+/* 赤はラベル専用(10段階 §4)。値・本文には使わない */
+.label {
+  font-family: var(--f-mono);
+  font-size: 0.65rem;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.value {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--ink-secondary);
+}

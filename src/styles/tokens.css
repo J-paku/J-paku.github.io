@@ -12,6 +12,14 @@
  * 地色だけ入れ替わる」状態が起きる。
  *
  * D1: DESIGN.md（Stripe 分析）の値へトークンの「値」だけを差し替えた回。
+ * D4: ウォームグレー・エディトリアルへの差し替え回(10-warm-editorial.md)。無彩色の値を
+ *     暖色系グレー+ラベル専用の赤へ置き換えた。変数名は据え置き、値のみ変更。
+ *     赤(--accent)はキッカー・NO.・仕様表ラベル専用で、本文・見出し・タグには使わない。
+ *     根拠対比(実測で仕様書から2値を調整):
+ *       ライト --accent  #b33a2b on #eae7e2 = 4.79 / on #f2f0ec = 5.19
+ *       ライト --ink-mid 仕様書の #6b6862 は地の上で 4.5025 と余裕が無いため #66635d(4.85)へ
+ *       ダーク --accent  仕様書の #d9604e はパネル #26241f 上で 4.23 と割るため #e06d5a(4.80 / 地 5.60)へ
+ *     小ラベル(10〜11px)に使うのでAA 4.5必須。
  * D3: モノクローム・アーキテクチュラルへの差し替え回。色相を一切持たず、
  *     ライト(白地/黒字)とダーク(黒地/白字)は互いの反転として定義する。
  *     変数名は D1 のまま据え置き、値だけを無彩色へ置き換えた（参照側のCSSを触らないため）。
@@ -25,23 +33,23 @@
 
 :root {
   /* ===== 色 — ライト(白地/黒字)。無彩色のみ ===== */
-  --ground: #ffffff; /* 地。原案 light の --bg */
-  --surface: #f5f5f5; /* 地の上に載る面（カード内の画像枠など） */
-  --surface-cream: #f0f0f0; /* D1では暖色の緩衝帯だったが、モノクロ化で色相を落とし
+  --ground: #eae7e2; /* 地。原案 light の --bg */
+  --surface: #e2ded8; /* 地の上に載る面（カード内の画像枠など） */
+  --surface-cream: #f2f0ec; /* D1では暖色の緩衝帯だったが、モノクロ化で色相を落とし
                                 「地から一段沈んだ面」の意味だけを残す */
-  --ink: #000000; /* 文字の基準色。原案 light の --fg。--ground 上で 21.00:1 */
-  --ink-secondary: #333333; /* ink より一段弱い本文用。--ground 上で 12.63:1 */
-  --ink-mid: #666666; /* 補助テキスト。原案 light の --accent(#666)。
+  --ink: #1a1a18; /* 文字の基準色。原案 light の --fg。--ground 上で 21.00:1 */
+  --ink-secondary: #3a3a36; /* ink より一段弱い本文用。--ground 上で 12.63:1 */
+  --ink-mid: #66635d; /* 補助テキスト。原案 light の --accent(#666)。
                           --ground 上で 5.74:1、--surface 上で 5.27:1 と、いずれもAA(4.5)を満たす */
-  --rule: rgba(0, 0, 0, 0.1); /* 罫線。原案 light の --border */
+  --rule: rgba(26, 26, 24, 0.14); /* 罫線。原案 light の --border */
   --rule-input: #8c8c8c; /* 入力枠。非テキストのため 3:1 が下限で、--ground 上で 3.36:1 */
-  --accent: #000000; /* モノクロでは強調＝インクそのもの。--ink と同値 */
-  --accent-deep: #333333; /* accent より一段退いた文字色（タグ等）。--ground 上で 12.63:1 */
+  --accent: #b33a2b; /* モノクロでは強調＝インクそのもの。--ink と同値 */
+  --accent-deep: #8f2e22; /* accent より一段退いた文字色（タグ等）。--ground 上で 12.63:1 */
   --accent-press: #4d4d4d; /* 押下状態。--ground 上で 8.45:1 */
   --accent-soft: #4d4d4d; /* プロダクトUIアクセント。押下と同段の明度 */
-  --accent-subtle: #8c8c8c; /* 枠線用の弱いアクセント。--ground 上で 3.36:1、--surface 上でも 3.08:1 */
+  --accent-subtle: #c08b82; /* 枠線用の弱いアクセント。--ground 上で 3.36:1、--surface 上でも 3.08:1 */
   --accent-ink: #ffffff; /* accent を地にしたときの文字色。--ground と同値 */
-  --marker: #333333; /* wip 状態専用。橙が使えないので、インクより一段弱い明度で「まだ弱い」を示す。
+  --marker: #6b6862; /* wip 状態専用。橙が使えないので、インクより一段弱い明度で「まだ弱い」を示す。
                          --ground 上で 12.63:1 */
   --gradient-ruby: #4d4d4d; /* グラデーションの差し色。モノクロ化で明度差だけの指定になった */
   --gradient-magenta: #808080; /* 同上。ruby より一段明るい側 */
@@ -143,43 +151,43 @@
  * 一つでも欠けるとライトの値がそのまま漏れ、黒地の上に黒系の文字が出る。
  */
 :root[data-theme='dark'] {
-  --ground: #000000; /* 原案 dark の --bg */
-  --surface: #1a1a1a; /* 原案の画像プレースホルダ(#1a1a1a)。地(#000)から一段浮いた面 */
-  --surface-cream: #242424; /* surface より更に一段浮いた面。地との差 1.35:1 で、境界は --rule が担う */
-  --ink: #ffffff; /* --ground 上で 21.00:1、--surface 上で 17.40:1 */
-  --ink-secondary: #cccccc; /* --ground 上で 13.08:1、--surface 上で 10.84:1 */
-  --ink-mid: #888888; /* 原案 dark の --accent(#888)。--ground 上で 5.92:1、--surface 上で 4.91:1 と
+  --ground: #171613; /* 原案 dark の --bg */
+  --surface: #201e1a; /* 原案の画像プレースホルダ(#1a1a1a)。地(#000)から一段浮いた面 */
+  --surface-cream: #26241f; /* surface より更に一段浮いた面。地との差 1.35:1 で、境界は --rule が担う */
+  --ink: #edeae4; /* --ground 上で 21.00:1、--surface 上で 17.40:1 */
+  --ink-secondary: #cfcbc3; /* --ground 上で 13.08:1、--surface 上で 10.84:1 */
+  --ink-mid: #959087; /* 原案 dark の --accent(#888)。--ground 上で 5.92:1、--surface 上で 4.91:1 と
                           いずれもAA(4.5)を満たす。これ以上暗くすると --surface 上で割る */
-  --rule: rgba(255, 255, 255, 0.1); /* 原案 dark の --border */
+  --rule: rgba(237, 234, 228, 0.14); /* 原案 dark の --border */
   --rule-input: #808080; /* 非テキスト。--ground 上で 5.32:1 */
-  --accent: #ffffff; /* --ink と同値 */
-  --accent-deep: #cccccc; /* タグ等の文字色。カードが --surface になるダークでは 10.84:1 */
+  --accent: #e06d5a; /* --ink と同値 */
+  --accent-deep: #e88a7b; /* タグ等の文字色。カードが --surface になるダークでは 10.84:1 */
   --accent-press: #b3b3b3; /* --ground 上で 10.02:1、--surface 上で 8.30:1 */
   --accent-soft: #b3b3b3;
-  --accent-subtle: #808080; /* 枠線。--surface 上で 4.41:1、--ground 上で 5.32:1 と 3:1 を満たす */
-  --accent-ink: #000000; /* --ground と同値 */
-  --marker: #cccccc; /* wip。--surface 上で 10.84:1 */
+  --accent-subtle: #8a5348; /* 枠線。--surface 上で 4.41:1、--ground 上で 5.32:1 と 3:1 を満たす */
+  --accent-ink: #171613; /* --ground と同値 */
+  --marker: #959087; /* wip。--surface 上で 10.84:1 */
   --gradient-ruby: #b3b3b3;
   --gradient-magenta: #808080; /* 明度の中点なので両テーマで同値。漏れではなく意図的に一致させている */
   --brand-dark-900: #1a1a1a; /* 固定の暗面。ライトと同値だが、漏れと区別するため明示する */
 }
 
 :root[data-theme='light'] {
-  --ground: #ffffff;
-  --surface: #f5f5f5;
-  --surface-cream: #f0f0f0;
-  --ink: #000000;
-  --ink-secondary: #333333;
-  --ink-mid: #666666;
-  --rule: rgba(0, 0, 0, 0.1);
+  --ground: #eae7e2;
+  --surface: #e2ded8;
+  --surface-cream: #f2f0ec;
+  --ink: #1a1a18;
+  --ink-secondary: #3a3a36;
+  --ink-mid: #66635d;
+  --rule: rgba(26, 26, 24, 0.14);
   --rule-input: #8c8c8c;
-  --accent: #000000;
-  --accent-deep: #333333;
+  --accent: #b33a2b;
+  --accent-deep: #8f2e22;
   --accent-press: #4d4d4d;
   --accent-soft: #4d4d4d;
-  --accent-subtle: #8c8c8c;
+  --accent-subtle: #c08b82;
   --accent-ink: #ffffff;
-  --marker: #333333;
+  --marker: #6b6862;
   --gradient-ruby: #4d4d4d;
   --gradient-magenta: #808080;
   --brand-dark-900: #1a1a1a;

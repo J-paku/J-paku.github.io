@@ -1,6 +1,6 @@
 /*
- * 右列(原本 .content-col の移植)。カードの見た目そのものは work-card.module.css が持ち、
- * ここは列の余白・見出し・並び・フッターだけを扱う。
+ * 右列(10段階でヘッダーバー+縦積みカードへ再構成)。カードの見た目は work-card.module.css が持ち、
+ * ここは列の余白・ヘッダーバー・並び・フッターだけを扱う。
  * .grid の子孫結合子でカード内部へ触らない — 過去に `.list li` がカード内の技術タグまで
  * 巻き込んだ事故があるため、指定は .grid 自身の grid プロパティに閉じる
  */
@@ -9,21 +9,32 @@
   min-width: 0;
 }
 
+/* ヘッダーバー。左 = 索引文言、右 = 言語+テーマ。下に全幅のヘアライン */
 .header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
-  margin-bottom: 100px;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: 72px;
+  padding-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--rule);
 }
 
+/* 索引文言。大見出しをやめ、モノのラベルとして置く(ページの h1 は左列の名前が担う) */
 .title {
-  /* 原本の -5px。見出し書体の左サイドベアリングぶんを戻し、下の本文列と縦を揃える */
-  margin: 0 0 0 -5px;
-  font-family: var(--f-display);
-  font-size: 5rem;
-  font-weight: var(--fw-display);
-  line-height: 0.8;
+  margin: 0;
+  font-family: var(--f-mono);
+  font-size: 0.7rem;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   color: var(--ink);
+}
+
+.headerTools {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
 }
 
 .grid {
@@ -66,10 +77,6 @@
 @media (max-width: 1024px) {
   .works {
     padding: 48px 40px 64px;
-  }
-
-  .title {
-    font-size: 3rem;
   }
 
   .header {

@@ -1,11 +1,12 @@
 /*
- * 作品カード。原案 .project-card の「メタ / 画像」2列グリッドを移植する。
- * 40px・2rem・0.9rem などの数値は原案の値。色は必ずトークン経由で参照する。
+ * 作品カード。10段階で左 = 画面キャプチャ(330px) / 右 = 情報の固定2列へ変えた。
+ * ジグザグ(nth-child での左右交互)は仕様表が入ると読み順が壊れるため廃止。
+ * 色は必ずトークン経由。赤(--accent)は NO. 番号のみ — 本文・タグには使わない
  */
 .card {
   position: relative;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 330px minmax(0, 1fr);
   gap: 40px;
   min-width: 0;
   /* リビール前の初期状態。表示は .cardRevealed(use-reveal が付ける)が受け持つ */
@@ -21,75 +22,62 @@
   transform: translateY(0);
 }
 
-/*
- * 偶数枚目は左右を入れ替える。カードが一覧グリッドの直接の子である前提(WorksSection と合意済み)。
- * direction は使わない — 列だけでなく中の文字の並びまで反転してしまう
- */
-.card:nth-child(even) .meta {
-  order: 2;
-}
-
-.card:nth-child(even) .shot {
-  order: 1;
-}
-
 .meta {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  gap: 2rem;
   min-width: 0;
 }
 
-.metaTop {
-  min-width: 0;
-}
-
-.metaBottom {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  min-width: 0;
-}
-
-/* 通し番号・文脈タグ・wip バッジを1行に並べる。原案の .project-id と同じくタイトルの上に置く */
+/* NO. 行 — 番号(赤モノ)とカードの文脈をドットリーダーで結ぶ */
 .head {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: 12px;
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-sm);
 }
 
 .serial {
   font-family: var(--f-mono);
   font-size: 0.7rem;
   font-weight: var(--fw-medium);
-  letter-spacing: 0.05em;
-  color: var(--ink-mid);
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  white-space: nowrap;
 }
 
-/* 実務由来。文脈を先に言うラベルなので、枠線と文字を本文と同じ濃さで置く */
-.tag {
-  padding: 4px 10px;
-  border: 1px solid var(--ink);
+/* ドットリーダー。flex の余白を1本の点線で埋める */
+.leader {
+  flex: 1;
+  border-bottom: 1px dotted var(--rule-input);
+  transform: translateY(-0.3em);
+}
+
+.context {
   font-size: 0.7rem;
-  font-weight: var(--fw-medium);
   line-height: 1.6;
+  color: var(--ink-mid);
+  text-align: right;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0 0 var(--space-2xs);
+  font-family: var(--f-display);
+  font-size: 1.75rem;
+  font-weight: var(--fw-display);
+  line-height: 1.2;
   color: var(--ink);
 }
 
-/* 個人開発。同じ形のまま罫線・文字を一段弱めて区別する(色相ではなく濃度で分ける) */
-.tagPersonal {
-  border-color: var(--rule);
-  color: var(--ink-mid);
-}
-
-/* wip状態のみ。塗りではなく marker 色の文字+枠線で表す */
+/* wip状態のみ。塗りではなく marker 色の文字+枠線で表す(赤は警告に読めるので使わない) */
 .wipBadge {
-  padding: 4px 10px;
+  padding: 3px 8px;
   border: 1px solid var(--marker);
-  font-size: 0.65rem;
+  font-family: var(--f-body);
+  font-size: 0.6rem;
   font-weight: var(--fw-medium);
   letter-spacing: 0.05em;
   line-height: 1.6;
@@ -97,20 +85,22 @@
   color: var(--marker);
 }
 
-.title {
-  margin: 0 0 1.5rem;
-  font-family: var(--f-display);
-  font-size: 2rem;
-  font-weight: var(--fw-display);
-  line-height: 1.2;
-  color: var(--ink);
-}
-
 .tagline {
-  margin: 0;
+  margin: 0 0 var(--space-md);
   font-size: 0.9rem;
   line-height: 1.6;
   color: var(--ink-mid);
+}
+
+/* 下部パネル。仕様表・タグ・リンクを枠で束ね、カードの終端を明示する */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-top: auto;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--rule);
+  background-color: var(--surface-cream);
 }
 
 /* 画面キャプチャ枠。資産がまだ無いカードでも枠が潰れないよう比率で高さを確保する */
@@ -120,6 +110,7 @@
   align-items: center;
   justify-content: center;
   aspect-ratio: 4 / 3;
+  align-self: start;
   overflow: hidden;
   background-color: var(--surface);
 }
@@ -145,7 +136,6 @@
   filter: grayscale(0%) contrast(100%);
 }
 
-/* 背景の字。枠の角から食み出させ、overflow: hidden で断ち落とす */
 /* 背景に敷く装飾グリフ。data-glyph が無いカードでは content が空になり何も描かれない */
 .shot::before {
   content: attr(data-glyph);
@@ -166,19 +156,100 @@
   letter-spacing: 0.05em;
   line-height: 1.6;
   text-align: center;
-  color: var(--ink-mid);
+  /* --surface の上に載る文字。ink-mid はライトの --surface 上で 4.47 と AA を割るため一段濃い階調にする */
+  color: var(--ink-secondary);
+}
+
+/*
+ * クリックでリンクの覆いを開く透明ボタン。キャプチャ全面を押せる領域にする。
+ * 見た目は持たない — 開閉の合図はカーソルと :focus-visible(global.css)が担う
+ */
+.shotTrigger {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  background: none;
+  cursor: pointer;
+}
+
+/* 読み上げ専用テキスト。ボタンのアクセシブルネームだけを持つ */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/*
+ * リンクの覆い。地色の半透明で写真を沈め、中央にリンク2つを積む。
+ * トリガーの上に重なるので、覆いのどこを押しても閉じる(WorkCard 側の onClick)
+ */
+.shotOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2xs);
+  background-color: color-mix(in srgb, var(--ground) 88%, transparent);
+  animation: overlay-in var(--motion) var(--ease-reveal);
+}
+
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 主リンク(公開ページ)。塗りで一番強く */
+.overlayPrimary,
+.overlaySecondary {
+  min-width: 11rem;
+  padding: 10px 20px;
+  font-size: 0.75rem;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.1em;
+  line-height: 1.6;
+  text-align: center;
+  text-transform: uppercase;
+  text-decoration: none;
+  animation: overlay-link-in var(--motion-slow) var(--ease-reveal);
+}
+
+.overlayPrimary {
+  background-color: var(--ink);
+  color: var(--ground);
+}
+
+/* 副リンク(リポジトリ)。枠線のみで一段弱く */
+.overlaySecondary {
+  border: 1px solid var(--ink);
+  background-color: var(--ground);
+  color: var(--ink);
+}
+
+@keyframes overlay-link-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @media (max-width: 1024px) {
   .card {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 24px;
-  }
-
-  /* 1列では左右交互という表現自体が成立しないため、読み順をメタ→画像に揃える */
-  .card:nth-child(even) .meta,
-  .card:nth-child(even) .shot {
-    order: 0;
   }
 }
 
@@ -199,5 +270,11 @@
 
   .card:hover .thumbnail {
     transform: none;
+  }
+
+  .shotOverlay,
+  .overlayPrimary,
+  .overlaySecondary {
+    animation: none;
   }
 }

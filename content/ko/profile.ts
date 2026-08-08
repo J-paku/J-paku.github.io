@@ -30,7 +30,7 @@ export const profile: Profile = {
     {
       // ※입사·퇴사 월은 확인 필요. 재직 2년 10개월
       company: '시스템 수탁개발 회사(고객사 상주)',
-      period: '2022 - 2024(2년 10개월)',
+      period: '2022 - 2024',
       stack: ['Nuxt.js', 'Vue.js', 'Delphi', 'Oracle', 'PostgreSQL'],
       role: '프론트엔드 엔지니어 / 코더',
       summary:

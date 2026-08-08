@@ -21,6 +21,8 @@ export const ui: UiStrings = {
     dark: 'ダーク',
   },
   work: {
+    index: '作品一覧',
+    openLinks: 'リンクを開く',
     wipBadge: '準備中',
     period: '期間',
     role: '役割',
@@ -36,18 +38,6 @@ export const ui: UiStrings = {
     measuredAt: '計測日時',
     violations: '違反件数',
     viewRun: '実行結果を見る',
-    // ヒーローの計測票(横基準線ゲージ)。axe・Lighthouseの値はquality.jsonから実行時に来るため、
-    // ここにはラベルと条件層のみを置く
-    hero: {
-      items: [
-        { label: 'AXE', labelScript: 'latin' },
-        { label: 'PERFORMANCE', labelScript: 'latin' },
-        { label: 'ACCESSIBILITY', labelScript: 'latin' },
-        { label: 'BEST PRACTICES', labelScript: 'latin' },
-      ],
-      source: 'WCAG 違反 / axe-core · Performance · Accessibility · Best Practices',
-      gate: 'デプロイのゲートとして CI で毎回計測',
-    },
     // フッターの計測票。値を持たず、計測環境と既知の弱点だけを先に言う
     footer: {
       label: 'MEASURED',

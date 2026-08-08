@@ -21,6 +21,8 @@ export const ui: UiStrings = {
     dark: '다크',
   },
   work: {
+    index: '작품 목록',
+    openLinks: '링크 열기',
     wipBadge: '준비 중',
     period: '기간',
     role: '역할',
@@ -36,18 +38,6 @@ export const ui: UiStrings = {
     measuredAt: '측정 일시',
     violations: '위반 건수',
     viewRun: '실행 결과 보기',
-    // 히어로의 계측표(가로 기준선 게이지). axe·Lighthouse 값은 quality.json에서 실행 시점에 오므로
-    // 여기에는 라벨과 조건 층만 둔다
-    hero: {
-      items: [
-        { label: 'AXE', labelScript: 'latin' },
-        { label: 'PERFORMANCE', labelScript: 'latin' },
-        { label: 'ACCESSIBILITY', labelScript: 'latin' },
-        { label: 'BEST PRACTICES', labelScript: 'latin' },
-      ],
-      source: 'WCAG 위반 / axe-core · Performance · Accessibility · Best Practices',
-      gate: '배포 게이트로 CI에서 매번 계측',
-    },
     // 푸터의 계측표. 값은 두지 않고 계측 환경과 알려진 약점을 먼저 말한다
     footer: {
       label: 'MEASURED',

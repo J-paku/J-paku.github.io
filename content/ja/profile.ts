@@ -30,7 +30,7 @@ export const profile: Profile = {
     {
       // ※入社・退社月は要確認。在籍2年10か月
       company: 'システム受託開発会社(客先常駐)',
-      period: '2022 - 2024(2年10か月)',
+      period: '2022 - 2024',
       stack: ['Nuxt.js', 'Vue.js', 'Delphi', 'Oracle', 'PostgreSQL'],
       role: 'フロントエンドエンジニア / コーダー',
       summary:

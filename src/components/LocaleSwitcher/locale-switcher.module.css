@@ -1,6 +1,8 @@
 /*
- * 左列の底に並ぶインラインの言語リンク。ドロップダウンを廃したため箱を持たない。
- * 原案 .lang-switch をそのまま採る — 小さい大文字・字送り 0.1em・横並び gap 1rem
+ * 言語切替。10段階で画面右端の縦レールにした(モックアップの vertical language rail)。
+ * 描画位置は WorksSection のヘッダーバー内の1箇所だけで、広い幅ではこのCSSが
+ * position: fixed で右端へ引き剥がし、1024px以下ではヘッダーバー内へ静的に戻る。
+ * 罫線・不透明度だけで現在言語を示す — 赤はラベル専用なのでここでは使わない
  */
 .switcher {
   display: flex;
@@ -11,26 +13,42 @@
   text-transform: uppercase;
 }
 
-/* 下罫線は透明で最初から確保しておく。現在言語に切り替わったとき行が動かないため */
 .link {
   padding-bottom: 2px;
   border-bottom: 1px solid transparent;
   font-weight: var(--fw-medium);
   line-height: 1.6;
-  color: var(--ink);
+  /* 不透明度での減光はやめた — 暖色地では 0.6 でも実効 4.25:1 と AA を割る(実測)。
+     階調はトークンの色で持つ(ink-mid は地の上で AA を満たす値に調整済み) */
+  color: var(--ink-mid);
   text-decoration: none;
-  /* 0.4 では実効色が light #999(2.84:1)・dark #666(3.65:1) となり 11.2px の文字が AA を割る。
-     0.6 まで上げると light 5.74:1・dark 7.37:1。現在言語との差は不透明度に加えて下罫線が担う */
-  opacity: 0.6;
-  transition: opacity var(--motion) var(--ease-reveal);
+  transition: color var(--motion) var(--ease-reveal);
 }
 
 .link:hover {
-  opacity: 1;
+  color: var(--ink);
 }
 
-/* 現在の言語は色ではなく不透明度と下罫線で示す(モノクロなので色の差を使わない) */
+/* 現在の言語は濃い階調と下罫線で示す(色相は使わない) */
 .link[aria-current='true'] {
-  opacity: 1;
+  color: var(--ink);
   border-bottom-color: var(--ink);
+}
+
+/*
+ * 広い幅: 画面右端の縦レール。スクロールバーと重ならないよう右余白を確保する。
+ * writing-mode で縦書きにし、下罫線は縦書きでは文字列の右側に描かれる
+ */
+@media (min-width: 1025px) {
+  .switcher {
+    position: fixed;
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%);
+    flex-direction: column;
+    gap: var(--space-md);
+    width: 40px;
+    padding: 0;
+    writing-mode: vertical-rl;
+  }
 }
