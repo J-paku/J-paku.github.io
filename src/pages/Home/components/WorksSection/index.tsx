@@ -1,38 +1,53 @@
-// Works セクションの組み立てのみ行う。Featured/その他 の分け方は works の並び順(ローダー確定)を
-// そのまま使い、Home側で再ソートしない。差分は featured prop と CSS だけで表現する
-// セクション id / aria-labelledby は Home 組み立て担当(次ラウンド)が付与する
+// 右列の作品ストリーム。並び順はローダーが確定済みのものをそのまま使い、ここで再ソートしない。
+// 10段階でジグザグを廃したためカードは単純に縦へ積む。index は NO. 表示のためカードへ渡す。
+// 言語切替は左列の底(位置・GitHub の下)にある — 縦レール案は試したうえで廃止した
 import { useContent } from '@/hooks/use-content'
 import WorkCard from '@/components/WorkCard'
+import ThemeToggle from '@/components/ThemeToggle'
+import PhraseText from '@/components/PhraseText'
 import styles from './works-section.module.css'
 
 function WorksSection() {
   const { ui, works } = useContent()
 
-  // ハードコードしたslug一覧は持たない。先頭2件をFeaturedとして切り出すだけ
-  const featured = works.slice(0, 2)
-  const rest = works.slice(2)
-
   return (
-    <section className={styles.works}>
-      <h2 className={styles.heading}>{ui.nav.works}</h2>
-      {featured.length > 0 ? (
-        <ul className={styles.featuredList}>
-          {featured.map((work) => (
-            <li key={work.slug}>
-              <WorkCard work={work} featured />
-            </li>
-          ))}
-        </ul>
-      ) : null}
-      {rest.length > 0 ? (
-        <ul className={styles.restList}>
-          {rest.map((work) => (
-            <li key={work.slug}>
-              <WorkCard work={work} />
-            </li>
-          ))}
-        </ul>
-      ) : null}
+    <section className={styles.works} aria-labelledby="works-heading">
+      {/* ヘッダーバー(10段階)。左 = 索引文言、右 = 言語+テーマ。下に全幅のヘアライン */}
+      <header className={styles.header}>
+        <h2 id="works-heading" className={styles.title}>
+          <PhraseText text={ui.work.index} />
+        </h2>
+        <ThemeToggle />
+      </header>
+
+      <div className={styles.grid}>
+        {works.map((work, index) => (
+          <WorkCard key={work.slug} work={work} index={index} />
+        ))}
+      </div>
+
+      {/* 文言は content の「フッター専用」計測票(ui.quality.footer)だけを使う。ここで新しい文字列は作らない */}
+      <footer className={styles.footer}>
+        <p className={styles.footerLabel}>
+          <PhraseText text={ui.quality.footer.label} />
+        </p>
+        <p className={styles.footerNote}>
+          <PhraseText text={ui.quality.footer.environment} />
+        </p>
+        <p className={styles.footerNote}>
+          <PhraseText text={ui.quality.footer.limitation} />
+        </p>
+      </footer>
+
+      {/* 奥付。著作権と、デザイン探索に Variant を使った旨をさりげなく1行で */}
+      <div className={styles.colophon}>
+        <p className={styles.colophonItem}>
+          <PhraseText text={ui.colophon.copyright} />
+        </p>
+        <p className={styles.colophonItem}>
+          <PhraseText text={ui.colophon.credit} />
+        </p>
+      </div>
     </section>
   )
 }

@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { useLocale } from '@/hooks/use-locale'
 import { useContent } from '@/hooks/use-content'
 import { withLocale } from '@/utils/locale-path'
+import PhraseText from '@/components/PhraseText'
 
 function NotFound() {
   const { locale } = useLocale()
@@ -11,9 +12,15 @@ function NotFound() {
 
   return (
     <div>
-      <h1>{ui.notFound.title}</h1>
-      <p>{ui.notFound.body}</p>
-      <Link to={homePath}>{ui.notFound.backHome}</Link>
+      <h1>
+        <PhraseText text={ui.notFound.title} />
+      </h1>
+      <p>
+        <PhraseText text={ui.notFound.body} />
+      </p>
+      <Link to={homePath}>
+        <PhraseText text={ui.notFound.backHome} />
+      </Link>
     </div>
   )
 }

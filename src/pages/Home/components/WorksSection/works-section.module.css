@@ -1,56 +1,114 @@
+/*
+ * 右列(10段階でヘッダーバー+縦積みカードへ再構成)。カードの見た目は work-card.module.css が持ち、
+ * ここは列の余白・ヘッダーバー・並び・フッターだけを扱う。
+ * .grid の子孫結合子でカード内部へ触らない — 過去に `.list li` がカード内の技術タグまで
+ * 巻き込んだ事故があるため、指定は .grid 自身の grid プロパティに閉じる
+ */
 .works {
-  padding-block: var(--space-2xl);
-  padding-inline: var(--space-lg);
+  padding: 60px 80px;
+  min-width: 0;
 }
 
-.heading {
-  margin: 0 0 var(--space-lg);
-  font-family: var(--f-display);
-  font-size: var(--fs-2xl);
-  line-height: var(--lh-heading);
+/* ヘッダーバー。左 = 索引文言、右 = 言語+テーマ。下に全幅のヘアライン */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: 72px;
+  padding-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--rule);
+}
+
+/* 索引文言。大見出しをやめ、モノのラベルとして置く(ページの h1 は左列の名前が担う) */
+.title {
+  margin: 0;
+  /* 『作品一覧』は全てCJKなので --f-mono では字送りだけ残って書体が割れる */
+  font-family: var(--f-label);
+  font-size: 0.7rem;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   color: var(--ink);
 }
 
-/* Featuredは1列で大きく見せ、区切りは箱ではなくヘアライン1本だけにする */
-.featuredList {
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 120px;
+}
+
+.footer {
   display: flex;
-  flex-direction: column;
-  margin: 0 0 var(--space-xl);
-  padding: 0;
-  list-style: none;
-}
-
-.featuredList > li {
-  min-width: 0;
-  padding-block: var(--space-lg);
-}
-
-.featuredList > li:first-child {
-  padding-block-start: 0;
-}
-
-.featuredList > li + li {
+  justify-content: space-between;
+  gap: 40px;
+  margin-top: 150px;
+  padding-top: 40px;
   border-top: 1px solid var(--rule);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  color: var(--ink-mid);
 }
 
-/* その他はFeaturedより明らかに軽い、密な一覧にする */
-.restList {
-  display: flex;
-  flex-direction: column;
+.footerLabel {
   margin: 0;
-  padding: 0;
-  list-style: none;
+  font-family: var(--f-mono);
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.1em;
+  white-space: nowrap;
 }
 
-.restList > li {
-  min-width: 0;
-  padding-block: var(--space-sm);
+/* 計測環境と限界の2文は折り返す。折り返す文字列の行間は 1.5 を下回らせない(check-ai-tells #15) */
+.footerNote {
+  max-width: 34ch;
+  margin: 0;
+  line-height: 1.6;
 }
 
-.restList > li:first-child {
-  padding-block-start: 0;
+/* 奥付。計測票よりさらに一段引いた最下行 */
+.colophon {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+  font-size: 0.65rem;
+  letter-spacing: 0.05em;
+  color: var(--ink-mid);
 }
 
-.restList > li + li {
-  border-top: 1px solid var(--rule);
+.colophonItem {
+  margin: 0;
+  line-height: 1.6;
+}
+
+/*
+ * 1列に畳まれる幅。親(.layout)は横 padding を持たない約束なので、ここでも横余白を0にしない。
+ * 横 40px は上に積まれる左列(ProfileColumn の padding 60px 40px)と揃えた値
+ */
+@media (max-width: 1024px) {
+  .works {
+    padding: 48px 40px 64px;
+  }
+
+  .header {
+    margin-bottom: 56px;
+  }
+
+  .grid {
+    gap: 72px;
+  }
+
+  .footer {
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 88px;
+  }
+
+  .colophon {
+    margin-top: var(--space-md);
+  }
+
+  .footerNote {
+    max-width: none;
+  }
 }

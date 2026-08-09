@@ -1,79 +1,348 @@
+/*
+ * 作品カード。デスクトップは 左 = 画面キャプチャ(330px) / 右 = 情報の2列。
+ * ジグザグ(nth-child での左右交互)は仕様表が入ると読み順が壊れるため廃止。
+ *
+ * DOM順は「見出し(intro) → キャプチャ(shot) → 事実(panel)」で、これはモバイルの読み順そのもの。
+ * 以前は shot が先頭で、1列に畳んだときキャプチャが先に来ていた — 何の作品かを判別する前に
+ * 画面の3割(390px幅で233px)を使い、wip カードでは中身の無いプレースホルダが先頭に立っていた。
+ * デスクトップの左右配置は grid-template-areas が作る。order で視覚順だけ入れ替えると
+ * タブ順・読み上げ順がDOMのまま残り、覆いのリンクを持つこのカードでは実害が出る。
+ *
+ * 色は必ずトークン経由。赤(--accent)は NO. 番号のみ — 本文・タグには使わない
+ */
 .card {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
+  position: relative;
+  display: grid;
+  grid-template-columns: 330px minmax(0, 1fr);
+  /* DOM順は 見出し → キャプチャ → 事実(モバイルの読み順)。デスクトップの左右2列はここが作る。
+     order を使わないのは、視覚順だけ入れ替えるとタブ順・読み上げ順がDOMのまま残るため */
+  grid-template-areas:
+    'shot intro'
+    'shot panel';
+  column-gap: 40px;
+  /* 行間は .tagline の margin が持つ。row-gap を足すと見出しと事実の間だけ倍になる */
+  row-gap: 0;
+  align-content: start;
+  min-width: 0;
+  /* リビール前の初期状態。表示は .cardRevealed(use-reveal が付ける)が受け持つ */
+  opacity: 0;
+  transform: translateY(40px);
+  transition:
+    opacity 1s var(--ease-reveal),
+    transform 1s var(--ease-reveal);
+}
+
+.cardRevealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* 見出しの塊(NO.行・タイトル・一行説明)。カードの先頭に来る */
+.intro {
+  grid-area: intro;
   min-width: 0;
 }
 
-.featured {
-  gap: var(--space-md);
+/* NO. 行 — 番号(赤モノ)とカードの文脈をドットリーダーで結ぶ */
+.head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: var(--space-sm);
+}
+
+.serial {
+  font-family: var(--f-mono);
+  font-size: 0.7rem;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+/* ドットリーダー。flex の余白を1本の点線で埋める */
+.leader {
+  flex: 1;
+  border-bottom: 1px dotted var(--rule-input);
+  transform: translateY(-0.3em);
+}
+
+.context {
+  font-size: 0.7rem;
+  line-height: 1.6;
+  color: var(--ink-mid);
+  text-align: right;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0 0 var(--space-2xs);
+  /* ラテンもCJKも Noto Serif の1書体で組む。Playfair(--f-display)はCJKを持たないため、
+     『AIエージェント開発環境』のように1語の中でセリフとゴシックが割れていた */
+  font-family: var(--f-title);
+  /*
+   * 幅に追従させる。28px固定だと最長の題字(「クロスプラットフォーム化」12字 = 333px)が
+   * 320px幅の枠240pxに入らず、非常口の break-word が語中で折る。その折れ目は禁則を見ないので
+   * 行頭に小書き仮名「ォ」が来る(実測)。6.2vw なら 320px で約20px・375px で約23px となり、
+   * 12字が常に1行へ収まる。437px 以上は従来どおり 1.75rem で頭打ち
+   */
+  font-size: clamp(1.25rem, 6.2vw, 1.75rem);
+  font-weight: var(--fw-display);
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+/* wip状態のみ。塗りではなく marker 色の文字+枠線で表す(赤は警告に読めるので使わない) */
+.wipBadge {
+  padding: 3px 8px;
+  border: 1px solid var(--marker);
+  font-family: var(--f-body);
+  font-size: 0.6rem;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.05em;
+  line-height: 1.6;
+  text-transform: uppercase;
+  color: var(--marker);
+}
+
+.tagline {
+  margin: 0 0 var(--space-md);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--ink-mid);
+}
+
+/* 事実のパネル。仕様表・タグ・リンクを枠で束ね、カードの終端を明示する */
+.panel {
+  grid-area: panel;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--rule);
+  background-color: var(--surface-cream);
+}
+
+/* 画面キャプチャ枠。資産がまだ無いカードでも枠が潰れないよう比率で高さを確保する */
+.shot {
+  grid-area: shot;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 4 / 3;
+  align-self: start;
+  overflow: hidden;
+  background-color: var(--surface);
 }
 
 .thumbnail {
   width: 100%;
-  border-radius: var(--space-3xs);
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(100%) contrast(110%);
+  transition:
+    transform 0.8s var(--ease-reveal),
+    filter 0.8s var(--ease-reveal);
 }
 
-.body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2xs);
-  min-width: 0;
+/* 画面に丸ごと収まっている間は実物の色を見せる。縁に掛かっている間は単色に沈む */
+.shotInView .thumbnail {
+  filter: grayscale(0%) contrast(100%);
 }
 
-/* その他(featuredでない)の見出し。小サイズなので明朝(--f-display)は使わず、
-   太字のゴシックで強さを補う(明朝は1.5rem未満だと視認性が落ちるため) */
-.title {
-  margin: 0;
+/* ホバーは位置に関係なく色を戻す。寄りもここだけが持つ */
+.card:hover .thumbnail {
+  transform: scale(1.05);
+  filter: grayscale(0%) contrast(100%);
+}
+
+/* 背景に敷く装飾グリフ。data-glyph が無いカードでは content が空になり何も描かれない */
+.shot::before {
+  content: attr(data-glyph);
+  position: absolute;
+  top: -20px;
+  right: -40px;
   font-family: var(--f-body);
-  font-size: var(--fs-base);
-  font-weight: var(--fw-bold);
-  line-height: var(--lh-heading);
+  font-size: 10rem;
+  line-height: 1;
+  color: var(--ink);
+  opacity: 0.03;
+  pointer-events: none;
+}
+
+.shotPlaceholder {
+  padding: 0 1rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  line-height: 1.6;
+  text-align: center;
+  /* --surface の上に載る文字。ink-mid はライトの --surface 上で 4.47 と AA を割るため一段濃い階調にする */
+  color: var(--ink-secondary);
+}
+
+/*
+ * クリックでリンクの覆いを開く透明ボタン。キャプチャ全面を押せる領域にする。
+ * 見た目は持たない — 開閉の合図はカーソルと :focus-visible(global.css)が担う
+ */
+.shotTrigger {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  background: none;
+  cursor: pointer;
+}
+
+/* 読み上げ専用テキスト。ボタンのアクセシブルネームだけを持つ */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/*
+ * リンクの覆い。写真を隠し切らないよう薄いスクリムに留め、ボタンは下端の横並びにする。
+ * 文字の対比はスクリムではなくボタン自身の塗り/地が担うので、スクリムは読みやすさに関与しない。
+ *
+ * 常に描画して既定は不可視。見せる条件は3つ —
+ *   1. ポインタ環境のホバー(下の @media)
+ *   2. focus-within(キーボードでリンクへ入ったとき)
+ *   3. .shotOverlayOpen(タッチ環境のタップ。WorkCard の state が付ける)
+ * 不可視の間は pointer-events: none でクリックを下のトリガーへ透過する
+ */
+.shotOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: var(--space-2xs);
+  padding: var(--space-sm);
+  background-color: color-mix(in srgb, var(--ground) 30%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion) var(--ease-reveal);
+}
+
+.shotOverlayOpen,
+.shot:focus-within .shotOverlay {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ホバーで出すのはポインタ環境だけ。タッチでタップした瞬間の :hover 残留を避ける */
+@media (hover: hover) and (pointer: fine) {
+  .shot:hover .shotOverlay {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+/* 主リンク(公開ページ)。塗りで一番強く。2つで下端の帯を等分する。
+   出現は覆いの transition に任せ、ボタン自身は僅かに持ち上がる */
+.overlayPrimary,
+.overlaySecondary {
+  flex: 1;
+  max-width: 13rem;
+  padding: 10px 16px;
+  font-size: 0.75rem;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.1em;
+  line-height: 1.6;
+  text-align: center;
+  text-decoration: none;
+  transform: translateY(8px);
+  transition: transform var(--motion-slow) var(--ease-reveal);
+}
+
+.shotOverlayOpen .overlayPrimary,
+.shotOverlayOpen .overlaySecondary,
+.shot:focus-within .overlayPrimary,
+.shot:focus-within .overlaySecondary {
+  transform: translateY(0);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .shot:hover .overlayPrimary,
+  .shot:hover .overlaySecondary {
+    transform: translateY(0);
+  }
+}
+
+.overlayPrimary {
+  background-color: var(--ink);
+  color: var(--ground);
+}
+
+/* 副リンク(リポジトリ)。枠線のみで一段弱く */
+.overlaySecondary {
+  border: 1px solid var(--ink);
+  background-color: var(--ground);
   color: var(--ink);
 }
 
-/* Featuredの見出しだけ明朝+大サイズにする。1.5rem以上なので視認性を保てる */
-.featured .title {
-  font-family: var(--f-display);
-  font-size: var(--fs-xl);
-  font-weight: var(--fw-regular);
+/* 覆いの GitHub ボタンのロゴ。文字色をそのまま継ぐ */
+.overlayIcon {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  margin-right: 6px;
+  vertical-align: -1px;
+  fill: currentColor;
 }
 
-.titleLink {
-  color: inherit;
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
+@media (max-width: 1024px) {
+  .card {
+    grid-template-columns: minmax(0, 1fr);
+    /* 1列。DOM順のまま 見出し → キャプチャ → 事実 で縦に積む */
+    grid-template-areas:
+      'intro'
+      'shot'
+      'panel';
+    column-gap: 0;
+    row-gap: 24px;
+  }
+
+  /* 行間は row-gap が持つので、ここの下マージンは二重になる */
+  .tagline {
+    margin-bottom: 0;
+  }
 }
 
-.titleLink:hover {
-  color: var(--accent);
-}
+/*
+ * global.css の transition-duration 上書きだけに頼ると初期値 opacity: 0 がペイントに残る。
+ * ここで明示的に見える状態へ戻す(use-reveal 側も観察せず即時表示する)
+ */
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
 
-/* wip状態のみ。塗りつぶし背景ではなく marker 色の文字+枠線で表現する(コントラスト用の対色トークンが無いため) */
-.wipBadge {
-  align-self: flex-start;
-  padding: var(--space-3xs) var(--space-2xs);
-  border: 1px solid var(--marker);
-  border-radius: var(--space-3xs);
-  color: var(--marker);
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-bold);
-}
+  .thumbnail {
+    transition: none;
+  }
 
-.tagline {
-  margin: 0;
-  color: var(--ink-mid);
-  font-size: var(--fs-sm);
-}
+  .card:hover .thumbnail {
+    transform: none;
+  }
 
-.featured .tagline {
-  font-size: var(--fs-lg);
-}
+  .shotOverlay,
+  .overlayPrimary,
+  .overlaySecondary {
+    transition: none;
+  }
 
-/* その他は一覧として一瞥できるよう、taglineを1行に収める */
-.card:not(.featured) .tagline {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  .overlayPrimary,
+  .overlaySecondary {
+    transform: none;
+  }
 }
-
