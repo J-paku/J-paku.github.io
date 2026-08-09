@@ -1,0 +1,44 @@
+/* 仕様表。ラベル(赤モノ)+ 値の2列を行として積む。枠はパネル(WorkCard 側)が持つ */
+.spec {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  margin: 0;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+  gap: var(--space-sm);
+  align-items: baseline;
+}
+
+/*
+ * 320px ではカード内の行幅が190pxしか無く、ラベルを4.5rem固定にすると値側に102pxしか残らない。
+ * 最長の文節「主要画面3(マップ」は119px要るので入り切らず、keep-all の非常口(break-word)が
+ * 開いて「マッ / プ」と語中で切れる(実測)。この幅帯だけラベルを内容幅に縮め、値に約155pxを渡す。
+ * ラベルは日本語・韓国語とも全て2文字なので、auto にしても列の頭は揃ったままになる
+ */
+@media (max-width: 360px) {
+  .row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+}
+
+/* 赤はラベル専用(10段階 §4)。値・本文には使わない */
+.label {
+  /* ラベルは期間・役割・規模 — 全てCJKで、--f-mono では等幅が当たる文字が1つも無い */
+  font-family: var(--f-label);
+  font-size: 0.65rem;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.value {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--ink-secondary);
+}

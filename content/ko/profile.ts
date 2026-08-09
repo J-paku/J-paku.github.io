@@ -2,15 +2,21 @@
 import type { Profile } from '@/types/content'
 
 export const profile: Profile = {
-  name: '박재홍(朴 裁弘)',
-  headline: '사내 업무 시스템의 UI를, 모바일 조작감까지 설계하고 운용까지 책임지는 프론트엔드 엔지니어',
+  name: 'J-Paku',
+  role: '프론트엔드',
+  scope: ['Web', 'iOS', '업무앱 기반', 'DB'],
+  headline: '업무 시스템의 UI를, 모바일 조작감까지 설계하고 운용까지',
   location: '오사카',
   goal: 'UI/UX를 거의 전부 스스로 설계해왔지만, 그 판단이 정말 좋은지 검증할 수단이 없다. 반론이 돌아오는 환경에서 설계 판단의 정확도를 올리고 싶다.',
+  links: {
+    github: 'https://github.com/J-paku',
+  },
   careers: [
     {
       // ※회사명은 비공개로 두고 업종 표기. 공개해도 무방하면 이 줄을 교체
       company: '의료·간병용품 상사(사내 시스템 개발)',
       period: '2025.01 - 현재',
+      stack: ['Next.js', 'React', 'TypeScript', 'Swift', 'Claude'],
       role: '웹개발팀 리더(팀원 4명 + 테스터 1명)',
       summary:
         '사내 업무 시스템의 프론트엔드 전 영역을 설계·구현. 입사 9개월 만에 팀 리더. 웹과 iOS를 혼자 횡단하고 있다.',
@@ -24,8 +30,9 @@ export const profile: Profile = {
     {
       // ※입사·퇴사 월은 확인 필요. 재직 2년 10개월
       company: '시스템 수탁개발 회사(고객사 상주)',
-      period: '2022 - 2024(2년 10개월)',
-      role: '프론트엔드 엔지니어 / 코더',
+      period: '2022 - 2024',
+      stack: ['Nuxt.js', 'Vue.js', 'Delphi', 'Oracle', 'PostgreSQL'],
+      role: '프론트엔드 엔지니어',
       summary:
         'SPA 신규 구축과 레거시 기간계 시스템 이관을 담당. AI 보조가 없는 환경에서 브라우저 동작과 비동기 제어의 기초를 여기서 만들었다.',
       highlights: [

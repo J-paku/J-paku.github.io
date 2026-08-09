@@ -1,20 +1,25 @@
 // localStorage へのアクセスはこのファイルに集約する(アプリ内で唯一の外部境界)。
 // 保存対象はテーマのみ。言語は URL が正本なのでここには持たない
-export type ThemePreference = 'system' | 'light' | 'dark'
+//
+// テーマは light / dark の2値。OS設定に追従する 'system' は廃止した。
+// 旧バージョンが保存した 'system' は下の検証で弾かれ、既定の light になる
+export type ThemePreference = 'light' | 'dark'
 
 const THEME_STORAGE_KEY = 'theme-preference'
 
-const isThemePreference = (value: string): value is ThemePreference =>
-  value === 'system' || value === 'light' || value === 'dark'
+// 保存値が無い・壊れている・廃止済みの 'system' だった場合に落ちる先
+const DEFAULT_THEME: ThemePreference = 'light'
 
-// localStorage はプライベートモード等で例外を投げうるので必ず握る。
-// 旧バージョン・破損値が保存されていた場合も検証して弾き、system にフォールバックする
+const isThemePreference = (value: string): value is ThemePreference =>
+  value === 'light' || value === 'dark'
+
+// localStorage はプライベートモード等で例外を投げうるので必ず握る
 export const readTheme = (): ThemePreference => {
   try {
     const stored = window.localStorage.getItem(THEME_STORAGE_KEY)
-    return stored !== null && isThemePreference(stored) ? stored : 'system'
+    return stored !== null && isThemePreference(stored) ? stored : DEFAULT_THEME
   } catch {
-    return 'system'
+    return DEFAULT_THEME
   }
 }
 
@@ -22,6 +27,6 @@ export const writeTheme = (value: ThemePreference): void => {
   try {
     window.localStorage.setItem(THEME_STORAGE_KEY, value)
   } catch {
-    // 書き込み失敗時は何もしない。次回起動時も system にフォールバックするだけで済む
+    // 書き込み失敗時は何もしない。次回起動時も既定へフォールバックするだけで済む
   }
 }

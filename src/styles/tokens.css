@@ -1,57 +1,85 @@
 /*
  * デザイントークン — 色・タイポグラフィ・間隔・モーション
  *
- * コンポーネントはここの変数だけを参照し、@media 内で直接スタイルを書かない。
- * そうすることで prefers-color-scheme と data-theme の両方が同じトークンを上書きできる。
+ * コンポーネントはここの変数だけを参照し、色を直接書かない。
  *
- * 上書きの優先順位（実装した順に強くなる）:
- *   1. :root                                    — ライトを既定値とする
- *   2. @media (prefers-color-scheme: dark) :root — OS 設定がダークならここが効く
- *   3. :root[data-theme='dark']                  — 属性セレクタなので 2 より詳細度が高く、OS 設定より勝つ
- *   4. :root[data-theme='light']                 — 同様に OS がダークでもライト固定を勝たせる
- * 属性セレクタは疑似クラス単体より詳細度が高いため、実際にはこの順序を入れ替えても
- * data-theme が prefers-color-scheme に必ず勝つ。ソース順は仕様書の例に合わせている。
+ * テーマは data-theme 属性の light / dark だけで決まる（08段階でOS追従の system を廃止）。
+ * 上書きの優先順位:
+ *   1. :root                     — ライトを既定値とする。data-theme が付く前の初回ペイント用
+ *   2. :root[data-theme='dark']  — ThemeProvider が常に立てる
+ *   3. :root[data-theme='light'] — 同上
+ * prefers-color-scheme の分岐は持たない。持つと「ライトを選んでいるのに OS がダークだから
+ * 地色だけ入れ替わる」状態が起きる。
  *
- * D1（このラウンド）: DESIGN.md（Stripi 分析）の値へトークンの「値」だけを差し替える。
- * 既存のトークン名は一切変更していない。コンポーネント側（*.module.css）は未着手。
+ * D1: DESIGN.md（Stripe 分析）の値へトークンの「値」だけを差し替えた回。
+ * D4: ウォームグレー・エディトリアルへの差し替え回(10-warm-editorial.md)。無彩色の値を
+ *     暖色系グレー+ラベル専用の赤へ置き換えた。変数名は据え置き、値のみ変更。
+ *     赤(--accent)はキッカー・NO.・仕様表ラベル専用で、本文・見出し・タグには使わない。
+ *     根拠対比(実測で仕様書から2値を調整):
+ *       ライト --accent  #b33a2b on #eae7e2 = 4.79 / on #f2f0ec = 5.19
+ *       ライト --ink-mid 仕様書の #6b6862 は地の上で 4.5025 と余裕が無いため #66635d(4.85)へ
+ *       ダーク --accent  仕様書の #d9604e はパネル #26241f 上で 4.23 と割るため #e06d5a(4.80 / 地 5.60)へ
+ *     小ラベル(10〜11px)に使うのでAA 4.5必須。
+ * D3: モノクローム・アーキテクチュラルへの差し替え回。色相を一切持たず、
+ *     ライト(白地/黒字)とダーク(黒地/白字)は互いの反転として定義する。
+ *     変数名は D1 のまま据え置き、値だけを無彩色へ置き換えた（参照側のCSSを触らないため）。
+ *     色相での区別（accent の紫、marker の橙など）が使えなくなるので、
+ *     区別は「明度の段階」と「枠線の有無」が担う。
+ *
+ * ダーク側では、ライトで定義した色変数を一つ残らず再定義する。
+ * D2 で accent-deep / accent-subtle の再定義漏れがあり、ライトの値が漏れてダークの
+ * 作品カードのタグが 1.99:1 になった事故があるため、意味が薄れた変数も削除せず必ず両テーマに置く。
  */
 
 :root {
-  /* ===== 色 — DESIGN.md の canvas/ink/primary 系に合わせる ===== */
-  --ground: #ffffff; /* canvas */
-  --surface: #f6f9fc; /* canvas-soft */
-  --surface-cream: #f5e9d4; /* canvas-cream。暖色の緩衝帯カード用（D2）。テーマに依らず固定の一色として扱う */
-  --ink: #0d253d; /* ink */
-  --ink-secondary: #273951; /* ink-secondary。ink より一段弱い本文用（D2） */
-  --ink-mid: #61718a; /* ink-mute-2。ink-mute(#64748d) は canvas-soft 上で 4.49:1 となり AA を僅かに割るため使わない */
-  --rule: #e3e8ee; /* hairline（装飾用途のみ） */
-  --rule-input: #7d94b0; /* DESIGN.md の hairline-input(#a8c3de) は白背景で 1.82:1 と非text用としても弱いため、
-                             同系色のまま暗めに調整（3.12:1）。text-input はまだ未実装(D2)なので先んじて安全側に振る */
-  --accent: #533afd; /* primary */
-  --accent-deep: #4434d4; /* primary-deep（押下前段・グラデーション中間色。D2） */
-  --accent-press: #2e2b8c; /* primary-press（押下状態。D2） */
-  --accent-soft: #665efd; /* primary-soft（プロダクトUIアクセント。D2） */
-  --accent-subtle: #cacaf9; /* primary-bg-subdued-hover。DESIGN.md の値(#b9b9f9)だと accent-deep とのペアで
-                                4.23:1 となりAA(4.5)未達のため、同系のまま僅かに明るく調整して4.96:1にした */
-  --accent-ink: #ffffff; /* accent（primary）を背景にしたときの文字色。on-primary */
-  --marker: #9b6829; /* lemon — wip 状態専用 */
-  --gradient-ruby: #ea2261; /* ruby。グラデーションメッシュの差し色専用。白地で4.29:1のため文字色・ボタンには使わない(D2) */
-  --gradient-magenta: #f96bee; /* magenta。グラデーションメッシュの差し色専用（D2） */
-  --brand-dark-900: #1c1e54; /* brand-dark-900。featured カードやダッシュボード面の固定の濃紺(D2)。
-                                 サイト全体のライト/ダーク切り替えとは独立した文字通りのブランド色として扱う */
+  /* ===== 色 — ライト(白地/黒字)。無彩色のみ ===== */
+  --ground: #eae7e2; /* 地。原案 light の --bg */
+  --surface: #e2ded8; /* 地の上に載る面（カード内の画像枠など） */
+  --surface-cream: #f2f0ec; /* D1では暖色の緩衝帯だったが、モノクロ化で色相を落とし
+                                「地から一段沈んだ面」の意味だけを残す */
+  --ink: #1a1a18; /* 文字の基準色。原案 light の --fg。--ground 上で 21.00:1 */
+  --ink-secondary: #3a3a36; /* ink より一段弱い本文用。--ground 上で 12.63:1 */
+  --ink-mid: #66635d; /* 補助テキスト。原案 light の --accent(#666)。
+                          --ground 上で 5.74:1、--surface 上で 5.27:1 と、いずれもAA(4.5)を満たす */
+  --rule: rgba(26, 26, 24, 0.14); /* 罫線。原案 light の --border */
+  --rule-input: #8c8c8c; /* 入力枠。非テキストのため 3:1 が下限で、--ground 上で 3.36:1 */
+  --accent: #b33a2b; /* モノクロでは強調＝インクそのもの。--ink と同値 */
+  --accent-deep: #8f2e22; /* accent より一段退いた文字色（タグ等）。--ground 上で 12.63:1 */
+  --accent-press: #4d4d4d; /* 押下状態。--ground 上で 8.45:1 */
+  --accent-soft: #4d4d4d; /* プロダクトUIアクセント。押下と同段の明度 */
+  --accent-subtle: #c08b82; /* 枠線用の弱いアクセント。--ground 上で 3.36:1、--surface 上でも 3.08:1 */
+  --accent-ink: #ffffff; /* accent を地にしたときの文字色。--ground と同値 */
+  --marker: #6b6862; /* wip 状態専用。橙が使えないので、インクより一段弱い明度で「まだ弱い」を示す。
+                         --ground 上で 12.63:1 */
+  --gradient-ruby: #4d4d4d; /* グラデーションの差し色。モノクロ化で明度差だけの指定になった */
+  --gradient-magenta: #808080; /* 同上。ruby より一段明るい側 */
+  --brand-dark-900: #1a1a1a; /* テーマ切り替えとは独立した固定の暗面。原案の画像プレースホルダと同値。
+                                 両テーマで同じ値だが、漏れと区別するため各ブロックに明示する */
 
   /* ===== タイポグラフィ =====
-     Sohne は独占フォントのため Inter を自己ホストで代替する（fonts.css の @font-face、unicode-range でラテンに限定）。
-     Inter の直後に日本語ゴシック(Light系優先)→韓国語ゴシック→sans-serif の順で繋ぎ、
-     チェーンの末尾を serif にしない（ラテン専用フォントとCJKの混在事故を避けるため）。
-     見出し(--f-display)も従来の明朝スタックをやめ、DESIGN.md のブランド識別(Sohne/Inter thin)に合わせる。 */
-  --f-display:
-    'Inter', -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic UI',
-    'Noto Sans JP', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+     D5: 全階層で「1つの文字列をラテンとCJKで割らない」ことを優先へ変えた回。
+     10段階の初版は Playfair(ラテン専用サブセット)だけを自己ホストしていたため、CJKは
+     環境依存のゴシックへ落ち、『AIエージェント開発環境』のように1語の中で
+     セリフとゴシックが入れ替わっていた(実測: A=16.0px/Playfair・座=26.0px/システムゴシック)。
+     日本語・韓国語も自己ホストのサブセットを持たせ、システムフォントより前に置く。
+
+     --f-display  名前(J-Paku)専用。ラテンだけの文字列なので Playfair の字面をそのまま使う
+     --f-title    作品カードの見出し。ラテンもCJKも Noto Serif の1書体で組む
+     --f-body     本文。ラテンは Inter、CJKは Noto Sans — どちらもグロテスクで線の太さが揃う
+     --f-label    字送りを広げた小ラベルのうちCJKを含むもの(期間・役割・規模・作品一覧・現在)。
+                  --f-mono だと等幅が当たる文字が1つも無く、字送りだけ残って書体が割れる
+     --f-mono     ラテンの数字・記号だけのラベル(NO.01 / PORTFOLIO — 2026 / MEASURED)。
+                  将来CJKが混ざっても環境依存にならないよう Noto Sans を後段に置く
+
+     サブセットは配信ページに描画された文字だけを持つ。足りない文字が出たときは
+     システムの明朝/ゴシックへ落ちるので、被覆は scripts/check-glyph-coverage.mjs が機械検査する。 */
+  --f-display: 'Playfair Display', 'Noto Serif JP', 'Yu Mincho', serif;
+  --f-title: 'Noto Serif JP', 'Hiragino Mincho ProN', 'Yu Mincho', serif;
   --f-body:
-    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN',
-    'Yu Gothic UI', 'Noto Sans JP', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
-  --f-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    'Inter', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans',
+    'Yu Gothic UI', sans-serif;
+  --f-label: 'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic UI', sans-serif;
+  --f-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Noto Sans JP', monospace;
 
   --fs-sm: 0.875rem; /* 14px。DESIGN.md button-sm/body-tabular と一致のため据え置き */
   --fs-base: 0.9375rem; /* 15px。DESIGN.md body-md(既定UI本文)に合わせて16pxから調整 */
@@ -71,12 +99,20 @@
   --fw-regular: 400; /* 本文の太さ。DESIGN.mdは本文も300指定だが、和文は同じ字面でも画数がラテンよりずっと多く
                          15〜16pxのLightは可読性を落とすため、本文はここを400のまま据え置く(意図的な逸脱) */
   --fw-bold: 700; /* DESIGN.md の型には無い、この場での既存の強調用途を維持 */
-  --fw-light: 300; /* 新規。display階層(ブランドの本体)専用。今ラウンドではコンポーネント側は未配線(D2で使用) */
+  /* 小さい大文字ラベル(字送りを広げた 0.65〜0.75rem)専用の太さ。400 のままだと
+     字画が細って読みにくく、700 では見出しと競合するため、その間を1段だけ設ける */
+  --fw-medium: 500;
+  /* D3で新規。display階層(セリフ見出し)の太さ。原案の Playfair Display は 400 指定で、
+     自己ホストする可変フォントの軸も 400〜900 しか持たない。見出しは必ずこれを参照する */
+  --fw-display: 400;
+  /* D1では display階層に 300 を当てる前提だったが、D3でその前提は消えた(セリフの見出しは400)。
+     Playfair の可変軸が400始まりのため 300 指定は 400 にクランプされる。残っている参照は
+     --fw-display へ移すこと。値自体は他用途のために据え置く */
+  --fw-light: 300;
 
-  /* 新規。負の字送りはラテン専用フォント(Inter)の効果が強く、CJKにそのまま適用すると字が重なるため
-     日本語見出しに実害が出ない範囲(-0.01em)まで丸めた。ラテン専用要素へ限定する方法もあったが、
-     その限定にはコンポーネント側CSSの編集が要り今ラウンドの担当外のため、この丸めを採用した */
-  --tracking-display: -0.01em;
+  /* D1では Inter の負の字送り(-0.01em)を入れていたが、セリフの見出しは字間を詰めると
+     セリフ同士が触れて可読性が落ちるため 0 に戻した。原案も見出しに字送りを与えていない */
+  --tracking-display: 0;
   /* body-tabular(tnum)用。対象は数字(ASCII)のみのため和文への影響が無く、DESIGN.mdの値をそのまま使う */
   --tracking-tabular: -0.42px;
 
@@ -107,48 +143,85 @@
   --radius-xl: 16px;
   --radius-pill: 9999px;
 
-  /* ===== モーション — DESIGN.mdに値の指定が無いため据え置き ===== */
-  --motion: 180ms;
+  /* ===== モーション ===== */
+  --motion: 180ms; /* 既存の即応系(hover等)。据え置き */
   --motion-ease: ease;
+  /* D3で新規。テーマ反転やスクロール連動の出現など、面が大きく変わる動き用。
+     原案の --transition: 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) をそのまま採る */
+  --motion-slow: 0.4s;
+  --ease-reveal: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --ground: #1c1e54; /* brand-dark-900。ダッシュボード面の"シェル"背景 */
-    --surface: #0d253d; /* ink。DESIGN.mdでは"ダッシュボードモックアップの塗り"の役割のため、
-                            シェルの上に載るパネル/カードの面として採用。brand-dark-900とほぼ同じ明度
-                            (相対輝度 0.0182 対 0.0175)のため、明暗ではなく色相(紫寄り/青緑寄り)で
-                            面を区別する意図的な設計 */
-    --ink: #f4f7fb;
-    --ink-secondary: #c7cee4;
-    --ink-mid: #a6b0c9;
-    --rule: #3a4278;
-    --accent: #8a80ff; /* primaryそのまま(#533afd)は brand-dark-900 上で2.49:1しか出ずAA未達のため明るく振った */
-    --accent-ink: #0d253d;
-    --marker: #e3a75c;
-  }
+/*
+ * 書体のチェーンはロケールで切り替える。上の :root が ja、ここが ko。
+ *
+ * 両方のフォントを1本のチェーンに並べると、ja のページでも韓国語フォントが、
+ * ko のページでも日本語フォントがダウンロードされる(実測: 併記時の総転送量は
+ * ja 161KB / ko 170KB で、片方は1文字も描画しないのに落ちてきていた)。
+ * 各サブセットは相手ロケールの言語切替ラベル(日本語 / 한국어)も含むため、
+ * 自分のロケールのフォント1組だけで描画文字が全て揃う。
+ *
+ * lang は LocaleContext が pathname から立てるが、それはJSが動いた後になる。
+ * 初回ペイントで ja のチェーンを引かないよう、/ko/ の静的HTMLには
+ * scripts/emit-routes.mjs が lang="ko" を焼き込んでいる。
+ */
+:root[lang='ko'] {
+  --f-display: 'Playfair Display', 'Noto Serif KR', 'Nanum Myeongjo', serif;
+  --f-title: 'Noto Serif KR', 'Nanum Myeongjo', serif;
+  --f-body:
+    'Inter', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo',
+    'Malgun Gothic', sans-serif;
+  --f-label: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  --f-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Noto Sans KR', monospace;
 }
 
+/*
+ * テーマは data-theme(light / dark)だけで決まる。OS設定への追従(prefers-color-scheme)は持たない。
+ * 以前あった @media (prefers-color-scheme: dark) ブロックは削除した — 「system」を廃止したので、
+ * 残すとユーザーが light を選んでいてもOSがダークだから地色だけ入れ替わる事故になる。
+ *
+ * ライトに存在する色変数はここで全て再定義する（値が同じ --brand-dark-900 も明示する）。
+ * 一つでも欠けるとライトの値がそのまま漏れ、黒地の上に黒系の文字が出る。
+ */
 :root[data-theme='dark'] {
-  --ground: #1c1e54;
-  --surface: #0d253d;
-  --ink: #f4f7fb;
-  --ink-secondary: #c7cee4;
-  --ink-mid: #a6b0c9;
-  --rule: #3a4278;
-  --accent: #8a80ff;
-  --accent-ink: #0d253d;
-  --marker: #e3a75c;
+  --ground: #171613; /* 原案 dark の --bg */
+  --surface: #201e1a; /* 原案の画像プレースホルダ(#1a1a1a)。地(#000)から一段浮いた面 */
+  --surface-cream: #26241f; /* surface より更に一段浮いた面。地との差 1.35:1 で、境界は --rule が担う */
+  --ink: #edeae4; /* --ground 上で 21.00:1、--surface 上で 17.40:1 */
+  --ink-secondary: #cfcbc3; /* --ground 上で 13.08:1、--surface 上で 10.84:1 */
+  --ink-mid: #959087; /* 原案 dark の --accent(#888)。--ground 上で 5.92:1、--surface 上で 4.91:1 と
+                          いずれもAA(4.5)を満たす。これ以上暗くすると --surface 上で割る */
+  --rule: rgba(237, 234, 228, 0.14); /* 原案 dark の --border */
+  --rule-input: #808080; /* 非テキスト。--ground 上で 5.32:1 */
+  --accent: #e06d5a; /* --ink と同値 */
+  --accent-deep: #e88a7b; /* タグ等の文字色。カードが --surface になるダークでは 10.84:1 */
+  --accent-press: #b3b3b3; /* --ground 上で 10.02:1、--surface 上で 8.30:1 */
+  --accent-soft: #b3b3b3;
+  --accent-subtle: #8a5348; /* 枠線。--surface 上で 4.41:1、--ground 上で 5.32:1 と 3:1 を満たす */
+  --accent-ink: #171613; /* --ground と同値 */
+  --marker: #959087; /* wip。--surface 上で 10.84:1 */
+  --gradient-ruby: #b3b3b3;
+  --gradient-magenta: #808080; /* 明度の中点なので両テーマで同値。漏れではなく意図的に一致させている */
+  --brand-dark-900: #1a1a1a; /* 固定の暗面。ライトと同値だが、漏れと区別するため明示する */
 }
 
 :root[data-theme='light'] {
-  --ground: #ffffff;
-  --surface: #f6f9fc;
-  --ink: #0d253d;
-  --ink-secondary: #273951;
-  --ink-mid: #61718a;
-  --rule: #e3e8ee;
-  --accent: #533afd;
+  --ground: #eae7e2;
+  --surface: #e2ded8;
+  --surface-cream: #f2f0ec;
+  --ink: #1a1a18;
+  --ink-secondary: #3a3a36;
+  --ink-mid: #66635d;
+  --rule: rgba(26, 26, 24, 0.14);
+  --rule-input: #8c8c8c;
+  --accent: #b33a2b;
+  --accent-deep: #8f2e22;
+  --accent-press: #4d4d4d;
+  --accent-soft: #4d4d4d;
+  --accent-subtle: #c08b82;
   --accent-ink: #ffffff;
-  --marker: #9b6829;
+  --marker: #6b6862;
+  --gradient-ruby: #4d4d4d;
+  --gradient-magenta: #808080;
+  --brand-dark-900: #1a1a1a;
 }

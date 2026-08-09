@@ -36,13 +36,28 @@ jobs:
       # @axe-core/cli は selenium-webdriver + chromedriver 経由でクロムを起動するため
       # session not created で落ちる(05-pipeline.md)。Playwright 注入方式に置き換えている。
       # emulateMedia(reduced motion)でスタガーリビールを止めて計測するため load-delay は不要
+      # 巡回先は「/」「/ko」だけ。08段階で作品詳細ルートを廃したので、以前の4経路指定は
+      # NotFound を2回検査していただけで、詳細ページを見たことにはなっていなかった
       - name: axe accessibility check
         run: |
-          node scripts/check-a11y.mjs http://localhost:4173 \
-            / \
-            /ko \
-            /works/seatmap-demo \
-            /works/ai-harness
+          node scripts/check-a11y.mjs http://localhost:4173 / /ko
+      # 日本語・韓国語のフォントは「描画された文字だけ」を持つサブセット(fonts.css)。
+      # コンテンツに文字が増えるとその文字だけシステムフォントへ落ち、1つの文字列の中で
+      # 書体が割れる。型チェックもビルドも通ってしまうので、配信物を見るこの検査で止める。
+      # 落ちたときは scripts/build-font-subsets.mjs を走らせてフォントを作り直す
+      - name: Font glyph coverage check
+        run: |
+          node scripts/check-glyph-coverage.mjs http://localhost:4173 / /ko/
+      # 日本語は語の間に空白が無いため、既定では画面幅とエンジンの実装で改行位置が決まる。
+      # PhraseText が入れる <wbr> と body の word-break: keep-all で位置を固定しているので、
+      # 文節の途中で切れていないか・禁則を破っていないかを6幅で実測する。
+      # スクリプトは測定前に fc-list でCJKフォントの存在を確認して落ちる。自己ホストのサブセットが
+      # 読めなかった場合にシステムフォントで測ってしまうのを防ぐ門なので、先に入れておく
+      - name: Install CJK fonts for measurement
+        run: sudo apt-get update && sudo apt-get install -y fonts-noto-cjk
+      - name: Japanese line-break check
+        run: |
+          node scripts/check-ja-linebreak.mjs http://localhost:4173 / /ko
       # setup-chrome は廃止した(axe が chromedriver 経由で CI から起動できなかったため)。
       # Lighthouse も axe と同じ Playwright 管理の Chromium を使う。二重に用意しない
       - name: Lighthouse CI

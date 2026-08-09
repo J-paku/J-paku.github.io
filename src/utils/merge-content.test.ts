@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { CaseSection, CaseSectionKey, Content, Work } from '@/types/content'
+import type { CaseSection, CaseSectionKey, Content, Measurement, Work } from '@/types/content'
 import { CASE_SECTION_ORDER } from '@/types/content'
 import { isEmpty, mergeContent, mergeWorks } from './merge-content'
 import {
@@ -18,6 +18,8 @@ const makeWork = (overrides: Partial<Work> = {}): Work => ({
   status: 'published',
   title: 'サンプル作品',
   tagline: 'サンプルの説明',
+  context: '実務の再構成 — サンプル',
+  contextKind: 'work',
   period: '2026.01 - 2026.02',
   role: '設計・実装',
   scale: '規模メモ',
@@ -32,8 +34,10 @@ const makeContent = (overrides: Partial<Content> = {}): Content => ({
     skipToMain: 'skip',
     nav: { label: 'nav', works: 'works', now: 'now', skills: 'skills', about: 'about' },
     localeMenu: { label: 'locale', ja: 'ja', ko: 'ko' },
-    theme: { label: 'theme', system: 'system', light: 'light', dark: 'dark' },
+    theme: { label: 'theme', light: 'light', dark: 'dark' },
     work: {
+      index: 'index',
+      openLinks: 'openLinks',
       wipBadge: 'wip',
       period: 'period',
       role: 'role',
@@ -42,9 +46,17 @@ const makeContent = (overrides: Partial<Content> = {}): Content => ({
       live: 'live',
       repo: 'repo',
       backToList: 'back',
+      shotPlaceholder: 'shotPlaceholder',
     },
-    quality: { title: 'quality', measuredAt: 'measuredAt', violations: 'violations', viewRun: 'viewRun' },
+    quality: {
+      title: 'quality',
+      measuredAt: 'measuredAt',
+      violations: 'violations',
+      viewRun: 'viewRun',
+      footer: { label: 'MEASURED', environment: 'environment', limitation: 'limitation' },
+    },
     notFound: { title: 'notFound', body: 'body', backHome: 'backHome' },
+    colophon: { copyright: 'copyright', credit: 'credit' },
     commandPalette: {
       openButtonLabel: 'openButtonLabel',
       title: 'commandPaletteTitle',
@@ -59,10 +71,13 @@ const makeContent = (overrides: Partial<Content> = {}): Content => ({
   },
   profile: {
     name: 'name',
+    role: 'role',
+    scope: ['scope'],
     headline: 'headline',
     location: 'location',
     goal: 'goal',
-    careers: [{ company: 'c', period: 'p', role: 'r', summary: 's', highlights: ['h'] }],
+    links: { github: 'https://example.com/github' },
+    careers: [{ company: 'c', period: 'p', stack: ['st'], role: 'r', summary: 's', highlights: ['h'] }],
     strengths: [{ title: 't', body: 'b' }],
   },
   skills: [{ category: 'cat', items: [{ name: 'name', evidence: [] }] }],
@@ -137,6 +152,21 @@ describe('mergeWorks — slug基準の要素単位マージ', () => {
       expect(section.body).toEqual([`${section.key}-ko-body`])
     }
   })
+
+  it('13: measurementsはko側が無ければjaを採用し、両方無ければundefinedのまま残る', () => {
+    const jaMeasurements: Measurement[] = [
+      { items: [{ label: '主要画面', labelScript: 'local', value: '3' }], condition: 'ja-condition' },
+    ]
+    const withJaOnly = mergeWorks(
+      [makeWork({ slug: 'a', measurements: jaMeasurements })],
+      [makeWork({ slug: 'a' })],
+    )
+    expect(withJaOnly[0].measurements).toEqual(jaMeasurements)
+
+    // wip作品は両ロケールとも計測票を持たない。空配列へ丸めずundefinedで返す必要がある
+    const withNeither = mergeWorks([makeWork({ slug: 'a' })], [makeWork({ slug: 'a' })])
+    expect(withNeither[0].measurements).toBeUndefined()
+  })
 })
 
 describe('sortWorks — 並び替え規則', () => {
@@ -191,5 +221,43 @@ describe('loadContent — 実コンテンツの回帰確認', () => {
     const ko = loadContent('ko')
     const merged = mergeContent(loadContent('ja'), ko)
     expect(merged.profile.name).toBe(ko.profile.name)
+  })
+
+  // 08段階の受け入れ基準1。片側だけ埋めるとfallbackが日本語をko画面へ静かに流すため、
+  // 合成後(mergeContent)ではなく生のloadContent同士で対照しなければ意味がない
+  it('08段階の新設7フィールドが ja・ko 両方に値を持つ', () => {
+    for (const locale of ['ja', 'ko'] as const) {
+      const { profile, ui, works } = loadContent(locale)
+
+      expect(profile.role, `${locale}.profile.role`).not.toBe('')
+      expect(profile.scope.length, `${locale}.profile.scope`).toBeGreaterThan(0)
+      expect(profile.links.github, `${locale}.profile.links.github`).toMatch(/^https:\/\//)
+      expect(ui.work.shotPlaceholder, `${locale}.ui.work.shotPlaceholder`).not.toBe('')
+
+      for (const career of profile.careers) {
+        expect(career.stack.length, `${locale}.careers[${career.period}].stack`).toBeGreaterThan(0)
+      }
+      for (const work of works) {
+        expect(work.context, `${locale}.works.${work.slug}.context`).not.toBe('')
+        expect(['work', 'personal'], `${locale}.works.${work.slug}.contextKind`).toContain(work.contextKind)
+      }
+    }
+  })
+
+  // 上のテストは「両方に値がある」までしか見ない。ja文をkoへコピペした場合は値が入っているので通る。
+  // ロケール依存の散文だけを取り出して相違を確認する(scope・stack・github は両言語で同値が正しいので除く)
+  it('ロケール依存の散文が ja と ko で異なる(コピペ検出)', () => {
+    const ja = loadContent('ja')
+    const ko = loadContent('ko')
+
+    expect(ko.profile.role).not.toBe(ja.profile.role)
+    expect(ko.profile.headline).not.toBe(ja.profile.headline)
+    expect(ko.ui.work.shotPlaceholder).not.toBe(ja.ui.work.shotPlaceholder)
+
+    for (const koWork of ko.works) {
+      const jaWork = ja.works.find((work) => work.slug === koWork.slug)
+      expect(jaWork, `works.${koWork.slug} が ja 側に無い`).toBeDefined()
+      expect(koWork.context, `works.${koWork.slug}.context`).not.toBe(jaWork?.context)
+    }
   })
 })

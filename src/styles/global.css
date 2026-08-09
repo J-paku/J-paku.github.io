@@ -29,6 +29,60 @@ body {
   line-height: var(--lh-body);
   /* DESIGN.md: ss01(単ストーリーのaなど)をbody全体に適用する */
   font-feature-settings: 'ss01';
+  /* テーマ反転はトークンの値が一斉に入れ替わるだけなので、ここで地色と文字色を繋ぐ。
+     prefers-reduced-motion 時は下のブロックが duration を潰す */
+  transition:
+    background-color var(--motion-slow) var(--ease-reveal),
+    color var(--motion-slow) var(--ease-reveal);
+}
+
+/*
+ * 日本語・韓国語の改行制御。
+ *
+ * 既定(word-break: normal)では、日本語は空白が無いためほぼどの文字間でも折り返せてしまい、
+ * 改行位置が画面幅とエンジンの実装で決まる。端末ごとに改行が変わるのはこれが原因で、
+ * 文節の途中("モバ / イルの操作感")で切れると日本語話者には読みにくい。
+ *
+ * keep-all はCJKの文字間の自動改行を止める。日本語は PhraseText が入れた <wbr>、
+ * 韓国語は語の間の空白でしか折り返さなくなり、改行位置の決定権がブラウザからこちら側へ移る。
+ *
+ * 1文節がコンテナより長い場合は行き場が無くなるので break-word を非常口に添える。
+ * anywhere ではなく break-word なのは、anywhere が min-content 幅を文字1つぶんまで縮めて
+ * grid・flex の配分そのものを変えてしまうため(必要な時だけ行内で折る break-word はそれが無い)。
+ *
+ * strict は行頭禁則を既定より広げ、小書き仮名(ゃゅょっ)と長音符(ー)を行頭に置かせない。
+ * keep-all を break-word が破る非常時にも禁則だけは保たれる
+ */
+body {
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  line-break: strict;
+}
+
+/*
+ * button はブラウザ既定が default なので、押せることが伝わるよう pointer に戻す。
+ * a と summary は既定で pointer だが、まとめて明示しておく。
+ * (以前は body の cursor: crosshair を打ち消すための例外群だった。照準線は操作の邪魔になるため撤回した)
+ */
+a,
+button,
+[role='button'],
+summary {
+  cursor: pointer;
+}
+
+/*
+ * フォーム系の書体はブラウザ実装の既定(Chromium は Arial)で、親からは継承されない。
+ * 放置すると button の中の文字だけトークンのチェーンから外れ、CJKが環境依存のフォントになる。
+ * D5でボタンの読み上げ用テキストが Arial 経由でシステムフォントに落ちていたのを
+ * check-glyph-coverage が検出したため、原因側をここで塞ぐ。
+ * サイズ・太さは各コンポーネントが指定しているので、ここでは書体だけを継承させる。
+ */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
 }
 
 /*
@@ -54,6 +108,14 @@ body {
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
+}
+
+/* ::selection — ブラウザ既定の青のままにしない(07-redesign.md §4 ルール#11)。
+   accent とその対色は「accent を地にした時の文字色」として組で定義済みのトークンなので、
+   ライト・ダークどちらでも対比が崩れない */
+::selection {
+  background-color: var(--accent);
+  color: var(--accent-ink);
 }
 
 @media (prefers-reduced-motion: reduce) {
