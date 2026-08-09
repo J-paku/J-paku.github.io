@@ -1,0 +1,204 @@
+/*
+ * 左列。モノクロ建築系リデザインの .profile-col をそのまま採る。
+ * 幾何(sticky / 100vh / padding 60px 40px / space-between / 右罫線)は原案どおりで、
+ * 色・書体だけをトークン参照に置き換えている。
+ *
+ * 列幅はここでは持たない — 400px を決めるのは Home 側の grid(.layout)。
+ * sticky はこの要素自身が持ち、親からは子孫結合子で中身に触らない
+ * (過去に親の子孫結合子がカード内部まで巻き込んだ事故がある)。
+ */
+.column {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100vh;
+  min-width: 0;
+  padding: 60px 40px;
+  border-right: 1px solid var(--rule);
+  background: var(--ground);
+}
+
+/* 上塊。space-between の一方の端を担うため、名前から経歴までを1つに束ねる */
+.top {
+  min-width: 0;
+}
+
+/* キッカー(10段階)。赤はラベル専用 — ここと NO. 行と仕様表ラベルにしか使わない */
+.kicker {
+  margin: 0 0 var(--space-md);
+  font-family: var(--f-mono);
+  font-size: 0.65rem;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* ページの識別そのもの。display 階層の太さはトークンに委ねる */
+.name {
+  margin: 0;
+  font-family: var(--f-display);
+  font-size: 2.5rem;
+  font-weight: var(--fw-display);
+  line-height: 1;
+  color: var(--ink);
+}
+
+.role {
+  margin: var(--space-md) 0 0;
+  font-size: 0.75rem;
+  font-weight: var(--fw-medium);
+  line-height: 1.6;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.scope {
+  margin: var(--space-3xs) 0 0;
+  font-size: 0.7rem;
+  line-height: 1.6;
+  letter-spacing: 0.1em;
+  color: var(--ink-mid);
+}
+
+/* 原案 .bio p。折り返す本文なので行間は 1.5 を下回らせない
+   (check-ai-tells.mjs ルール#15 = 実際に2行以上描かれた本文は行間比1.5以上) */
+.claim {
+  max-width: 280px;
+  margin: var(--space-lg) 0 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--ink-mid);
+}
+
+.cv {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin: var(--space-xl) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cvItem {
+  min-width: 0;
+}
+
+/* モックアップの「+ 経歴」接頭。文言ではなく装飾なので CSS で持つ */
+.cvItem::before {
+  content: '+';
+  display: block;
+  margin-bottom: var(--space-3xs);
+  font-family: var(--f-mono);
+  font-size: 0.7rem;
+  color: var(--ink-mid);
+}
+
+.when {
+  margin: 0;
+  /* 『2025.01 - 現在』のようにラテンとCJKが混ざる。--f-mono だと現在だけ別書体になるため
+     1書体で通す(数字の桁揃えは font-variant-numeric が担う) */
+  font-family: var(--f-label);
+  font-size: 0.7rem;
+  line-height: 1.6;
+  letter-spacing: 0.1em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-mid);
+}
+
+/* 経歴ブロック内で最初に拾わせたい固有名。ここだけ本文より一段太くする */
+.org {
+  margin: var(--space-3xs) 0 0;
+  font-size: 0.8rem;
+  font-weight: var(--fw-bold);
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+.post {
+  margin: var(--space-3xs) 0 0;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: var(--ink-secondary);
+}
+
+.tech {
+  margin: var(--space-3xs) 0 0;
+  font-size: 0.7rem;
+  line-height: 1.6;
+  letter-spacing: 0.05em;
+  color: var(--ink-mid);
+}
+
+/* 下塊 — space-between のもう一方の端。列の底に落ちる */
+.out {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding-top: var(--space-lg);
+}
+
+.location {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: var(--fw-medium);
+  line-height: 1.6;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-mid);
+}
+
+/* 原案 .links。横並びではなく縦に積む */
+.outLinks {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2xs);
+}
+
+.outLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: var(--fw-medium);
+  line-height: 1.6;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+  text-decoration: none;
+  transition: opacity var(--motion) var(--ease-reveal);
+}
+
+.outLink:hover {
+  opacity: 0.5;
+}
+
+/* GitHub ロゴ。文字色をそのまま継ぐ */
+.outIcon {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  fill: currentColor;
+}
+
+/*
+ * 1列に畳む幅では sticky を解除する。height: 100vh のまま static にすると
+ * 右列との間に画面1つ分の空白が空くため、高さも auto に戻す。
+ * 列の境界は右罫線から下罫線へ移す(原案の 1024px 分岐と同じ)
+ */
+@media (max-width: 1024px) {
+  .column {
+    position: static;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .out {
+    padding-top: var(--space-xl);
+  }
+}

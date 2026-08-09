@@ -1,11 +1,24 @@
+/* 原案 .tech-stack li の移植。角丸を持たない矩形のラベルで、状態は表さない装飾罫線のみ */
 .tag {
-  display: inline-block;
-  padding: var(--space-3xs) var(--space-2xs);
-  /* 罫線は装飾用途のみ。状態は表さない */
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
   border: 1px solid var(--rule);
-  border-radius: var(--space-3xs);
-  background-color: var(--ground);
+  border-radius: 0;
+  font-size: 0.7rem;
+  font-weight: var(--fw-medium);
+  line-height: 1.6;
+  letter-spacing: 0.02em;
+  /* 大文字変換はしない — Next.js や GitHub のようなブランド表記をそのまま見せる */
   color: var(--ink-mid);
-  font-size: var(--fs-sm);
   white-space: nowrap;
+}
+
+/* ブランドロゴ。文字色をそのまま継ぐ(モノクロ基調を崩さない) */
+.icon {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  fill: currentColor;
 }

@@ -17,25 +17,39 @@ export const ui: UiStrings = {
   },
   theme: {
     label: 'テーマを切り替え',
-    system: 'システム',
     light: 'ライト',
     dark: 'ダーク',
   },
   work: {
+    index: '作品一覧',
+    openLinks: 'リンクを開く',
     wipBadge: '準備中',
     period: '期間',
     role: '役割',
     scale: '規模',
     stack: '技術',
     live: '公開ページ',
-    repo: 'リポジトリ',
+    repo: 'GitHub',
     backToList: '作品一覧へ戻る',
+    shotPlaceholder: '画面キャプチャは準備中',
   },
   quality: {
     title: '品質指標',
     measuredAt: '計測日時',
     violations: '違反件数',
     viewRun: '実行結果を見る',
+    // フッターの計測票。値を持たず、計測環境と既知の弱点だけを先に言う
+    footer: {
+      label: 'MEASURED',
+      environment:
+        'Lighthouseは「/」を1回のみ計測。axe-coreは「/」「/ko」の2URLを検査',
+      limitation:
+        'コマンドパレット展開時やwip作品ページの内部状態は対象外 — 実測が届く範囲だけを担保している',
+    },
+  },
+  colophon: {
+    copyright: '© 2026 朴',
+    credit: 'Design explored with Variant',
   },
   notFound: {
     title: 'ページが見つかりません',

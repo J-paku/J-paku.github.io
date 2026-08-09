@@ -4,10 +4,7 @@ import { BrowserRouter, Routes, Route, useLocation } from 'react-router'
 import { LocaleProvider } from '@/contexts/LocaleContext'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { useContent } from '@/hooks/use-content'
-import Header from '@/components/Header'
-import Footer from '@/components/Footer'
 import Home from '@/pages/Home'
-import WorkDetail from '@/pages/WorkDetail'
 import NotFound from '@/pages/NotFound'
 
 // SPAはルートが変わってもスクロール位置が保持されるため、遷移直後に
@@ -32,17 +29,15 @@ function AppShell() {
       <a className="skip-link" href="#main">
         {ui.skipToMain}
       </a>
-      <Header />
+      {/* サイト共通ヘッダーは持たない。左列(Home内)が識別の役目を担う。
+          テーマ切り替えは原本の .section-header と同じく右列の見出し行が持つため、ここには置かない */}
       <main id="main">
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/works/:slug" element={<WorkDetail />} />
           <Route path="/ko" element={<Home />} />
-          <Route path="/ko/works/:slug" element={<WorkDetail />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
-      <Footer />
     </>
   )
 }
