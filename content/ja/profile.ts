@@ -21,6 +21,7 @@ export const profile: Profile = {
       summary:
         '社内業務システムのフロントエンド全域を設計・実装。入社9か月でチームリーダー。Web・iOSの両方を1人で横断している。',
       highlights: [
+        '基幹データをPleasanterへ移行した上で、業務フローの聞き取りとデータ構造に合わせて再構築',
         '座席マップ・名刺管理・帳票などの社内アプリを、状態同期と描画設計から自力で構築',
         '会社として前例のなかったSwift/iOSを導入し、Apple Enterpriseプログラムを開設',
         'AIエージェント開発環境(ハーネス)を自作し、チームへ配布・定着まで担当',
@@ -28,17 +29,30 @@ export const profile: Profile = {
       ],
     },
     {
+      // ※在籍は1社(受託開発会社)で、その中の派遣先ごとに分けている。社名は双方とも非公開
       // ※入社・退社月は要確認。在籍2年10か月
-      company: 'システム受託開発会社(客先常駐)',
-      period: '2022 - 2024',
+      company: '受託開発会社に在籍 — 派遣先: システム開発会社',
+      period: '2023.10 - 2024',
       stack: ['Nuxt.js', 'Vue.js', 'Delphi', 'Oracle', 'PostgreSQL'],
       role: 'フロントエンドエンジニア',
       summary:
         'SPA新規構築とレガシー基幹システムの移行を担当。AI補助のない環境で、ブラウザ挙動と非同期制御の基礎をここで作った。',
       highlights: [
         'Nuxt.jsによる在庫システムの新規構築。既存システムの動作のみを見て作り直すbehavior parity方式',
-        'Delphi製レガシー基幹システムのOracle → PostgreSQL移行。方言差を吸収しながら等価性を担保',
+        'Delphi製レガシー基幹システムのOracle → PostgreSQL移行。方言差を吸収しながら等価性を担保。主はSPA側で、こちらはサブプロジェクト',
         '※DB層の置き換えであり、UIフレームワークの置き換え・新旧共存は未経験',
+      ],
+    },
+    {
+      company: '受託開発会社に在籍 — 派遣先: 事業会社の情報システム部門',
+      period: '2022 - 2023.10',
+      stack: ['SharePoint', 'Power Automate'],
+      role: '社内情報基盤の運用・業務自動化',
+      summary:
+        '社内情報基盤の運用と、業務フローの自動化を担当。SharePointとPower Automateが中心で、SPAの開発はこの期間には含まれない。',
+      highlights: [
+        'SharePointの運用と、Power Automateによる社内業務フローの自動化',
+        '※この期間はSPA開発を含まない。SPAは次の派遣先から',
       ],
     },
   ],

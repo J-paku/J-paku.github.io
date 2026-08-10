@@ -1,16 +1,13 @@
 // ko → ja フォールバックの合成ロジック(純粋関数のみ)。
 // ko は既に全訳済みのため、これは常時通る主経路ではなく「今後の追記でkoが追いつかない区間」を埋める安全網。
 import type {
-  CaseSection,
   Content,
   FooterMeasurement,
-  Measurement,
   Profile,
   SkillCategory,
   UiStrings,
   Work,
 } from '@/types/content'
-import { CASE_SECTION_ORDER } from '@/types/content'
 
 // 空値判定は2種類のみ。if (!value) は 0 / false までフォールバックさせてしまうため使わない
 export const isEmpty = <T,>(value: T): boolean =>
@@ -39,17 +36,6 @@ const pickOptionalString = (ja: string | undefined, ko: string | undefined, path
   return merged === '' ? undefined : merged
 }
 
-// measurements のような optional な配列フィールド用。undefined を空配列に寄せてから丸ごと単位でpickし、
-// 空配列ならundefinedへ戻す(wip作品はそもそもmeasurementsを持たない)
-const pickOptionalMeasurements = (
-  ja: Measurement[] | undefined,
-  ko: Measurement[] | undefined,
-  path: string,
-): Measurement[] | undefined => {
-  const merged = pick(ja ?? [], ko ?? [], path)
-  return merged.length === 0 ? undefined : merged
-}
-
 const mergeStringRecord = <T extends Record<string, string>>(ja: T, ko: T, path: string): T => {
   const result = {} as T
   for (const key of Object.keys(ja) as Array<keyof T>) {
@@ -65,23 +51,17 @@ const mergeFooterMeasurement = (ja: FooterMeasurement, ko: FooterMeasurement): F
 })
 
 const mergeQuality = (ja: UiStrings['quality'], ko: UiStrings['quality']): UiStrings['quality'] => ({
-  title: pick(ja.title, ko.title, 'ui.quality.title'),
-  measuredAt: pick(ja.measuredAt, ko.measuredAt, 'ui.quality.measuredAt'),
-  violations: pick(ja.violations, ko.violations, 'ui.quality.violations'),
-  viewRun: pick(ja.viewRun, ko.viewRun, 'ui.quality.viewRun'),
   footer: mergeFooterMeasurement(ja.footer, ko.footer),
 })
 
 const mergeUi = (ja: UiStrings, ko: UiStrings): UiStrings => ({
   skipToMain: pick(ja.skipToMain, ko.skipToMain, 'ui.skipToMain'),
-  nav: mergeStringRecord(ja.nav, ko.nav, 'ui.nav'),
   localeMenu: mergeStringRecord(ja.localeMenu, ko.localeMenu, 'ui.localeMenu'),
   theme: mergeStringRecord(ja.theme, ko.theme, 'ui.theme'),
   work: mergeStringRecord(ja.work, ko.work, 'ui.work'),
   quality: mergeQuality(ja.quality, ko.quality),
   notFound: mergeStringRecord(ja.notFound, ko.notFound, 'ui.notFound'),
   colophon: mergeStringRecord(ja.colophon, ko.colophon, 'ui.colophon'),
-  commandPalette: mergeStringRecord(ja.commandPalette, ko.commandPalette, 'ui.commandPalette'),
 })
 
 const mergeProfile = (ja: Profile, ko: Profile): Profile => ({
@@ -104,26 +84,6 @@ const mergeSkills = (ja: SkillCategory[], ko: SkillCategory[]): SkillCategory[] 
 
 const mergeNow = (ja: Content['now'], ko: Content['now']): Content['now'] => pick(ja, ko, 'now')
 
-// key基準で対応づける。indexで揃えると節が1つずれた瞬間に全体が崩れる
-const mergeSections = (ja: CaseSection[], ko: CaseSection[], slug: string): CaseSection[] => {
-  const jaByKey = new Map(ja.map((section) => [section.key, section] as const))
-  const koByKey = new Map(ko.map((section) => [section.key, section] as const))
-  const knownKeys = new Set([...jaByKey.keys(), ...koByKey.keys()])
-
-  return CASE_SECTION_ORDER.filter((key) => knownKeys.has(key)).map((key) => {
-    const jaSection = jaByKey.get(key)
-    const koSection = koByKey.get(key)
-    if (koSection === undefined) return jaSection as CaseSection
-    if (jaSection === undefined) return koSection
-
-    return {
-      key,
-      heading: pick(jaSection.heading, koSection.heading, `works.${slug}.sections.${key}.heading`),
-      body: pick(jaSection.body, koSection.body, `works.${slug}.sections.${key}.body`),
-    }
-  })
-}
-
 const mergeWork = (ja: Work, ko: Work): Work => ({
   slug: ko.slug,
   status: ko.status,
@@ -140,10 +100,8 @@ const mergeWork = (ja: Work, ko: Work): Work => ({
     live: pickOptionalString(ja.links.live, ko.links.live, `works.${ko.slug}.links.live`),
     repo: pickOptionalString(ja.links.repo, ko.links.repo, `works.${ko.slug}.links.repo`),
   },
-  sections: mergeSections(ja.sections, ko.sections, ko.slug),
   thumbnail: pickOptionalString(ja.thumbnail, ko.thumbnail, `works.${ko.slug}.thumbnail`),
   glyph: pickOptionalString(ja.glyph, ko.glyph, `works.${ko.slug}.glyph`),
-  measurements: pickOptionalMeasurements(ja.measurements, ko.measurements, `works.${ko.slug}.measurements`),
 })
 
 // slug基準で対応づける。ja側に存在してko側に無いslugはjaの要素をそのまま採用する

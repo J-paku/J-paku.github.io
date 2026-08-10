@@ -1,17 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import type { CaseSection, CaseSectionKey, Content, Measurement, Work } from '@/types/content'
-import { CASE_SECTION_ORDER } from '@/types/content'
+import type { Content, Work } from '@/types/content'
 import { isEmpty, mergeContent, mergeWorks } from './merge-content'
-import {
-  assertSectionsIntegrity,
-  assertSlugMatchesFilename,
-  loadContent,
-  sortWorks,
-} from './content-loader'
-
-// CASE_SECTION_ORDER の7keyを過不足なく持つ最小sectionsを作る
-const makeSections = (headingSuffix: string, order: CaseSectionKey[] = CASE_SECTION_ORDER): CaseSection[] =>
-  order.map((key) => ({ key, heading: `${key}-${headingSuffix}`, body: [`${key}-${headingSuffix}-body`] }))
+import { assertSlugMatchesFilename, loadContent, sortWorks } from './content-loader'
 
 const makeWork = (overrides: Partial<Work> = {}): Work => ({
   slug: 'sample-work',
@@ -25,14 +15,12 @@ const makeWork = (overrides: Partial<Work> = {}): Work => ({
   scale: '規模メモ',
   stack: ['TypeScript'],
   links: {},
-  sections: makeSections('base'),
   ...overrides,
 })
 
 const makeContent = (overrides: Partial<Content> = {}): Content => ({
   ui: {
     skipToMain: 'skip',
-    nav: { label: 'nav', works: 'works', now: 'now', skills: 'skills', about: 'about' },
     localeMenu: { label: 'locale', ja: 'ja', ko: 'ko' },
     theme: { label: 'theme', light: 'light', dark: 'dark' },
     work: {
@@ -45,29 +33,13 @@ const makeContent = (overrides: Partial<Content> = {}): Content => ({
       stack: 'stack',
       live: 'live',
       repo: 'repo',
-      backToList: 'back',
       shotPlaceholder: 'shotPlaceholder',
     },
     quality: {
-      title: 'quality',
-      measuredAt: 'measuredAt',
-      violations: 'violations',
-      viewRun: 'viewRun',
       footer: { label: 'MEASURED', environment: 'environment', limitation: 'limitation' },
     },
     notFound: { title: 'notFound', body: 'body', backHome: 'backHome' },
     colophon: { copyright: 'copyright', credit: 'credit' },
-    commandPalette: {
-      openButtonLabel: 'openButtonLabel',
-      title: 'commandPaletteTitle',
-      searchLabel: 'searchLabel',
-      placeholder: 'placeholder',
-      resultCount: 'resultCount',
-      groupWorks: 'groupWorks',
-      groupLocale: 'groupLocale',
-      groupTheme: 'groupTheme',
-      groupExternal: 'groupExternal',
-    },
   },
   profile: {
     name: 'name',
@@ -139,42 +111,14 @@ describe('mergeWorks — slug基準の要素単位マージ', () => {
     const merged = mergeWorks(jaWorks, koWorks)
     expect(merged.find((w) => w.slug === 'b')).toEqual(jaWorkB)
   })
-
-  it('7: koのsections順序がjaと異なってもkeyで正しく対応づけて合成する', () => {
-    const jaWorks = [makeWork({ slug: 'a', sections: makeSections('ja') })]
-    // ko側は逆順で列挙。indexで揃えると全節がずれるはず
-    const koWorks = [makeWork({ slug: 'a', sections: makeSections('ko', [...CASE_SECTION_ORDER].reverse()) })]
-    const merged = mergeWorks(jaWorks, koWorks)[0].sections
-
-    expect(merged.map((s) => s.key)).toEqual(CASE_SECTION_ORDER)
-    for (const section of merged) {
-      expect(section.heading).toBe(`${section.key}-ko`)
-      expect(section.body).toEqual([`${section.key}-ko-body`])
-    }
-  })
-
-  it('13: measurementsはko側が無ければjaを採用し、両方無ければundefinedのまま残る', () => {
-    const jaMeasurements: Measurement[] = [
-      { items: [{ label: '主要画面', labelScript: 'local', value: '3' }], condition: 'ja-condition' },
-    ]
-    const withJaOnly = mergeWorks(
-      [makeWork({ slug: 'a', measurements: jaMeasurements })],
-      [makeWork({ slug: 'a' })],
-    )
-    expect(withJaOnly[0].measurements).toEqual(jaMeasurements)
-
-    // wip作品は両ロケールとも計測票を持たない。空配列へ丸めずundefinedで返す必要がある
-    const withNeither = mergeWorks([makeWork({ slug: 'a' })], [makeWork({ slug: 'a' })])
-    expect(withNeither[0].measurements).toBeUndefined()
-  })
 })
 
 describe('sortWorks — 並び替え規則', () => {
   it('9: published2件+wip2件を混在させても規則どおりに並ぶ', () => {
     const publishedOld = makeWork({ slug: 'old-published', status: 'published', period: '2024.01 - 2024.03' })
     const publishedNew = makeWork({ slug: 'new-published', status: 'published', period: '2026.05 - 2026.06' })
-    const wipZ = makeWork({ slug: 'z-wip', status: 'wip', period: undefined, sections: [] })
-    const wipA = makeWork({ slug: 'a-wip', status: 'wip', period: undefined, sections: [] })
+    const wipZ = makeWork({ slug: 'z-wip', status: 'wip', period: undefined })
+    const wipA = makeWork({ slug: 'a-wip', status: 'wip', period: undefined })
 
     const sorted = sortWorks([wipZ, publishedOld, wipA, publishedNew])
 
@@ -183,26 +127,11 @@ describe('sortWorks — 並び替え規則', () => {
 })
 
 describe('content-loaderの実行時整合性検査', () => {
-  it('10: published作品のsectionsが6個(1節欠落)だと検出する', () => {
-    const missingRetrospect = makeWork({
-      status: 'published',
-      sections: makeSections('base', CASE_SECTION_ORDER.filter((key) => key !== 'retrospect')),
-    })
-    expect(() => assertSectionsIntegrity(missingRetrospect)).toThrow()
-  })
-
-  it('11: wip作品にsectionsが入っていると検出する', () => {
-    const wipWithSections = makeWork({ status: 'wip', sections: makeSections('base').slice(0, 1) })
-    expect(() => assertSectionsIntegrity(wipWithSections)).toThrow()
-  })
-
   it('12: slugとファイル名が食い違うと検出する', () => {
     expect(() => assertSlugMatchesFilename('gatchanko', '/content/ja/works/seatmap-demo.ts')).toThrow()
   })
 
-  it('正常なpublished/wipはthrowしない', () => {
-    expect(() => assertSectionsIntegrity(makeWork({ status: 'published' }))).not.toThrow()
-    expect(() => assertSectionsIntegrity(makeWork({ status: 'wip', sections: [] }))).not.toThrow()
+  it('正常なslugはthrowしない', () => {
     expect(() => assertSlugMatchesFilename('seatmap-demo', '/content/ja/works/seatmap-demo.ts')).not.toThrow()
   })
 })

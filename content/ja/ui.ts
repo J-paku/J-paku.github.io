@@ -3,13 +3,6 @@ import type { UiStrings } from '@/types/content'
 // Header・LocaleSwitcher・ThemeToggle が消費するUI文字列(日本語)
 export const ui: UiStrings = {
   skipToMain: 'メインコンテンツへスキップ',
-  nav: {
-    label: 'サイト内ナビゲーション',
-    works: '作品',
-    now: '現在',
-    skills: 'スキル',
-    about: '私について',
-  },
   localeMenu: {
     label: '言語を選択',
     ja: '日本語',
@@ -30,14 +23,9 @@ export const ui: UiStrings = {
     stack: '技術',
     live: '公開ページ',
     repo: 'GitHub',
-    backToList: '作品一覧へ戻る',
     shotPlaceholder: '画面キャプチャは準備中',
   },
   quality: {
-    title: '品質指標',
-    measuredAt: '計測日時',
-    violations: '違反件数',
-    viewRun: '実行結果を見る',
     // フッターの計測票。値を持たず、計測環境と既知の弱点だけを先に言う
     footer: {
       label: 'MEASURED',
@@ -55,16 +43,5 @@ export const ui: UiStrings = {
     title: 'ページが見つかりません',
     body: 'お探しのページは存在しないか、移動または削除された可能性があります。',
     backHome: 'ホームへ戻る',
-  },
-  commandPalette: {
-    openButtonLabel: 'コマンドパレットを開く',
-    title: 'コマンドパレット',
-    searchLabel: 'コマンドを検索',
-    placeholder: '作品・言語・テーマを検索',
-    resultCount: '{count}件のコマンドが見つかりました',
-    groupWorks: '作品',
-    groupLocale: '言語',
-    groupTheme: 'テーマ',
-    groupExternal: '外部リンク',
   },
 }

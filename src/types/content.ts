@@ -3,26 +3,6 @@
 
 export type Locale = 'ja' | 'ko'
 
-// ---------- 計測票 (DIRECTION-FINAL §2-1) ----------
-// このサイトの唯一のシグネチャ。数値は必ず「ラベル→値→条件」の3層で現れ、
-// 条件層が空ならその数値は画面に上げない。この規則を型レベルで強制するため
-// Measurement.condition は必須(optionalにしない)
-
-// ラベルの書体分岐: 10px ラテン大文字(latin)か、14px ロケール本文書体(local)か
-export type MeasurementLabelScript = 'latin' | 'local'
-
-export type MeasurementItem = {
-  label: string
-  labelScript: MeasurementLabelScript
-  value: string
-}
-
-// 計測票の1ブロック。1つ以上のitemが並び、条件層を必ず共有する
-export type Measurement = {
-  items: MeasurementItem[]
-  condition: string
-}
-
 // フッター専用(§2-8)。値を持たない計測票。ラベルは固定表記 MEASURED
 export type FooterMeasurement = {
   label: string
@@ -34,8 +14,6 @@ export type FooterMeasurement = {
 
 export type UiStrings = {
   skipToMain: string
-  // <nav> ランドマークのアクセシブルネーム。01段階では英語固定だった分をロケール化する
-  nav: { label: string; works: string; now: string; skills: string; about: string }
   localeMenu: { label: string; ja: string; ko: string }
   theme: { label: string; light: string; dark: string }
   work: {
@@ -50,65 +28,20 @@ export type UiStrings = {
     stack: string
     live: string
     repo: string
-    backToList: string
     // thumbnail が無いカードの画面枠に出す代替文言(08段階)
     shotPlaceholder: string
   }
   quality: {
-    title: string
-    measuredAt: string
-    violations: string
-    viewRun: string
     footer: FooterMeasurement
   }
   notFound: { title: string; body: string; backHome: string }
   // ページ最下部の奥付(10段階)。著作権表記とデザイン出自の1行
   colophon: { copyright: string; credit: string }
-  // 06段階: コマンドパレット用文字列。resultCountは'{count}'をJS側で件数へ置換して使う
-  commandPalette: {
-    openButtonLabel: string
-    title: string
-    searchLabel: string
-    placeholder: string
-    resultCount: string
-    groupWorks: string
-    groupLocale: string
-    groupTheme: string
-    groupExternal: string
-  }
 }
 
 // ---------- 作品 ----------
 
 export type WorkStatus = 'published' | 'wip'
-
-// ケーススタディ固定8節のうち、本文を持つ7節
-// 8節目「リンク」は本文を持たず links から描画するため、ここには含めない
-export type CaseSectionKey =
-  | 'overview'
-  | 'challenge'
-  | 'design'
-  | 'techChoice'
-  | 'struggle'
-  | 'verification'
-  | 'retrospect'
-
-// 描画順はこの配列が正。content 側の並びには依存しない
-export const CASE_SECTION_ORDER: CaseSectionKey[] = [
-  'overview',
-  'challenge',
-  'design',
-  'techChoice',
-  'struggle',
-  'verification',
-  'retrospect',
-]
-
-export type CaseSection = {
-  key: CaseSectionKey
-  heading: string
-  body: string[]
-}
 
 export type WorkLinks = {
   live?: string
@@ -128,17 +61,14 @@ export type Work = {
   // 作品カードのタグ1行。どういう文脈で作ったものかを先に言う(08段階)。wipも持つ
   context: string
   contextKind: WorkContextKind
-  // period・role・scale・sections は status: 'wip' では持たない
+  // period・role・scale は status: 'wip' では持たない
   period?: string
   role?: string
   scale?: string
   stack: string[]
   links: WorkLinks
-  sections: CaseSection[]
   // 画像資産はまだ無い。ある時だけカードが描画するための空き枠
   thumbnail?: string
-  // 作品自身の計測票(DIRECTION-FINAL §2-4)。wipは計測すること自体がないため持たない
-  measurements?: Measurement[]
 }
 
 // ---------- プロフィール ----------

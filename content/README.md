@@ -23,12 +23,9 @@ content/
 
 型の定義元は `src/types/content.ts` の1箇所。`ko` は `ja` と同じ型を満たすため、キーの過不足は `tsc --noEmit` で落ちる。
 
-## 仕様書からの差分(2点)
+## 仕様書からの差分(1点)
 
-1. **`CaseSection` に `key` を追加した。** 仕様書の型は `{ heading, body }[]` だが、それだと ja/ko の節の過不足と順序ずれが型で検出できない。`CaseSectionKey` の union を持たせ、描画順は `CASE_SECTION_ORDER` を正とする。
-2. **`period` / `role` / `scale` を optional にした。** 仕様書の「wipカードは title / tagline のみ」を型で表すため。`status: 'wip'` の作品はこの3つと `sections` を持たない。
-
-8節目「リンク」は本文を持たず `links` から描画するため、`sections` は7節。
+**`period` / `role` / `scale` を optional にした。** 仕様書の「wipカードは title / tagline のみ」を型で表すため。`status: 'wip'` の作品はこの3つを持たない。
 
 ## works の集約
 
