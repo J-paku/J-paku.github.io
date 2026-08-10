@@ -1,3 +1,8 @@
+<!-- GitHub は README を lang="en" のページに埋め込むため、ブラウザが日本語の CJK 字形を
+     選べず、中国語・韓国語の字形へ落ちる。本文を lang="ja" で包んで字形を確定させる。
+     空行を挟むと中の Markdown は通常どおり解釈される -->
+<div lang="ja">
+
 # J-paku.github.io
 
 ポートフォリオハブサイトです。`https://j-paku.github.io/` に GitHub Pagesのユーザーサイトとして配信します。
@@ -62,3 +67,5 @@ GitHub Actions(`.github/workflows/deploy.yml`)がビルドして配信します�
 
 > リポジトリの Settings → Pages → Source を「GitHub Actions」に設定する必要があります。
 > 「Deploy from a branch」のままではこのワークフローは配信されません。
+
+</div>
