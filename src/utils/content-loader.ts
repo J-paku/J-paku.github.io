@@ -1,8 +1,7 @@
 // content/{locale}/ を集約し、並び替えと整合性検査を経て Content を組み立てるローダー。
 // バレル(content/{loc}/index.ts)は作らず、import.meta.glob の列挙だけで
 // 「デモ追加 = 作品ファイル1個追加」を成立させる
-import type { CaseSectionKey, Content, Locale, Work } from '@/types/content'
-import { CASE_SECTION_ORDER } from '@/types/content'
+import type { Content, Locale, Work } from '@/types/content'
 import { now as nowJa } from '@content/ja/now'
 import { now as nowKo } from '@content/ko/now'
 import { profile as profileJa } from '@content/ja/profile'
@@ -39,30 +38,6 @@ export const assertSlugMatchesFilename = (slug: string, filePath: string): void 
   }
 }
 
-// 02-content.md の指摘の補完: CaseSection に key があっても配列の要素数は型で強制されない。
-// published は CASE_SECTION_ORDER の7keyを過不足・重複なく持ち、wip は sections が空であることを実行時に検査する
-export const assertSectionsIntegrity = (work: Work): void => {
-  if (work.status === 'wip') {
-    if (work.sections.length > 0) {
-      reportIntegrityIssue(`content-loader: wip作品 "${work.slug}" は sections を持てない`)
-    }
-    return
-  }
-
-  const keys: CaseSectionKey[] = work.sections.map((section) => section.key)
-  const uniqueKeys = new Set(keys)
-  const matchesOrder =
-    keys.length === CASE_SECTION_ORDER.length &&
-    uniqueKeys.size === keys.length &&
-    CASE_SECTION_ORDER.every((key) => uniqueKeys.has(key))
-
-  if (!matchesOrder) {
-    reportIntegrityIssue(
-      `content-loader: 公開作品 "${work.slug}" の sections が CASE_SECTION_ORDER の7節と一致しない`,
-    )
-  }
-}
-
 // 1) published が先・wipが後 2) published同士はperiod降順(新しい方が上) 3) wip同士はslug昇順
 // ハードコードしたslug一覧は持たない。ファイルを追加すればこの規則だけで並び順が決まる
 export const sortWorks = (works: Work[]): Work[] =>
@@ -88,7 +63,6 @@ const collectWorks = (modules: Record<string, Record<string, Work>>): Work[] => 
         return null
       }
       assertSlugMatchesFilename(work.slug, filePath)
-      assertSectionsIntegrity(work)
       return work
     })
     .filter((work): work is Work => work !== null)

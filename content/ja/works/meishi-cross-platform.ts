@@ -11,5 +11,4 @@ export const meishiCrossPlatform: Work = {
   contextKind: 'work',
   stack: ['Swift', 'AVFoundation', 'Vision', 'WKWebView', 'React'],
   links: {},
-  sections: [],
 }

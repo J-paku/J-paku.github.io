@@ -11,5 +11,4 @@ export const gatchanko: Work = {
   contextKind: 'personal',
   stack: ['Tauri', 'Next.js', 'TypeScript', 'Rust'],
   links: {},
-  sections: [],
 }

@@ -21,6 +21,7 @@ export const profile: Profile = {
       summary:
         '사내 업무 시스템의 프론트엔드 전 영역을 설계·구현. 입사 9개월 만에 팀 리더. 웹과 iOS를 혼자 횡단하고 있다.',
       highlights: [
+        '기간계 데이터를 Pleasanter로 이관한 위에, 업무 플로우 청취와 데이터 구조에 맞춰 재구축',
         '좌석 맵·명함 관리·장표 등 사내 앱을 상태 동기와 렌더 설계부터 자력 구축',
         '회사에 전례가 없던 Swift/iOS를 도입하고 Apple Enterprise 프로그램 개설',
         'AI 에이전트 개발 환경(하네스)을 자작해 팀에 배포·정착까지 담당',
@@ -28,17 +29,30 @@ export const profile: Profile = {
       ],
     },
     {
+      // ※재직은 1개사(수탁개발 회사)이고 그 안의 파견처별로 나눴다. 사명은 양쪽 다 비공개
       // ※입사·퇴사 월은 확인 필요. 재직 2년 10개월
-      company: '시스템 수탁개발 회사(고객사 상주)',
-      period: '2022 - 2024',
+      company: '수탁개발 회사 재직 — 파견처: 시스템 개발 회사',
+      period: '2023.10 - 2024',
       stack: ['Nuxt.js', 'Vue.js', 'Delphi', 'Oracle', 'PostgreSQL'],
       role: '프론트엔드 엔지니어',
       summary:
         'SPA 신규 구축과 레거시 기간계 시스템 이관을 담당. AI 보조가 없는 환경에서 브라우저 동작과 비동기 제어의 기초를 여기서 만들었다.',
       highlights: [
         'Nuxt.js로 재고 시스템 신규 구축. 기존 시스템의 동작만 보고 다시 만드는 behavior parity 방식',
-        'Delphi 레거시 기간계 시스템의 Oracle → PostgreSQL 이관. 방언 차이를 흡수하며 등가성 보증',
+        'Delphi 레거시 기간계 시스템의 Oracle → PostgreSQL 이관. 방언 차이를 흡수하며 등가성 보증. 주는 SPA 쪽이고 이쪽은 서브 프로젝트',
         '※DB 계층 치환이며 UI 프레임워크 치환·신구 공존은 미경험',
+      ],
+    },
+    {
+      company: '수탁개발 회사 재직 — 파견처: 사업회사 정보시스템 부문',
+      period: '2022 - 2023.10',
+      stack: ['SharePoint', 'Power Automate'],
+      role: '사내 정보기반 운용·업무 자동화',
+      summary:
+        '사내 정보기반의 운용과 업무 플로우 자동화를 담당. SharePoint와 Power Automate가 중심이고 SPA 개발은 이 기간에 포함되지 않는다.',
+      highlights: [
+        'SharePoint 운용과 Power Automate에 의한 사내 업무 플로우 자동화',
+        '※이 기간은 SPA 개발을 포함하지 않는다. SPA는 다음 파견처부터',
       ],
     },
   ],
