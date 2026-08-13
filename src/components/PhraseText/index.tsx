@@ -6,7 +6,7 @@
 //
 // ja 以外はそのまま返す。韓国語は語の間に空白があり、keep-all だけで語中改行が止まる
 import { Fragment } from 'react'
-import { useLocale } from '@/hooks/use-locale'
+import { useLocale } from '@/contexts/LocaleContext/locale-context'
 import { segmentJapanese } from '@/utils/ja-phrase'
 
 type PhraseTextProps = {

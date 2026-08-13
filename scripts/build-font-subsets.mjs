@@ -65,6 +65,15 @@ for (const targetPath of targetPaths) {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' })
   await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 })
   await page.waitForTimeout(600)
+
+  // 設定メニュー(歯車)は閉じたままだと言語・テーマの選択肢文字列がDOMに無く採取から漏れる。
+  // ボタンがあれば開いてパネルの描画を待ってから採取する
+  const settingsButton = await page.$('button[aria-haspopup=true]')
+  if (settingsButton !== null) {
+    await settingsButton.click()
+    await page.waitForTimeout(200)
+  }
+
   const collected = await page.evaluate(
     ({ cjkFamilies, latinOwners }) => {
       const out = {}

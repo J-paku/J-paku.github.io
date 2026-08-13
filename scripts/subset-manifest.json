@@ -14,8 +14,8 @@
   "noto-sans-jp-body-500": {
     "family": "Noto Sans JP",
     "weight": 500,
-    "text": "—エクジストドフペポロンー一中作備公割品大役日期本模準的規覧語開間阪静국어한",
-    "unicodeRange": "U+1100, U+110b, U+1112, U+1161, U+1165, U+116e, U+11a8, U+11ab, U+2014, U+3099-309a, U+30a8, U+30af-30b0, U+30b7-30ba, U+30c8-30c9, U+30d5-30dd, U+30ed, U+30f3, U+30fc, U+4e00, U+4e2d, U+4f5c, U+5099, U+516c, U+5272, U+54c1, U+5927, U+5f79, U+65e5, U+671f, U+672c, U+6a21, U+6e96, U+7684, U+898f, U+89a7, U+8a9e, U+958b, U+9593, U+962a, U+9759, U+ac00-ac01, U+ac04, U+ac70-ac71, U+ac74, U+ad6c-ad6d, U+ad70, U+c544-c545, U+c548, U+c5b4-c5b5, U+c5b8, U+c6b0-c6b1, U+c6b4, U+d558-d559, U+d55c, U+d5c8-d5c9, U+d5cc, U+d6c4-d6c5, U+d6c8"
+    "text": "—えりをイエクジスダテトドフペポマラロンー一中作備公切割品大役択日替期本模準的規覧言語選開間阪静국어한",
+    "unicodeRange": "U+1100, U+110b, U+1112, U+1161, U+1165, U+116e, U+11a8, U+11ab, U+2014, U+3048, U+308a, U+3092, U+3099-309a, U+30a4, U+30a8, U+30af-30b0, U+30b7-30ba, U+30bf-30c0, U+30c6-30c9, U+30d5-30de, U+30e9, U+30ed, U+30f3, U+30fc, U+4e00, U+4e2d, U+4f5c, U+5099, U+516c, U+5207, U+5272, U+54c1, U+5927, U+5f79, U+629e, U+65e5, U+66ff, U+671f, U+672c, U+6a21, U+6e96, U+7684, U+898f, U+89a7, U+8a00, U+8a9e, U+9078, U+958b, U+9593, U+962a, U+9759, U+ac00-ac01, U+ac04, U+ac70-ac71, U+ac74, U+ad6c-ad6d, U+ad70, U+c544-c545, U+c548, U+c5b4-c5b5, U+c5b8, U+c6b0-c6b1, U+c6b4, U+d558-d559, U+d55c, U+d5c8-d5c9, U+d5cc, U+d6c4-d6c5, U+d6c8"
   },
   "noto-sans-jp-body-700": {
     "family": "Noto Sans JP",
@@ -32,8 +32,8 @@
   "noto-sans-kr-body-500": {
     "family": "Noto Sans KR",
     "weight": 500,
-    "text": "—日本語간개공국규기드록론모목비사스어엔역오이익작적정준중지카트페포품프한할",
-    "unicodeRange": "U+2014, U+65e5, U+672c, U+8a9e, U+ac04, U+ac1c, U+acf5, U+ad6d, U+addc, U+ae30, U+b4dc, U+b85d, U+b860, U+baa8-baa9, U+be44, U+c0ac, U+c2a4, U+c5b4, U+c5d4, U+c5ed, U+c624, U+c774-c775, U+c791, U+c801, U+c815, U+c900, U+c911, U+c9c0, U+ce74, U+d2b8, U+d398, U+d3ec, U+d488, U+d504, U+d55c, U+d560"
+    "text": "—日本語간개공국규기다드라록론마모목비사선스어언엔역오이익작적전정준중지카크택테트페포품프한할환",
+    "unicodeRange": "U+2014, U+65e5, U+672c, U+8a9e, U+ac04, U+ac1c, U+acf5, U+ad6d, U+addc, U+ae30, U+b2e4, U+b4dc, U+b77c, U+b85d, U+b860, U+b9c8, U+baa8-baa9, U+be44, U+c0ac, U+c120, U+c2a4, U+c5b4, U+c5b8, U+c5d4, U+c5ed, U+c624, U+c774-c775, U+c791, U+c801, U+c804, U+c815, U+c900, U+c911, U+c9c0, U+ce74, U+d06c, U+d0dd, U+d14c, U+d2b8, U+d398, U+d3ec, U+d488, U+d504, U+d55c, U+d560, U+d658"
   },
   "noto-sans-kr-body-700": {
     "family": "Noto Sans KR",

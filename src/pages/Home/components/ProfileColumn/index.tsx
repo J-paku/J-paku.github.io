@@ -7,7 +7,6 @@
 // 上下の端へ振り分けるため、ここに3つ目の直下要素を足すと分配が崩れる
 import { useContent } from '@/hooks/use-content'
 import { getTechIconPath } from '@/utils/tech-icons'
-import LocaleSwitcher from '@/components/LocaleSwitcher'
 import PhraseText from '@/components/PhraseText'
 import styles from './profile-column.module.css'
 
@@ -65,7 +64,6 @@ function ProfileColumn() {
               GitHub
             </a>
           ) : null}
-          <LocaleSwitcher />
         </div>
       </div>
     </div>

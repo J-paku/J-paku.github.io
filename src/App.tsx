@@ -1,9 +1,10 @@
 // ルート定義と Provider の組み立てのみを行う。個々のロジックは各 Provider・ページ側に持たせる
 import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router'
-import { LocaleProvider } from '@/contexts/LocaleContext'
-import { ThemeProvider } from '@/contexts/ThemeContext'
+import { LocaleProvider } from '@/contexts/LocaleContext/LocaleProvider'
+import { ThemeProvider } from '@/contexts/ThemeContext/ThemeProvider'
 import { useContent } from '@/hooks/use-content'
+import SettingsMenu from '@/components/SettingsMenu'
 import Home from '@/pages/Home'
 import NotFound from '@/pages/NotFound'
 
@@ -30,7 +31,8 @@ function AppShell() {
         {ui.skipToMain}
       </a>
       {/* サイト共通ヘッダーは持たない。左列(Home内)が識別の役目を担う。
-          テーマ切り替えは原本の .section-header と同じく右列の見出し行が持つため、ここには置かない */}
+          言語・テーマは右上固定の SettingsMenu へ統合したため、各セクション側には置かない */}
+      <SettingsMenu />
       <main id="main">
         <Routes>
           <Route path="/" element={<Home />} />

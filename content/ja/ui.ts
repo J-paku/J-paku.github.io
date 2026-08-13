@@ -1,12 +1,15 @@
 import type { UiStrings } from '@/types/content'
 
-// Header・LocaleSwitcher・ThemeToggle が消費するUI文字列(日本語)
+// Header・SettingsMenu などが消費するUI文字列(日本語)
 export const ui: UiStrings = {
   skipToMain: 'メインコンテンツへスキップ',
   localeMenu: {
     label: '言語を選択',
     ja: '日本語',
     ko: '한국어',
+  },
+  settingsMenu: {
+    label: '設定',
   },
   theme: {
     label: 'テーマを切り替え',

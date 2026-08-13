@@ -1,16 +1,8 @@
 // テーマ設定(light / dark の2状態)を保持し、data-theme 属性への反映と永続化を配布する Context。
 // localStorage への直接アクセスは行わず、外部境界である lib/preferences.ts のみを呼ぶ
-import { createContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { readTheme, writeTheme, type ThemePreference } from '@/lib/preferences'
-
-export type ThemeContextValue = {
-  theme: ThemePreference
-  setTheme: (next: ThemePreference) => void
-}
-
-// Context+Provider を同居させる構成上の意図的な設計であり、消費フックは hooks/use-theme.ts に分離済み
-// oxlint-disable-next-line react/only-export-components
-export const ThemeContext = createContext<ThemeContextValue | null>(null)
+import { ThemeContext, type ThemeContextValue } from './theme-context'
 
 type ThemeProviderProps = {
   children: ReactNode

@@ -57,6 +57,7 @@ const mergeQuality = (ja: UiStrings['quality'], ko: UiStrings['quality']): UiStr
 const mergeUi = (ja: UiStrings, ko: UiStrings): UiStrings => ({
   skipToMain: pick(ja.skipToMain, ko.skipToMain, 'ui.skipToMain'),
   localeMenu: mergeStringRecord(ja.localeMenu, ko.localeMenu, 'ui.localeMenu'),
+  settingsMenu: mergeStringRecord(ja.settingsMenu, ko.settingsMenu, 'ui.settingsMenu'),
   theme: mergeStringRecord(ja.theme, ko.theme, 'ui.theme'),
   work: mergeStringRecord(ja.work, ko.work, 'ui.work'),
   quality: mergeQuality(ja.quality, ko.quality),

@@ -1,0 +1,122 @@
+/*
+ * 画面右上に固定する設定メニュー。旧 LocaleSwitcher(左列の底)と旧 ThemeToggle(作品ヘッダー行)を
+ * ここへ統合したため、位置はページのスクロールに追従しない固定配置とする。
+ * モバイルでもコンテンツと重なって構わない — 常に操作できることを優先する
+ */
+.root {
+  position: fixed;
+  top: var(--space-md);
+  right: var(--space-md);
+  z-index: 100;
+}
+
+/* トリガー。原本の ThemeToggle と同じ「塗りを持たない枠線」の見た目をアイコン専用ボタンへ縮める */
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--ink);
+  border-radius: 0;
+  background-color: var(--ground);
+  color: var(--ink);
+  cursor: pointer;
+  transition:
+    background-color var(--motion),
+    color var(--motion);
+}
+
+.trigger:hover {
+  background-color: var(--ink);
+  color: var(--ground);
+}
+
+.icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* パネル。トリガーの右下に開く。地は surface で本文と面を分ける */
+.panel {
+  position: absolute;
+  top: calc(100% + var(--space-2xs));
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-width: 160px;
+  padding: var(--space-sm);
+  border: 1px solid var(--rule);
+  background-color: var(--surface);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+
+/* セクション見出し。LocaleSwitcher/ThemeToggle の小ラベルと同じ字送り・太さを踏襲する */
+.sectionLabel {
+  margin: 0;
+  font-size: 0.65rem;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-mid);
+}
+
+/* 言語リンク。旧 locale-switcher.module.css の .link をそのまま踏襲する
+   (フォントは太さ別サブセットのため、既存と異なる weight を新設しない) */
+.optionLink {
+  padding-bottom: 2px;
+  border-bottom: 1px solid transparent;
+  font-size: 0.7rem;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.1em;
+  line-height: 1.6;
+  text-transform: uppercase;
+  color: var(--ink-mid);
+  text-decoration: none;
+  transition: color var(--motion) var(--ease-reveal);
+}
+
+.optionLink:hover {
+  color: var(--ink);
+}
+
+.optionLink[aria-current='true'] {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+}
+
+/* テーマ選択。旧 theme-toggle.module.css の .toggle と同じ枠線+反転の見た目を1項目ずつに割る */
+.optionButton {
+  padding: 6px var(--space-2xs);
+  border: 1px solid var(--ink);
+  border-radius: 0;
+  background: none;
+  color: var(--ink);
+  font-family: var(--f-body);
+  font-size: 0.7rem;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color var(--motion),
+    color var(--motion);
+}
+
+.optionButton:hover {
+  background-color: var(--ink);
+  color: var(--ground);
+}
+
+/* 選択中のテーマは常時反転させ、ホバー無しでも現在値が分かるようにする */
+.optionButton[aria-pressed='true'] {
+  background-color: var(--ink);
+  color: var(--ground);
+}

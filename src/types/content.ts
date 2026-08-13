@@ -15,6 +15,7 @@ export type FooterMeasurement = {
 export type UiStrings = {
   skipToMain: string
   localeMenu: { label: string; ja: string; ko: string }
+  settingsMenu: { label: string }
   theme: { label: string; light: string; dark: string }
   work: {
     // 右列ヘッダーバー左側の索引文言(10段階)

@@ -2,7 +2,7 @@
 // locale の判定は useLocale() に委譲し、ここではpathnameの再判定を行わない
 import { useMemo } from 'react'
 import type { Content } from '@/types/content'
-import { useLocale } from '@/hooks/use-locale'
+import { useLocale } from '@/contexts/LocaleContext/locale-context'
 import { loadContent } from '@/utils/content-loader'
 import { mergeContent } from '@/utils/merge-content'
 
