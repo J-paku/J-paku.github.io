@@ -1,6 +1,6 @@
 // content/ui.ts の ui.notFound を描画する。<h1> を持たせることで page-has-heading-one を解消する
 import { Link } from 'react-router'
-import { useLocale } from '@/hooks/use-locale'
+import { useLocale } from '@/contexts/LocaleContext/locale-context'
 import { useContent } from '@/hooks/use-content'
 import { withLocale } from '@/utils/locale-path'
 import PhraseText from '@/components/PhraseText'

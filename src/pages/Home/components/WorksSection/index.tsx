@@ -1,9 +1,8 @@
 // 右列の作品ストリーム。並び順はローダーが確定済みのものをそのまま使い、ここで再ソートしない。
 // 10段階でジグザグを廃したためカードは単純に縦へ積む。index は NO. 表示のためカードへ渡す。
-// 言語切替は左列の底(位置・GitHub の下)にある — 縦レール案は試したうえで廃止した
+// 言語・テーマは右上固定の SettingsMenu へ統合したため、ここには置かない
 import { useContent } from '@/hooks/use-content'
 import WorkCard from '@/components/WorkCard'
-import ThemeToggle from '@/components/ThemeToggle'
 import PhraseText from '@/components/PhraseText'
 import styles from './works-section.module.css'
 
@@ -12,12 +11,11 @@ function WorksSection() {
 
   return (
     <section className={styles.works} aria-labelledby="works-heading">
-      {/* ヘッダーバー(10段階)。左 = 索引文言、右 = 言語+テーマ。下に全幅のヘアライン */}
+      {/* ヘッダーバー(10段階)。索引文言のみ。下に全幅のヘアライン */}
       <header className={styles.header}>
         <h2 id="works-heading" className={styles.title}>
           <PhraseText text={ui.work.index} />
         </h2>
-        <ThemeToggle />
       </header>
 
       <div className={styles.grid}>
