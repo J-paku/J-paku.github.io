@@ -6,6 +6,7 @@ import { ThemeProvider } from '@/contexts/ThemeContext/ThemeProvider'
 import { useContent } from '@/hooks/use-content'
 import SettingsMenu from '@/components/SettingsMenu'
 import Home from '@/pages/Home'
+import WorkStory from '@/pages/WorkStory'
 import NotFound from '@/pages/NotFound'
 
 // SPAはルートが変わってもスクロール位置が保持されるため、遷移直後に
@@ -37,6 +38,8 @@ function AppShell() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/ko" element={<Home />} />
+          <Route path='/works/:slug' element={<WorkStory />} />
+          <Route path='/ko/works/:slug' element={<WorkStory />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>

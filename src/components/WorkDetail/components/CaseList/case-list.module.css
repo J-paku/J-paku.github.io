@@ -1,0 +1,70 @@
+/*
+ * 事例一覧。1件 = 件番号(赤モノ・NO. と同じ慣例) + 症状/原因/対処の3行。
+ * 件と件の間は読み疲れないよう広めに空け(--space-lg)、行内はラベル(--ink-mid)と
+ * 本文(--ink-secondary)の明度で階層を付ける。赤(--accent)は件番号だけに使い、行のラベルには使わない
+ * (tokens.css の「赤はラベル専用」の対象は NO. 系の番号表記までで、ここもその慣例を継ぐ)
+ */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.case {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-sm);
+  align-items: baseline;
+  min-width: 0;
+}
+
+.serial {
+  font-family: var(--f-mono);
+  font-size: 0.7rem;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  min-width: 0;
+  margin: 0;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+  gap: var(--space-sm);
+  align-items: baseline;
+}
+
+/* WorkSpec と同じ理由(360px 幅ではラベル4.5rem固定だと値側が狭すぎる)でラベル幅を内容幅へ縮める */
+@media (max-width: 360px) {
+  .row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+}
+
+.label {
+  margin: 0;
+  font-family: var(--f-label);
+  font-size: 0.65rem;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-mid);
+}
+
+.value {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--ink-secondary);
+}

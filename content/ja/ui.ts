@@ -27,6 +27,16 @@ export const ui: UiStrings = {
     live: '公開ページ',
     repo: 'GitHub',
     shotPlaceholder: '画面キャプチャは準備中',
+    showDetail: '詳しく見る',
+    hideDetail: '閉じる',
+    caseChallenge: '課題',
+    caseDecision: '設計',
+    caseReason: '理由',
+    detailCases: '設計の判断',
+    detailDiagrams: '構成図',
+  },
+  workStory: {
+    back: '一覧へ戻る',
   },
   quality: {
     // フッターの計測票。値を持たず、計測環境と既知の弱点だけを先に言う

@@ -1,0 +1,213 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 402 874" font-family="-apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', system-ui, sans-serif">
+  <!-- 撮影後の解析結果確認・登録画面: AI解析中→フィールド自動入力→登録のループ -->
+  <defs>
+    <linearGradient id="hintGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#7C3AED"/>
+    </linearGradient>
+    <filter id="softShadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000" flood-opacity=".18"/>
+    </filter>
+    <filter id="cardShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#000" flood-opacity=".25"/>
+    </filter>
+    <!-- 撮影済みダミー名刺(架空データ) -->
+    <g id="dummyCard">
+      <rect x="-150" y="-91" width="300" height="182" rx="3" fill="#ffffff"/>
+      <rect x="-150" y="83" width="300" height="8" fill="#4A5FC1"/>
+      <circle cx="-128" cy="-68" r="8" fill="none" stroke="#4A5FC1" stroke-width="2.5"/>
+      <circle cx="-128" cy="-68" r="3" fill="#4A5FC1"/>
+      <text x="-112" y="-63" font-size="14" font-weight="600" fill="#1a2b4a">株式会社サンプル</text>
+      <text x="-128" y="-40" font-size="8.5" fill="#555">営業部 営業一課</text>
+      <text x="-128" y="6" font-size="24" font-weight="700" letter-spacing="4" fill="#111">山田 太郎</text>
+      <text x="-128" y="24" font-size="7.5" letter-spacing="2.5" fill="#888">YAMADA TARO</text>
+      <text x="8" y="30" font-size="7" fill="#444">〒100-0000 東京都千代田区見本町1-2-3</text>
+      <text x="8" y="42" font-size="7" fill="#444">TEL: 03-0000-0000　携帯: 090-0000-0000</text>
+      <text x="8" y="54" font-size="7" fill="#444">E-mail: t.yamada@example.co.jp</text>
+      <text x="8" y="66" font-size="7" fill="#444">URL: https://www.example.co.jp</text>
+    </g>
+  </defs>
+
+  <style>
+    .anim { animation-duration: 8s; animation-iteration-count: infinite; animation-timing-function: linear; }
+    /* OCR入力値(基底=表示: reduced-motionは入力済みの画で止める) */
+    .fill { opacity: 1; animation-name: k-fill; }
+    @keyframes k-fill {
+      0% { opacity: 0; } 30% { opacity: 0; } 35% { opacity: 1; }
+      88% { opacity: 1; } 93% { opacity: 0; } 100% { opacity: 0; }
+    }
+    /* 未入力プレースホルダ(基底=非表示) */
+    .ph { opacity: 0; animation-name: k-ph; }
+    @keyframes k-ph {
+      0% { opacity: 1; } 30% { opacity: 1; } 35% { opacity: 0; }
+      88% { opacity: 0; } 93% { opacity: 1; } 100% { opacity: 1; }
+    }
+    /* AI解析中オーバーレイ(基底=非表示) */
+    .ovl { opacity: 0; animation-name: k-ovl; }
+    @keyframes k-ovl {
+      0% { opacity: 1; } 26% { opacity: 1; } 31% { opacity: 0; }
+      95% { opacity: 0; } 99% { opacity: 1; } 100% { opacity: 1; }
+    }
+    /* スピナー回転(iOS activity indicator風) */
+    .spin { transform-box: fill-box; transform-origin: center; animation: k-spin 1s steps(8) infinite; }
+    @keyframes k-spin { to { transform: rotate(360deg); } }
+    /* 登録ボタン押下 */
+    .press { transform-box: fill-box; transform-origin: center; animation-name: k-press; }
+    @keyframes k-press {
+      0% { transform: scale(1); } 58% { transform: scale(1); } 60% { transform: scale(.96); }
+      63% { transform: scale(1); } 100% { transform: scale(1); }
+    }
+    .pressfx { opacity: 0; animation-name: k-pressfx; }
+    @keyframes k-pressfx {
+      0% { opacity: 0; } 58% { opacity: 0; } 60% { opacity: .2; } 63% { opacity: 0; } 100% { opacity: 0; }
+    }
+    /* 完了トースト(基底=非表示) */
+    .toast { opacity: 0; animation-name: k-toast; }
+    @keyframes k-toast {
+      0% { opacity: 0; } 66% { opacity: 0; } 70% { opacity: 1; }
+      84% { opacity: 1; } 88% { opacity: 0; } 100% { opacity: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .anim, .spin { animation: none !important; }
+    }
+  </style>
+
+  <!-- 背景(systemGroupedBackground) -->
+  <rect width="402" height="874" fill="#F2F2F7"/>
+
+  <!-- ステータスバー -->
+  <g fill="#000">
+    <text x="55" y="38" font-size="15" font-weight="600" text-anchor="middle">9:41</text>
+    <g transform="translate(298 26)">
+      <rect x="0" y="8" width="3" height="4" rx=".8"/><rect x="5" y="6" width="3" height="6" rx=".8"/><rect x="10" y="4" width="3" height="8" rx=".8"/><rect x="15" y="2" width="3" height="10" rx=".8"/>
+      <path d="M31 5.5 a9 9 0 0 1 12 0 l-1.8 2 a6.3 6.3 0 0 0 -8.4 0 Z M33.8 8.6 a5 5 0 0 1 6.4 0 l-1.8 2 a2.4 2.4 0 0 0 -2.8 0 Z M36.2 11.4 a1.6 1.6 0 0 1 1.6 0 L37 12.6 Z"/>
+      <rect x="50" y="2.5" width="22" height="10" rx="3" fill="none" stroke="#000" stroke-opacity=".4"/>
+      <rect x="52" y="4.5" width="14" height="6" rx="1.5"/>
+      <path d="M73.5 5.5 v4 a2.2 2.2 0 0 0 0 -4" fill="#000" fill-opacity=".4"/>
+    </g>
+  </g>
+
+  <!-- TopBar: 表側/裏側タブ + ✕ -->
+  <rect x="0" y="55" width="402" height="55" fill="#fff"/>
+  <text x="97" y="90" font-size="15" font-weight="600" fill="#007AFF" text-anchor="middle">表側</text>
+  <rect x="36" y="102" width="122" height="2.5" fill="#007AFF"/>
+  <text x="260" y="90" font-size="15" font-weight="600" fill="#8E8E93" text-anchor="middle">裏側</text>
+  <path d="M362 78 l12 12 M374 78 l-12 12" stroke="#111" stroke-width="2" stroke-linecap="round"/>
+  <rect x="0" y="110" width="402" height="1" fill="#E5E5EA"/>
+
+  <!-- 得意先選択行 -->
+  <rect x="0" y="111" width="402" height="60" fill="#fff"/>
+  <rect x="12" y="119" width="378" height="44" rx="12" fill="#fff" stroke="#D1D5DB"/>
+  <!-- location_on ピン(赤) -->
+  <path d="M32 129 a9 9 0 0 1 9 9 c0 6 -9 15 -9 15 s-9 -9 -9 -15 a9 9 0 0 1 9 -9 Z" fill="#F87171"/>
+  <circle cx="32" cy="138" r="3.4" fill="#fff"/>
+  <text class="anim ph" x="52" y="146" font-size="15" font-weight="700" fill="#9CA3AF">最寄り先を選択</text>
+  <text class="anim fill" x="52" y="146" font-size="15" font-weight="700" fill="#111">株式会社サンプル</text>
+  <rect x="0" y="170" width="402" height="1" fill="#E5E5EA"/>
+
+  <!-- 画像プレビュー領域 -->
+  <rect x="0" y="171" width="402" height="224" fill="#fff"/>
+  <rect x="12" y="179" width="378" height="208" rx="8" fill="#E5E7EB"/>
+  <g transform="translate(201 283) scale(.62)" filter="url(#cardShadow)">
+    <use href="#dummyCard"/>
+    <rect x="-150" y="-91" width="300" height="182" rx="3" fill="none" stroke="#D1D5DB"/>
+  </g>
+  <rect x="0" y="395" width="402" height="1" fill="#E5E5EA"/>
+
+  <!-- フィールドリスト -->
+  <rect x="0" y="396" width="402" height="290" fill="#fff"/>
+  <!-- 自動入力ハイライト背景(#DBEAFE) -->
+  <g class="anim fill">
+    <rect x="0" y="396" width="402" height="58" fill="#DBEAFE"/>
+    <rect x="0" y="454" width="402" height="58" fill="#DBEAFE"/>
+    <rect x="0" y="512" width="402" height="58" fill="#DBEAFE"/>
+    <rect x="0" y="570" width="402" height="58" fill="#DBEAFE"/>
+    <rect x="0" y="628" width="402" height="58" fill="#DBEAFE"/>
+  </g>
+  <!-- 行区切り -->
+  <g fill="#E5E5EA">
+    <rect x="0" y="454" width="402" height="1"/><rect x="0" y="512" width="402" height="1"/>
+    <rect x="0" y="570" width="402" height="1"/><rect x="0" y="628" width="402" height="1"/>
+  </g>
+  <!-- ラベル列縦線 -->
+  <g fill="#D1D5DB">
+    <rect x="104" y="415" width="1" height="20"/><rect x="104" y="473" width="1" height="20"/>
+    <rect x="104" y="531" width="1" height="20"/><rect x="104" y="589" width="1" height="20"/>
+    <rect x="104" y="647" width="1" height="20"/>
+  </g>
+
+  <!-- 会社名 -->
+  <text x="16" y="422" font-size="14" fill="#111">会社名 <tspan fill="#FF3B30" font-weight="600">*</tspan></text>
+  <text class="anim fill" x="16" y="440" font-size="11" font-weight="800" letter-spacing=".4" fill="url(#hintGrad)">要確認</text>
+  <text class="anim ph" x="120" y="430" font-size="14" fill="#8E8E93">(未入力)</text>
+  <g class="anim fill">
+    <text x="120" y="430" font-size="14" fill="#111">株式会社サンプル</text>
+    <rect x="288" y="414" width="52" height="18" rx="9" fill="#3B82F6"/>
+    <text x="314" y="427" font-size="10" font-weight="600" fill="#fff" text-anchor="middle">おすすめ</text>
+    <text x="346" y="428" font-size="12" font-weight="500" fill="#3B82F6">3件</text>
+    <path d="M370 422 l5 5 l5 -5" stroke="#3B82F6" stroke-width="2" fill="none" stroke-linecap="round"/>
+  </g>
+
+  <!-- 部署 -->
+  <text x="16" y="480" font-size="14" fill="#111">部署</text>
+  <text class="anim ph" x="120" y="488" font-size="14" fill="#8E8E93">(未入力)</text>
+  <text class="anim fill" x="120" y="488" font-size="14" fill="#111">営業部 営業一課</text>
+
+  <!-- 役職 -->
+  <text x="16" y="538" font-size="14" fill="#111">役職</text>
+  <text class="anim fill" x="16" y="556" font-size="11" font-weight="800" letter-spacing=".4" fill="url(#hintGrad)">要確認</text>
+  <text class="anim ph" x="120" y="546" font-size="14" fill="#8E8E93">(未入力)</text>
+  <text class="anim fill" x="120" y="546" font-size="14" fill="#111">課長</text>
+
+  <!-- 氏名 -->
+  <text x="16" y="596" font-size="14" fill="#111">氏名 <tspan fill="#FF3B30" font-weight="600">*</tspan></text>
+  <text class="anim fill" x="16" y="614" font-size="11" font-weight="800" letter-spacing=".4" fill="url(#hintGrad)">要確認</text>
+  <text class="anim ph" x="120" y="604" font-size="14" fill="#8E8E93">(未入力)</text>
+  <text class="anim fill" x="120" y="604" font-size="14" fill="#111">山田 太郎</text>
+
+  <!-- フリガナ -->
+  <text x="16" y="654" font-size="14" fill="#111">フリガナ</text>
+  <text class="anim fill" x="16" y="672" font-size="11" font-weight="800" letter-spacing=".4" fill="url(#hintGrad)">要確認</text>
+  <text class="anim ph" x="120" y="662" font-size="14" fill="#8E8E93">(未入力)</text>
+  <text class="anim fill" x="120" y="662" font-size="14" fill="#111">ヤマダ タロウ</text>
+
+  <rect x="0" y="686" width="402" height="1" fill="#E5E5EA"/>
+
+  <!-- ヒント(フィールドをタップして画像から単語を選択) -->
+  <g class="anim fill">
+    <rect x="52" y="706" width="298" height="34" rx="17" fill="#fff" filter="url(#softShadow)"/>
+    <text x="201" y="728" font-size="13" font-weight="500" fill="#111" text-anchor="middle">💡 フィールドをタップして画像から単語を選択</text>
+  </g>
+
+  <!-- 登録ボタン -->
+  <g class="anim press">
+    <rect x="16" y="794" width="370" height="48" rx="8" fill="#007AFF"/>
+    <rect class="anim pressfx" x="16" y="794" width="370" height="48" rx="8" fill="#000"/>
+    <text x="201" y="824" font-size="16" font-weight="600" fill="#fff" text-anchor="middle">登録</text>
+  </g>
+
+  <!-- AI解析中オーバーレイ -->
+  <g class="anim ovl">
+    <rect width="402" height="874" fill="#fff" opacity=".55"/>
+    <rect x="134" y="366" width="134" height="122" rx="12" fill="#fff" filter="url(#softShadow)"/>
+    <g class="spin" stroke="#8E8E93" stroke-width="3" stroke-linecap="round">
+      <path d="M201 396 v-9" opacity="1"/>
+      <path d="M211.6 400.4 l6.4 -6.4" opacity=".85"/>
+      <path d="M216 411 h9" opacity=".7"/>
+      <path d="M211.6 421.6 l6.4 6.4" opacity=".55"/>
+      <path d="M201 426 v9" opacity=".4"/>
+      <path d="M190.4 421.6 l-6.4 6.4" opacity=".3"/>
+      <path d="M186 411 h-9" opacity=".2"/>
+      <path d="M190.4 400.4 l-6.4 -6.4" opacity=".1"/>
+    </g>
+    <text x="201" y="470" font-size="15" fill="#111" text-anchor="middle">AI解析中...</text>
+  </g>
+
+  <!-- 完了トースト -->
+  <g class="anim toast">
+    <rect x="111" y="398" width="180" height="64" rx="14" fill="#fff" filter="url(#softShadow)"/>
+    <circle cx="151" cy="430" r="13" fill="#34C759"/>
+    <path d="M144.5 430 l4.6 4.8 l8.4 -9.4" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="174" y="435" font-size="15" font-weight="600" fill="#111">登録しました</text>
+  </g>
+</svg>

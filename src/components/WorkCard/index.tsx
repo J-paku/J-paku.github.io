@@ -2,14 +2,18 @@
 // 仕様表・技術タグ・リンクは下部の枠線パネルへ集約し、カードの終端を明示する。
 // wip は不変ルール5どおりリンクを持たない — links 自体が空なので WorkLinks が何も描かない
 import { useEffect, useState } from 'react'
+import { Link, useLocation } from 'react-router'
+import { useLocale } from '@/contexts/LocaleContext/locale-context'
 import type { Work } from '@/types/content'
 import { useContent } from '@/hooks/use-content'
 import { useReveal } from '@/hooks/use-reveal'
 import { useFullyVisible } from '@/hooks/use-fully-visible'
 import { getTechIconPath } from '@/utils/tech-icons'
+import { withLocale } from '@/utils/locale-path'
 import WorkSpec from '@/components/WorkSpec'
 import WorkStack from '@/components/WorkStack'
 import WorkLinks from '@/components/WorkLinks'
+import WorkDetail from '@/components/WorkDetail'
 import PhraseText from '@/components/PhraseText'
 import styles from './work-card.module.css'
 
@@ -21,6 +25,7 @@ type WorkCardProps = {
 
 function WorkCard({ work, index }: WorkCardProps) {
   const { ui } = useContent()
+  const { locale } = useLocale()
   const { ref, isRevealed } = useReveal()
   // 画面に丸ごと収まっている間だけ写真の色を戻す。縁に掛かっている間は灰色のまま
   const { ref: shotRef, isFullyVisible } = useFullyVisible<HTMLDivElement>()
@@ -29,6 +34,14 @@ function WorkCard({ work, index }: WorkCardProps) {
   // この state はタップ用 — ホバー表示は CSS 側の @media (hover: hover) が担う
   const hasLinks = work.links.live !== undefined || work.links.repo !== undefined
   const [isLinksOpen, setIsLinksOpen] = useState(false)
+
+  // 折りたたみ式の詳細。work.detail が無いカードはトグル自体を出さない
+  const hasDetail = work.detail !== undefined
+  const detailId = `${work.slug}-detail`
+  const { hash } = useLocation()
+  // #slug 付きで到着した時だけ最初から開く。スクロール位置自体は App の useScrollRestoration が
+  // 既に保持しているため、ここでは開閉の初期値だけを決める(追加のスクロール操作はしない)
+  const [isDetailOpen, setIsDetailOpen] = useState(() => hash === `#${work.slug}`)
 
   // Esc と「キャプチャ枠の外側クリック」で閉じる。開いている間だけ購読する。
   // 外側判定は shotRef(枠そのもの)基準 — 枠内のトリガー・リンクは各自の onClick が処理する
@@ -51,14 +64,17 @@ function WorkCard({ work, index }: WorkCardProps) {
     }
   }, [isLinksOpen, shotRef])
 
-  const cardClassName = isRevealed ? `${styles.card} ${styles.cardRevealed}` : styles.card
+  // .hasDetail は詳細を持つカードだけに全幅行を足す修飾子。全カード一律に足すと、
+  // 詳細を持たないカード(大半)のモバイル1列表示に row-gap 分の空行が余白として残るため分ける
+  let cardClassName = isRevealed ? `${styles.card} ${styles.cardRevealed}` : styles.card
+  if (hasDetail) cardClassName += ` ${styles.hasDetail}`
   const shotClassName = isFullyVisible ? `${styles.shot} ${styles.shotInView}` : styles.shot
 
   // 通し番号。接頭辞などの文言は付けない(表示文字列は content/ の外に置かない)
   const serial = String(index + 1).padStart(2, '0')
 
   return (
-    <article ref={ref} className={cardClassName}>
+    <article id={work.slug} ref={ref} className={cardClassName}>
       {/* 読み順は「見出し → キャプチャ → 事実」。モバイルではこのDOM順がそのまま縦に並ぶ。
           キャプチャを先頭に置くと、何の作品かを判別する前に画面の3割を使う(390px幅で実測233px)。
           並べ替えを CSS の order で行うとタブ順・読み上げ順がDOMのまま残って視覚順とずれるため、
@@ -74,7 +90,13 @@ function WorkCard({ work, index }: WorkCardProps) {
         </div>
 
         <h3 className={styles.title}>
-          <PhraseText text={work.title} />
+          {work.story !== undefined ? (
+            <Link to={withLocale(`/works/${work.slug}`, locale)} className={styles.titleLink}>
+              <PhraseText text={work.title} />
+            </Link>
+          ) : (
+            <PhraseText text={work.title} />
+          )}
           {work.status === 'wip' ? <span className={styles.wipBadge}>{ui.work.wipBadge}</span> : null}
         </h3>
         <p className={styles.tagline}>
@@ -126,12 +148,31 @@ function WorkCard({ work, index }: WorkCardProps) {
         ) : null}
       </div>
 
-      {/* 事実のパネル。仕様表 → タグ → リンクの順に積み、カードの終端を枠で明示する */}
+      {/* 事実のパネル。仕様表 → 詳細トグル → タグ → リンクの順に積み、カードの終端を枠で明示する */}
       <div className={styles.panel}>
         <WorkSpec work={work} />
+        {hasDetail ? (
+          <button
+            type='button'
+            className={styles.detailToggle}
+            aria-expanded={isDetailOpen}
+            aria-controls={detailId}
+            onClick={() => setIsDetailOpen((open) => !open)}
+          >
+            {isDetailOpen ? ui.work.hideDetail : ui.work.showDetail}
+          </button>
+        ) : null}
         <WorkStack stack={work.stack} />
         <WorkLinks live={work.links.live} repo={work.links.repo} />
       </div>
+
+      {/* 全幅の詳細行。閉じている間も WorkDetail 自体はマウントしたまま hidden で畳む
+          (アンマウント/リマウントせず、toggle の度に再フェッチ等が走らない構成にする) */}
+      {hasDetail ? (
+        <div className={styles.detail} hidden={!isDetailOpen}>
+          <WorkDetail work={work} detailId={detailId} />
+        </div>
+      ) : null}
     </article>
   )
 }

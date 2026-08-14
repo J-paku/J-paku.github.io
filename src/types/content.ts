@@ -31,7 +31,19 @@ export type UiStrings = {
     repo: string
     // thumbnail が無いカードの画面枠に出す代替文言(08段階)
     shotPlaceholder: string
+    // カード折りたたみ詳細の開閉ボタン文言
+    showDetail: string
+    hideDetail: string
+    // ケース(課題/設計/理由)の見出し
+    caseChallenge: string
+    caseDecision: string
+    caseReason: string
+    // 詳細セクションの見出し(課題と解決/構成図)
+    detailCases: string
+    detailDiagrams: string
   }
+  // 作品ストーリーページ(/works/:slug)専用の文言
+  workStory: { back: string }
   quality: {
     footer: FooterMeasurement
   }
@@ -52,6 +64,49 @@ export type WorkLinks = {
 // カードのタグが「実務由来か個人開発か」を色分けするための区分(08段階)
 export type WorkContextKind = 'work' | 'personal'
 
+// 作品カードの折りたたみ詳細で使う個別ケース(課題→設計→理由の1組)
+export type WorkCase = {
+  challenge: string
+  decision: string
+  reason: string
+}
+
+// 詳細内の図解1枚分。ラベルは図中の記号をキーにした注記文の対応表
+export type WorkDiagram = {
+  title: string
+  caption: string
+  labels: Record<string, string>
+}
+
+// 作品カードの折りたたみ詳細本体。図解は architecture・dataflow・sequence の3種を固定で持つ
+export type WorkDetail = {
+  cases: WorkCase[]
+  diagrams: {
+    architecture: WorkDiagram
+    dataflow: WorkDiagram
+    sequence: WorkDiagram
+  }
+}
+
+// 作品ストーリーページの1場面で挙げる技術チップ。name をタップ・ホバーすると note が出る
+export type WorkStoryChip = { name: string; note: string }
+
+// 作品ストーリーページの1場面分。image はロケール共通(glyphと同じ前例に倣う)
+export type WorkStoryScene = {
+  id: string
+  title: string
+  body: string
+  chips: WorkStoryChip[]
+  image: string
+}
+
+// 作品専用ストーリーページ(/works/:slug)の本体。導入・場面群・まとめの3部構成
+export type WorkStory = {
+  intro: { title: string; lead: string }
+  scenes: WorkStoryScene[]
+  outro: { title: string; body: string; stackSummary: WorkStoryChip[] }
+}
+
 export type Work = {
   slug: string
   status: WorkStatus
@@ -70,6 +125,10 @@ export type Work = {
   links: WorkLinks
   // 画像資産はまだ無い。ある時だけカードが描画するための空き枠
   thumbnail?: string
+  // カード折りたたみ詳細(課題ケース+構成図)。wip作品は持たない — 不変ルール5の延長
+  detail?: WorkDetail
+  // 専用ストーリーページ(/works/:slug)を持つ作品のみ。detailとは別物。imageはロケール共通 — glyphの前例に倣う
+  story?: WorkStory
 }
 
 // ---------- プロフィール ----------

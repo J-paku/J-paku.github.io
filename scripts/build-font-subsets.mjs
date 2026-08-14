@@ -66,50 +66,86 @@ for (const targetPath of targetPaths) {
   await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 })
   await page.waitForTimeout(600)
 
-  // 設定メニュー(歯車)は閉じたままだと言語・テーマの選択肢文字列がDOMに無く採取から漏れる。
-  // ボタンがあれば開いてパネルの描画を待ってから採取する
+  // 描画済みDOMから (family, 太さ) ごとの文字集合を採る一手順。状態(閉じ/開き)ごとに
+  // 呼び出し、結果を合集合にするため関数として切り出す
+  const collectGlyphs = () =>
+    page.evaluate(
+      ({ cjkFamilies, latinOwners }) => {
+        const out = {}
+        const add = (family, weight, char) => {
+          const key = `${family}|${weight}`
+          out[key] = (out[key] ?? '') + char
+        }
+        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
+        for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+          const element = node.parentElement
+          if (element === null) continue
+          const style = getComputedStyle(element)
+          if (style.display === 'none' || style.visibility === 'hidden') continue
+          const families = style.fontFamily.split(',').map((item) => item.trim().replace(/^['"]|['"]$/g, ''))
+          const weight = style.fontWeight
+          const cjkFamily = families.find((family) => cjkFamilies.includes(family))
+          const latinFamily = latinOwners.includes(families[0]) ? families[0] : undefined
+          for (const char of node.textContent ?? '') {
+            if (char.trim() === '') continue
+            const code = char.codePointAt(0)
+            if (code === undefined) continue
+            if (code > 0x7f) {
+              if (cjkFamily !== undefined) add(cjkFamily, weight, char)
+            } else if (latinFamily !== undefined) {
+              add(latinFamily, weight, char)
+            }
+          }
+        }
+        return out
+      },
+      { cjkFamilies: CJK_FAMILIES, latinOwners: LATIN_OWNERS },
+    )
+
+  // 1巡目: 初期状態(詳細トグルは畳まれ、設定メニューも閉じている)。'詳しく見る' などの
+  // 畳み状態の文言はここでしか拾えない
+  const initialCollected = await collectGlyphs()
+
+  // 折りたたまれた詳細(WorkDetail など)は hidden 属性で畳まれている — DOMに文字が存在していても
+  // 非表示のままでは採取できないため、開閉トグルを全て一度開いておく。
+  // 設定メニューのボタンは aria-controls を持つことがあるので、aria-haspopup=true 側は除外する
+  const detailToggles = await page.$$('button[aria-controls]:not([aria-haspopup=true])')
+  for (const toggle of detailToggles) {
+    await toggle.click()
+    await page.waitForTimeout(200)
+  }
+
+  // 詳細トグルには外側クリックで閉じる仕組みが無く、先に開いても後続の操作の影響を受けない。
+  // 一方 SettingsMenu は外側 pointerdown で自動的に閉じるため、後から開かないと
+  // 詳細トグルのクリックに巻き込まれて閉じてしまう。だから設定メニューは最後に開く
   const settingsButton = await page.$('button[aria-haspopup=true]')
   if (settingsButton !== null) {
     await settingsButton.click()
     await page.waitForTimeout(200)
   }
 
-  const collected = await page.evaluate(
-    ({ cjkFamilies, latinOwners }) => {
-      const out = {}
-      const add = (family, weight, char) => {
-        const key = `${family}|${weight}`
-        out[key] = (out[key] ?? '') + char
-      }
-      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
-      for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
-        const element = node.parentElement
-        if (element === null) continue
-        const style = getComputedStyle(element)
-        if (style.display === 'none' || style.visibility === 'hidden') continue
-        const families = style.fontFamily.split(',').map((item) => item.trim().replace(/^['"]|['"]$/g, ''))
-        const weight = style.fontWeight
-        const cjkFamily = families.find((family) => cjkFamilies.includes(family))
-        const latinFamily = latinOwners.includes(families[0]) ? families[0] : undefined
-        for (const char of node.textContent ?? '') {
-          if (char.trim() === '') continue
-          const code = char.codePointAt(0)
-          if (code === undefined) continue
-          if (code > 0x7f) {
-            if (cjkFamily !== undefined) add(cjkFamily, weight, char)
-          } else if (latinFamily !== undefined) {
-            add(latinFamily, weight, char)
-          }
-        }
-      }
-      return out
-    },
-    { cjkFamilies: CJK_FAMILIES, latinOwners: LATIN_OWNERS },
-  )
-  for (const [key, chars] of Object.entries(collected)) {
-    buckets[key] = (buckets[key] ?? '') + chars
+  // 技術チップのポップオーバー(TechChipPopover)のように hidden 属性で畳まれた文字列は、
+  // 表示状態でなければ採取から漏れる。順にクリックして開く方式では外側クリックで閉じる型は
+  // 最後の1個しか開いたまま残らないため、hidden を一括解除して合集合を保証する — 設定メニューを
+  // 開くのと同じ理由
+  await page.evaluate(() => {
+    document.querySelectorAll('[hidden]').forEach((el) => el.removeAttribute('hidden'))
+  })
+  await page.waitForTimeout(200)
+
+  // 2巡目: 詳細トグル・設定メニュー・hidden を全て開いた状態。'閉じる' など開き状態でだけ
+  // 入れ替わる文言はここでしか拾えない
+  const expandedCollected = await collectGlyphs()
+
+  // 閉じ状態・開き状態の両方を合集合にする。同じ (family, 太さ) キーへ文字列を連結するだけで、
+  // 重複文字の除去は jobs 構築時の `[...new Set(chars)]`(下流)に任せる
+  for (const pass of [initialCollected, expandedCollected]) {
+    for (const [key, chars] of Object.entries(pass)) {
+      buckets[key] = (buckets[key] ?? '') + chars
+    }
   }
-  console.log(`[採取] ${targetPath} — ${Object.keys(collected).length}系統`)
+  const mergedKeys = new Set([...Object.keys(initialCollected), ...Object.keys(expandedCollected)])
+  console.log(`[採取] ${targetPath} — ${mergedKeys.size}系統`)
   await page.close()
 }
 await browser.close()

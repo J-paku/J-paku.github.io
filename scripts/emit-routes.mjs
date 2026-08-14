@@ -1,12 +1,14 @@
 // SPA の直リンクを実 200 にするため、ルートごとに dist/index.html の複製を配置するスクリプト。
 // `npm run build`(vite build)の直後に実行する前提。
 //
-// 08段階(08-layout-restructure.md §2)でケーススタディ詳細ルートを廃したため、
-// 複製が要るのは ko トップと 404.html だけになった。ja トップは vite build が
-// dist/index.html として既に出力しているので複製しない。
+// 08段階(08-layout-restructure.md §2)で廃したケーススタディ詳細ルートは、作品ストーリーページ
+// (/works/<slug>)として復活した。複製が要るのは ko トップ・404.html に加え、story を持つ
+// 作品ごとの ja/ko 2ルート。ja トップは vite build が dist/index.html として既に出力しているので
+// 複製しない。
 //
-// 以前あった content/ja/works/*.ts の読み込み(published slug から works/ ラウトを生成する処理)は
-// 生成対象そのものが無くなったため削除した。作品を増やしてもラウトは増えない。
+// published slug から works/ ラウトを自動生成する仕組み(content/ja/works/*.ts の読み込み)は
+// 08段階で削除したままで、自動化はしていない。story を持つ作品を増やすときは、下の emitRoute に
+// その slug の ja/ko 2行を手動で追加する。
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -40,6 +42,10 @@ function emitRoute(routeDir, lang) {
 }
 
 emitRoute('ko', 'ko')
+
+// 作品ストーリーページ。story を持つ作品を増やすたびに ja/ko の2行をここへ追加する
+emitRoute('works/meishi-cross-platform')
+emitRoute('ko/works/meishi-cross-platform', 'ko')
 
 // 404.html は index.html の複製 — 上記以外の未知パスを拾う最後の網
 writeFileSync(path.join(DIST_DIR, '404.html'), shellHtml)

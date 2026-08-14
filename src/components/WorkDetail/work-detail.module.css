@@ -1,0 +1,64 @@
+/*
+ * カードの折りたたみ詳細。事例一覧の枠(WorkCard の .panel)と揃えたクリーム面+ヘアラインで、
+ * カード本体の続きだと分かるようにする。開閉自体(表示/非表示の切り替え)はカード側の役目で、
+ * ここは開いた状態の中身のレイアウトだけを持つ
+ */
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+  margin-top: var(--space-md);
+  padding: var(--space-md);
+  border: 1px solid var(--rule);
+  background-color: var(--surface-cream);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-width: 0;
+}
+
+/* 事例一覧・図解の節見出し。仕様表のラベルより一段大きい、WorksSection の索引文言に近いトーン */
+.sectionTitle {
+  margin: 0;
+  padding-bottom: var(--space-2xs);
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--f-label);
+  font-size: 0.7rem;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.diagrams {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.diagram {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  min-width: 0;
+  padding: var(--space-sm);
+  border: 1px solid var(--rule);
+  background-color: var(--surface-cream);
+}
+
+.caption {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: var(--ink-secondary);
+}
+
+@media (max-width: 1024px) {
+  .detail {
+    gap: var(--space-lg);
+    padding: var(--space-sm);
+  }
+}
