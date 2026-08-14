@@ -17,6 +17,6 @@ export const aiHarness: Work = {
     live: 'https://j-paku.github.io/ai-harness/',
     repo: 'https://github.com/J-paku/ai-harness',
   },
-  // カード画面枠のキャプチャ。2026-08-03 に live を実機幅1280×720で撮ったもの(デモを作り直したら撮り直す)
-  thumbnail: '/shots/ai-harness.png',
+  // カード用サムネイル。fan-out 実行フローを文字なしで図解した自作SVG(seatmap と同じ視覚文法)
+  thumbnail: '/shots/ai-harness.svg',
 }

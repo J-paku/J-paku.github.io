@@ -7,6 +7,8 @@ import type {
   SkillCategory,
   UiStrings,
   Work,
+  WorkDetail,
+  WorkStory,
 } from '@/types/content'
 
 // 空値判定は2種類のみ。if (!value) は 0 / false までフォールバックさせてしまうため使わない
@@ -60,6 +62,7 @@ const mergeUi = (ja: UiStrings, ko: UiStrings): UiStrings => ({
   settingsMenu: mergeStringRecord(ja.settingsMenu, ko.settingsMenu, 'ui.settingsMenu'),
   theme: mergeStringRecord(ja.theme, ko.theme, 'ui.theme'),
   work: mergeStringRecord(ja.work, ko.work, 'ui.work'),
+  workStory: mergeStringRecord(ja.workStory, ko.workStory, 'ui.workStory'),
   quality: mergeQuality(ja.quality, ko.quality),
   notFound: mergeStringRecord(ja.notFound, ko.notFound, 'ui.notFound'),
   colophon: mergeStringRecord(ja.colophon, ko.colophon, 'ui.colophon'),
@@ -85,6 +88,14 @@ const mergeSkills = (ja: SkillCategory[], ko: SkillCategory[]): SkillCategory[] 
 
 const mergeNow = (ja: Content['now'], ko: Content['now']): Content['now'] => pick(ja, ko, 'now')
 
+// detail はケース・図解を持つ複合オブジェクトのためフィールド単位では割らず、ko があれば丸ごと採用する
+const pickDetail = (ja: WorkDetail | undefined, ko: WorkDetail | undefined): WorkDetail | undefined =>
+  ko === undefined ? ja : ko
+
+// story はシーン群を持つ複合オブジェクトのためフィールド単位では割らず、ko があれば丸ごと採用する
+const pickStory = (ja: WorkStory | undefined, ko: WorkStory | undefined): WorkStory | undefined =>
+  ko === undefined ? ja : ko
+
 const mergeWork = (ja: Work, ko: Work): Work => ({
   slug: ko.slug,
   status: ko.status,
@@ -103,6 +114,8 @@ const mergeWork = (ja: Work, ko: Work): Work => ({
   },
   thumbnail: pickOptionalString(ja.thumbnail, ko.thumbnail, `works.${ko.slug}.thumbnail`),
   glyph: pickOptionalString(ja.glyph, ko.glyph, `works.${ko.slug}.glyph`),
+  detail: pickDetail(ja.detail, ko.detail),
+  story: pickStory(ja.story, ko.story),
 })
 
 // slug基準で対応づける。ja側に存在してko側に無いslugはjaの要素をそのまま採用する

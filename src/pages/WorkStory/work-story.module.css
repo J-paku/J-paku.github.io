@@ -1,0 +1,137 @@
+/*
+ * 作品ストーリーページ。左に場面テキストのスクロール、右に iPhone 型のプレビューを sticky 固定する。
+ * デスクトップは grid-template-areas の2列(narrative / device)、1024px 以下は1列に畳み、
+ * device を上部 sticky のミニプレビューにする(work-card 同様 order は使わず areas だけで配置する)。
+ * device 列の 320px は DeviceFrame 自身の max-width(device-frame.module.css)に合わせた値
+ */
+.page {
+  padding: 60px 80px;
+  min-width: 0;
+}
+
+/* ホームへの戻り導線。ページ最上部、本文より一段弱い扱いにする */
+.back {
+  display: inline-block;
+  margin-bottom: var(--space-xl);
+  font-family: var(--f-label);
+  font-size: 0.7rem;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-mid);
+  text-decoration: none;
+  transition: opacity var(--motion) var(--ease-reveal);
+}
+
+.back:hover {
+  opacity: 0.6;
+}
+
+.intro {
+  max-width: 640px;
+  margin-bottom: var(--space-xl);
+}
+
+.introTitle {
+  margin: 0;
+  font-family: var(--f-title);
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: var(--fw-display);
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.introLead {
+  margin: var(--space-sm) 0 0;
+  font-size: 1rem;
+  line-height: var(--lh-body);
+  color: var(--ink-secondary);
+}
+
+.body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-areas: 'narrative device';
+  column-gap: var(--space-xl);
+  align-items: start;
+}
+
+.narrative {
+  grid-area: narrative;
+  min-width: 0;
+}
+
+.scene {
+  display: flex;
+  align-items: center;
+  min-height: 80vh;
+}
+
+.scene > * {
+  min-width: 0;
+  width: 100%;
+}
+
+.outro {
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--rule);
+}
+
+.outroTitle {
+  margin: 0;
+  font-family: var(--f-title);
+  font-size: 1.5rem;
+  font-weight: var(--fw-display);
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.outroBody {
+  max-width: 60ch;
+  margin: var(--space-sm) 0 0;
+  line-height: var(--lh-body);
+  color: var(--ink-secondary);
+}
+
+.stackSummary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2xs);
+  margin: var(--space-md) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.device {
+  grid-area: device;
+  position: sticky;
+  align-self: start;
+  top: var(--space-xl);
+}
+
+/*
+ * 1024px 以下は1列に畳む(home.module.css 慣例のブレークポイント)。
+ * device は本文の上に sticky 固定した小型プレビューにし、grid-template-areas の並びだけで
+ * narrative より上に置く(DOM順は narrative が先 — order は使わない)
+ */
+@media (max-width: 1024px) {
+  .page {
+    padding: 48px 40px 64px;
+  }
+
+  .body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'device'
+      'narrative';
+    column-gap: 0;
+    row-gap: var(--space-lg);
+  }
+
+  .device {
+    position: sticky;
+    top: 0;
+    height: 44vh;
+    z-index: 1;
+  }
+}

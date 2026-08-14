@@ -1,5 +1,4 @@
-/// <reference types="vitest/config" />
-import { defineConfig } from 'vite'
+import { defineConfig, configDefaults } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { fileURLToPath, URL } from 'node:url'
 
@@ -16,5 +15,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],
     globals: true,
+    // 他セッションの worktree 写しが古いテストを抱えるため .claude/ を除外する
+    exclude: [...configDefaults.exclude, '**/.claude/**'],
   },
 })

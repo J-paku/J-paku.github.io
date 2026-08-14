@@ -1,0 +1,66 @@
+/*
+ * 技術チップとその上に開くポップオーバー。チップ自体は TechTag と似た枠線ラベルだが、
+ * 開閉操作を持つため <button> で組む。
+ * ポップオーバー本体は常にDOM上に残し、開閉は hidden 属性で行う(WorkCard の .detail と同じ理由 —
+ * aria-controls が指す要素を消すと axe の aria-valid-attr-value に掛かる)。
+ */
+.root {
+  position: relative;
+  display: inline-block;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  background: none;
+  font-family: var(--f-body);
+  font-size: 0.7rem;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.02em;
+  line-height: 1.6;
+  color: var(--ink-mid);
+  white-space: nowrap;
+  transition:
+    border-color var(--motion),
+    color var(--motion);
+}
+
+.chip:hover,
+.chip[aria-expanded='true'] {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+/* チップの上に開く注記。中央寄せの上、狭い画面でもビューポート幅からはみ出さないよう clamp する */
+.popover {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  z-index: 1;
+  width: max-content;
+  max-width: min(220px, calc(100vw - 2 * var(--space-md)));
+  padding: var(--space-3xs) var(--space-2xs);
+  border: 1px solid var(--rule);
+  background-color: var(--surface-cream);
+  color: var(--ink-secondary);
+  font-size: 0.75rem;
+  line-height: 1.6;
+  text-align: left;
+  transform: translateX(-50%);
+  animation: popoverReveal var(--motion) var(--ease-reveal);
+}
+
+@keyframes popoverReveal {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}

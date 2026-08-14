@@ -37,6 +37,16 @@
   transform: translateY(0);
 }
 
+/* work.detail を持つカードだけ、事実パネルの下に全幅の詳細行を足す。
+   全カード一律に行を足すと、詳細を持たないカード(大半)のモバイル1列でも
+   row-gap 分の空行が余白として残ってしまうため修飾子で分ける */
+.hasDetail {
+  grid-template-areas:
+    'shot intro'
+    'shot panel'
+    'detail detail';
+}
+
 /* 見出しの塊(NO.行・タイトル・一行説明)。カードの先頭に来る */
 .intro {
   grid-area: intro;
@@ -95,6 +105,22 @@
   color: var(--ink);
 }
 
+/* story を持つ作品だけ WorkCard 側が付与するタイトルリンク。色は地の文を継ぎ、下線で誘導を示す */
+.titleLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.titleLink:hover,
+.titleLink:focus-visible {
+  text-decoration: underline;
+}
+
+.titleLink::after {
+  content: '→';
+  margin-left: 0.35em;
+}
+
 /* wip状態のみ。塗りではなく marker 色の文字+枠線で表す(赤は警告に読めるので使わない) */
 .wipBadge {
   padding: 3px 8px;
@@ -124,6 +150,39 @@
   padding: var(--space-sm) var(--space-md);
   border: 1px solid var(--rule);
   background-color: var(--surface-cream);
+}
+
+/* 詳細トグル。仕様表の直下、塗りは持たず罫線だけの小ラベルボタン(overlaySecondary・wipBadge と同系統) */
+.detailToggle {
+  align-self: flex-start;
+  padding: 6px 12px;
+  border: 1px solid var(--rule);
+  background: none;
+  font-family: var(--f-label);
+  font-size: 0.7rem;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.1em;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+/* 全幅の詳細行。hidden の付け外し自体は即時(高さのアニメーションは持たない)。
+   display: none から戻る瞬間だけ animation が最初から再生されるので、開く度に軽く現れる */
+.detail {
+  grid-area: detail;
+  animation: detailReveal var(--motion-slow) var(--ease-reveal);
+}
+
+@keyframes detailReveal {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* 画面キャプチャ枠。資産がまだ無いカードでも枠が潰れないよう比率で高さを確保する */
@@ -310,6 +369,15 @@
     row-gap: 24px;
   }
 
+  /* 詳細を持つカードだけ、1列の最下段に detail を足す */
+  .hasDetail {
+    grid-template-areas:
+      'intro'
+      'shot'
+      'panel'
+      'detail';
+  }
+
   /* 行間は row-gap が持つので、ここの下マージンは二重になる */
   .tagline {
     margin-bottom: 0;
@@ -344,5 +412,9 @@
   .overlayPrimary,
   .overlaySecondary {
     transform: none;
+  }
+
+  .detail {
+    animation: none;
   }
 }

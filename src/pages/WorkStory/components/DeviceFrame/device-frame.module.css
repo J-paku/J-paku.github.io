@@ -1,0 +1,85 @@
+/*
+ * iPhone 17 Pro を想起させる端末フレーム。画像資産を使わず、チタン風の3階調グラデーション枠と
+ * Dynamic Island・側面ボタンのヒントだけで組む。色は全て tokens.css の --color-device-* を参照し、
+ * ここに色リテラルは書かない(01-authoring.md #9)。
+ *
+ * 端末の金属色はサイト自体のテーマ(ライト/ダーク)とは独立した実体の色なので、
+ * --color-device-* の値はテーマ間で変えない(モーダル暗幕と同じ扱い)。
+ */
+.frame {
+  position: relative;
+  width: 100%;
+  max-width: 320px;
+  margin-inline: auto;
+  padding: 14px;
+  border-radius: 54px;
+  background: linear-gradient(
+    155deg,
+    var(--color-device-bezel-highlight) 0%,
+    var(--color-device-bezel-mid) 45%,
+    var(--color-device-bezel-shadow) 100%
+  );
+  box-shadow: 0 24px 48px -12px var(--color-device-shadow);
+}
+
+/* 画面領域。実機の画面比率(402x874pt相当)で確保し、children はここを覆い尽くす */
+.screen {
+  position: relative;
+  aspect-ratio: 402 / 874;
+  overflow: hidden;
+  border-radius: 42px;
+  background-color: var(--color-device-screen-bg);
+}
+
+.content {
+  width: 100%;
+  height: 100%;
+}
+
+/* Dynamic Island。position: absolute の描画順は通常フローの .content より常に上に来る */
+.island {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  width: 96px;
+  height: 28px;
+  border-radius: 16px;
+  background-color: var(--color-device-island);
+  transform: translateX(-50%);
+}
+
+/* 側面ボタンのヒント。frame の枠外へわずかに突き出す薄い帯 */
+.buttonAction,
+.buttonVolumeUp,
+.buttonVolumeDown,
+.buttonPower {
+  position: absolute;
+  width: 3px;
+  border-radius: 2px 0 0 2px;
+  background-color: var(--color-device-button);
+}
+
+.buttonAction {
+  top: 100px;
+  left: -3px;
+  height: 28px;
+}
+
+.buttonVolumeUp {
+  top: 140px;
+  left: -3px;
+  height: 44px;
+}
+
+.buttonVolumeDown {
+  top: 194px;
+  left: -3px;
+  height: 44px;
+}
+
+.buttonPower {
+  top: 150px;
+  right: -3px;
+  height: 60px;
+  border-radius: 0 2px 2px 0;
+}
