@@ -1,0 +1,47 @@
+/*
+ * 場面ごとの画面キャプチャを絶対配置で重ねる。表示切替は opacity のクロスフェードのみで行い、
+ * 非表示のフレームも DOM からは外さない(activeIndex が変わるたびに再マウントさせない)。
+ * DeviceFrame 側の .screen が既に同じ比率で領域を確保しているが、単体での見た目も保つためここでも持つ
+ */
+.player {
+  position: relative;
+  aspect-ratio: 402 / 874;
+  overflow: hidden;
+  background-color: var(--surface);
+}
+
+.frame {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.frameActive {
+  opacity: 1;
+}
+
+.frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 資産が未納の場面のプレースホルダ文言。WorkCard の shotPlaceholder と同系統の小ラベル */
+.frame span {
+  padding: 0 var(--space-md);
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  line-height: var(--lh-body);
+  text-align: center;
+  color: var(--ink-secondary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .frame {
+    transition: none;
+  }
+}

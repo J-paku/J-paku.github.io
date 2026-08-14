@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Content, Work } from '@/types/content'
+import type { Content, Work, WorkDetail, WorkStory } from '@/types/content'
 import { isEmpty, mergeContent, mergeWorks } from './merge-content'
 import { assertSlugMatchesFilename, loadContent, sortWorks } from './content-loader'
 
@@ -35,7 +35,15 @@ const makeContent = (overrides: Partial<Content> = {}): Content => ({
       live: 'live',
       repo: 'repo',
       shotPlaceholder: 'shotPlaceholder',
+      showDetail: 'showDetail',
+      hideDetail: 'hideDetail',
+      caseChallenge: 'caseChallenge',
+      caseDecision: 'caseDecision',
+      caseReason: 'caseReason',
+      detailCases: 'detailCases',
+      detailDiagrams: 'detailDiagrams',
     },
+    workStory: { back: 'back' },
     quality: {
       footer: { label: 'MEASURED', environment: 'environment', limitation: 'limitation' },
     },
@@ -90,6 +98,12 @@ describe('mergeContent — 文字列・配列の空値フォールバック', ()
     expect(mergeContent(ja, ko).profile.strengths).toEqual(koStrengths)
   })
 
+  it('17: ui.workStory.backが空ならja値を採用する', () => {
+    const ja = makeContent({ ui: { ...makeContent().ui, workStory: { back: 'ja-back' } } })
+    const ko = makeContent({ ui: { ...makeContent().ui, workStory: { back: '' } } })
+    expect(mergeContent(ja, ko).ui.workStory.back).toBe('ja-back')
+  })
+
   it('8: 値が0/falseなら代替されない(isEmptyの判定そのものを検証)', () => {
     expect(isEmpty(0)).toBe(false)
     expect(isEmpty(false)).toBe(false)
@@ -111,6 +125,105 @@ describe('mergeWorks — slug基準の要素単位マージ', () => {
     const koWorks = [makeWork({ slug: 'a', tagline: 'ko-a' })]
     const merged = mergeWorks(jaWorks, koWorks)
     expect(merged.find((w) => w.slug === 'b')).toEqual(jaWorkB)
+  })
+
+  it('13: works.detailはkoが無ければja値を丸ごと採用する', () => {
+    const jaDetail: WorkDetail = {
+      cases: [{ challenge: 'ja-challenge', decision: 'ja-decision', reason: 'ja-reason' }],
+      diagrams: {
+        architecture: { title: 'ja-arch', caption: 'ja-arch-caption', labels: { a: 'ja-a' } },
+        dataflow: { title: 'ja-flow', caption: 'ja-flow-caption', labels: { b: 'ja-b' } },
+        sequence: { title: 'ja-seq', caption: 'ja-seq-caption', labels: { c: 'ja-c' } },
+      },
+    }
+    const jaWorks = [makeWork({ slug: 'a', detail: jaDetail })]
+    const koWorks = [makeWork({ slug: 'a', detail: undefined })]
+    expect(mergeWorks(jaWorks, koWorks)[0].detail).toEqual(jaDetail)
+  })
+
+  it('14: works.detailはkoがあればko値を丸ごと採用する(部分マージしない)', () => {
+    const jaDetail: WorkDetail = {
+      cases: [{ challenge: 'ja-challenge', decision: 'ja-decision', reason: 'ja-reason' }],
+      diagrams: {
+        architecture: { title: 'ja-arch', caption: 'ja-arch-caption', labels: { a: 'ja-a' } },
+        dataflow: { title: 'ja-flow', caption: 'ja-flow-caption', labels: { b: 'ja-b' } },
+        sequence: { title: 'ja-seq', caption: 'ja-seq-caption', labels: { c: 'ja-c' } },
+      },
+    }
+    const koDetail: WorkDetail = {
+      cases: [{ challenge: 'ko-challenge', decision: 'ko-decision', reason: 'ko-reason' }],
+      diagrams: {
+        architecture: { title: 'ko-arch', caption: 'ko-arch-caption', labels: { a: 'ko-a' } },
+        dataflow: { title: 'ko-flow', caption: 'ko-flow-caption', labels: { b: 'ko-b' } },
+        sequence: { title: 'ko-seq', caption: 'ko-seq-caption', labels: { c: 'ko-c' } },
+      },
+    }
+    const jaWorks = [makeWork({ slug: 'a', detail: jaDetail })]
+    const koWorks = [makeWork({ slug: 'a', detail: koDetail })]
+    expect(mergeWorks(jaWorks, koWorks)[0].detail).toEqual(koDetail)
+  })
+
+  it('15: works.storyはkoが無ければja値を丸ごと採用する', () => {
+    const jaStory: WorkStory = {
+      intro: { title: 'ja-intro-title', lead: 'ja-intro-lead' },
+      scenes: [
+        {
+          id: 'scene-1',
+          title: 'ja-scene-title',
+          body: 'ja-scene-body',
+          chips: [{ name: 'ja-chip', note: 'ja-chip-note' }],
+          image: '/works/sample/scene1.svg',
+        },
+      ],
+      outro: {
+        title: 'ja-outro-title',
+        body: 'ja-outro-body',
+        stackSummary: [{ name: 'ja-stack', note: 'ja-stack-note' }],
+      },
+    }
+    const jaWorks = [makeWork({ slug: 'a', story: jaStory })]
+    const koWorks = [makeWork({ slug: 'a', story: undefined })]
+    expect(mergeWorks(jaWorks, koWorks)[0].story).toEqual(jaStory)
+  })
+
+  it('16: works.storyはkoがあればko値を丸ごと採用する(部分マージしない)', () => {
+    const jaStory: WorkStory = {
+      intro: { title: 'ja-intro-title', lead: 'ja-intro-lead' },
+      scenes: [
+        {
+          id: 'scene-1',
+          title: 'ja-scene-title',
+          body: 'ja-scene-body',
+          chips: [{ name: 'ja-chip', note: 'ja-chip-note' }],
+          image: '/works/sample/scene1.svg',
+        },
+      ],
+      outro: {
+        title: 'ja-outro-title',
+        body: 'ja-outro-body',
+        stackSummary: [{ name: 'ja-stack', note: 'ja-stack-note' }],
+      },
+    }
+    const koStory: WorkStory = {
+      intro: { title: 'ko-intro-title', lead: 'ko-intro-lead' },
+      scenes: [
+        {
+          id: 'scene-1',
+          title: 'ko-scene-title',
+          body: 'ko-scene-body',
+          chips: [{ name: 'ko-chip', note: 'ko-chip-note' }],
+          image: '/works/sample/scene1.svg',
+        },
+      ],
+      outro: {
+        title: 'ko-outro-title',
+        body: 'ko-outro-body',
+        stackSummary: [{ name: 'ko-stack', note: 'ko-stack-note' }],
+      },
+    }
+    const jaWorks = [makeWork({ slug: 'a', story: jaStory })]
+    const koWorks = [makeWork({ slug: 'a', story: koStory })]
+    expect(mergeWorks(jaWorks, koWorks)[0].story).toEqual(koStory)
   })
 })
 
@@ -144,7 +257,8 @@ describe('loadContent — 実コンテンツの回帰確認', () => {
     expect(ja.works).toHaveLength(4)
     expect(ko.works).toHaveLength(4)
     expect(ja.works.map((w) => w.slug)).toEqual(ko.works.map((w) => w.slug))
-    expect(ja.works.map((w) => w.status)).toEqual(['published', 'published', 'wip', 'wip'])
+    // meishi-cross-platform が wip から published へ移行したため、公開3件+wip1件になった
+    expect(ja.works.map((w) => w.status)).toEqual(['published', 'published', 'published', 'wip'])
   })
 
   it('koはfallbackなしで自言語のまま出る(現状は全訳済みのため)', () => {

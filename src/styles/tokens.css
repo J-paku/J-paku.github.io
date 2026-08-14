@@ -48,6 +48,18 @@
   --marker: #6b6862; /* wip 状態専用。橙が使えないので、インクより一段弱い明度で「まだ弱い」を示す。
                          --ground 上で 12.63:1 */
 
+  /* ===== 端末フレーム専用色 =====
+     WorkStory の DeviceFrame(iPhone 17 Pro 風モックアップ)専用。チタン・ガラスという実体の色で
+     サイト自体のテーマ(ライト/ダーク)とは独立するため、3ブロックとも同じ値を置く
+     (01-authoring.md #9 のモーダル暗幕と同じ扱い)。装飾のみで文字は乗せないため対比計算は不要 */
+  --color-device-bezel-highlight: #efece6; /* チタン枠のハイライト(光が回り込む縁) */
+  --color-device-bezel-mid: #b6b0a4; /* チタン枠の中間トーン */
+  --color-device-bezel-shadow: #56534c; /* チタン枠の陰トーン */
+  --color-device-island: #0a0a09; /* Dynamic Island のカプセル */
+  --color-device-button: #8a857a; /* 側面ボタンのヒント */
+  --color-device-screen-bg: #100f0d; /* 画面が children で埋まる前の下地 */
+  --color-device-shadow: rgba(10, 9, 8, 0.45); /* フレーム全体の落ち影 */
+
   /* ===== タイポグラフィ =====
      D5: 全階層で「1つの文字列をラテンとCJKで割らない」ことを優先へ変えた回。
      10段階の初版は Playfair(ラテン専用サブセット)だけを自己ホストしていたため、CJKは
@@ -147,6 +159,15 @@
   --accent: #e06d5a; /* --ink と同値 */
   --accent-ink: #171613; /* --ground と同値 */
   --marker: #959087; /* wip。--surface 上で 10.84:1 */
+
+  /* 端末フレーム専用色。テーマ非依存のため :root と同じ値 */
+  --color-device-bezel-highlight: #efece6;
+  --color-device-bezel-mid: #b6b0a4;
+  --color-device-bezel-shadow: #56534c;
+  --color-device-island: #0a0a09;
+  --color-device-button: #8a857a;
+  --color-device-screen-bg: #100f0d;
+  --color-device-shadow: rgba(10, 9, 8, 0.45);
 }
 
 :root[data-theme='light'] {
@@ -161,4 +182,13 @@
   --accent: #b33a2b;
   --accent-ink: #ffffff;
   --marker: #6b6862;
+
+  /* 端末フレーム専用色。テーマ非依存のため :root と同じ値 */
+  --color-device-bezel-highlight: #efece6;
+  --color-device-bezel-mid: #b6b0a4;
+  --color-device-bezel-shadow: #56534c;
+  --color-device-island: #0a0a09;
+  --color-device-button: #8a857a;
+  --color-device-screen-bg: #100f0d;
+  --color-device-shadow: rgba(10, 9, 8, 0.45);
 }

@@ -27,6 +27,16 @@ export const ui: UiStrings = {
     live: '공개 페이지',
     repo: 'GitHub',
     shotPlaceholder: '화면 캡처는 준비 중',
+    showDetail: '자세히 보기',
+    hideDetail: '접기',
+    caseChallenge: '과제',
+    caseDecision: '설계',
+    caseReason: '이유',
+    detailCases: '설계 판단',
+    detailDiagrams: '구성도',
+  },
+  workStory: {
+    back: '목록으로 돌아가기',
   },
   quality: {
     // 푸터의 계측표. 값은 두지 않고 계측 환경과 알려진 약점을 먼저 말한다
