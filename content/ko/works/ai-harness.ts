@@ -18,5 +18,5 @@ export const aiHarness: Work = {
     repo: 'https://github.com/J-paku/ai-harness',
   },
   // カード用サムネイル。fan-out 実行フローを文字なしで図解した自作SVG(seatmap と同じ視覚文法)
-  thumbnail: '/shots/ai-harness.svg',
+  thumbnail: '/shots/ai-harness.svg?v=3',
 }
