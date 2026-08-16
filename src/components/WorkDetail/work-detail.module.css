@@ -103,6 +103,12 @@
   .detail {
     padding: var(--space-sm);
   }
+
+  /* 文節単位(keep-all+wbr)は狭い幅では行末が凸凹になるため、長文の本文だけ標準の字詰め
+     (禁則は line-break: strict が維持)へ切り替える。<wbr> は残るが害はない */
+  .paragraph {
+    word-break: normal;
+  }
 }
 
 /* global.css の transition-duration 上書きは animation-delay までは潰さないため、
