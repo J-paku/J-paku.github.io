@@ -1,0 +1,239 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1200" width="1600" height="1200">
+  <!--
+    名刺登録アプリ の作品カード用サムネイル。文字は一切置かない図解。
+    構図 = 「ネイティブ(左)とWeb(右)を1つのアプリとして繋ぐ」という作品の核を、
+    カメラ撮影スマホ(左) / 得意先一覧+距離検索のWeb管理パネル(中央) / 登録フォームスマホ(右)
+    の3枚を鎖アイコンで橋渡しする構成にした。
+    背景 = 左に暗いカメラ床面(scene1-camera.svg の六角床を再構成)、
+    右に地図グリッドと得意先ピン(scene4-nearby.svg の距離検索を再構成)。
+    カードは平常 grayscale で表示されるため、判別は色相ではなく明度と形が担う。
+  -->
+  <defs>
+    <pattern id="mcpDots" width="26" height="26" patternUnits="userSpaceOnUse">
+      <circle cx="4" cy="4" r="1.8" fill="#d9d3c7" />
+    </pattern>
+    <pattern id="mcpDotsS" width="14" height="14" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1" fill="#e2ded4" />
+    </pattern>
+    <!-- カメラ画面の暗い六角床(scene1-camera.svg の床パターンを縮約) -->
+    <pattern id="mcpHex" width="70" height="121" patternUnits="userSpaceOnUse">
+      <path d="M17.5 0 L52.5 0 L70 30.3 L52.5 60.5 L17.5 60.5 L0 30.3 Z" fill="none" stroke="#2b2f38" stroke-width="1.6" />
+      <path d="M17.5 60.5 L52.5 60.5 L70 90.8 L52.5 121 L17.5 121 L0 90.8 Z" fill="none" stroke="#2b2f38" stroke-width="1.6" />
+    </pattern>
+    <!-- 背景右側の地図グリッド -->
+    <pattern id="mcpGrid" width="80" height="80" patternUnits="userSpaceOnUse">
+      <path d="M0 0 H80 M0 0 V80" fill="none" stroke="#8b95cf" stroke-width="1.5" opacity=".35" />
+    </pattern>
+    <filter id="mcpLift" x="-30%" y="-20%" width="160%" height="150%">
+      <feDropShadow dx="0" dy="20" stdDeviation="22" flood-color="#2b2a26" flood-opacity="0.22" />
+    </filter>
+    <linearGradient id="mcpBand" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#c9755f" />
+      <stop offset="1" stop-color="#a5563f" />
+    </linearGradient>
+
+    <clipPath id="mcpClipA"><rect x="124" y="444" width="332" height="672" rx="36" /></clipPath>
+    <clipPath id="mcpClipHub"><rect x="610" y="334" width="430" height="752" rx="22" /></clipPath>
+    <clipPath id="mcpClipC"><rect x="1143" y="473" width="324" height="664" rx="28" /></clipPath>
+
+    <!-- 名刺のミニ図解(撮影対象/一覧行で使い回す) -->
+    <g id="mcpCard">
+      <rect x="-58" y="-36" width="116" height="72" rx="6" fill="#ffffff" stroke="#ddd8cf" stroke-width="2" />
+      <rect x="-50" y="-28" width="30" height="30" rx="4" fill="#c9a24a" />
+      <rect x="-14" y="-24" width="62" height="9" rx="4.5" fill="#3a3a36" />
+      <rect x="-14" y="-8" width="46" height="7" rx="3.5" fill="#b5b1a8" />
+      <rect x="-50" y="14" width="98" height="12" fill="url(#mcpBand)" />
+    </g>
+
+    <!-- 地図ピン(輪っか型) -->
+    <g id="mcpPin">
+      <path d="M0 -24 a16 16 0 0 1 16 16 c0 12 -16 28 -16 28 s-16 -16 -16 -28 a16 16 0 0 1 16 -16 Z" />
+      <circle r="6" fill="#ffffff" />
+    </g>
+
+    <!-- ビューファインダーの角ブラケット(4隅に回転配置) -->
+    <g id="mcpCorner" fill="none" stroke="#ffffff" stroke-width="7" stroke-linecap="round">
+      <path d="M0 30 L0 8 Q0 0 8 0 L30 0" />
+    </g>
+
+    <!-- 得意先一覧の1行(ピン+2行のテキスト帯+距離バッジ) -->
+    <g id="mcpListRow">
+      <rect x="14" width="402" height="90" rx="16" fill="#ffffff" stroke="#e8e4dc" stroke-width="1.5" />
+      <g transform="translate(48 45) scale(.55)"><use href="#mcpPin" fill="#23262b" /></g>
+      <rect x="80" y="26" width="150" height="14" rx="7" fill="#2b2b28" />
+      <rect x="80" y="50" width="190" height="11" rx="5.5" fill="#b5b1a8" />
+      <rect x="326" y="30" width="70" height="30" rx="15" style="fill:var(--chip,#c9755f)" />
+      <rect x="346" y="43" width="30" height="5" rx="2.5" fill="#ffffff" />
+    </g>
+
+    <!-- ネイティブ⇔Webの橋渡しを示す鎖アイコン -->
+    <g id="mcpLink" fill="none" stroke-linecap="round" stroke-width="8">
+      <rect x="-28" y="-11" width="34" height="22" rx="11" />
+      <rect x="-6" y="-11" width="34" height="22" rx="11" />
+    </g>
+  </defs>
+
+  <style>
+    /* 名刺がカメラ枠の中でごく小さく浮遊するループ */
+    .card-float { transform-box: fill-box; transform-origin: center; animation: mcp-float 4.2s ease-in-out infinite; }
+    @keyframes mcp-float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    /* 現在地からの距離検索を示すレーダーの波紋(2本を時差で発火) */
+    .ping { transform-box: fill-box; transform-origin: center; opacity: .4; animation: mcp-ping 3.6s ease-out infinite; }
+    .ping-b { animation-delay: 1.8s; }
+    @keyframes mcp-ping {
+      0% { opacity: .55; transform: scale(.8); }
+      70% { opacity: 0; transform: scale(1.4); }
+      100% { opacity: 0; transform: scale(1.4); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .card-float, .ping { animation: none !important; }
+    }
+  </style>
+
+  <rect width="1600" height="1200" fill="#f4f1ec" />
+  <rect width="1600" height="1200" fill="url(#mcpDots)" />
+
+  <!-- ===== 背景: 左=カメラの暗い床面 / 右=地図グリッドと得意先ピン ===== -->
+  <g>
+    <rect x="90" y="350" width="440" height="800" rx="44" fill="#1c1e23" />
+    <rect x="90" y="350" width="440" height="800" rx="44" fill="url(#mcpHex)" opacity=".45" />
+
+    <rect x="580" y="210" width="930" height="910" rx="52" fill="#e0e5f5" stroke="#8b95cf" stroke-width="4" />
+    <rect x="580" y="210" width="930" height="910" rx="52" fill="url(#mcpGrid)" />
+    <g opacity=".55" fill="#6b78c4">
+      <g transform="translate(700 320) scale(.5)"><use href="#mcpPin" /></g>
+      <g transform="translate(900 270) scale(.5)"><use href="#mcpPin" /></g>
+      <g transform="translate(1040 430) scale(.5)"><use href="#mcpPin" /></g>
+      <g transform="translate(1340 300) scale(.5)"><use href="#mcpPin" /></g>
+      <g transform="translate(1210 540) scale(.5)"><use href="#mcpPin" /></g>
+    </g>
+  </g>
+
+  <!-- 前面のパネルを立たせるため、背景全体を紙色で一段沈める -->
+  <rect width="1600" height="1200" fill="#f4f1ec" opacity="0.42" />
+
+  <!-- ===== 前面: カメラ撮影(左) / 得意先+距離検索のWeb管理(中央) / 登録フォーム(右) ===== -->
+
+  <!-- A: カメラ撮影(AVFoundation + Vision の矩形検出) -->
+  <g filter="url(#mcpLift)">
+    <rect x="110" y="430" width="360" height="700" rx="48" fill="#23262b" />
+  </g>
+  <g clip-path="url(#mcpClipA)">
+    <g transform="translate(124 444)">
+      <rect width="332" height="672" fill="#14161a" />
+      <rect width="332" height="672" fill="url(#mcpHex)" opacity=".5" />
+
+      <rect x="20" y="34" width="292" height="64" rx="16" fill="url(#mcpBand)" opacity=".92" />
+      <circle cx="44" cy="66" r="5" fill="#ffffff" />
+      <rect x="56" y="63" width="40" height="6" rx="3" fill="#ffffff" opacity=".55" />
+      <circle cx="104" cy="66" r="5" fill="#ffffff" opacity=".4" />
+
+      <g transform="translate(46 210)"><use href="#mcpCorner" /></g>
+      <g transform="translate(286 210) rotate(90)"><use href="#mcpCorner" /></g>
+      <g transform="translate(286 510) rotate(180)"><use href="#mcpCorner" /></g>
+      <g transform="translate(46 510) rotate(270)"><use href="#mcpCorner" /></g>
+
+      <g class="card-float">
+        <g transform="translate(166 358) rotate(-4) scale(1.7)"><use href="#mcpCard" /></g>
+      </g>
+
+      <circle cx="270" cy="492" r="18" fill="#3f9e6a" stroke="#14161a" stroke-width="3" />
+      <path d="M262 492 L268 499 L279 483" fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
+
+      <rect x="66" y="560" width="200" height="44" rx="22" fill="#1b1d23" opacity=".8" stroke="#ffffff" stroke-opacity=".15" stroke-width="1.5" />
+      <circle cx="90" cy="582" r="5" fill="#ffffff" opacity=".85" />
+      <rect x="104" y="576" width="118" height="12" rx="6" fill="#ffffff" opacity=".85" />
+    </g>
+  </g>
+  <rect x="245" y="404" width="90" height="22" rx="11" fill="#23262b" />
+
+  <!-- 鎖アイコン: ネイティブ→Web管理画面 -->
+  <g filter="url(#mcpLift)">
+    <use href="#mcpLink" x="533" y="770" stroke="#c9755f" />
+  </g>
+
+  <!-- B: 得意先一覧+距離検索(WKWebViewで統合したReact製Web管理画面) -->
+  <g filter="url(#mcpLift)">
+    <rect x="596" y="320" width="458" height="780" rx="34" fill="#23262b" />
+    <rect x="610" y="334" width="430" height="752" rx="22" fill="#ffffff" />
+  </g>
+  <rect x="767" y="286" width="118" height="30" rx="10" fill="#23262b" />
+  <circle cx="826" cy="301" r="6" fill="#c9755f" />
+  <g clip-path="url(#mcpClipHub)">
+    <g transform="translate(610 334)">
+      <rect width="430" height="44" fill="#f2f0ec" />
+      <circle cx="18" cy="22" r="5" fill="#d9d3c7" />
+      <circle cx="38" cy="22" r="5" fill="#e2ded4" />
+      <circle cx="56" cy="22" r="5" fill="#d9d3c7" />
+      <rect x="90" y="13" width="300" height="18" rx="9" fill="#e8e4dc" />
+      <circle cx="104" cy="22" r="4" fill="#b5b1a8" />
+      <rect y="44" width="430" height="1.5" fill="#e0dcd3" />
+
+      <rect y="45" width="430" height="177" fill="#f7f5f1" />
+      <rect y="45" width="430" height="177" fill="url(#mcpDotsS)" />
+      <circle cx="215" cy="140" r="64" fill="none" stroke="#ddd8cf" stroke-width="2" />
+      <circle class="ping" cx="215" cy="140" r="26" fill="none" stroke="#c9755f" stroke-width="3" />
+      <circle class="ping ping-b" cx="215" cy="140" r="26" fill="none" stroke="#c9755f" stroke-width="3" />
+      <g transform="translate(215 140)"><use href="#mcpPin" fill="#23262b" /></g>
+      <rect y="222" width="430" height="1.5" fill="#e0dcd3" />
+
+      <use href="#mcpListRow" x="0" y="234" style="--chip:#c9755f" />
+      <use href="#mcpListRow" x="0" y="352" style="--chip:#c9a24a" />
+      <use href="#mcpListRow" x="0" y="470" style="--chip:#6bbfa4" />
+      <use href="#mcpListRow" x="0" y="588" style="--chip:#c9755f" />
+    </g>
+  </g>
+
+  <!-- 鎖アイコン: Web管理画面→ネイティブ登録フォーム -->
+  <g filter="url(#mcpLift)">
+    <use href="#mcpLink" x="1092" y="770" stroke="#c9755f" />
+  </g>
+
+  <!-- C: 登録フォーム(OCR自動入力→登録) -->
+  <g filter="url(#mcpLift)">
+    <rect x="1130" y="460" width="350" height="690" rx="40" fill="#23262b" />
+    <rect x="1143" y="473" width="324" height="664" rx="28" fill="#ffffff" />
+  </g>
+  <g clip-path="url(#mcpClipC)">
+    <g transform="translate(1143 473)">
+      <rect width="324" height="50" fill="#f2f0ec" />
+      <path d="M34 20 L22 30 L34 40" fill="none" stroke="#4a4740" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+      <circle cx="284" cy="30" r="3" fill="#8a857c" />
+      <circle cx="296" cy="30" r="3" fill="#8a857c" />
+      <circle cx="308" cy="30" r="3" fill="#8a857c" />
+      <rect y="50" width="324" height="1.5" fill="#e0dcd3" />
+
+      <rect y="64" width="324" height="66" fill="#f6e3da" opacity=".7" />
+      <rect x="24" y="80" width="70" height="11" rx="5.5" fill="#8a857c" />
+      <circle cx="104" cy="85" r="4" fill="#c9755f" />
+      <rect x="24" y="102" width="190" height="14" rx="4" fill="#2b2b28" />
+      <rect y="134" width="324" height="1" fill="#eae6de" />
+
+      <rect x="24" y="160" width="70" height="11" rx="5.5" fill="#8a857c" />
+      <rect x="24" y="182" width="190" height="14" rx="4" fill="#2b2b28" />
+      <rect y="214" width="324" height="1" fill="#eae6de" />
+
+      <rect y="224" width="324" height="66" fill="#f6e3da" opacity=".7" />
+      <rect x="24" y="240" width="70" height="11" rx="5.5" fill="#8a857c" />
+      <rect x="24" y="262" width="190" height="14" rx="4" fill="#2b2b28" />
+      <rect y="294" width="324" height="1" fill="#eae6de" />
+
+      <rect y="304" width="324" height="66" fill="#f6e3da" opacity=".7" />
+      <rect x="24" y="320" width="70" height="11" rx="5.5" fill="#8a857c" />
+      <circle cx="104" cy="325" r="4" fill="#c9755f" />
+      <rect x="24" y="342" width="190" height="14" rx="4" fill="#2b2b28" />
+      <rect y="374" width="324" height="1" fill="#eae6de" />
+
+      <rect x="24" y="400" width="70" height="11" rx="5.5" fill="#8a857c" />
+      <rect x="24" y="422" width="190" height="14" rx="4" fill="#2b2b28" />
+      <rect y="454" width="324" height="1" fill="#eae6de" />
+
+      <rect x="24" y="590" width="276" height="54" rx="12" fill="url(#mcpBand)" />
+      <path d="M132 617 L154 637 L198 593" fill="none" stroke="#ffffff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
+    </g>
+  </g>
+  <rect x="1260" y="434" width="90" height="22" rx="11" fill="#23262b" />
+</svg>
