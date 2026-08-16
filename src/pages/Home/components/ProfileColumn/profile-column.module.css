@@ -19,6 +19,10 @@
   padding: 60px 40px;
   border-right: 1px solid var(--rule);
   background: var(--ground);
+  /* 実機タブレット横持ちはブラウザUIが高さを削り、100vh より中身が背高になる。
+     sticky はページスクロールで中身を送れないため、溢れた下端(GitHubリンク)が永久に見えなくなる。
+     列内スクロールを許可して逃がす — 収まっている環境ではスクロールバーは出ない */
+  overflow-y: auto;
 }
 
 /* 上塊。space-between の一方の端を担うため、名前から経歴までを1つに束ねる */

@@ -19,6 +19,8 @@ export const ui: UiStrings = {
   work: {
     index: '作品一覧',
     openLinks: 'リンクを開く',
+    story: 'ストーリー',
+    openStory: 'ストーリーを開く',
     wipBadge: '準備中',
     period: '期間',
     role: '役割',

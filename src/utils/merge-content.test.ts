@@ -27,6 +27,8 @@ const makeContent = (overrides: Partial<Content> = {}): Content => ({
     work: {
       index: 'index',
       openLinks: 'openLinks',
+      story: 'story',
+      openStory: 'openStory',
       wipBadge: 'wip',
       period: 'period',
       role: 'role',
