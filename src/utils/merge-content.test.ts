@@ -41,9 +41,6 @@ const makeContent = (overrides: Partial<Content> = {}): Content => ({
       hideDetail: 'hideDetail',
     },
     workStory: { back: 'back', viewScene: 'viewScene', close: 'close', prevScene: 'prevScene', nextScene: 'nextScene' },
-    quality: {
-      footer: { label: 'MEASURED', environment: 'environment', limitation: 'limitation' },
-    },
     notFound: { title: 'notFound', body: 'body', backHome: 'backHome' },
     colophon: { copyright: 'copyright', credit: 'credit' },
   },

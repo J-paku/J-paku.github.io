@@ -2,7 +2,6 @@
 // ko は既に全訳済みのため、これは常時通る主経路ではなく「今後の追記でkoが追いつかない区間」を埋める安全網。
 import type {
   Content,
-  FooterMeasurement,
   Profile,
   SkillCategory,
   UiStrings,
@@ -46,16 +45,6 @@ const mergeStringRecord = <T extends Record<string, string>>(ja: T, ko: T, path:
   return result
 }
 
-const mergeFooterMeasurement = (ja: FooterMeasurement, ko: FooterMeasurement): FooterMeasurement => ({
-  label: pick(ja.label, ko.label, 'ui.quality.footer.label'),
-  environment: pick(ja.environment, ko.environment, 'ui.quality.footer.environment'),
-  limitation: pick(ja.limitation, ko.limitation, 'ui.quality.footer.limitation'),
-})
-
-const mergeQuality = (ja: UiStrings['quality'], ko: UiStrings['quality']): UiStrings['quality'] => ({
-  footer: mergeFooterMeasurement(ja.footer, ko.footer),
-})
-
 const mergeUi = (ja: UiStrings, ko: UiStrings): UiStrings => ({
   skipToMain: pick(ja.skipToMain, ko.skipToMain, 'ui.skipToMain'),
   localeMenu: mergeStringRecord(ja.localeMenu, ko.localeMenu, 'ui.localeMenu'),
@@ -63,7 +52,6 @@ const mergeUi = (ja: UiStrings, ko: UiStrings): UiStrings => ({
   theme: mergeStringRecord(ja.theme, ko.theme, 'ui.theme'),
   work: mergeStringRecord(ja.work, ko.work, 'ui.work'),
   workStory: mergeStringRecord(ja.workStory, ko.workStory, 'ui.workStory'),
-  quality: mergeQuality(ja.quality, ko.quality),
   notFound: mergeStringRecord(ja.notFound, ko.notFound, 'ui.notFound'),
   colophon: mergeStringRecord(ja.colophon, ko.colophon, 'ui.colophon'),
 })

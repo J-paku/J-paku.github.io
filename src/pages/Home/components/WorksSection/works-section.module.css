@@ -38,39 +38,14 @@
   gap: 120px;
 }
 
-.footer {
-  display: flex;
-  justify-content: space-between;
-  gap: 40px;
-  margin-top: 150px;
-  padding-top: 40px;
-  border-top: 1px solid var(--rule);
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  color: var(--ink-mid);
-}
-
-.footerLabel {
-  margin: 0;
-  font-family: var(--f-mono);
-  font-weight: var(--fw-medium);
-  letter-spacing: 0.1em;
-  white-space: nowrap;
-}
-
-/* 計測環境と限界の2文は折り返す。折り返す文字列の行間は 1.5 を下回らせない(check-ai-tells #15) */
-.footerNote {
-  max-width: 34ch;
-  margin: 0;
-  line-height: 1.6;
-}
-
-/* 奥付。計測票よりさらに一段引いた最下行 */
+/* 奥付。カード列との区切り(余白+ヘアライン)は、廃止した計測票フッターから引き継ぐ */
 .colophon {
   display: flex;
   justify-content: space-between;
   gap: var(--space-sm);
-  margin-top: var(--space-lg);
+  margin-top: 150px;
+  padding-top: 40px;
+  border-top: 1px solid var(--rule);
   font-size: 0.65rem;
   letter-spacing: 0.05em;
   color: var(--ink-mid);
@@ -98,17 +73,7 @@
     gap: 72px;
   }
 
-  .footer {
-    flex-direction: column;
-    gap: 16px;
-    margin-top: 88px;
-  }
-
   .colophon {
-    margin-top: var(--space-md);
-  }
-
-  .footerNote {
-    max-width: none;
+    margin-top: 88px;
   }
 }

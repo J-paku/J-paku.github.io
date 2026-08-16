@@ -39,18 +39,8 @@ export const ui: UiStrings = {
     prevScene: '前の場面',
     nextScene: '次の場面',
   },
-  quality: {
-    // フッターの計測票。値を持たず、計測環境と既知の弱点だけを先に言う
-    footer: {
-      label: 'MEASURED',
-      environment:
-        'Lighthouseは「/」を1回のみ計測。axe-coreは「/」「/ko」の2URLを検査',
-      limitation:
-        'コマンドパレット展開時やwip作品ページの内部状態は対象外 — 実測が届く範囲だけを担保している',
-    },
-  },
   colophon: {
-    copyright: '© 2026 朴',
+    copyright: '© 2026 朴 裁弘',
     credit: 'Design explored with Variant',
   },
   notFound: {
