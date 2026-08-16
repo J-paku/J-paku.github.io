@@ -122,6 +122,13 @@ function WorkCard({ work, index }: WorkCardProps) {
             <span className={styles.srOnly}>{ui.work.openLinks}</span>
           </button>
         ) : null}
+        {!hasLinks && work.story !== undefined ? (
+          <Link to={withLocale(`/works/${work.slug}`, locale)} className={styles.shotStoryLink}>
+            <span className={styles.srOnly}>
+              <PhraseText text={work.title} />
+            </span>
+          </Link>
+        ) : null}
         {hasLinks ? (
           /* 常に描画し、表示は CSS が切り替える(隠れている間も pointer-events: none でクリックを透過)。
              タブ移動でリンクへ入れば focus-within で現れるため、キーボードでも到達できる。

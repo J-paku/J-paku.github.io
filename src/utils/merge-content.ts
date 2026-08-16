@@ -88,7 +88,7 @@ const mergeSkills = (ja: SkillCategory[], ko: SkillCategory[]): SkillCategory[] 
 
 const mergeNow = (ja: Content['now'], ko: Content['now']): Content['now'] => pick(ja, ko, 'now')
 
-// detail はケース・図解を持つ複合オブジェクトのためフィールド単位では割らず、ko があれば丸ごと採用する
+// detail は叙事セクション列を持つ複合オブジェクトのためフィールド単位では割らず、ko があれば丸ごと採用する
 const pickDetail = (ja: WorkDetail | undefined, ko: WorkDetail | undefined): WorkDetail | undefined =>
   ko === undefined ? ja : ko
 

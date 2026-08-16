@@ -388,6 +388,19 @@
   cursor: pointer;
 }
 
+/*
+ * リンク(live/repo)を持たないがstoryを持つ作品用に、画面キャプチャ全面を
+ * ストーリーページへの導線にする覆い。hasLinks側の shotTrigger と同じ絶対配置・全面覆いに倣うが、
+ * こちらは開閉ボタンではなく素の Link なので border・padding・background のリセットは不要
+ * (a要素は初期値のまま透明)。ホバー時の見た目反応は .card:hover .thumbnail の拡大が既にあるため
+ * ここでは追加しない
+ */
+.shotStoryLink {
+  position: absolute;
+  inset: 0;
+  cursor: pointer;
+}
+
 /* 読み上げ専用テキスト。ボタンのアクセシブルネームだけを持つ */
 .srOnly {
   position: absolute;

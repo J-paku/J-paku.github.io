@@ -1,4 +1,4 @@
-// 作品(ko) — 座席マップデモ。jaと同じ7節・同じkeyを保つ
+// 作品(ko) — 座席マップデモ。jaと同じ2節構成・同じkeyを保つ
 import type { Work } from '@/types/content'
 
 export const seatmapDemo: Work = {
@@ -28,73 +28,26 @@ export const seatmapDemo: Work = {
   // カード用サムネイル。実キャプチャは社内データ(氏名・連絡先)が写るため使えないので、
   // 主要3画面(座席マップ / 社員一覧 / 社員詳細)と拠点平面図を文字なしの図解へ起こした自作SVG
   thumbnail: '/shots/seatmap-demo.svg',
-  // 詳細ページ用。設計で迷った3点と、原本構成・データフロー・保存シーケンスの図解文言
+  // 詳細ページ用。WKWebViewが起こしたクラッシュの原因調査と、着手の動機を語る2節
   detail: {
-    cases: [
+    sections: [
       {
-        challenge: '수백 석을 DOM에 상시 배치하면 팬줌 재렌더링이 무거워지고, 배치하지 않으면 좌석에 도달할 수단이 없다',
-        decision: '변환 레이어에는 통로·구획만 두고, 개인 좌석은 sr-only 미러 레이어의 버튼으로 분리',
-        reason: '렌더링 비용과 보조기술을 통한 도달 가능성을 동시에 만족시키기 위해',
+        id: 'wkwebview-crash',
+        title: '죽는 원인을, 재서 밝혀내다',
+        paragraphs: [
+          '원본 iOS 앱(Swift)은 좌석 맵 웹 화면을 WKWebView로 띄운다. 운영에서 가장 애먹은 문제는 지도를 축소하면 앱째로 죽는 것이었는데, 코드를 봐도 원인을 알 수 없었다.',
+          '실마리는 Xcode 디버거로 프로세스 리소스를 들여다본 것이었다. 축소할수록 표시 범위가 넓어져 WKWebView의 메모리가 치솟았고, 어느 지점에서 프로세스째로 강제 종료되고 있었다.',
+          '수정도 실측에서 출발했다. 죽는 축소율을 측정해, 거기 닿기 전에 멈추는 줌 하한을 뒀다. 모바일과 PC 모두 같은 제한을 적용했다.',
+        ],
       },
       {
-        challenge: '캐시의 수동 버전 상수는 갱신을 잊기 쉽다. 실제로 옛 캐시를 계속 읽는 사고를 낸 적이 있다',
-        decision: '캐시 값에 시드 데이터의 해시(지문)를 동봉해, 데이터가 바뀌면 자동으로 캐시 미스가 되게 한다',
-        reason: '무효화를 사람의 기억이 아니라 구조로 보장하기 위해',
-      },
-      {
-        challenge: '「회의실 이중 예약이 없다」는 데이터 쪽 조건이라 타입 검사로도 화면 확인으로도 검출할 수 없다',
-        decision: '화면·데이터·배포물을 보는 3개의 검증 스크립트를 마련하고, GitHub Pages 배포판에서도 동일하게 실행한다',
-        reason: '로컬 PASS만으로 완료라 부르지 않기 위해',
+        id: 'why-built',
+        title: '왜 만들었나',
+        paragraphs: [
+          '외근 중 전화를 걸려다 손이 멈춘다. 상대가 회의 중일 수도 있다. 확인하려면 PC용 Garoon 일정 화면을 스마트폰으로 확대해 가며 읽고, 별도의 좌석표와 머릿속에서 맞춰 볼 수밖에 없었다. 신입사원에게는 그 과장이 어느 자리의 누구인지 알아볼 수단 자체가 없었다. 전화번호부 등록은 담당자의 VBA 작업을 기다려야 했다.',
+          '「걸기 전에 상대의 지금을 알 수 있는」 화면이 하나 있으면, 이 왕복은 전부 사라진다. 좌석·직급·일정을 한 화면에 모은 것이 이 툴이 됐다.',
+        ],
       },
     ],
-    diagrams: {
-      architecture: {
-        title: '원본 구성',
-        caption:
-          '사내 한정 Garoon을 사외에 열지 않고, Akamai 리버스 프록시와 Pleasanter의 서버간 API로 참조하는 경로. 본 데모는 백엔드 없이 mock JSON으로 클라이언트에서 완결된다.',
-        labels: {
-          browser: '브라우저',
-          iosApp: 'iOS 앱',
-          akamai: 'Akamai 프록시',
-          pleasanter: 'Pleasanter',
-          garoon: 'Garoon',
-          serverToServer: '서버간 API',
-          internalZone: '사내 한정',
-          demoNote: '데모는 mock JSON',
-        },
-      },
-      dataflow: {
-        title: '데모판 데이터 흐름',
-        caption: '정적 JSON을 지연 응답으로 API처럼 다루고, 편집분은 localStorage로 되돌아가는 순환 구조다.',
-        labels: {
-          mocks: 'mock JSON',
-          fetchMock: '지연 응답',
-          swrCache: 'SWR 캐시',
-          screenMap: '좌석 맵',
-          screenDirectory: '디렉터리',
-          screenEdit: '편집',
-          storage: 'localStorage',
-        },
-      },
-      sequence: {
-        title: '드래그 편집→저장 시퀀스',
-        caption: '고스트 미리보기와 낙관적 잠금을 거쳐, 저장 결과가 화면에 반영되는 순서다.',
-        labels: {
-          actorUser: '사용자',
-          actorEditor: '편집 세션',
-          actorStore: '저장부',
-          actorCache: 'SWR 캐시',
-          msgDrag: '드래그',
-          msgGhost: '고스트 표시',
-          msgDrop: '드롭',
-          msgLockCheck: '잠금 조회',
-          msgSaved: 'saved',
-          msgBlocked: 'blocked',
-          msgConflict: 'conflict 파기',
-          msgRevalidate: '캐시 갱신',
-          msgRender: '화면 반영',
-        },
-      },
-    },
   },
 }

@@ -12,6 +12,9 @@ export const meishiCrossPlatform: Work = {
   role: '設計・実装・リリース(主担当)',
   stack: ['Swift', 'AVFoundation', 'Vision', 'WKWebView', 'React'],
   links: {},
+  // カード用サムネイル。story場面4つ(カメラ撮影・その場で登録・Web統合・拠点距離)を
+  // 文字なしの図解へ起こした自作SVG
+  thumbnail: '/shots/meishi-cross-platform.svg',
   story: {
     intro: {
       title: '名刺登録アプリ',
