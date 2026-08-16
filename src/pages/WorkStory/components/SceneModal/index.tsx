@@ -15,6 +15,19 @@ import DeviceFrame from '../DeviceFrame'
 import ScenePlayer from '../ScenePlayer'
 import styles from './scene-modal.module.css'
 
+// 各場面のSVGアニメーション1周期の長さ(ms)。各SVGファイルの animation-duration の値をそのまま反映している。
+// scene1-camera.svg: 7000 / scene2-register.svg: 8000 / scene3-web.svg: 8000 / scene4-nearby.svg: 6000
+// SVG側の周期を変更したら、ここも合わせて更新すること
+const SCENE_ANIMATION_DURATIONS_MS: Record<string, number> = {
+  camera: 7000,
+  register: 8000,
+  web: 8000,
+  nearby: 6000,
+}
+
+// 上記マップに未登録の場面id向けの既定値
+const DEFAULT_SCENE_ANIMATION_DURATION_MS = 8000
+
 type SceneModalProps = {
   scenes: WorkStoryScene[]
   initialIndex: number
@@ -125,6 +138,41 @@ function SceneModal({ scenes, initialIndex, placeholder, closeLabel, prevLabel, 
       prevButtonRef.current?.focus()
     }
   }
+
+  // 自動送りタイマー起点のフォーカス退避。手動クリック(focusAwayFromDisabledNav)と違い、
+  // 遷移直前に disabled 化されるボタンへ実際にフォーカスが乗っている場合だけ動かす。
+  // 無条件に動かすと、閉じるボタン等どこにフォーカスがあってもタイマーが奪ってしまう。
+  // nextIsFirst(末尾→先頭への折り返し)のときだけ closeButtonRef へ直接逃がす —
+  // 逃避先の次へボタンは、この時点ではまだ状態未コミットで末尾のまま disabled のため
+  // focus() が無視される(常に有効な閉じるボタンなら確実に受け取れる)。
+  // nextIsLast(先頭→末尾側)の逃避先(前へボタン)は遷移前から有効なので従来どおり委譲する
+  function focusAwayFromDisabledNavOnAutoAdvance(nextIsFirst: boolean, nextIsLast: boolean) {
+    const disablingButton = nextIsFirst ? prevButtonRef.current : nextIsLast ? nextButtonRef.current : null
+    if (disablingButton === null || document.activeElement !== disablingButton) return
+    if (nextIsFirst) closeButtonRef.current?.focus()
+    else focusAwayFromDisabledNav(nextIsFirst, nextIsLast)
+  }
+
+  // 今の場面のアニメーション周期が経過したら次の場面へ自動送りする。
+  // activeIndex を effect の依存にしているため、手動prev/nextでactiveIndexが変わった時も
+  // 同じ effect が発火し直し、新しい場面の周期でタイマーが再設定される
+  // (手動操作用に別途タイマーをリセットする処理は不要)。
+  // ScenePlayer 側は活性化のたびに img を key 変更で再マウントするため(該当コンポーネントのコメント参照)、
+  // 表示され始めた場面のアニメーションは常に0から再生される — このタイマーの周期と自然に同期する
+  useEffect(() => {
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    // reduced motion環境ではSVGアニメーション自体が停止しているため、時間経過での自動送りに意味がない
+    if (prefersReducedMotion) return
+
+    const duration = SCENE_ANIMATION_DURATIONS_MS[scene.id] ?? DEFAULT_SCENE_ANIMATION_DURATION_MS
+    const timerId = window.setTimeout(() => {
+      const nextIndex = (activeIndex + 1) % scenes.length
+      focusAwayFromDisabledNavOnAutoAdvance(nextIndex === 0, nextIndex === scenes.length - 1)
+      setActiveIndex(nextIndex)
+    }, duration)
+
+    return () => window.clearTimeout(timerId)
+  }, [activeIndex, scene.id, scenes.length])
 
   function handlePrev() {
     if (isFirst) return
