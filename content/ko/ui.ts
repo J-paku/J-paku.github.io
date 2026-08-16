@@ -39,18 +39,8 @@ export const ui: UiStrings = {
     prevScene: '이전 장면',
     nextScene: '다음 장면',
   },
-  quality: {
-    // 푸터의 계측표. 값은 두지 않고 계측 환경과 알려진 약점을 먼저 말한다
-    footer: {
-      label: 'MEASURED',
-      environment:
-        'Lighthouse는 「/」만 1회 계측. axe-core는 「/」「/ko」 2개 URL을 검사',
-      limitation:
-        '커맨드 팔레트를 펼친 상태나 wip 작품 페이지의 내부 상태는 대상 밖 — 실측이 닿는 범위만 담보한다',
-    },
-  },
   colophon: {
-    copyright: '© 2026 朴',
+    copyright: '© 2026 朴 裁弘',
     credit: 'Design explored with Variant',
   },
   notFound: {

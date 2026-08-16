@@ -96,13 +96,7 @@ function WorkCard({ work, index }: WorkCardProps) {
         </div>
 
         <h3 className={styles.title}>
-          {work.story !== undefined ? (
-            <Link to={withLocale(`/works/${work.slug}`, locale)} className={styles.titleLink}>
-              <PhraseText text={work.title} />
-            </Link>
-          ) : (
-            <PhraseText text={work.title} />
-          )}
+          <PhraseText text={work.title} />
           {work.status === 'wip' ? <span className={styles.wipBadge}>{ui.work.wipBadge}</span> : null}
         </h3>
         <p className={styles.tagline}>

@@ -24,19 +24,6 @@ function WorksSection() {
         ))}
       </div>
 
-      {/* 文言は content の「フッター専用」計測票(ui.quality.footer)だけを使う。ここで新しい文字列は作らない */}
-      <footer className={styles.footer}>
-        <p className={styles.footerLabel}>
-          <PhraseText text={ui.quality.footer.label} />
-        </p>
-        <p className={styles.footerNote}>
-          <PhraseText text={ui.quality.footer.environment} />
-        </p>
-        <p className={styles.footerNote}>
-          <PhraseText text={ui.quality.footer.limitation} />
-        </p>
-      </footer>
-
       {/* 奥付。著作権と、デザイン探索に Variant を使った旨をさりげなく1行で */}
       <div className={styles.colophon}>
         <p className={styles.colophonItem}>
