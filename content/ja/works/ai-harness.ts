@@ -10,7 +10,7 @@ export const aiHarness: Work = {
   context: '技術アウトプット — 実務での自作ツール(社内配布・定着まで)',
   contextKind: 'work',
   period: '2026.02 - 現在',
-  role: '設計・実装・社内配布(個人)',
+  role: '設計・実装・社内配布',
   scale: 'フック25個 / eval 36ケース / 利用者4名 / 2か月でAIチーム自動実行105件',
   stack: ['Claude', 'Codex', 'Node.js', 'Bash', 'Git worktree', 'JSONL trace'],
   links: {

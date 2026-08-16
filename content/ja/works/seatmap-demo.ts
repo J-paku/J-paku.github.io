@@ -10,7 +10,7 @@ export const seatmapDemo: Work = {
   context: '実務の再構成 — 社内座席管理ツールを業務データ抜きで',
   contextKind: 'work',
   period: '2026.07 - 2026.08',
-  role: '設計・実装(個人)',
+  role: '設計・実装',
   scale: '主要画面3(マップ / ディレクトリ / 編集)・データはすべてモックJSON',
   stack: [
     'Next.js 16',

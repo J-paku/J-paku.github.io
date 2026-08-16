@@ -60,6 +60,13 @@
   --color-device-screen-bg: #100f0d; /* 画面が children で埋まる前の下地 */
   --color-device-shadow: rgba(10, 9, 8, 0.45); /* フレーム全体の落ち影 */
 
+  /* SceneModal(WorkStory の場面プレビュー全画面モーダル)の暗幕。テーマに関わらず固定値
+     (01-authoring.md #9 のモーダル暗幕の例に倣う)。
+     暗幕は常に暗色のため、その上に乗せる文字色(閉じるボタン・場面名)も明色に固定する
+     — --ink 等のテーマ変数はダークテーマで反転して暗色になり、暗幕の上で対比が消えるため使えない */
+  --color-scrim: rgba(10, 9, 8, 0.72);
+  --color-scrim-ink: #f2f0ec;
+
   /* ===== タイポグラフィ =====
      D5: 全階層で「1つの文字列をラテンとCJKで割らない」ことを優先へ変えた回。
      10段階の初版は Playfair(ラテン専用サブセット)だけを自己ホストしていたため、CJKは
@@ -168,6 +175,8 @@
   --color-device-button: #8a857a;
   --color-device-screen-bg: #100f0d;
   --color-device-shadow: rgba(10, 9, 8, 0.45);
+  --color-scrim: rgba(10, 9, 8, 0.72);
+  --color-scrim-ink: #f2f0ec;
 }
 
 :root[data-theme='light'] {
@@ -191,4 +200,6 @@
   --color-device-button: #8a857a;
   --color-device-screen-bg: #100f0d;
   --color-device-shadow: rgba(10, 9, 8, 0.45);
+  --color-scrim: rgba(10, 9, 8, 0.72);
+  --color-scrim-ink: #f2f0ec;
 }
