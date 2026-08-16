@@ -1,6 +1,6 @@
 // 技術チップ。クリック・ホバーは開く専用で、閉じるのは Escape・外側 pointerdown・マウス離脱のみ
 // (クリックをトグルにするとホバーで開いた直後のクリックが閉じてしまう。擬似ホバーは pointerType で弾く)。
-// 開閉・外側クリック・Escape の扱いは WorkCard の isLinksOpen と同じ方式(window 購読・contains 判定)。
+// 開閉・外側クリック・Escape は window 購読+contains 判定で扱う。
 // ポップオーバー本体は常にDOMへ残し hidden 属性で畳む — aria-controls が指す要素を消さないため
 import { useEffect, useId, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'

@@ -148,29 +148,39 @@ function WorkCard({ work, index }: WorkCardProps) {
         ) : null}
       </div>
 
-      {/* 事実のパネル。仕様表 → 詳細トグル → タグ → リンクの順に積み、カードの終端を枠で明示する */}
+      {/* 事実のパネル。仕様表・タグ・リンクを積み、カードの終端を枠で明示する */}
       <div className={styles.panel}>
         <WorkSpec work={work} />
-        {hasDetail ? (
-          <button
-            type='button'
-            className={styles.detailToggle}
-            aria-expanded={isDetailOpen}
-            aria-controls={detailId}
-            onClick={() => setIsDetailOpen((open) => !open)}
-          >
-            {isDetailOpen ? ui.work.hideDetail : ui.work.showDetail}
-          </button>
-        ) : null}
         <WorkStack stack={work.stack} />
         <WorkLinks live={work.links.live} repo={work.links.repo} />
       </div>
 
-      {/* 全幅の詳細行。閉じている間も WorkDetail 自体はマウントしたまま hidden で畳む
-          (アンマウント/リマウントせず、toggle の度に再フェッチ等が走らない構成にする) */}
+      {/* 詳細トグル。全幅バーではなく中央寄せの小さなテキストリンク然としたボタン。
+          下線・シェブロンは常時表示し、カードを開く場所としての存在感を持たせる */}
       {hasDetail ? (
-        <div className={styles.detail} hidden={!isDetailOpen}>
-          <WorkDetail work={work} detailId={detailId} />
+        <button
+          type='button'
+          className={styles.detailToggle}
+          aria-expanded={isDetailOpen}
+          aria-controls={detailId}
+          onClick={() => setIsDetailOpen((open) => !open)}
+        >
+          <span className={styles.detailToggleLabel}>{isDetailOpen ? ui.work.hideDetail : ui.work.showDetail}</span>
+          <svg className={styles.detailChevron} viewBox='0 0 16 16' aria-hidden='true'>
+            <path d='M4 6l4 4 4-4' fill='none' stroke='currentColor' strokeWidth='1.5' strokeLinecap='round' strokeLinejoin='round' />
+          </svg>
+        </button>
+      ) : null}
+
+      {/* 全幅の詳細行。閉じている間も WorkDetail 自体はマウントしたまま高さアコーディオンで畳む
+          (アンマウント/リマウントせず、toggle の度に再フェッチ等が走らない構成にする)。
+          内側の detailInner が min-height: 0 / overflow: hidden を持ち、grid-template-rows の
+          0fr↔1fr 遷移中も中身を切り詰める。閉じ切った後は inert で操作・読み上げ両方から外す */}
+      {hasDetail ? (
+        <div className={isDetailOpen ? `${styles.detail} ${styles.detailOpen}` : styles.detail}>
+          <div className={styles.detailInner} inert={!isDetailOpen}>
+            <WorkDetail work={work} detailId={detailId} />
+          </div>
         </div>
       ) : null}
     </article>
