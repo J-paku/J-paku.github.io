@@ -37,11 +37,6 @@ const makeContent = (overrides: Partial<Content> = {}): Content => ({
       shotPlaceholder: 'shotPlaceholder',
       showDetail: 'showDetail',
       hideDetail: 'hideDetail',
-      caseChallenge: 'caseChallenge',
-      caseDecision: 'caseDecision',
-      caseReason: 'caseReason',
-      detailCases: 'detailCases',
-      detailDiagrams: 'detailDiagrams',
     },
     workStory: { back: 'back' },
     quality: {
@@ -129,12 +124,9 @@ describe('mergeWorks — slug基準の要素単位マージ', () => {
 
   it('13: works.detailはkoが無ければja値を丸ごと採用する', () => {
     const jaDetail: WorkDetail = {
-      cases: [{ challenge: 'ja-challenge', decision: 'ja-decision', reason: 'ja-reason' }],
-      diagrams: {
-        architecture: { title: 'ja-arch', caption: 'ja-arch-caption', labels: { a: 'ja-a' } },
-        dataflow: { title: 'ja-flow', caption: 'ja-flow-caption', labels: { b: 'ja-b' } },
-        sequence: { title: 'ja-seq', caption: 'ja-seq-caption', labels: { c: 'ja-c' } },
-      },
+      sections: [
+        { id: 'background', title: 'ja-background-title', paragraphs: ['ja-background-p1', 'ja-background-p2'] },
+      ],
     }
     const jaWorks = [makeWork({ slug: 'a', detail: jaDetail })]
     const koWorks = [makeWork({ slug: 'a', detail: undefined })]
@@ -143,20 +135,14 @@ describe('mergeWorks — slug基準の要素単位マージ', () => {
 
   it('14: works.detailはkoがあればko値を丸ごと採用する(部分マージしない)', () => {
     const jaDetail: WorkDetail = {
-      cases: [{ challenge: 'ja-challenge', decision: 'ja-decision', reason: 'ja-reason' }],
-      diagrams: {
-        architecture: { title: 'ja-arch', caption: 'ja-arch-caption', labels: { a: 'ja-a' } },
-        dataflow: { title: 'ja-flow', caption: 'ja-flow-caption', labels: { b: 'ja-b' } },
-        sequence: { title: 'ja-seq', caption: 'ja-seq-caption', labels: { c: 'ja-c' } },
-      },
+      sections: [
+        { id: 'background', title: 'ja-background-title', paragraphs: ['ja-background-p1', 'ja-background-p2'] },
+      ],
     }
     const koDetail: WorkDetail = {
-      cases: [{ challenge: 'ko-challenge', decision: 'ko-decision', reason: 'ko-reason' }],
-      diagrams: {
-        architecture: { title: 'ko-arch', caption: 'ko-arch-caption', labels: { a: 'ko-a' } },
-        dataflow: { title: 'ko-flow', caption: 'ko-flow-caption', labels: { b: 'ko-b' } },
-        sequence: { title: 'ko-seq', caption: 'ko-seq-caption', labels: { c: 'ko-c' } },
-      },
+      sections: [
+        { id: 'background', title: 'ko-background-title', paragraphs: ['ko-background-p1', 'ko-background-p2'] },
+      ],
     }
     const jaWorks = [makeWork({ slug: 'a', detail: jaDetail })]
     const koWorks = [makeWork({ slug: 'a', detail: koDetail })]

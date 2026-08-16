@@ -34,13 +34,6 @@ export type UiStrings = {
     // カード折りたたみ詳細の開閉ボタン文言
     showDetail: string
     hideDetail: string
-    // ケース(課題/設計/理由)の見出し
-    caseChallenge: string
-    caseDecision: string
-    caseReason: string
-    // 詳細セクションの見出し(課題と解決/構成図)
-    detailCases: string
-    detailDiagrams: string
   }
   // 作品ストーリーページ(/works/:slug)専用の文言
   workStory: { back: string }
@@ -64,28 +57,16 @@ export type WorkLinks = {
 // カードのタグが「実務由来か個人開発か」を色分けするための区分(08段階)
 export type WorkContextKind = 'work' | 'personal'
 
-// 作品カードの折りたたみ詳細で使う個別ケース(課題→設計→理由の1組)
-export type WorkCase = {
-  challenge: string
-  decision: string
-  reason: string
-}
-
-// 詳細内の図解1枚分。ラベルは図中の記号をキーにした注記文の対応表
-export type WorkDiagram = {
+// 作品カードの折りたたみ詳細の1セクション。見出し+本文段落の並び
+export type WorkDetailSection = {
+  id: string
   title: string
-  caption: string
-  labels: Record<string, string>
+  paragraphs: string[]
 }
 
-// 作品カードの折りたたみ詳細本体。図解は architecture・dataflow・sequence の3種を固定で持つ
+// 作品カードの折りたたみ詳細本体。セクションの列だけを持つ
 export type WorkDetail = {
-  cases: WorkCase[]
-  diagrams: {
-    architecture: WorkDiagram
-    dataflow: WorkDiagram
-    sequence: WorkDiagram
-  }
+  sections: WorkDetailSection[]
 }
 
 // 作品ストーリーページの1場面で挙げる技術チップ。name をタップ・ホバーすると note が出る
@@ -125,7 +106,7 @@ export type Work = {
   links: WorkLinks
   // 画像資産はまだ無い。ある時だけカードが描画するための空き枠
   thumbnail?: string
-  // カード折りたたみ詳細(課題ケース+構成図)。wip作品は持たない — 不変ルール5の延長
+  // カード折りたたみ詳細(見出し+本文段落のセクション列による叙事)。wip作品は持たない — 不変ルール5の延長
   detail?: WorkDetail
   // 専用ストーリーページ(/works/:slug)を持つ作品のみ。detailとは別物。imageはロケール共通 — glyphの前例に倣う
   story?: WorkStory

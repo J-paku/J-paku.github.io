@@ -21,12 +21,10 @@
   min-width: 0;
 }
 
-/* 事例一覧と図解、節が複数並ぶときだけ境界を強める。.detail の gap だけでは切れ目が弱いので、
+/* 節が複数並ぶときだけ境界を強める。.detail の gap だけでは切れ目が弱いので、
    sectionTitle の下線と同じ --rule で罫線を足し、paddingで隙間を広げる。
-   現状 .section + .section に該当するのは図解節(seatmap-demo 限定)だけなので、ここに
-   CaseList の事例スタッガー(case-reveal・40ms間隔)へ続く形で120ms遅延の登場演出を足す。
-   開閉の起点は同じく inert 属性([inert] .section + .section が閉時のリセット)。仕組みの
-   詳細は case-list.module.css の同名コメントを参照 */
+   2節目以降に120ms遅延の登場演出を足し、開閉の起点は inert 属性
+   ([inert] .section + .section が閉時のリセット) */
 .section + .section {
   padding-top: var(--space-lg);
   border-top: 1px solid var(--rule);
@@ -51,7 +49,7 @@
   transform: translateY(6px);
 }
 
-/* 事例一覧・図解の節見出し。仕様表のラベルより一段大きい、WorksSection の索引文言に近いトーン */
+/* 詳細内の各節見出し。仕様表のラベルより一段大きい、WorksSection の索引文言に近いトーン */
 .sectionTitle {
   margin: 0;
   padding-bottom: var(--space-2xs);
@@ -64,27 +62,13 @@
   color: var(--ink);
 }
 
-.diagrams {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-lg);
-}
-
-.diagram {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2xs);
-  min-width: 0;
-  padding: var(--space-sm);
-  border: 1px solid var(--rule);
-  background-color: var(--surface-cream);
-}
-
-/* キャプションも .value と同じ考え方で、幅上限を持たず全幅で流す(ユーザー確定)。広めの行間は維持 */
-.caption {
+/* 節本文の段落。幅上限を持たず全幅で流し、行間は広めに取って読みやすくする。
+   段落間の間隔は .section の gap(--space-md)がまとめて担うため margin は持たない */
+.paragraph {
   margin: 0;
-  font-size: 0.75rem;
-  line-height: 1.75;
+  font-size: 0.85rem;
+  line-height: 1.9;
+  letter-spacing: 0.02em;
   color: var(--ink-secondary);
 }
 
@@ -111,8 +95,7 @@
 
 /*
  * モバイル専用(767px以下)。.detail 自体は WorkCard 側で画面全幅へ突き抜けている
- * (work-card.module.css 参照)ため、ここは突き抜けた箱の中の内側余白と、
- * 図解SVGの可読サイズ確保だけを扱う。
+ * (work-card.module.css 参照)ため、ここは突き抜けた箱の中の内側余白だけを扱う。
  * 内側 padding は var(--space-sm)(16px)まで絞り、390px幅で本文実質幅 358px を確保する
  * (突き抜け無しの旧幅は 40×2 + 24×2 = 128px 消費で 262px しか残らなかった)
  */
@@ -120,37 +103,10 @@
   .detail {
     padding: var(--space-sm);
   }
-
-  /*
-   * 図解SVGは縮小レンダリングせず可読サイズ(実測 viewBox 相当)を保ち、枠に収まらない分は
-   * .diagram 内だけで横スクロールする。ページ自体の横オーバーフローを避けるため、
-   * スクロールはこの箱の中に閉じる。.diagram は既に min-width: 0 を持つ(親 flex の
-   * 自動最小サイズ抑制)ため、子 SVG の min-width 600px は .diagram 自身を押し広げず、
-   * 素直に内側だけのオーバーフローとして扱われる
-   */
-  .diagram {
-    overflow-x: auto;
-  }
-
-  .diagram svg {
-    min-width: 600px;
-  }
-
-  /*
-   * キャプションは DOM 構造上 .diagram の子(SVGの兄弟)としてしか置けない
-   * (WorkDetail 側の組み立ては変更範囲外)。.diagram に overflow-x を持たせると、
-   * 素のままではキャプションも SVG と一緒に横スクロールしてしまい「スクロール外の
-   * 通常フロー」という要件を満たせない。position: sticky で左端に固定し、
-   * .diagram(= 最も近いスクロール祖先)を基準に視覚上は動かない行として読める状態を保つ
-   */
-  .caption {
-    position: sticky;
-    left: 0;
-  }
 }
 
 /* global.css の transition-duration 上書きは animation-delay までは潰さないため、
-   ここで明示的に演出自体を無効化し即座に最終状態へ揃える(case-list.module.css と同じ理由) */
+   ここで明示的に演出自体を無効化し即座に最終状態へ揃える */
 @media (prefers-reduced-motion: reduce) {
   .section + .section,
   [inert] .section + .section {

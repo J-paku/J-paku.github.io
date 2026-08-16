@@ -28,73 +28,26 @@ export const seatmapDemo: Work = {
   // カード用サムネイル。実キャプチャは社内データ(氏名・連絡先)が写るため使えないので、
   // 主要3画面(座席マップ / 社員一覧 / 社員詳細)と拠点平面図を文字なしの図解へ起こした自作SVG
   thumbnail: '/shots/seatmap-demo.svg',
-  // 詳細ページ用。設計で迷った3点と、原本構成・データフロー・保存シーケンスの図解文言
+  // 詳細ページ用。WKWebViewが起こしたクラッシュの原因調査と、着手の動機を語る2節
   detail: {
-    cases: [
+    sections: [
       {
-        challenge: '数百席をDOMに常時置くとパンズームの再描画が重く、置かなければ座席へ到達する手段が無い',
-        decision: '変換レイヤーには通路・区画だけを置き、個人の座席はsr-onlyミラーレイヤーのボタンへ分離',
-        reason: '描画コストと支援技術での到達可能性を同時に満たすため',
+        id: 'wkwebview-crash',
+        title: '落ちる原因を、測って突き止める',
+        paragraphs: [
+          '原本のiOS版(Swift)は、座席マップのWeb画面をWKWebViewで表示している。運用でいちばん手を焼いたのは、マップを縮小するとアプリごと落ちる不具合で、コードを追っても原因が見えなかった。',
+          '決め手はXcodeのデバッグでプロセスのリソースを見ることだった。縮小するほど表示範囲が広がってWKWebViewのメモリが跳ね上がり、あるところでプロセスごと強制終了されていた。',
+          '修正も実測から組み立てた。落ちる縮小率を測り、そこへ届く前で止まるズームの下限を設けた。モバイルもPCも同じ制限にしている。',
+        ],
       },
       {
-        challenge: 'キャッシュの手動バージョン定数は更新を忘れる。実際に古いキャッシュを読み続ける事故を起こした',
-        decision: 'キャッシュ値にシードデータのハッシュ(指紋)を同梱し、データが変われば自動でキャッシュミスにする',
-        reason: '無効化を人の記憶ではなく構造に保証させるため',
-      },
-      {
-        challenge: '「会議室の二重予約が無い」はデータ側の条件で、型検査でも画面確認でも検出できない',
-        decision: '画面・データ・配布物を見る3つの検証スクリプトを用意し、GitHub Pagesの配信版でも同じものを走らせる',
-        reason: 'ローカルのPASSだけを完了と呼ばないため',
+        id: 'why-built',
+        title: 'なぜ作ったか',
+        paragraphs: [
+          '外出先で電話をかけようとして、手が止まる。相手は会議中かもしれない。確かめるには、PC向けのGaroonの予定画面をスマートフォンで拡大しながら読み、別の座席表と頭の中で突き合わせるしかなかった。新人には、その課長がどの席の誰なのかを調べる手段そのものが無い。電話帳への登録は担当者のVBA作業待ちだった。',
+          '「かける前に、相手の今がわかる」画面が1つあれば、この往復は全部消える。座席・役職・予定を1画面に集めたのが、このツールになった。',
+        ],
       },
     ],
-    diagrams: {
-      architecture: {
-        title: '原本の構成',
-        caption:
-          '社内限定のGaroonを社外に開かず、Akamaiリバースプロキシ+Pleasanterのサーバー間APIで参照する経路。本デモはバックエンドを持たず、mock JSONでクライアント側のみ完結する。',
-        labels: {
-          browser: 'ブラウザ',
-          iosApp: 'iOSアプリ',
-          akamai: 'Akamaiプロキシ',
-          pleasanter: 'Pleasanter',
-          garoon: 'Garoon',
-          serverToServer: 'サーバー間API',
-          internalZone: '社内限定',
-          demoNote: 'デモはmock JSON',
-        },
-      },
-      dataflow: {
-        title: 'デモ版のデータフロー',
-        caption: '静的JSONを遅延レスポンスでAPI風に扱い、編集分はlocalStorageへ書き戻る循環構成。',
-        labels: {
-          mocks: 'mock JSON',
-          fetchMock: '遅延レスポンス',
-          swrCache: 'SWRキャッシュ',
-          screenMap: '座席マップ',
-          screenDirectory: 'ディレクトリ',
-          screenEdit: '編集',
-          storage: 'localStorage',
-        },
-      },
-      sequence: {
-        title: 'ドラッグ編集→保存シーケンス',
-        caption: 'ゴーストプレビューと楽観ロックを経て、保存結果が画面へ反映される順序。',
-        labels: {
-          actorUser: 'ユーザー',
-          actorEditor: '編集セッション',
-          actorStore: '保存部',
-          actorCache: 'SWRキャッシュ',
-          msgDrag: 'ドラッグ',
-          msgGhost: 'ゴースト表示',
-          msgDrop: 'ドロップ',
-          msgLockCheck: 'ロック照会',
-          msgSaved: 'saved',
-          msgBlocked: 'blocked',
-          msgConflict: 'conflict破棄',
-          msgRevalidate: 'キャッシュ更新',
-          msgRender: '画面反映',
-        },
-      },
-    },
   },
 }
