@@ -1,4 +1,5 @@
-// 作品カード。10段階で左右交互(ジグザグ)を廃し、左 = 画面キャプチャ / 右 = 情報の固定2列にする。
+// 作品カード。10段階で左右交互(ジグザグ)を廃し、全帯(全画面幅)で
+// 見出し(intro) → 画面キャプチャ(shot) → 事実パネル(panel)の1列縦積みにする。
 // 仕様表・技術タグ・リンクは下部の枠線パネルへ集約し、カードの終端を明示する。
 // wip は不変ルール5どおりリンクを持たない — links 自体が空なので WorkLinks が何も描かない
 import { useEffect, useState } from 'react'
@@ -75,10 +76,11 @@ function WorkCard({ work, index }: WorkCardProps) {
 
   return (
     <article id={work.slug} ref={ref} className={cardClassName}>
-      {/* 読み順は「見出し → キャプチャ → 事実」。モバイルではこのDOM順がそのまま縦に並ぶ。
+      {/* 読み順は「見出し → キャプチャ → 事実」。全帯(全画面幅)でこのDOM順がそのまま縦に並ぶ
+          (grid-template-areas は並べ替えではなく行間の骨格として使うだけ)。
           キャプチャを先頭に置くと、何の作品かを判別する前に画面の3割を使う(390px幅で実測233px)。
-          並べ替えを CSS の order で行うとタブ順・読み上げ順がDOMのまま残って視覚順とずれるため、
-          DOM側をこの順にし、デスクトップの左右2列は grid-template-areas が作る */}
+          並べ替えが必要になっても CSS の order は使わない — タブ順・読み上げ順がDOMのまま残って
+          視覚順とずれるため、視覚順そのものをDOM順に合わせている */}
       <div className={styles.intro}>
         {/* NO. 行。番号(赤)と文脈をドットリーダーで結び、行として1本に見せる */}
         <div className={styles.head}>

@@ -32,6 +32,10 @@ export const ui: UiStrings = {
   },
   workStory: {
     back: '一覧へ戻る',
+    viewScene: '画面を見る',
+    close: '閉じる',
+    prevScene: '前の場面',
+    nextScene: '次の場面',
   },
   quality: {
     // フッターの計測票。値を持たず、計測環境と既知の弱点だけを先に言う

@@ -1,6 +1,6 @@
 /*
  * 作品ストーリーの1場面。リビール(opacity/translateY)は WorkCard の .card と同じ値を踏襲する。
- * 色は全てトークン経由 — 赤(--accent)は NO. 番号のみ(WorkCard と同じ用途に限定)
+ * 色は全てトークン経由 — 赤(--accent)は画面プレビューを開くトリガーの下線のみ
  */
 .section {
   padding-block: var(--space-xl);
@@ -21,16 +21,6 @@
   transform: translateY(0);
 }
 
-.serial {
-  display: inline-block;
-  margin-bottom: var(--space-sm);
-  font-family: var(--f-mono);
-  font-size: 0.7rem;
-  font-weight: var(--fw-medium);
-  letter-spacing: 0.1em;
-  color: var(--accent);
-}
-
 .title {
   margin: 0 0 var(--space-sm);
   font-family: var(--f-title);
@@ -45,6 +35,42 @@
   font-size: 1rem;
   line-height: 1.7;
   color: var(--ink-secondary);
+}
+
+/* 画面プレビューを開くトリガー。WorkCard の .detailToggle と同じ体裁(塗り無し・点線下線が
+   accent)を踏襲するが、この場面群では常時バウンスは掛けない — バウンスは「カードの奥に隠れた
+   詳細に気づかせる」ための演出で、ここでは本文の流れの中に既に見えているボタンのため不要 */
+.viewSceneToggle {
+  display: block;
+  width: fit-content;
+  margin: 0 0 var(--space-md);
+  padding: 10px 0;
+  border: none;
+  background: none;
+  font-family: var(--f-label);
+  font-size: 0.75rem;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.1em;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.viewSceneLabel {
+  position: relative;
+}
+
+.viewSceneLabel::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -3px;
+  border-bottom: 1px dotted var(--accent);
+}
+
+.viewSceneToggle:hover .viewSceneLabel::after,
+.viewSceneToggle:focus-visible .viewSceneLabel::after {
+  border-bottom-style: solid;
 }
 
 .chips {
