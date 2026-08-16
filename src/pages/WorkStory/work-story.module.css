@@ -140,6 +140,15 @@
   }
 }
 
+/* 文節単位(keep-all+wbr)は狭い幅では行末が凸凹になるため、introLead・outroBody の長文本文だけ
+   標準の字詰め(禁則は line-break: strict が維持)へ切り替える。<wbr> は残るが害はない */
+@media (max-width: 767px) {
+  .introLead,
+  .outroBody {
+    word-break: normal;
+  }
+}
+
 /* 画面プレビューを開く下部固定CTA(Toss式)。モバイルは左右に余白を残しほぼ全幅、
    デスクトップは max-width で頭打ちにして中央寄せる。色はトークンのみ
    (--accent/--accent-ink は「accentを地にした時の対色」として組で定義済み — global.css の

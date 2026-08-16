@@ -47,6 +47,14 @@
   list-style: none;
 }
 
+/* 文節単位(keep-all+wbr)は狭い幅では行末が凸凹になるため、長文の本文だけ標準の字詰め
+   (禁則は line-break: strict が維持)へ切り替える。<wbr> は残るが害はない */
+@media (max-width: 767px) {
+  .body {
+    word-break: normal;
+  }
+}
+
 /* use-reveal 自体は prefers-reduced-motion で即座に isRevealed=true を返すが、
    WorkCard の .card 同様、初期状態を打ち消す明示的な上書きも置いておく */
 @media (prefers-reduced-motion: reduce) {
