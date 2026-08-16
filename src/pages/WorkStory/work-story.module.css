@@ -1,29 +1,51 @@
 /*
  * 作品ストーリーページ。場面テキストは1列で縦に流し、各場面の画面プレビューは SceneModal
  * (全画面モーダル)で見せる — 以前あった sticky な iPhone 型プレビュー列は廃止した。
- * イントロには視覚的な入口として小さな IntroPreview を横に並べる(sticky・本文を覆う配置はしない)
+ * イントロには視覚的な入口として小さな IntroPreview を横に並べる(sticky・本文を覆う配置はしない)。
+ * 画面プレビューを開く導線は下部固定CTA(.viewSceneCta)に一本化したため、その高さぶんの余白を
+ * 本文の下に必ず確保する
  */
 .page {
-  padding: 60px 80px;
+  /* 下部固定CTA(.viewSceneCta)自身の高さ。両方から参照する共通値 */
+  --cta-height: 56px;
+  /* CTAが本文を覆わないための下余白。高さ+CTA自身の上下ゆとり(--space-md ×2)+ノッチ端末のsafe-area */
+  --cta-clearance: calc(var(--cta-height) + var(--space-md) * 2 + env(safe-area-inset-bottom, 0px));
+  padding: 60px 80px calc(60px + var(--cta-clearance));
   min-width: 0;
 }
 
-/* ホームへの戻り導線。ページ最上部、本文より一段弱い扱いにする */
+/* ホームへの戻り導線。以前はテキストリンクだったが、J-Pakuロゴへ差し替えた
+   (接続名は aria-label 経由、ロゴ画像自体は装飾として扱う) */
 .back {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   margin-bottom: var(--space-xl);
-  font-family: var(--f-label);
-  font-size: 0.7rem;
-  font-weight: var(--fw-medium);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ink-mid);
-  text-decoration: none;
   transition: opacity var(--motion) var(--ease-reveal);
 }
 
 .back:hover {
   opacity: 0.6;
+}
+
+.logoLight,
+.logoDark {
+  display: block;
+  height: 30px;
+  width: auto;
+}
+
+/* 既定(ライト)ではロゴ(白地用)を出し、ダーク用は隠す。data-theme='dark' の時だけ入れ替える
+   (ThemeProvider が document.documentElement.dataset.theme へ反映する。tokens.css と同じ体系) */
+.logoDark {
+  display: none;
+}
+
+:global(:root[data-theme='dark']) .logoLight {
+  display: none;
+}
+
+:global(:root[data-theme='dark']) .logoDark {
+  display: block;
 }
 
 /* デスクトップは本文と IntroPreview を横並び(2列)、1024px以下は縦積みにする(下の @media) */
@@ -60,15 +82,13 @@
   min-width: 0;
 }
 
+/* 場面本体(SceneSection)を包むだけの箱。以前は右列 sticky プレビューとスクロール位置を
+   合わせるため min-height: 80vh + flex中央寄せで場面ごとに画面ぶんの高さを強制していたが、
+   そのプレビュー列は SceneModal への一本化で廃止済みで、この箱だけが伸びる意味が無くなった。
+   場面間の余白は SceneSection 自身の padding-block(--space-xl、上下で96px相当)がまかない、
+   .scene 同士に隙間が無い(padding は要素の境界ボックスに含まれる)ため
+   use-active-scene の IntersectionObserver も場面間で監視の空白を挟まない */
 .scene {
-  display: flex;
-  align-items: center;
-  min-height: 80vh;
-}
-
-.scene > * {
-  min-width: 0;
-  width: 100%;
 }
 
 .outro {
@@ -106,7 +126,7 @@
  */
 @media (max-width: 1024px) {
   .page {
-    padding: 48px 40px 64px;
+    padding: 48px 40px calc(64px + var(--cta-clearance));
   }
 
   /* IntroPreview は本文の下、中央寄せに積む(align-self は IntroPreview 側で center を指定する) */
@@ -117,5 +137,53 @@
 
   .introText {
     max-width: none;
+  }
+}
+
+/* 画面プレビューを開く下部固定CTA(Toss式)。モバイルは左右に余白を残しほぼ全幅、
+   デスクトップは max-width で頭打ちにして中央寄せる。色はトークンのみ
+   (--accent/--accent-ink は「accentを地にした時の対色」として組で定義済み — global.css の
+   ::selection と同じ組み合わせで、両テーマともAA(4.5:1)を満たす) */
+.viewSceneCta {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--space-md) + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 50;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(100% - var(--space-md) * 2);
+  max-width: 420px;
+  height: var(--cta-height);
+  padding: 0 var(--space-lg);
+  border: none;
+  border-radius: 999px;
+  background-color: var(--accent);
+  color: var(--accent-ink);
+  font-family: var(--f-label);
+  font-size: 0.8rem;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--ink) 25%, transparent);
+  transition: filter var(--motion) var(--ease-reveal);
+}
+
+.viewSceneCta:hover,
+.viewSceneCta:focus-visible {
+  filter: brightness(1.08);
+}
+
+/* accent地の上では accent色のフォーカスリング(global.cssの既定)が同化して見えなくなるため、
+   対色(accent-ink)へ上書きする */
+.viewSceneCta:focus-visible {
+  outline-color: var(--accent-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viewSceneCta {
+    transition: none;
   }
 }

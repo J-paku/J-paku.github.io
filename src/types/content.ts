@@ -22,6 +22,9 @@ export type UiStrings = {
     index: string
     // サムネイルのリンクオーバーレイを開くボタンの読み上げ名(10段階)
     openLinks: string
+    // links を持たず story だけ持つ作品のオーバーレイ用。story: ボタン文言 / openStory: トリガーの読み上げ名
+    story: string
+    openStory: string
     wipBadge: string
     period: string
     role: string

@@ -17,14 +17,19 @@ function ScenePlayer({ scenes, activeIndex, placeholder }: ScenePlayerProps) {
   return (
     <div className={styles.player}>
       {scenes.map((scene, index) => {
-        const frameClassName = index === activeIndex ? `${styles.frame} ${styles.frameActive}` : styles.frame
+        const isActive = index === activeIndex
+        const frameClassName = isActive ? `${styles.frame} ${styles.frameActive}` : styles.frame
 
         return (
           <div key={scene.id} className={frameClassName}>
             {failedScenes.has(scene.id) ? (
               <span>{placeholder}</span>
             ) : (
+              // 活性/非活性の切り替わりでのみ key が変わり img を再マウントする。
+              // SVG 内部の CSS アニメーションは img の再生成でしか再始動しないため、
+              // 場面が活性化するたびにアニメーションを最初から再生させる
               <img
+                key={`${scene.id}-${isActive ? 'on' : 'off'}`}
                 src={scene.image}
                 alt=''
                 draggable={false}
