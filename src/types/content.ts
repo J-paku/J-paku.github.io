@@ -3,13 +3,6 @@
 
 export type Locale = 'ja' | 'ko'
 
-// フッター専用(§2-8)。値を持たない計測票。ラベルは固定表記 MEASURED
-export type FooterMeasurement = {
-  label: string
-  environment: string
-  limitation: string
-}
-
 // ---------- UI文字列(01段階で新設・02段階で拡張) ----------
 
 export type UiStrings = {
@@ -43,9 +36,6 @@ export type UiStrings = {
   // close: モーダル右上の閉じるボタンの読み上げ名
   // prevScene/nextScene: モーダル内の場面切り替えボタンの読み上げ名
   workStory: { back: string; viewScene: string; close: string; prevScene: string; nextScene: string }
-  quality: {
-    footer: FooterMeasurement
-  }
   notFound: { title: string; body: string; backHome: string }
   // ページ最下部の奥付(10段階)。著作権表記とデザイン出自の1行
   colophon: { copyright: string; credit: string }

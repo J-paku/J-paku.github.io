@@ -114,22 +114,6 @@
   color: var(--ink);
 }
 
-/* story を持つ作品だけ WorkCard 側が付与するタイトルリンク。色は地の文を継ぎ、下線で誘導を示す */
-.titleLink {
-  color: inherit;
-  text-decoration: none;
-}
-
-.titleLink:hover,
-.titleLink:focus-visible {
-  text-decoration: underline;
-}
-
-.titleLink::after {
-  content: '→';
-  margin-left: 0.35em;
-}
-
 /* wip状態のみ。塗りではなく marker 色の文字+枠線で表す(赤は警告に読めるので使わない) */
 .wipBadge {
   padding: 3px 8px;
