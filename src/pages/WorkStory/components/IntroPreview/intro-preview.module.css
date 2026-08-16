@@ -1,0 +1,65 @@
+/*
+ * イントロ横に置く小さな iPhone プレビュー。DeviceFrame の padding・border-radius・側面ボタンの
+ * absolute オフセットは px 固定(device-frame.module.css)のため、button 幅で直接縮小すると
+ * それらの比率が崩れて潰れて見える。そこで DeviceFrame は常に自然サイズ(max-width と同じ320px)で
+ * 描画し、.frameScale に transform: scale() を掛けて丸ごと縮小することで全装飾の比率を保つ。
+ * sticky・fixed は使わず通常のフローに置く(本文を覆わないための不変条件)
+ */
+.trigger {
+  /* 320px = device-frame.module.css の .frame max-width(自然サイズの基準幅) */
+  --frame-w: 320px;
+  /* 28px = .frame の padding(14px)×2、874/402 は .screen の aspect-ratio。
+     自然幅から自然高さ(約662.85px)を逆算する */
+  --frame-h: calc((var(--frame-w) - 28px) * 874 / 402 + 28px);
+  /* 0.3922 = 目標高さ約260px ÷ 自然高さ約662.85px(デスクトップ表示) */
+  --scale: 0.3922;
+  flex-shrink: 0;
+  display: block;
+  width: calc(var(--frame-w) * var(--scale));
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.frameWrap {
+  display: block;
+  width: 100%;
+  height: calc(var(--frame-h) * var(--scale));
+  transition: transform var(--motion) var(--ease-reveal);
+}
+
+/* DeviceFrame を自然サイズで描画し、丸ごと --scale 倍に縮小する層。frameWrap とは別要素にして
+   hover/focus の transform: scale(1.03)(frameWrap側)と合成衝突しないよう分離する */
+.frameScale {
+  display: block;
+  width: var(--frame-w);
+  height: var(--frame-h);
+  transform: scale(var(--scale));
+  transform-origin: top left;
+}
+
+.trigger:focus-visible .frameWrap {
+  transform: scale(1.03);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .trigger:hover .frameWrap {
+    transform: scale(1.03);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .frameWrap {
+    transition: none;
+  }
+}
+
+/* 1024px以下は縮小率を上げ、イントロ本文の下に中央寄せで配置する(work-story.module.css側で.introをcolumn化) */
+@media (max-width: 1024px) {
+  .trigger {
+    /* 0.3319 = 目標高さ約220px ÷ 自然高さ約662.85px。width は --scale から calc で再算出される */
+    --scale: 0.3319;
+    align-self: center;
+  }
+}

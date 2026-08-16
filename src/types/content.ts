@@ -36,7 +36,10 @@ export type UiStrings = {
     hideDetail: string
   }
   // 作品ストーリーページ(/works/:slug)専用の文言
-  workStory: { back: string }
+  // viewScene: 場面プレビューを開く全画面モーダルのトリガー文言
+  // close: モーダル右上の閉じるボタンの読み上げ名
+  // prevScene/nextScene: モーダル内の場面切り替えボタンの読み上げ名
+  workStory: { back: string; viewScene: string; close: string; prevScene: string; nextScene: string }
   quality: {
     footer: FooterMeasurement
   }

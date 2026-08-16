@@ -1,21 +1,19 @@
 /*
- * 作品カード。デスクトップは 左 = 画面キャプチャ(330px) / 右 = 情報の2列。
- * ジグザグ(nth-child での左右交互)は仕様表が入ると読み順が壊れるため廃止。
+ * 作品カード。全帯(全画面幅)で「見出し(intro) → キャプチャ(shot) → 事実(panel)」の
+ * 1列縦積みに統一する。ジグザグ(nth-child での左右交互)は仕様表が入ると読み順が壊れるため廃止。
  *
- * DOM順は「見出し(intro) → キャプチャ(shot) → 事実(panel)」で、これはモバイルの読み順そのもの。
- * 以前は shot が先頭で、1列に畳んだときキャプチャが先に来ていた — 何の作品かを判別する前に
- * 画面の3割(390px幅で233px)を使い、wip カードでは中身の無いプレースホルダが先頭に立っていた。
- * デスクトップの左右配置は grid-template-areas が作る。order で視覚順だけ入れ替えると
- * タブ順・読み上げ順がDOMのまま残るため使わない。
+ * 以前はデスクトップ(1200px以上)だけ shot 330px固定 + 情報列の2列、タブレット(768〜1199px)は
+ * shot → intro → panel、モバイル(767px以下)は intro → shot → panel と、帯ごとに視覚順が
+ * 異なっていた。同じカードなのに帯によって各ブロックの所属関係が変わって読み取りにくいため、
+ * 全帯で intro → shot → panel の縦積みに統一する(ユーザー確定)。
  *
- * タブレット(768〜1199px)は1列だが画面幅にサムネイルを見せる余地があるため、shot(上限600px・
- * 中央寄せ)→ intro → panel の順に visual を戻す。767px以下(モバイル)だけ従来どおり intro が
- * 先頭のまま — 判別前に画面の3割を使う問題は幅が狭いモバイルでこそ効くため。
- * 上限を1199pxに広げているのは、1025〜1199pxが左の400px固定プロフィール列と同居する帯で、
- * デスクトップ2列(shot 330px固定 + 情報列)に分けると情報列が182〜309pxまで狭まるため
- * (minmax緩和では2列の330px到達を止められないと実測済み)。1列に畳んで情報列へ全幅
- * (465〜639px)を渡すほうが確実に解消する。デスクトップ2列は1200px以上のみ
- * 並べ替えは全域 grid-template-areas のみで行い、DOM順(intro → shot → panel)は変えない
+ * 視覚順はDOM順(intro → shot → panel → toggle → detail)とも一致する。以前は shot が先頭に
+ * 来る帯があり、1列に畳んだときキャプチャが先に来ていた — 何の作品かを判別する前に画面の3割
+ * (390px幅で233px)を使い、wip カードでは中身の無いプレースホルダが先頭に立っていた。intro を
+ * 先頭にすることでこれを避ける。並べ替えが必要になっても order は使わない — 視覚順だけ
+ * 入れ替えるとタブ順・読み上げ順がDOMのまま残るため
+ *
+ * サムネイル(shot)の上限幅(600px・中央寄せ)は .shot 自身が持つ — 理由もそちらのコメント参照
  *
  * 色は必ずトークン経由。赤(--accent)は NO. 番号と、カードを開く地点である
  * 「詳しく見る」トグルの部号(下線・シェブロン)のみ — 本文・タグには使わない
@@ -23,15 +21,14 @@
 .card {
   position: relative;
   display: grid;
-  grid-template-columns: 330px minmax(0, 1fr);
-  /* DOM順は 見出し → キャプチャ → 事実(モバイルの読み順)。デスクトップの左右2列はここが作る。
-     order を使わないのは、視覚順だけ入れ替えるとタブ順・読み上げ順がDOMのまま残るため */
+  grid-template-columns: minmax(0, 1fr);
+  /* 視覚順はDOM順(intro → shot → panel)そのもの。全帯で1列なので grid-template-areas は
+     並べ替えではなく行間(row-gap)の骨格として使うだけ */
   grid-template-areas:
-    'shot intro'
-    'shot panel';
-  column-gap: 40px;
-  /* 行間は .tagline の margin が持つ。row-gap を足すと見出しと事実の間だけ倍になる */
-  row-gap: 0;
+    'intro'
+    'shot'
+    'panel';
+  row-gap: 24px;
   align-content: start;
   min-width: 0;
   /* リビール前の初期状態。表示は .cardRevealed(use-reveal が付ける)が受け持つ */
@@ -48,18 +45,18 @@
 }
 
 /* work.detail を持つカードだけ、事実パネルの下に詳細トグル行・全幅の詳細行を足す。
-   全カード一律に行を足すと、詳細を持たないカード(大半)のモバイル1列でも
-   row-gap 分の空行が余白として残ってしまうため修飾子で分ける */
+   全カード一律に行を足すと、詳細を持たないカード(大半)でも row-gap 分の空行が
+   余白として残ってしまうため修飾子で分ける */
 .hasDetail {
   grid-template-areas:
-    'shot intro'
-    'shot panel'
-    'toggle toggle'
-    'detail detail';
+    'intro'
+    'shot'
+    'panel'
+    'toggle'
+    'detail';
 }
 
-/* 見出しの塊(NO.行・タイトル・一行説明)。モバイルとデスクトップではカードの先頭、
-   タブレットのみ shot の下に来る(grid-template-areas で並べ替え、DOM順は変えない) */
+/* 見出しの塊(NO.行・タイトル・一行説明)。全帯でカードの先頭 */
 .intro {
   grid-area: intro;
   min-width: 0;
@@ -146,8 +143,9 @@
   color: var(--marker);
 }
 
+/* 行間は .card の row-gap が持つため、下マージンは0にして二重加算を避ける */
 .tagline {
-  margin: 0 0 var(--space-md);
+  margin: 0;
   font-size: 0.9rem;
   line-height: 1.6;
   color: var(--ink-mid);
@@ -166,10 +164,9 @@
 
 /* 詳細トグル。全幅バーは「存在感過多」で廃止 — 中央寄せの小さなテキストリンク然としたボタンにする。
    罫線・背景塗りは持たず、ラベル文字色は常時 ink(旧来の ink-mid → hover 昇格はやめ、
-   最初から存在感を上げておく)。パネルとの間は margin-top で隔離する
-   (1列表示は row-gap と二重にならないよう下の @media で 0 に戻す)。
-   padding は可視サイズを絞っても 44px 相当のヒットボックスを確保する分。
-   ボタン全体を常時 2.5s 周期で二度小さく跳ねさせ、存在に気づかせる(詳細は下の
+   最初から存在感を上げておく)。パネルとの間は .card の row-gap が空けるため margin-top は
+   持たせない(二重加算を避ける)。padding は可視サイズを絞っても 44px 相当のヒットボックスを
+   確保する分。ボタン全体を常時 2.5s 周期で二度小さく跳ねさせ、存在に気づかせる(詳細は下の
    detail-toggle-bounce 参照) */
 .detailToggle {
   grid-area: toggle;
@@ -179,7 +176,7 @@
   align-items: center;
   gap: 6px;
   padding: 14px 20px;
-  margin-top: var(--space-md);
+  margin-top: 0;
   border: none;
   background: none;
   font-family: var(--f-label);
@@ -317,15 +314,22 @@
   transition: visibility 0s 0s;
 }
 
-/* 画面キャプチャ枠。資産がまだ無いカードでも枠が潰れないよう比率で高さを確保する */
+/* 画面キャプチャ枠。資産がまだ無いカードでも枠が潰れないよう比率で高さを確保する。
+   全帯1列のため、幅は .card の全幅(.panel と同じ)まで伸びうる — 右列(.works)が広い
+   画面(1200px以上)ではコンテンツ幅が1000pxを容易に超え、4:3比率のまま間延びしてしまう。
+   上限600px(+aspect-ratio 4/3 で高さは常に450px以下)を付けて中央寄せする。コンテンツ幅が
+   600pxに届かない帯(タブレット・モバイルの多くの幅)ではこの上限は実質無効
+   (自然に全幅で収まる) */
 .shot {
   grid-area: shot;
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
+  max-width: 600px;
   aspect-ratio: 4 / 3;
   align-self: start;
+  justify-self: center;
   overflow: hidden;
   background-color: var(--surface);
 }
@@ -503,100 +507,25 @@
 }
 
 /*
- * 1列化そのもの(列数・列間・行間)はタブレット/モバイルで同じ値なので分けない。
- * 視覚順(grid-template-areas)とサムネイル幅だけが帯ごとに異なるため、それらは下の
- * タブレット専用・モバイル専用ブロックへ分離する
- */
-@media (max-width: 1199px) {
-  .card {
-    grid-template-columns: minmax(0, 1fr);
-    column-gap: 0;
-    row-gap: 24px;
-  }
-
-  /* 行間は row-gap が持つので、intro 末尾の tagline に自前の下マージンが残ると二重になる。
-     直後に来る行がタブレットは panel・モバイルは shot と帯によって変わるが、
-     「1列+row-gapを既に持つ」という条件はどちらも同じなのでここに置く */
-  .tagline {
-    margin-bottom: 0;
-  }
-
-  /* デスクトップは row-gap: 0 のためトリガー自身の margin-top で隔離するが、
-     1列表示はここでも row-gap がパネルとの間を空けているため、ここで二重加算を消す
-     (タブレット・モバイル共通 — トリガーは両帯とも panel の直後に来る) */
-  .detailToggle {
-    margin-top: 0;
-  }
-}
-
-/*
- * タブレット専用(768〜1199px)。視覚順を shot → intro → panel(→ toggle → detail)に戻す。
- * DOM順(intro → shot → panel)は変えず、grid-template-areas だけで並べ替える
- */
-@media (max-width: 1199px) and (min-width: 768px) {
-  .card {
-    grid-template-areas:
-      'shot'
-      'intro'
-      'panel';
-  }
-
-  /* 詳細を持つカードだけ、最下段に toggle・detail を足す */
-  .hasDetail {
-    grid-template-areas:
-      'shot'
-      'intro'
-      'panel'
-      'toggle'
-      'detail';
-  }
-
-  /* 1列の全幅まで伸びると4:3比率のまま縦に間延びするため上限を付けて中央寄せする。
-     600px+aspect-ratio 4/3 で高さは常に450px以下に収まり(帯の中の最大コンテンツ幅は944px)、
-     下のpanel以下の情報量に対して過大にならない値。1025〜1199pxの帯ではコンテンツ幅が
-     465〜639pxしかなく600pxに届かないため、この上限は実質無効(自然に全幅で収まる) */
-  .shot {
-    max-width: 600px;
-    justify-self: center;
-  }
-}
-
-/*
- * モバイル専用(767px以下)。視覚順は従来どおり DOM順のまま intro → shot → panel。
- * 判別前にキャプチャが画面の3割(390px幅で233px)を占める問題は、この帯の狭さでこそ効くため
- * 見出しを先頭に残す(タブレットのようなサムネイル先出しはしない)
+ * モバイル専用(767px以下)。視覚順(intro → shot → panel)は全帯共通で .card 自身が持つため、
+ * ここでは full-bleed(詳細行を画面全幅へ突き抜けさせる)だけを扱う
  */
 @media (max-width: 767px) {
-  .card {
-    grid-template-areas:
-      'intro'
-      'shot'
-      'panel';
-  }
-
-  /* 詳細を持つカードだけ、最下段に toggle・detail を足す */
-  .hasDetail {
-    grid-template-areas:
-      'intro'
-      'shot'
-      'panel'
-      'toggle'
-      'detail';
-  }
-
   /* 詳細行を画面全幅へ突き抜けさせる(full-bleed)。ユーザー確定: 詳細はカード幅に閉じ込めない —
      モバイルで拡大なしに読める本文幅を確保する土台。.detail の containing block は
      .card(パディング無し) → .grid(パディング無し) → .works(左右 padding 対称) →
      .layout(パディング無し・全幅) という連鎖で、途中の左右余白が全て対称なため
-     .detail の中心は常にビューポート中心と一致する。margin-left の % は .detail 自身の
-     containing block 幅(= .works のコンテンツ幅)を基準に解決されるため、
-     calc(50% - 50vw) は「左paddingの分だけ引き戻す」量にちょうど一致し、width: 100vw と
-     組み合わせるとビューポート左端から右端まで正確に届く(親の padding 値を直接書き写す
-     方式は取らない — 値がズレた時に二重の真実になる)。背景(--ground、work-detail.module.css
-     の .detail が持つ)もこの箱いっぱいに広がるため、突き抜けと同時に「読み地面」への
-     切り替えが画面端まで伸びる。上端のシグニチャ線(::before、left/right: 0 で this .detail
-     基準)も同じ幅追従で自然に全幅化する。デスクトップはスクロールバー分 100vw が実幅より
-     広くなる問題があるため、この帯(≤767px)だけに閉じる */
+     .detail の中心は常にビューポート中心と一致する。この連鎖は .card が全帯で1列に
+     統一された後も変わらない(モバイルは統一前から既に1列・パディング無しだったため無関係)。
+     margin-left の % は .detail 自身の containing block 幅(= .works のコンテンツ幅)を
+     基準に解決されるため、calc(50% - 50vw) は「左paddingの分だけ引き戻す」量にちょうど
+     一致し、width: 100vw と組み合わせるとビューポート左端から右端まで正確に届く(親の
+     padding 値を直接書き写す方式は取らない — 値がズレた時に二重の真実になる)。背景
+     (--ground、work-detail.module.css の .detail が持つ)もこの箱いっぱいに広がるため、
+     突き抜けと同時に「読み地面」への切り替えが画面端まで伸びる。上端のシグニチャ線
+     (::before、left/right: 0 で this .detail 基準)も同じ幅追従で自然に全幅化する。
+     デスクトップはスクロールバー分 100vw が実幅より広くなる問題があるため、この帯
+     (≤767px)だけに閉じる */
   .detail {
     width: 100vw;
     margin-left: calc(50% - 50vw);

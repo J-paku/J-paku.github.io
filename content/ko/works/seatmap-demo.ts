@@ -10,7 +10,7 @@ export const seatmapDemo: Work = {
   context: '실무의 재구성 — 사내 좌석 관리 툴을 업무 데이터 없이',
   contextKind: 'work',
   period: '2026.07 - 2026.08',
-  role: '설계·구현(개인)',
+  role: '설계·구현',
   scale: '주요 화면 3(맵 / 디렉터리 / 편집)· 데이터는 전부 목 JSON',
   stack: [
     'Next.js 16',

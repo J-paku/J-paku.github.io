@@ -9,7 +9,7 @@ export const meishiCrossPlatform: Work = {
   glyph: '名刺',
   context: '실무 진행 중 안건 — 명함 관리의 iOS화',
   contextKind: 'work',
-  role: '설계·구현·릴리스(주담당)',
+  role: '설계·구현·릴리스',
   stack: ['Swift', 'AVFoundation', 'Vision', 'WKWebView', 'React'],
   links: {},
   // カード用サムネイル。story場面4つ(カメラ撮影・その場で登録・Web統合・拠点距離)を

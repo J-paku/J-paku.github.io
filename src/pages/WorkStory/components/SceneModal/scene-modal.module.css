@@ -1,0 +1,173 @@
+/*
+ * 場面プレビューの全画面モーダル。ネイティブ <dialog> なので top-layer に載り、
+ * SettingsMenu 等の z-index と無関係に必ず最前面へ来る(z-index 指定は不要)。
+ * dialog 自身は UA 既定(fit-content・余白1em・白背景等)を全て打ち消し、
+ * 旧 .scrim と同じ「画面いっぱいに広がる中央寄せの余白」として振る舞わせる
+ */
+.dialog {
+  position: fixed;
+  inset: 0;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg) var(--space-md);
+  border: none;
+  background-color: transparent;
+  color: inherit;
+}
+
+/*
+ * スクリム(暗幕)は ::backdrop に対して tokens.css の --color-scrim を参照する
+ * (端末フレーム専用色と同じ「テーマに関わらず固定」の扱い。01-authoring.md #9)
+ */
+.dialog::backdrop {
+  background-color: var(--color-scrim);
+  animation: scene-modal-scrim-in var(--motion-slow) var(--ease-reveal);
+}
+
+/* 子は frameWrap 1つだけなので flex は使わず、frameWrap 自身の margin-inline: auto で中央寄せする */
+.panel {
+  position: relative;
+  width: 100%;
+  /* DeviceFrame 自身の max-width(320px)と揃え、閉じるボタン(right: 0)が枠の右上角に来るようにする */
+  max-width: 320px;
+  max-height: 90vh;
+  animation: scene-modal-dialog-in var(--motion-slow) var(--ease-reveal);
+}
+
+/* DeviceFrame は幅基準(width: 100%; max-width: 320px)でアスペクト比を保つ実装のため、
+   ここでも「自然サイズ(320px、device-frame.module.css の .frame の max-width と同値)」を
+   上限とし、拡大はしない。画面がそれより狭い/低い場合だけ、はみ出さない幅まで縮小する。
+   min() の3項:
+   ・320px … DeviceFrame の自然サイズ(この値を超えて拡大しない)
+   ・calc(100vw - 2 * var(--space-md)) … 横幅の余裕(.dialog の左右 padding 分を差し引いた幅)
+   ・calc((100vh - 10.75rem) * 402 / 874) … 縦の余裕から逆算した幅
+   (402/874 は device-frame.module.css の .screen と同じアスペクト比)。
+   10.75rem の内訳は、.dialog の上下 padding(--space-lg × 2 = 4rem)
+   + 閉じるボタンの浮き出し分(--space-xl = 3rem)
+   + frameWrap の下に並ぶ .controls の margin-top(--space-sm = 1rem)+ 44px ボタン(≒2.75rem) */
+.frameWrap {
+  width: min(320px, calc(100vw - 2 * var(--space-md)), calc((100vh - 10.75rem) * 402 / 874));
+  margin-inline: auto;
+}
+
+/* 右上の閉じるボタン。44px 以上のヒットボックスを確保する。塗りはスクリムに馴染む半透明の暗色 */
+.close {
+  position: absolute;
+  top: calc(-1 * var(--space-xl));
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background-color: color-mix(in srgb, var(--color-scrim) 60%, transparent);
+  color: var(--color-scrim-ink);
+  cursor: pointer;
+  transition: background-color var(--motion);
+}
+
+.close:hover {
+  background-color: color-mix(in srgb, var(--color-scrim) 85%, transparent);
+}
+
+.closeIcon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* 場面送りのコントロール行。frameWrap の下、panel の幅いっぱいに中央寄せで置く
+   (frameWrap 自体は 120px まで縮む可能性があるため、ボタン+カウンタの取り回しに幅を持たせる) */
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
+  margin-top: var(--space-sm);
+}
+
+/* 見た目は .close ボタンと同じ言語(スクリムに馴染む半透明の暗色)で揃える */
+.navButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background-color: color-mix(in srgb, var(--color-scrim) 60%, transparent);
+  color: var(--color-scrim-ink);
+  cursor: pointer;
+  transition: background-color var(--motion);
+}
+
+.navButton:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--color-scrim) 85%, transparent);
+}
+
+.navButton:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.navIcon {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.counter {
+  min-width: 3.5rem;
+  font-family: var(--f-label);
+  font-size: 0.8rem;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.05em;
+  text-align: center;
+  color: var(--color-scrim-ink);
+}
+
+@keyframes scene-modal-scrim-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scene-modal-dialog-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog::backdrop,
+  .panel {
+    animation: none;
+  }
+}
+
+/* モバイルは幅基準で中央配置する(高さ制約は保ったまま、上下の余白を詰める) */
+@media (max-width: 480px) {
+  .dialog {
+    padding: var(--space-md) var(--space-sm);
+  }
+
+  .close {
+    top: calc(-1 * var(--space-lg));
+  }
+}

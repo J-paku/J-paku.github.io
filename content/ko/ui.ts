@@ -32,6 +32,10 @@ export const ui: UiStrings = {
   },
   workStory: {
     back: '목록으로 돌아가기',
+    viewScene: '화면 보기',
+    close: '닫기',
+    prevScene: '이전 장면',
+    nextScene: '다음 장면',
   },
   quality: {
     // 푸터의 계측표. 값은 두지 않고 계측 환경과 알려진 약점을 먼저 말한다

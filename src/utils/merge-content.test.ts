@@ -38,7 +38,7 @@ const makeContent = (overrides: Partial<Content> = {}): Content => ({
       showDetail: 'showDetail',
       hideDetail: 'hideDetail',
     },
-    workStory: { back: 'back' },
+    workStory: { back: 'back', viewScene: 'viewScene', close: 'close', prevScene: 'prevScene', nextScene: 'nextScene' },
     quality: {
       footer: { label: 'MEASURED', environment: 'environment', limitation: 'limitation' },
     },
@@ -94,8 +94,8 @@ describe('mergeContent — 文字列・配列の空値フォールバック', ()
   })
 
   it('17: ui.workStory.backが空ならja値を採用する', () => {
-    const ja = makeContent({ ui: { ...makeContent().ui, workStory: { back: 'ja-back' } } })
-    const ko = makeContent({ ui: { ...makeContent().ui, workStory: { back: '' } } })
+    const ja = makeContent({ ui: { ...makeContent().ui, workStory: { back: 'ja-back', viewScene: 'viewScene', close: 'close', prevScene: 'prevScene', nextScene: 'nextScene' } } })
+    const ko = makeContent({ ui: { ...makeContent().ui, workStory: { back: '', viewScene: 'viewScene', close: 'close', prevScene: 'prevScene', nextScene: 'nextScene' } } })
     expect(mergeContent(ja, ko).ui.workStory.back).toBe('ja-back')
   })
 
@@ -237,14 +237,14 @@ describe('content-loaderの実行時整合性検査', () => {
 })
 
 describe('loadContent — 実コンテンツの回帰確認', () => {
-  it('作品4件がja/ko両方でロードされ、公開作品が先・期間降順で並ぶ', () => {
+  it('作品3件がja/ko両方でロードされ、公開作品が先・期間降順で並ぶ', () => {
     const ja = loadContent('ja')
     const ko = loadContent('ko')
-    expect(ja.works).toHaveLength(4)
-    expect(ko.works).toHaveLength(4)
+    expect(ja.works).toHaveLength(3)
+    expect(ko.works).toHaveLength(3)
     expect(ja.works.map((w) => w.slug)).toEqual(ko.works.map((w) => w.slug))
-    // meishi-cross-platform が wip から published へ移行したため、公開3件+wip1件になった
-    expect(ja.works.map((w) => w.status)).toEqual(['published', 'published', 'published', 'wip'])
+    // gatchanko(wip)を削除したため、公開3件のみになった
+    expect(ja.works.map((w) => w.status)).toEqual(['published', 'published', 'published'])
   })
 
   it('koはfallbackなしで自言語のまま出る(現状は全訳済みのため)', () => {

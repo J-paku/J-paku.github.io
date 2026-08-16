@@ -1,15 +1,15 @@
-// 作品ストーリーページの組み立てのみを行う。左に場面テキストのスクロール、右に iPhone 型の
-// プレビューを sticky で固定する。work か work.story を持たない slug は NotFound を描く
+// 作品ストーリーページの組み立てのみを行う。場面テキストは1列で縦に流し、各場面の画面プレビューは
+// SceneModal(全画面モーダル)で見せる。work か work.story を持たない slug は NotFound を描く
 // (不変ルール5: wip 作品は詳細ページを持たない)
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { useLocale } from '@/contexts/LocaleContext/locale-context'
 import { useContent } from '@/hooks/use-content'
 import { withLocale } from '@/utils/locale-path'
 import PhraseText from '@/components/PhraseText'
 import NotFound from '@/pages/NotFound'
-import { useActiveScene } from './hooks/use-active-scene'
-import DeviceFrame from './components/DeviceFrame'
-import ScenePlayer from './components/ScenePlayer'
+import IntroPreview from './components/IntroPreview'
+import SceneModal from './components/SceneModal'
 import SceneSection from './components/SceneSection'
 import TechChipPopover from './components/TechChipPopover'
 import styles from './work-story.module.css'
@@ -19,14 +19,34 @@ function WorkStory() {
   const { locale } = useLocale()
   const { ui, works } = useContent()
   const work = works.find((item) => item.slug === slug)
-  const scenes = work?.story?.scenes ?? []
 
-  // フックは早期returnより前で呼ぶ必要があるため、story が無い間は場面数0で束ねておく
-  const { activeIndex, setSectionRef } = useActiveScene(scenes.length)
+  // どの場面のモーダルが開いているか。閉じたトリガーへのフォーカス復帰は、開いた瞬間の
+  // トリガー要素をここに保存しておき、下の useEffect で使う(state化はしない — 再描画不要)
+  const [openSceneIndex, setOpenSceneIndex] = useState<number | null>(null)
+  const returnFocusRef = useRef<HTMLButtonElement | null>(null)
+
+  // トリガーへのフォーカス復帰は、openSceneIndex が null に変わった後(= SceneModal が
+  // 実際にアンマウントされた commit 後)に行う。handleCloseScene 内で setState 直後に
+  // 同期的に focus() すると、native dialog がまだ open のままでフォーカストラップに
+  // 阻まれ body に落ちる(実測: X クローズ後 document.activeElement = BODY)
+  useEffect(() => {
+    if (openSceneIndex !== null) return
+    returnFocusRef.current?.focus()
+    returnFocusRef.current = null
+  }, [openSceneIndex])
 
   if (work === undefined || work.story === undefined) return <NotFound />
 
   const { story } = work
+
+  const handleOpenScene = (index: number, trigger: HTMLButtonElement | null) => {
+    returnFocusRef.current = trigger
+    setOpenSceneIndex(index)
+  }
+
+  const handleCloseScene = () => {
+    setOpenSceneIndex(null)
+  }
 
   return (
     <div className={styles.page}>
@@ -35,45 +55,65 @@ function WorkStory() {
       </Link>
 
       <header className={styles.intro}>
-        <h1 className={styles.introTitle}>
-          <PhraseText text={story.intro.title} />
-        </h1>
-        <p className={styles.introLead}>
-          <PhraseText text={story.intro.lead} />
-        </p>
+        <div className={styles.introText}>
+          <h1 className={styles.introTitle}>
+            <PhraseText text={story.intro.title} />
+          </h1>
+          <p className={styles.introLead}>
+            <PhraseText text={story.intro.lead} />
+          </p>
+        </div>
+
+        {story.scenes.length > 0 ? (
+          <IntroPreview
+            scenes={story.scenes}
+            placeholder={ui.work.shotPlaceholder}
+            viewSceneLabel={ui.workStory.viewScene}
+            onOpenScene={handleOpenScene}
+          />
+        ) : null}
       </header>
 
-      <div className={styles.body}>
-        <div className={styles.narrative}>
-          {story.scenes.map((scene, index) => (
-            <div key={scene.id} className={styles.scene}>
-              <SceneSection scene={scene} serial={String(index + 1).padStart(2, '0')} ref={setSectionRef(index)} />
-            </div>
-          ))}
+      <div className={styles.narrative}>
+        {story.scenes.map((scene, index) => (
+          <div key={scene.id} className={styles.scene}>
+            <SceneSection
+              scene={scene}
+              index={index}
+              viewSceneLabel={ui.workStory.viewScene}
+              onOpenScene={handleOpenScene}
+            />
+          </div>
+        ))}
 
-          <section className={styles.outro}>
-            <h2 className={styles.outroTitle}>
-              <PhraseText text={story.outro.title} />
-            </h2>
-            <p className={styles.outroBody}>
-              <PhraseText text={story.outro.body} />
-            </p>
-            <ul className={styles.stackSummary}>
-              {story.outro.stackSummary.map((chip) => (
-                <li key={chip.name}>
-                  <TechChipPopover chip={chip} />
-                </li>
-              ))}
-            </ul>
-          </section>
-        </div>
-
-        <div className={styles.device}>
-          <DeviceFrame>
-            <ScenePlayer scenes={story.scenes} activeIndex={activeIndex} placeholder={ui.work.shotPlaceholder} />
-          </DeviceFrame>
-        </div>
+        <section className={styles.outro}>
+          <h2 className={styles.outroTitle}>
+            <PhraseText text={story.outro.title} />
+          </h2>
+          <p className={styles.outroBody}>
+            <PhraseText text={story.outro.body} />
+          </p>
+          <ul className={styles.stackSummary}>
+            {story.outro.stackSummary.map((chip) => (
+              <li key={chip.name}>
+                <TechChipPopover chip={chip} />
+              </li>
+            ))}
+          </ul>
+        </section>
       </div>
+
+      {openSceneIndex !== null ? (
+        <SceneModal
+          scenes={story.scenes}
+          initialIndex={openSceneIndex}
+          placeholder={ui.work.shotPlaceholder}
+          closeLabel={ui.workStory.close}
+          prevLabel={ui.workStory.prevScene}
+          nextLabel={ui.workStory.nextScene}
+          onClose={handleCloseScene}
+        />
+      ) : null}
     </div>
   )
 }
