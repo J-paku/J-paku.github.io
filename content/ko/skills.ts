@@ -20,7 +20,6 @@ export const skills: SkillCategory[] = [
       { name: 'React 19', evidence: ['seatmap-demo'] },
       { name: 'Next.js 16(Pages Router / 정적 익스포트)', evidence: ['seatmap-demo'] },
       { name: 'Nuxt.js / Vue', evidence: [], note: '전 직장에서 2년 10개월. 공개 작품 없음' },
-      { name: 'Tauri', evidence: ['gatchanko'] },
     ],
   },
   {

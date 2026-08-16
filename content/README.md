@@ -16,8 +16,7 @@ content/
 │   └── works/
 │       ├── seatmap-demo.ts          status: 'published'
 │       ├── ai-harness.ts            status: 'published'
-│       ├── meishi-cross-platform.ts status: 'wip'
-│       └── gatchanko.ts             status: 'wip'
+│       └── meishi-cross-platform.ts status: 'wip'
 └── ko/  (同一ツリー・同一型)
 ```
 
@@ -38,4 +37,4 @@ content/
 | --- | --- |
 | `profile.careers[0].company` | 現職の社名を業種表記にしている。実名で出すならこの行を差し替える |
 | `profile.careers[1].period` | 前職の入社・退社月が未確定(在籍2年10か月のみ確定) |
-| wip 2件 | title / tagline のみ。「現在」セクションとセットでのみ成立させる |
+| wip 1件 | title / tagline のみ。「現在」セクションとセットでのみ成立させる |
