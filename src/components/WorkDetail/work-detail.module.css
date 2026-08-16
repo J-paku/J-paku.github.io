@@ -1,16 +1,17 @@
 /*
- * カードの折りたたみ詳細。事例一覧の枠(WorkCard の .panel)と揃えたクリーム面+ヘアラインで、
- * カード本体の続きだと分かるようにする。開閉自体(表示/非表示の切り替え)はカード側の役目で、
- * ここは開いた状態の中身のレイアウトだけを持つ
+ * カードの折りたたみ詳細。地色を3段の階調で踏む(shot=--surface → panel=--surface-cream →
+ * detail=--ground)。詳細行はパネルの続きではなく一段沈んだ地面として組み、上端の縁取り
+ * (パネルとの継ぎ目)は WorkCard 側の wrapper が担うためここでは持たない。--ground 上の
+ * 文字色は tokens.css で全組み合わせ対比済みのため、本文側の色トークンは変更不要。
+ * 開閉自体(表示/非表示の切り替え)はカード側の役目で、ここは開いた状態の中身のレイアウトだけを持つ
  */
 .detail {
   display: flex;
   flex-direction: column;
   gap: var(--space-xl);
   margin-top: var(--space-md);
-  padding: var(--space-md);
-  border: 1px solid var(--rule);
-  background-color: var(--surface-cream);
+  padding: var(--space-lg);
+  background-color: var(--ground);
 }
 
 .section {
@@ -18,6 +19,36 @@
   flex-direction: column;
   gap: var(--space-md);
   min-width: 0;
+}
+
+/* 事例一覧と図解、節が複数並ぶときだけ境界を強める。.detail の gap だけでは切れ目が弱いので、
+   sectionTitle の下線と同じ --rule で罫線を足し、paddingで隙間を広げる。
+   現状 .section + .section に該当するのは図解節(seatmap-demo 限定)だけなので、ここに
+   CaseList の事例スタッガー(case-reveal・40ms間隔)へ続く形で120ms遅延の登場演出を足す。
+   開閉の起点は同じく inert 属性([inert] .section + .section が閉時のリセット)。仕組みの
+   詳細は case-list.module.css の同名コメントを参照 */
+.section + .section {
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--rule);
+  animation: section-reveal 300ms var(--ease-reveal) 120ms both;
+}
+
+@keyframes section-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+[inert] .section + .section {
+  animation: none;
+  opacity: 0;
+  transform: translateY(6px);
 }
 
 /* 事例一覧・図解の節見出し。仕様表のラベルより一段大きい、WorksSection の索引文言に近いトーン */
@@ -49,16 +80,82 @@
   background-color: var(--surface-cream);
 }
 
+/* キャプションも .value と同じ考え方で、幅上限を持たず全幅で流す(ユーザー確定)。広めの行間は維持 */
 .caption {
   margin: 0;
   font-size: 0.75rem;
-  line-height: 1.6;
+  line-height: 1.75;
   color: var(--ink-secondary);
 }
 
-@media (max-width: 1024px) {
+/*
+ * タブレット(768〜1199px)/モバイル(767px以下)で分けない。WorkCard 側の visual 順(shot先頭か
+ * intro先頭か)に関わらず、この詳細行自体は常に単独の全幅grid行として置かれるため、
+ * ここの余白は帯を分ける理由が無く両方に共通で適用する。
+ * 上限は WorkCard の1列化と揃えて1199pxまで拡張した — 1025〜1199pxはカードが2列(shot 330px固定
+ * + 情報列)のままだと情報列が182〜309pxまで狭まる帯で、WorkCard側でここを1列(コンテンツ幅
+ * 465〜639px)へ畳んだ。この幅は元から縮小版が使われていた帯の下限・768px時点(コンテンツ幅
+ * 688px)より狭いため、縮小版のpadding/gapのほうが整合する(通常版は最大944px幅時点を基準に
+ * 決めた値で、465〜639pxには広すぎる)
+ */
+@media (max-width: 1199px) {
   .detail {
     gap: var(--space-lg);
+    padding: var(--space-md);
+  }
+
+  .section + .section {
+    padding-top: var(--space-md);
+  }
+}
+
+/*
+ * モバイル専用(767px以下)。.detail 自体は WorkCard 側で画面全幅へ突き抜けている
+ * (work-card.module.css 参照)ため、ここは突き抜けた箱の中の内側余白と、
+ * 図解SVGの可読サイズ確保だけを扱う。
+ * 内側 padding は var(--space-sm)(16px)まで絞り、390px幅で本文実質幅 358px を確保する
+ * (突き抜け無しの旧幅は 40×2 + 24×2 = 128px 消費で 262px しか残らなかった)
+ */
+@media (max-width: 767px) {
+  .detail {
     padding: var(--space-sm);
+  }
+
+  /*
+   * 図解SVGは縮小レンダリングせず可読サイズ(実測 viewBox 相当)を保ち、枠に収まらない分は
+   * .diagram 内だけで横スクロールする。ページ自体の横オーバーフローを避けるため、
+   * スクロールはこの箱の中に閉じる。.diagram は既に min-width: 0 を持つ(親 flex の
+   * 自動最小サイズ抑制)ため、子 SVG の min-width 600px は .diagram 自身を押し広げず、
+   * 素直に内側だけのオーバーフローとして扱われる
+   */
+  .diagram {
+    overflow-x: auto;
+  }
+
+  .diagram svg {
+    min-width: 600px;
+  }
+
+  /*
+   * キャプションは DOM 構造上 .diagram の子(SVGの兄弟)としてしか置けない
+   * (WorkDetail 側の組み立ては変更範囲外)。.diagram に overflow-x を持たせると、
+   * 素のままではキャプションも SVG と一緒に横スクロールしてしまい「スクロール外の
+   * 通常フロー」という要件を満たせない。position: sticky で左端に固定し、
+   * .diagram(= 最も近いスクロール祖先)を基準に視覚上は動かない行として読める状態を保つ
+   */
+  .caption {
+    position: sticky;
+    left: 0;
+  }
+}
+
+/* global.css の transition-duration 上書きは animation-delay までは潰さないため、
+   ここで明示的に演出自体を無効化し即座に最終状態へ揃える(case-list.module.css と同じ理由) */
+@media (prefers-reduced-motion: reduce) {
+  .section + .section,
+  [inert] .section + .section {
+    animation: none;
+    opacity: 1;
+    transform: none;
   }
 }
