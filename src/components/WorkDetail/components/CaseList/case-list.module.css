@@ -7,7 +7,7 @@
 .list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
+  gap: var(--space-xl);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -19,6 +19,13 @@
   gap: var(--space-sm);
   align-items: baseline;
   min-width: 0;
+}
+
+/* NO. 行のドットリーダーと同じ語彙を、事例と事例の区切りにも通す。件と件の間(--space-xl)を
+   さらに罫線で仕切ることで、gap が空いただけの余白ではなく「読みの区切り」だと分かるようにする */
+.case + .case {
+  border-top: 1px dotted var(--rule);
+  padding-top: var(--space-lg);
 }
 
 .serial {
@@ -45,26 +52,103 @@
   align-items: baseline;
 }
 
-/* WorkSpec と同じ理由(360px 幅ではラベル4.5rem固定だと値側が狭すぎる)でラベル幅を内容幅へ縮める */
-@media (max-width: 360px) {
+/* モバイルでは件番号列(auto)+ラベル固定列(4.5rem)に本文幅が削られ、実質 140px 程度しか
+   残らない。767px 以下は縦積みに切り替え、本文行が詳細の内幅全体を使えるようにする */
+@media (max-width: 767px) {
+  /* 件番号列を上の行へ持ち上げ、本文行が全幅を使えるようにする */
+  .case {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-2xs);
+  }
+
+  /* ラベルを本文の上に1行で置く。値の行がラベル固定列に削られない */
   .row {
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
   }
 }
 
+/* 字送りを NO. 系ラベルより広げ(0.1em→0.14em)、小さい大文字ラベルでも索引らしい間隔を出す */
 .label {
   margin: 0;
   font-family: var(--f-label);
   font-size: 0.65rem;
   font-weight: var(--fw-medium);
-  letter-spacing: 0.1em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ink-mid);
 }
 
+/* 本文は幅上限を持たず全幅で流す(ユーザー確定)。行間は詰まり気味だった1.6から広げ、
+   複数行に折り返しても追いやすくする */
 .value {
   margin: 0;
-  font-size: 0.8rem;
-  line-height: 1.6;
+  font-size: 0.85rem;
+  line-height: 1.9;
+  letter-spacing: 0.02em;
   color: var(--ink-secondary);
+}
+
+/* カードが開いたときだけ、事例が1件ずつ現れる演出。WorkCard 側の開閉状態は CSS Modules の
+   スコープを跨いでクラス名を直接参照できない(.detailOpen はファイルごとに別名へハッシュされる)ため、
+   開閉と同時に WorkCard が付け外しする inert 属性(通常の HTML 属性でスコープの対象外)を起点にする。
+   [inert] 側で animation: none に落として再生開始位置(0%)に固定し、inert が外れた瞬間に
+   animation-name が「none → case-reveal」へ新規に適用され、:hover 等と同じ仕組みで最初から
+   再生し直す。無限ループにはしない(fill-mode: both で最終状態のまま止まる) */
+@keyframes case-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.case {
+  animation: case-reveal 300ms var(--ease-reveal) both;
+}
+
+.case:nth-child(1) {
+  animation-delay: 0ms;
+}
+
+.case:nth-child(2) {
+  animation-delay: 40ms;
+}
+
+.case:nth-child(3) {
+  animation-delay: 80ms;
+}
+
+.case:nth-child(4) {
+  animation-delay: 120ms;
+}
+
+.case:nth-child(5) {
+  animation-delay: 160ms;
+}
+
+.case:nth-child(6) {
+  animation-delay: 200ms;
+}
+
+/* 閉じている間(WorkCard 側が inert を付けている間)は演出を持たず、再生開始位置に固定する */
+[inert] .case {
+  animation: none;
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+/* global.css の transition-duration 上書きは animation-delay までは潰さないため、
+   ここで明示的に演出自体を無効化し即座に最終状態へ揃える */
+@media (prefers-reduced-motion: reduce) {
+  .case,
+  [inert] .case {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
 }
