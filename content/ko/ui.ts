@@ -19,6 +19,8 @@ export const ui: UiStrings = {
   work: {
     index: '작품 목록',
     openLinks: '링크 열기',
+    story: '스토리',
+    openStory: '스토리 열기',
     wipBadge: '준비 중',
     period: '기간',
     role: '역할',

@@ -32,8 +32,12 @@ function WorkCard({ work, index }: WorkCardProps) {
   const { ref: shotRef, isFullyVisible } = useFullyVisible<HTMLDivElement>()
 
   // リンクの覆い。ポインタ環境ではホバー(と focus-within)で出し、タッチ環境ではタップで開閉する。
-  // この state はタップ用 — ホバー表示は CSS 側の @media (hover: hover) が担う
+  // この state はタップ用 — ホバー表示は CSS 側の @media (hover: hover) が担う。
+  // links(live/repo)を持たないが story を持つ作品も、同じ覆いにストーリーページへの
+  // ボタンを1つ出す — 覆いの存在に他カードと差を付けない
   const hasLinks = work.links.live !== undefined || work.links.repo !== undefined
+  const hasStoryOverlay = !hasLinks && work.story !== undefined
+  const hasOverlay = hasLinks || hasStoryOverlay
   const [isLinksOpen, setIsLinksOpen] = useState(false)
 
   // 折りたたみ式の詳細。work.detail が無いカードはトグル自体を出さない
@@ -114,24 +118,17 @@ function WorkCard({ work, index }: WorkCardProps) {
         ) : (
           <span className={styles.shotPlaceholder}>{ui.work.shotPlaceholder}</span>
         )}
-        {hasLinks ? (
+        {hasOverlay ? (
           <button
             type="button"
             className={styles.shotTrigger}
             aria-expanded={isLinksOpen}
             onClick={() => setIsLinksOpen((open) => !open)}
           >
-            <span className={styles.srOnly}>{ui.work.openLinks}</span>
+            <span className={styles.srOnly}>{hasLinks ? ui.work.openLinks : ui.work.openStory}</span>
           </button>
         ) : null}
-        {!hasLinks && work.story !== undefined ? (
-          <Link to={withLocale(`/works/${work.slug}`, locale)} className={styles.shotStoryLink}>
-            <span className={styles.srOnly}>
-              <PhraseText text={work.title} />
-            </span>
-          </Link>
-        ) : null}
-        {hasLinks ? (
+        {hasOverlay ? (
           /* 常に描画し、表示は CSS が切り替える(隠れている間も pointer-events: none でクリックを透過)。
              タブ移動でリンクへ入れば focus-within で現れるため、キーボードでも到達できる。
              覆いのどこを押しても閉じる。リンク自身のクリックは遷移した上で覆いも閉じるので分岐不要 */
@@ -152,6 +149,12 @@ function WorkCard({ work, index }: WorkCardProps) {
                 </svg>
                 {ui.work.repo}
               </a>
+            ) : null}
+            {hasStoryOverlay ? (
+              /* 外部リンクを持たない作品はストーリーページが唯一の行き先。主ボタンの見た目で1つだけ置く */
+              <Link to={withLocale(`/works/${work.slug}`, locale)} className={styles.overlayPrimary}>
+                {ui.work.story}
+              </Link>
             ) : null}
           </div>
         ) : null}

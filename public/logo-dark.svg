@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-14.3 -5.66 568.6 224.31" role="img" aria-label="J-Paku">
+  <!-- ダーク用。dracula / kuroxxx の双方の背景で成立するよう、面ではなく輪郭で構成する -->
+  <g>
+    <rect x="-9.3" y="26.5" width="160" height="160" rx="40" fill="none" stroke="#F8F8F2" stroke-width="10"/>
+    <g fill="#F8F8F2">
+      <rect x="18" y="58" width="44" height="32" rx="10"/>
+      <rect x="78" y="58" width="44" height="32" rx="10"/>
+      <rect x="18" y="122" width="44" height="32" rx="10"/>
+      <rect x="78" y="122" width="44" height="32" rx="10"/>
+    </g>
+    <rect x="18" y="102" width="104" height="8" rx="4" fill="#F8F8F2" opacity="0.4"/>
+  </g>
+  <text x="186" y="106.5" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif"
+        font-size="106" font-weight="700" letter-spacing="-2"
+        fill="#F8F8F2" dominant-baseline="central">J-Paku</text>
+</svg>

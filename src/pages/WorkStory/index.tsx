@@ -8,6 +8,7 @@ import { useContent } from '@/hooks/use-content'
 import { withLocale } from '@/utils/locale-path'
 import PhraseText from '@/components/PhraseText'
 import NotFound from '@/pages/NotFound'
+import { useActiveScene } from './hooks/use-active-scene'
 import IntroPreview from './components/IntroPreview'
 import SceneModal from './components/SceneModal'
 import SceneSection from './components/SceneSection'
@@ -24,6 +25,11 @@ function WorkStory() {
   // トリガー要素をここに保存しておき、下の useEffect で使う(state化はしない — 再描画不要)
   const [openSceneIndex, setOpenSceneIndex] = useState<number | null>(null)
   const returnFocusRef = useRef<HTMLButtonElement | null>(null)
+  // 下部固定CTAを開いたトリガー(=CTA自身)。フォーカス復帰は returnFocusRef 経由で共通化する
+  const ctaTriggerRef = useRef<HTMLButtonElement>(null)
+  // 下部固定CTAが開くべき場面(=今読んでいる場面)を追う。work が無い(NotFound)場合は場面数0で
+  // フックだけ呼んでおく — Hooks は下の早期 return より前に置く必要があるため
+  const { activeIndex, setSectionRef } = useActiveScene(work?.story?.scenes.length ?? 0)
 
   // トリガーへのフォーカス復帰は、openSceneIndex が null に変わった後(= SceneModal が
   // 実際にアンマウントされた commit 後)に行う。handleCloseScene 内で setState 直後に
@@ -48,10 +54,18 @@ function WorkStory() {
     setOpenSceneIndex(null)
   }
 
+  // 下部固定CTAは常に「今読んでいる場面」(activeIndex)を開く
+  const handleOpenCurrentScene = () => {
+    handleOpenScene(activeIndex, ctaTriggerRef.current)
+  }
+
   return (
     <div className={styles.page}>
-      <Link className={styles.back} to={withLocale('/', locale)}>
-        <PhraseText text={ui.workStory.back} />
+      {/* 一覧への戻り導線。接続名はテキストが無くなった分 aria-label で明示する
+          (ロゴ画像自体は alt='' で装飾扱いにする) */}
+      <Link className={styles.back} to={withLocale('/', locale)} aria-label={ui.workStory.back}>
+        <img src='/logo.svg' alt='' className={styles.logoLight} />
+        <img src='/logo-dark.svg' alt='' className={styles.logoDark} />
       </Link>
 
       <header className={styles.intro}>
@@ -77,12 +91,7 @@ function WorkStory() {
       <div className={styles.narrative}>
         {story.scenes.map((scene, index) => (
           <div key={scene.id} className={styles.scene}>
-            <SceneSection
-              scene={scene}
-              index={index}
-              viewSceneLabel={ui.workStory.viewScene}
-              onOpenScene={handleOpenScene}
-            />
+            <SceneSection scene={scene} ref={setSectionRef(index)} />
           </div>
         ))}
 
@@ -102,6 +111,18 @@ function WorkStory() {
           </ul>
         </section>
       </div>
+
+      {/* 場面プレビューを開く下部固定CTA(Toss式)。押すと「今読んでいる場面」(activeIndex)を開く */}
+      {story.scenes.length > 0 ? (
+        <button
+          ref={ctaTriggerRef}
+          type='button'
+          className={styles.viewSceneCta}
+          onClick={handleOpenCurrentScene}
+        >
+          <PhraseText text={ui.workStory.viewScene} />
+        </button>
+      ) : null}
 
       {openSceneIndex !== null ? (
         <SceneModal
