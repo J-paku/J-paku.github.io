@@ -149,53 +149,59 @@ async function measurePage(page) {
         return chars.slice(start, end).map((entry) => entry.char).join('')
       }
 
-      // 枠より長い語は、どこかで折るしか手が無い。文節幅と要素の内容幅を実測して切り分ける
-      const elementStyle = window.getComputedStyle(element)
-      const contentWidth =
-        element.getBoundingClientRect().width -
-        parseFloat(elementStyle.paddingLeft) -
-        parseFloat(elementStyle.paddingRight)
-      const ruler = document.createElement('span')
-      ruler.style.cssText = 'position:absolute;white-space:pre;visibility:hidden;top:-9999px;left:-9999px'
-      // font 一括指定は line-height などが絡むと空文字になることがあり、
-      // その場合ルーラーが既定書体(16px)で測ってしまい文節幅を大幅に過小評価する(実測)。
-      // 個別プロパティで写す
-      for (const property of [
-        'fontFamily',
-        'fontSize',
-        'fontWeight',
-        'fontStyle',
-        'fontStretch',
-        'fontFeatureSettings',
-        'letterSpacing',
-        'textTransform',
-      ]) {
-        ruler.style[property] = elementStyle[property]
-      }
-      document.body.appendChild(ruler)
-      const widthOf = (text) => {
-        ruler.textContent = text
-        return ruler.getBoundingClientRect().width
-      }
-
+      // word-break: normal は「狭い幅では文節組版だと行末が凸凹になる」ため意図的に離脱した
+      // オプトアウト(work-detail.module.css 等の @media (max-width: 767px) 参照)。
+      // その要素では語の途中で切れること自体が想定内の挙動になるため、文節途中の判定は丸ごと
+      // スキップする。禁則・孤立行・body の適用値チェックはこの分岐の外なので影響を受けない
       const badBreaks = []
       const forcedBreaks = []
-      for (let index = 1; index < lines.length; index += 1) {
-        const startIndex = lines[index].startIndex
-        if (allowedBreaks.has(startIndex)) continue
-        const before = lines[index - 1].text[lines[index - 1].text.length - 1]
-        const after = lines[index].text[0]
-        if (!isLetter(before) || !isLetter(after)) continue
-
-        const chunk = chunkAround(startIndex - 1)
-        const label = `…${lines[index - 1].text.slice(-4)} / ${lines[index].text.slice(0, 4)}…`
-        if (widthOf(chunk) > contentWidth) {
-          forcedBreaks.push(`${label} (語幅${Math.round(widthOf(chunk))}px > 枠${Math.round(contentWidth)}px)`)
-        } else {
-          badBreaks.push(label)
+      if (style.wordBreak !== 'normal') {
+        // 枠より長い語は、どこかで折るしか手が無い。文節幅と要素の内容幅を実測して切り分ける
+        const elementStyle = window.getComputedStyle(element)
+        const contentWidth =
+          element.getBoundingClientRect().width -
+          parseFloat(elementStyle.paddingLeft) -
+          parseFloat(elementStyle.paddingRight)
+        const ruler = document.createElement('span')
+        ruler.style.cssText = 'position:absolute;white-space:pre;visibility:hidden;top:-9999px;left:-9999px'
+        // font 一括指定は line-height などが絡むと空文字になることがあり、
+        // その場合ルーラーが既定書体(16px)で測ってしまい文節幅を大幅に過小評価する(実測)。
+        // 個別プロパティで写す
+        for (const property of [
+          'fontFamily',
+          'fontSize',
+          'fontWeight',
+          'fontStyle',
+          'fontStretch',
+          'fontFeatureSettings',
+          'letterSpacing',
+          'textTransform',
+        ]) {
+          ruler.style[property] = elementStyle[property]
         }
+        document.body.appendChild(ruler)
+        const widthOf = (text) => {
+          ruler.textContent = text
+          return ruler.getBoundingClientRect().width
+        }
+
+        for (let index = 1; index < lines.length; index += 1) {
+          const startIndex = lines[index].startIndex
+          if (allowedBreaks.has(startIndex)) continue
+          const before = lines[index - 1].text[lines[index - 1].text.length - 1]
+          const after = lines[index].text[0]
+          if (!isLetter(before) || !isLetter(after)) continue
+
+          const chunk = chunkAround(startIndex - 1)
+          const label = `…${lines[index - 1].text.slice(-4)} / ${lines[index].text.slice(0, 4)}…`
+          if (widthOf(chunk) > contentWidth) {
+            forcedBreaks.push(`${label} (語幅${Math.round(widthOf(chunk))}px > 枠${Math.round(contentWidth)}px)`)
+          } else {
+            badBreaks.push(label)
+          }
+        }
+        ruler.remove()
       }
-      ruler.remove()
 
       const kinsokuStart = []
       const kinsokuEnd = []
