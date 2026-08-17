@@ -376,6 +376,13 @@
   cursor: pointer;
 }
 
+/* 既定の :focus-visible(global.css)は outline-offset: 3px で外側に描くが、このボタンは
+   inset: 0 で .shot(overflow: hidden)と縁が完全に一致するため、外側の輪郭が親に切り取られて
+   見えなくなる。負のオフセットでボタン内側に描き直し、常に見える位置に固定する */
+.shotTrigger:focus-visible {
+  outline-offset: -3px;
+}
+
 /* 読み上げ専用テキスト。ボタンのアクセシブルネームだけを持つ */
 .srOnly {
   position: absolute;
