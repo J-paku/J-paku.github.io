@@ -40,7 +40,7 @@ const makeContent = (overrides: Partial<Content> = {}): Content => ({
       showDetail: 'showDetail',
       hideDetail: 'hideDetail',
     },
-    workStory: { back: 'back', viewScene: 'viewScene', close: 'close', prevScene: 'prevScene', nextScene: 'nextScene' },
+    workStory: { back: 'back', viewScene: 'viewScene', close: 'close', prevScene: 'prevScene', nextScene: 'nextScene', pauseScene: 'pauseScene', resumeScene: 'resumeScene' },
     notFound: { title: 'notFound', body: 'body', backHome: 'backHome' },
     colophon: { copyright: 'copyright', credit: 'credit' },
   },
@@ -93,8 +93,8 @@ describe('mergeContent — 文字列・配列の空値フォールバック', ()
   })
 
   it('17: ui.workStory.backが空ならja値を採用する', () => {
-    const ja = makeContent({ ui: { ...makeContent().ui, workStory: { back: 'ja-back', viewScene: 'viewScene', close: 'close', prevScene: 'prevScene', nextScene: 'nextScene' } } })
-    const ko = makeContent({ ui: { ...makeContent().ui, workStory: { back: '', viewScene: 'viewScene', close: 'close', prevScene: 'prevScene', nextScene: 'nextScene' } } })
+    const ja = makeContent({ ui: { ...makeContent().ui, workStory: { back: 'ja-back', viewScene: 'viewScene', close: 'close', prevScene: 'prevScene', nextScene: 'nextScene', pauseScene: 'pauseScene', resumeScene: 'resumeScene' } } })
+    const ko = makeContent({ ui: { ...makeContent().ui, workStory: { back: '', viewScene: 'viewScene', close: 'close', prevScene: 'prevScene', nextScene: 'nextScene', pauseScene: 'pauseScene', resumeScene: 'resumeScene' } } })
     expect(mergeContent(ja, ko).ui.workStory.back).toBe('ja-back')
   })
 

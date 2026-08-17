@@ -38,6 +38,8 @@ export const ui: UiStrings = {
     close: '닫기',
     prevScene: '이전 장면',
     nextScene: '다음 장면',
+    pauseScene: '자동 넘김 일시정지',
+    resumeScene: '자동 넘김 재개',
   },
   colophon: {
     copyright: '© 2026 朴 裁弘',

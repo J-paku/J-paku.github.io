@@ -35,7 +35,16 @@ export type UiStrings = {
   // viewScene: 場面プレビューを開く全画面モーダルのトリガー文言
   // close: モーダル右上の閉じるボタンの読み上げ名
   // prevScene/nextScene: モーダル内の場面切り替えボタンの読み上げ名
-  workStory: { back: string; viewScene: string; close: string; prevScene: string; nextScene: string }
+  // pauseScene/resumeScene: モーダル左上の自動送り一時停止/再開トグルの読み上げ名(WCAG 2.2.2)
+  workStory: {
+    back: string
+    viewScene: string
+    close: string
+    prevScene: string
+    nextScene: string
+    pauseScene: string
+    resumeScene: string
+  }
   notFound: { title: string; body: string; backHome: string }
   // ページ最下部の奥付(10段階)。著作権表記とデザイン出自の1行
   colophon: { copyright: string; credit: string }

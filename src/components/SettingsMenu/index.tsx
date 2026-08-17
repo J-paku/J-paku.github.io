@@ -73,7 +73,6 @@ function SettingsMenu() {
         ref={buttonRef}
         type='button'
         className={styles.trigger}
-        aria-haspopup='true'
         aria-expanded={open}
         aria-label={ui.settingsMenu.label}
         onClick={() => setOpen((prev) => !prev)}
@@ -90,7 +89,7 @@ function SettingsMenu() {
                 key={item}
                 to={switchTo(item)}
                 className={styles.optionLink}
-                aria-current={item === locale ? 'true' : undefined}
+                aria-current={item === locale ? 'page' : undefined}
                 onClick={closeAndFocusTrigger}
               >
                 {ui.localeMenu[item]}
