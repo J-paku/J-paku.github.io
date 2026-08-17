@@ -35,6 +35,8 @@ type SceneModalProps = {
   closeLabel: string
   prevLabel: string
   nextLabel: string
+  pauseLabel: string
+  resumeLabel: string
   onClose: () => void
 }
 
@@ -84,7 +86,42 @@ function NextIcon() {
   )
 }
 
-function SceneModal({ scenes, initialIndex, placeholder, closeLabel, prevLabel, nextLabel, onClose }: SceneModalProps) {
+// 装飾専用の一時停止アイコン(縦棒2本)。読み上げはボタンの aria-label が担うため aria-hidden
+function PauseIcon() {
+  return (
+    <svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' className={styles.autoAdvanceIcon}>
+      <path fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' d='M8 5v14M16 5v14' />
+    </svg>
+  )
+}
+
+// 装飾専用の再開アイコン(再生三角)。読み上げはボタンの aria-label が担うため aria-hidden
+function PlayIcon() {
+  return (
+    <svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' className={styles.autoAdvanceIcon}>
+      <path
+        fill='none'
+        stroke='currentColor'
+        strokeWidth='2'
+        strokeLinecap='round'
+        strokeLinejoin='round'
+        d='M7 5l12 7-12 7z'
+      />
+    </svg>
+  )
+}
+
+function SceneModal({
+  scenes,
+  initialIndex,
+  placeholder,
+  closeLabel,
+  prevLabel,
+  nextLabel,
+  pauseLabel,
+  resumeLabel,
+  onClose,
+}: SceneModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const prevButtonRef = useRef<HTMLButtonElement>(null)
@@ -96,6 +133,10 @@ function SceneModal({ scenes, initialIndex, placeholder, closeLabel, prevLabel, 
   const scene = scenes[activeIndex]
   const isFirst = activeIndex === 0
   const isLast = activeIndex === scenes.length - 1
+
+  // 自動送りの一時停止フラグ(WCAG 2.2.2 対応)。activeIndex とは独立した state のため、
+  // 手動での場面送り(handlePrev/handleNext)を挟んでも一時停止状態はそのまま保持される
+  const [isAutoAdvancePaused, setIsAutoAdvancePaused] = useState(false)
 
   // マウント時にネイティブモーダルとして開き、閉じるボタンへフォーカスを移す。
   // StrictMode の二重実行対策として、既に open な場合は showModal を呼び直さない
@@ -163,6 +204,8 @@ function SceneModal({ scenes, initialIndex, placeholder, closeLabel, prevLabel, 
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     // reduced motion環境ではSVGアニメーション自体が停止しているため、時間経過での自動送りに意味がない
     if (prefersReducedMotion) return
+    // ユーザーが一時停止トグルを操作している間は自動送りを止める(WCAG 2.2.2 の停止手段)
+    if (isAutoAdvancePaused) return
 
     const duration = SCENE_ANIMATION_DURATIONS_MS[scene.id] ?? DEFAULT_SCENE_ANIMATION_DURATION_MS
     const timerId = window.setTimeout(() => {
@@ -172,7 +215,7 @@ function SceneModal({ scenes, initialIndex, placeholder, closeLabel, prevLabel, 
     }, duration)
 
     return () => window.clearTimeout(timerId)
-  }, [activeIndex, scene.id, scenes.length])
+  }, [activeIndex, scene.id, scenes.length, isAutoAdvancePaused])
 
   function handlePrev() {
     if (isFirst) return
@@ -188,6 +231,10 @@ function SceneModal({ scenes, initialIndex, placeholder, closeLabel, prevLabel, 
     setActiveIndex(targetIndex)
   }
 
+  function handleToggleAutoAdvance() {
+    setIsAutoAdvancePaused((prev) => !prev)
+  }
+
   return (
     <dialog
       ref={dialogRef}
@@ -197,6 +244,18 @@ function SceneModal({ scenes, initialIndex, placeholder, closeLabel, prevLabel, 
       onCancel={onClose}
     >
       <div className={styles.panel}>
+        {/* 自動送りの一時停止/再開トグル(WCAG 2.2.2)。WAI-ARIA APGのカルーセル回転停止コントロールに倣い、
+            状態表現は aria-label の文言差し替えのみで行う — aria-pressed を併用すると、停止中に
+            「再開、押されています」と読み上げられ意味が矛盾するため付けない */}
+        <button
+          type='button'
+          className={styles.autoAdvanceToggle}
+          aria-label={isAutoAdvancePaused ? resumeLabel : pauseLabel}
+          onClick={handleToggleAutoAdvance}
+        >
+          {isAutoAdvancePaused ? <PlayIcon /> : <PauseIcon />}
+        </button>
+
         <button
           ref={closeButtonRef}
           type='button'

@@ -125,7 +125,13 @@ function WorkCard({ work, index }: WorkCardProps) {
         {hasOverlay ? (
           /* 常に描画し、表示は CSS が切り替える(隠れている間も pointer-events: none でクリックを透過)。
              タブ移動でリンクへ入れば focus-within で現れるため、キーボードでも到達できる。
-             覆いのどこを押しても閉じる。リンク自身のクリックは遷移した上で覆いも閉じるので分岐不要 */
+             覆いのどこを押しても閉じる。リンク自身のクリックは遷移した上で覆いも閉じるので分岐不要。
+             このdivの onClick はポインタ・タッチ専用の便宜(空白部分タップでの寄せ閉じ)であり、
+             同じ機能(setIsLinksOpen(false))は shotTrigger の再押下(aria-expanded トグル)と
+             上のEscapeハンドラで既にキーボードから到達できる — WCAG 2.1.1 は満たしている。
+             ここに role='button'+tabIndex を足さないのは意図的: 中に実体の <a>/<Link> を
+             抱えているため、外側まで操作可能ロールにすると axe の nested-interactive
+             (WCAG 4.1.2・配信ゲート対象)に抵触する */
           <div
             className={isLinksOpen ? `${styles.shotOverlay} ${styles.shotOverlayOpen}` : styles.shotOverlay}
             onClick={() => setIsLinksOpen(false)}

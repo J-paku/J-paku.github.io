@@ -83,6 +83,33 @@
   height: 1.25rem;
 }
 
+/* 左上の自動送り一時停止/再開トグル。.close と対称の位置に置き、同じ見た目言語(スクリムに馴染む半透明の暗色)で揃える */
+.autoAdvanceToggle {
+  position: absolute;
+  top: calc(-1 * var(--space-xl));
+  left: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background-color: color-mix(in srgb, var(--color-scrim) 60%, transparent);
+  color: var(--color-scrim-ink);
+  cursor: pointer;
+  transition: background-color var(--motion);
+}
+
+.autoAdvanceToggle:hover {
+  background-color: color-mix(in srgb, var(--color-scrim) 85%, transparent);
+}
+
+.autoAdvanceIcon {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
 /* 場面送りのコントロール行。frameWrap の下、panel の幅いっぱいに中央寄せで置く
    (frameWrap 自体は 120px まで縮む可能性があるため、ボタン+カウンタの取り回しに幅を持たせる) */
 .controls {
@@ -168,6 +195,10 @@
   }
 
   .close {
+    top: calc(-1 * var(--space-lg));
+  }
+
+  .autoAdvanceToggle {
     top: calc(-1 * var(--space-lg));
   }
 }

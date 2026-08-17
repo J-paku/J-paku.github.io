@@ -132,6 +132,8 @@ function WorkStory() {
           closeLabel={ui.workStory.close}
           prevLabel={ui.workStory.prevScene}
           nextLabel={ui.workStory.nextScene}
+          pauseLabel={ui.workStory.pauseScene}
+          resumeLabel={ui.workStory.resumeScene}
           onClose={handleCloseScene}
         />
       ) : null}
