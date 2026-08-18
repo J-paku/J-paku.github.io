@@ -66,7 +66,7 @@ for (const targetPath of targetPaths) {
   await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 })
   await page.waitForTimeout(600)
 
-  // 描画済みDOMから (family, 太さ) ごとの文字集合を採る一手順。状態(閉じ/開き)ごとに
+  // 描画済みDOMから (family, 太さ) ごとの文字集合を採る一手順。トグルを1つ開くたびに
   // 呼び出し、結果を合集合にするため関数として切り出す
   const collectGlyphs = () =>
     page.evaluate(
@@ -104,15 +104,29 @@ for (const targetPath of targetPaths) {
 
   // 1巡目: 初期状態(詳細トグルは畳まれ、設定メニューも閉じている)。'詳しく見る' などの
   // 畳み状態の文言はここでしか拾えない
-  const initialCollected = await collectGlyphs()
+  const passes = [await collectGlyphs()]
 
   // 折りたたまれた詳細(WorkDetail など)は hidden 属性で畳まれている — DOMに文字が存在していても
   // 非表示のままでは採取できないため、開閉トグルを全て一度開いておく。
   // 設定メニューのボタンは aria-controls を持つことがあるので、aria-haspopup=true 側は除外する
+  //
+  // クリックを全部済ませてから1回だけ採るのではなく、1つ開くたびに採って合集合へ足す。
+  // 経歴の詳細トグルは排他(3件のうち1件だけが右列に出る)なので、まとめて開いてから採ると
+  // 最後にクリックした1件の文字しか採れず、残り2件の文字はサブセットから漏れる。
+  // 漏れた側は被覆検査にも現れないため PASS 方向に間違う(03-pitfalls #5・#7 と同じ壊れ方)
   const detailToggles = await page.$$('button[aria-controls]:not([aria-haspopup=true])')
   for (const toggle of detailToggles) {
+    // 経歴トリガーを押すと作品一覧パネルが hidden になるため、その中にある後続のトグルは
+    // 不可視になりクリックがタイムアウトして検査自体が落ちる。押す直前に祖先の hidden だけ
+    // 外して押せる状態へ戻す(最後の一括解除と同じ処置。開いた中身の採取にも要る)
+    await toggle.evaluate((el) => {
+      for (let node = el.parentElement; node !== null; node = node.parentElement) {
+        if (node.hasAttribute('hidden')) node.removeAttribute('hidden')
+      }
+    })
     await toggle.click()
     await page.waitForTimeout(200)
+    passes.push(await collectGlyphs())
   }
 
   // 詳細トグルには外側クリックで閉じる仕組みが無く、先に開いても後続の操作の影響を受けない。
@@ -133,18 +147,19 @@ for (const targetPath of targetPaths) {
   })
   await page.waitForTimeout(200)
 
-  // 2巡目: 詳細トグル・設定メニュー・hidden を全て開いた状態。'閉じる' など開き状態でだけ
+  // 最終パス: 詳細トグル・設定メニュー・hidden を全て開いた状態。'閉じる' など開き状態でだけ
   // 入れ替わる文言はここでしか拾えない
-  const expandedCollected = await collectGlyphs()
+  passes.push(await collectGlyphs())
 
-  // 閉じ状態・開き状態の両方を合集合にする。同じ (family, 太さ) キーへ文字列を連結するだけで、
+  // 全ての状態の採取結果を合集合にする。同じ (family, 太さ) キーへ文字列を連結するだけで、
   // 重複文字の除去は jobs 構築時の `[...new Set(chars)]`(下流)に任せる
-  for (const pass of [initialCollected, expandedCollected]) {
+  const mergedKeys = new Set()
+  for (const pass of passes) {
     for (const [key, chars] of Object.entries(pass)) {
       buckets[key] = (buckets[key] ?? '') + chars
+      mergedKeys.add(key)
     }
   }
-  const mergedKeys = new Set([...Object.keys(initialCollected), ...Object.keys(expandedCollected)])
   console.log(`[採取] ${targetPath} — ${mergedKeys.size}系統`)
   await page.close()
 }
