@@ -67,7 +67,7 @@ for (const targetPath of targetPaths) {
 
   // DOMを1回だけスキャンする方式だと、状態によって文言が入れ替わるトグル
   // (畳んだ状態の '詳しく見る' ⇔ 開いた状態の '閉じる' など)は片方しかDOMに存在せず、
-  // もう片方の文言が検査対象から漏れる。そのため閉状態・開状態の両方でスキャンし、
+  // もう片方の文言が検査対象から漏れる。そのためトグルを1つ開くたびにスキャンし、
   // 文字を合集合にしてから判定する。判定ロジック自体(resolve など)はここでは変えない
   const scanGlyphs = () =>
     page.evaluate((coverageEntries) => {
@@ -154,15 +154,29 @@ for (const targetPath of targetPaths) {
 
   // 1巡目: 初期状態(詳細は畳まれ、設定メニューも閉じている)。'詳しく見る' などの
   // 畳み状態の文言はここでしか拾えない
-  const initialScan = await scanGlyphs()
+  const scans = [await scanGlyphs()]
 
   // 折りたたまれた詳細(WorkDetail など)は hidden 属性で畳まれている — DOMに文字が存在していても
   // 非表示のままでは被覆漏れを検出できないため、開閉トグルを全て一度開いておく。
   // 設定メニューのボタンは aria-controls を持つことがあるので、aria-haspopup=true 側は除外する
+  //
+  // クリックを全部済ませてから1回だけ走査するのではなく、1つ開くたびに走査して合集合へ足す。
+  // 経歴の詳細トグルは排他(3件のうち1件だけが右列に出る)なので、まとめて開いてから走査すると
+  // 最後にクリックした1件の文字しか検査されず、残り2件はサブセットから落ちていても検査に
+  // 現れない — つまり PASS 方向に間違う(03-pitfalls #5・#7 と同じ壊れ方)
   const detailToggles = await page.$$('button[aria-controls]:not([aria-haspopup=true])')
   for (const toggle of detailToggles) {
+    // 経歴トリガーを押すと作品一覧パネルが hidden になるため、その中にある後続のトグルは
+    // 不可視になりクリックがタイムアウトして検査自体が落ちる。押す直前に祖先の hidden だけ
+    // 外して押せる状態へ戻す(最後の一括解除と同じ処置。開いた中身の採取にも要る)
+    await toggle.evaluate((el) => {
+      for (let node = el.parentElement; node !== null; node = node.parentElement) {
+        if (node.hasAttribute('hidden')) node.removeAttribute('hidden')
+      }
+    })
     await toggle.click()
     await page.waitForTimeout(200)
+    scans.push(await scanGlyphs())
   }
 
   // 詳細トグルには外側クリックで閉じる仕組みが無く、先に開いても後続の操作の影響を受けない。
@@ -182,22 +196,26 @@ for (const targetPath of targetPaths) {
   })
   await page.waitForTimeout(200)
 
-  // 2巡目: 詳細トグル・設定メニューを開いた状態。'閉じる' など開き状態でだけ入れ替わる
+  // 最終パス: 詳細トグル・設定メニューを開いた状態。'閉じる' など開き状態でだけ入れ替わる
   // 文言や、パネル内の文字(言語を選択・テーマを切り替え等)はここで拾う
-  const expandedScan = await scanGlyphs()
+  scans.push(await scanGlyphs())
 
-  // 2巡のスキャンを文字+フォントチェーン単位の合集合にする。同じ組み合わせが両状態にあれば
-  // 1件に畳み、どちらかの状態で不合格だった組み合わせは合格側があっても不合格を優先する
+  // 全パスのスキャンを文字+フォントチェーン単位の合集合にする。同じ組み合わせが複数の状態に
+  // あれば1件に畳み、どれか1つの状態で不合格だった組み合わせは合格側があっても不合格を優先する
   // (検出漏れを防ぐのがこの合集合の目的なので、より厳しい判定を残す)
   const guardedByKey = new Map()
-  for (const item of [...initialScan.guarded, ...expandedScan.guarded]) {
-    guardedByKey.set(`${item.char} ${item.chainHead}`, item)
+  for (const scan of scans) {
+    for (const item of scan.guarded) {
+      guardedByKey.set(`${item.char} ${item.chainHead}`, item)
+    }
   }
   const failuresByKey = new Map()
-  for (const item of [...initialScan.failures, ...expandedScan.failures]) {
-    const key = `${item.char} ${item.chainHead}`
-    guardedByKey.delete(key)
-    failuresByKey.set(key, item)
+  for (const scan of scans) {
+    for (const item of scan.failures) {
+      const key = `${item.char} ${item.chainHead}`
+      guardedByKey.delete(key)
+      failuresByKey.set(key, item)
+    }
   }
   const result = { guarded: [...guardedByKey.values()], failures: [...failuresByKey.values()] }
 
