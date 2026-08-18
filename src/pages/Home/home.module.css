@@ -12,6 +12,21 @@
   min-height: 100vh;
 }
 
+/*
+ * 右列の器(11段階)。タブ列と2枚のパネルを縦に積むだけで、余白・書体は各パネルが持つ。
+ * grid の列は minmax(0, 1fr) だが、器自身も min-width: auto のままだと中身の最小幅で
+ * 押し広げられるため 0 を明示する(旧 grid 直下だった .works と同じ指定)
+ */
+.panels {
+  min-width: 0;
+}
+
+/* 非表示側のパネルは hidden 属性で隠す。UA 既定の display: none を各パネルの
+   モジュール指定が上書きしないよう、器の側でも直下の子に限って明示する */
+.panels > [hidden] {
+  display: none;
+}
+
 /* モックアップと同じ 1024px で1列に畳む */
 @media (max-width: 1024px) {
   .layout {

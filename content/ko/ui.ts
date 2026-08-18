@@ -41,6 +41,17 @@ export const ui: UiStrings = {
     pauseScene: '자동 넘김 일시정지',
     resumeScene: '자동 넘김 재개',
   },
+  // 左列の経歴から右列に差し替える担当業務詳細パネルの文言(11段階)。作品一覧タブのラベルは work.index を再利用する
+  career: {
+    openDetail: '담당 업무 상세',
+    tabDetail: '담당 업무',
+    backToWorks: '작품 목록으로 돌아가기',
+    roleDesign: '설계',
+    roleBuild: '구현',
+    roleRelease: '릴리스',
+    roleOwned: '담당',
+    roleNotOwned: '미담당',
+  },
   colophon: {
     copyright: '© 2026 朴 裁弘',
     credit: 'Design explored with Variant',

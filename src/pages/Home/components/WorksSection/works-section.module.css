@@ -9,6 +9,12 @@
   min-width: 0;
 }
 
+/* 非表示側のパネルは hidden 属性で隠す。UA 既定の display:none をこのモジュールの
+   指定が上書きしないよう、同じ詳細度以上で明示する */
+.works[hidden] {
+  display: none;
+}
+
 /* ヘッダーバー。左 = 索引文言、右 = 言語+テーマ。下に全幅のヘアライン */
 .header {
   display: flex;
