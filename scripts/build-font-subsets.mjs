@@ -59,109 +59,131 @@ const BASENAME = {
 // セレクタでは分類しない — 準備中バッジのように h3 の中に別書体・別太さの要素が入ると、
 // セレクタ基準の分類が取りこぼす(実際に取りこぼして合成ボールドになっていた)。
 // computed font-family のチェーンを見て「その文字を受け持つ自己ホスト書体」を決める
+
+// なぜ広い幅と狭い幅の両方を回すか: 経歴パネル先頭の「作品一覧へ戻る」ボタンは
+// CSS で 1024px 以下でしか display:inline-flex にならないモバイル専用要素で、
+// 広い幅だけで採ると、その文言の文字がまるごとサブセットから漏れる。漏れた文字は
+// システムフォントへ落ちても採取側は気づけない(PASS 方向に間違う壊れ方 — 03-pitfalls #5・#7 と同型)
+const VIEWPORTS = [
+  { label: 'wide', width: 1440, height: 900 },
+  { label: 'narrow', width: 390, height: 844 },
+]
+
 const buckets = {}
 for (const targetPath of targetPaths) {
   const url = new URL(targetPath, baseUrl).href
-  const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' })
-  await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 })
-  await page.waitForTimeout(600)
 
-  // 描画済みDOMから (family, 太さ) ごとの文字集合を採る一手順。トグルを1つ開くたびに
-  // 呼び出し、結果を合集合にするため関数として切り出す
-  const collectGlyphs = () =>
-    page.evaluate(
-      ({ cjkFamilies, latinOwners }) => {
-        const out = {}
-        const add = (family, weight, char) => {
-          const key = `${family}|${weight}`
-          out[key] = (out[key] ?? '') + char
-        }
-        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
-        for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
-          const element = node.parentElement
-          if (element === null) continue
-          const style = getComputedStyle(element)
-          if (style.display === 'none' || style.visibility === 'hidden') continue
-          const families = style.fontFamily.split(',').map((item) => item.trim().replace(/^['"]|['"]$/g, ''))
-          const weight = style.fontWeight
-          const cjkFamily = families.find((family) => cjkFamilies.includes(family))
-          const latinFamily = latinOwners.includes(families[0]) ? families[0] : undefined
-          for (const char of node.textContent ?? '') {
-            if (char.trim() === '') continue
-            const code = char.codePointAt(0)
-            if (code === undefined) continue
-            if (code > 0x7f) {
-              if (cjkFamily !== undefined) add(cjkFamily, weight, char)
-            } else if (latinFamily !== undefined) {
-              add(latinFamily, weight, char)
+  for (const viewport of VIEWPORTS) {
+    // 幅を跨ぐたびにページを開き直し、前の幅で開いたトグル・メニューの状態を引きずらない
+    const page = await browser.newPage({
+      viewport: { width: viewport.width, height: viewport.height },
+      reducedMotion: 'reduce',
+    })
+    await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 })
+    await page.waitForTimeout(600)
+
+    // 描画済みDOMから (family, 太さ) ごとの文字集合を採る一手順。トグルを1つ開くたびに
+    // 呼び出し、結果を合集合にするため関数として切り出す
+    const collectGlyphs = () =>
+      page.evaluate(
+        ({ cjkFamilies, latinOwners }) => {
+          const out = {}
+          const add = (family, weight, char) => {
+            const key = `${family}|${weight}`
+            out[key] = (out[key] ?? '') + char
+          }
+          const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
+          for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+            const element = node.parentElement
+            if (element === null) continue
+            const style = getComputedStyle(element)
+            if (style.display === 'none' || style.visibility === 'hidden') continue
+            const families = style.fontFamily.split(',').map((item) => item.trim().replace(/^['"]|['"]$/g, ''))
+            const weight = style.fontWeight
+            const cjkFamily = families.find((family) => cjkFamilies.includes(family))
+            const latinFamily = latinOwners.includes(families[0]) ? families[0] : undefined
+            for (const char of node.textContent ?? '') {
+              if (char.trim() === '') continue
+              const code = char.codePointAt(0)
+              if (code === undefined) continue
+              if (code > 0x7f) {
+                if (cjkFamily !== undefined) add(cjkFamily, weight, char)
+              } else if (latinFamily !== undefined) {
+                add(latinFamily, weight, char)
+              }
             }
           }
+          return out
+        },
+        { cjkFamilies: CJK_FAMILIES, latinOwners: LATIN_OWNERS },
+      )
+
+    // 1巡目: 初期状態(詳細トグルは畳まれ、設定メニューも閉じている)。'詳しく見る' などの
+    // 畳み状態の文言はここでしか拾えない
+    const passes = [await collectGlyphs()]
+
+    // 折りたたまれた詳細(WorkDetail など)は hidden 属性で畳まれている — DOMに文字が存在していても
+    // 非表示のままでは採取できないため、開閉トグルを全て一度開いておく。
+    // 設定メニューのボタンは aria-controls を持つことがあるので、aria-haspopup=true 側は除外する
+    //
+    // クリックを全部済ませてから1回だけ採るのではなく、1つ開くたびに採って合集合へ足す。
+    // 経歴の詳細トグルは排他(3件のうち1件だけが右列に出る)なので、まとめて開いてから採ると
+    // 最後にクリックした1件の文字しか採れず、残り2件の文字はサブセットから漏れる。
+    // 漏れた側は被覆検査にも現れないため PASS 方向に間違う(03-pitfalls #5・#7 と同じ壊れ方)
+    const detailToggles = await page.$$('button[aria-controls]:not([aria-haspopup=true])')
+    for (const toggle of detailToggles) {
+      // 経歴トリガーを押すと作品一覧パネルが hidden になるため、その中にある後続のトグルは
+      // 不可視になりクリックがタイムアウトして検査自体が落ちる。押す直前に祖先の hidden だけ
+      // 外して押せる状態へ戻す(最後の一括解除と同じ処置。開いた中身の採取にも要る)
+      await toggle.evaluate((el) => {
+        for (let node = el.parentElement; node !== null; node = node.parentElement) {
+          if (node.hasAttribute('hidden')) node.removeAttribute('hidden')
         }
-        return out
-      },
-      { cjkFamilies: CJK_FAMILIES, latinOwners: LATIN_OWNERS },
-    )
-
-  // 1巡目: 初期状態(詳細トグルは畳まれ、設定メニューも閉じている)。'詳しく見る' などの
-  // 畳み状態の文言はここでしか拾えない
-  const passes = [await collectGlyphs()]
-
-  // 折りたたまれた詳細(WorkDetail など)は hidden 属性で畳まれている — DOMに文字が存在していても
-  // 非表示のままでは採取できないため、開閉トグルを全て一度開いておく。
-  // 設定メニューのボタンは aria-controls を持つことがあるので、aria-haspopup=true 側は除外する
-  //
-  // クリックを全部済ませてから1回だけ採るのではなく、1つ開くたびに採って合集合へ足す。
-  // 経歴の詳細トグルは排他(3件のうち1件だけが右列に出る)なので、まとめて開いてから採ると
-  // 最後にクリックした1件の文字しか採れず、残り2件の文字はサブセットから漏れる。
-  // 漏れた側は被覆検査にも現れないため PASS 方向に間違う(03-pitfalls #5・#7 と同じ壊れ方)
-  const detailToggles = await page.$$('button[aria-controls]:not([aria-haspopup=true])')
-  for (const toggle of detailToggles) {
-    // 経歴トリガーを押すと作品一覧パネルが hidden になるため、その中にある後続のトグルは
-    // 不可視になりクリックがタイムアウトして検査自体が落ちる。押す直前に祖先の hidden だけ
-    // 外して押せる状態へ戻す(最後の一括解除と同じ処置。開いた中身の採取にも要る)
-    await toggle.evaluate((el) => {
-      for (let node = el.parentElement; node !== null; node = node.parentElement) {
-        if (node.hasAttribute('hidden')) node.removeAttribute('hidden')
-      }
-    })
-    await toggle.click()
-    await page.waitForTimeout(200)
-    passes.push(await collectGlyphs())
-  }
-
-  // 詳細トグルには外側クリックで閉じる仕組みが無く、先に開いても後続の操作の影響を受けない。
-  // 一方 SettingsMenu は外側 pointerdown で自動的に閉じるため、後から開かないと
-  // 詳細トグルのクリックに巻き込まれて閉じてしまう。だから設定メニューは最後に開く
-  const settingsButton = await page.$('button[aria-haspopup=true]')
-  if (settingsButton !== null) {
-    await settingsButton.click()
-    await page.waitForTimeout(200)
-  }
-
-  // 技術チップのポップオーバー(TechChipPopover)のように hidden 属性で畳まれた文字列は、
-  // 表示状態でなければ採取から漏れる。順にクリックして開く方式では外側クリックで閉じる型は
-  // 最後の1個しか開いたまま残らないため、hidden を一括解除して合集合を保証する — 設定メニューを
-  // 開くのと同じ理由
-  await page.evaluate(() => {
-    document.querySelectorAll('[hidden]').forEach((el) => el.removeAttribute('hidden'))
-  })
-  await page.waitForTimeout(200)
-
-  // 最終パス: 詳細トグル・設定メニュー・hidden を全て開いた状態。'閉じる' など開き状態でだけ
-  // 入れ替わる文言はここでしか拾えない
-  passes.push(await collectGlyphs())
-
-  // 全ての状態の採取結果を合集合にする。同じ (family, 太さ) キーへ文字列を連結するだけで、
-  // 重複文字の除去は jobs 構築時の `[...new Set(chars)]`(下流)に任せる
-  const mergedKeys = new Set()
-  for (const pass of passes) {
-    for (const [key, chars] of Object.entries(pass)) {
-      buckets[key] = (buckets[key] ?? '') + chars
-      mergedKeys.add(key)
+      })
+      // PanelTabs の tab-career/tab-works のように、1024px以下ではCSSで display:none になり
+      // 別の可視トリガー(ProfileColumn の detailTrigger 等)へ役割を譲るボタンがある。
+      // hidden 属性を外しても消えないこの手の不可視は、この幅では実際に押せないので
+      // クリックせずスキップする — 同じパネルへは可視トリガー側からも到達するため取りこぼしはない
+      if (!(await toggle.isVisible())) continue
+      await toggle.click()
+      await page.waitForTimeout(200)
+      passes.push(await collectGlyphs())
     }
+
+    // 詳細トグルには外側クリックで閉じる仕組みが無く、先に開いても後続の操作の影響を受けない。
+    // 一方 SettingsMenu は外側 pointerdown で自動的に閉じるため、後から開かないと
+    // 詳細トグルのクリックに巻き込まれて閉じてしまう。だから設定メニューは最後に開く
+    const settingsButton = await page.$('button[aria-haspopup=true]')
+    if (settingsButton !== null) {
+      await settingsButton.click()
+      await page.waitForTimeout(200)
+    }
+
+    // 技術チップのポップオーバー(TechChipPopover)のように hidden 属性で畳まれた文字列は、
+    // 表示状態でなければ採取から漏れる。順にクリックして開く方式では外側クリックで閉じる型は
+    // 最後の1個しか開いたまま残らないため、hidden を一括解除して合集合を保証する — 設定メニューを
+    // 開くのと同じ理由
+    await page.evaluate(() => {
+      document.querySelectorAll('[hidden]').forEach((el) => el.removeAttribute('hidden'))
+    })
+    await page.waitForTimeout(200)
+
+    // 最終パス: 詳細トグル・設定メニュー・hidden を全て開いた状態。'閉じる' など開き状態でだけ
+    // 入れ替わる文言はここでしか拾えない
+    passes.push(await collectGlyphs())
+
+    // この幅・この経路の全状態の採取結果を合集合にする。同じ (family, 太さ) キーへ
+    // 文字列を連結するだけで、重複文字の除去は jobs 構築時の `[...new Set(chars)]`(下流)に任せる
+    const mergedKeys = new Set()
+    for (const pass of passes) {
+      for (const [key, chars] of Object.entries(pass)) {
+        buckets[key] = (buckets[key] ?? '') + chars
+        mergedKeys.add(key)
+      }
+    }
+    console.log(`[採取] ${targetPath} (${viewport.label} ${viewport.width}px) — ${mergedKeys.size}系統`)
+    await page.close()
   }
-  console.log(`[採取] ${targetPath} — ${mergedKeys.size}系統`)
-  await page.close()
 }
 await browser.close()
 
@@ -296,5 +318,5 @@ ${wrapRange(entry.unicodeRange)};
 })
 writeFileSync(path.join(ROOT_DIR, 'src/styles/fonts.css'), `${header}\n${blocks.join('\n\n')}\n`)
 
-console.log(`build-font-subsets: ${jobs.length - failed}/${jobs.length} 生成 · fonts.css 書き出し`)
+console.log(`build-font-subsets: ${jobs.length - failed}/${jobs.length} 生成(wide+narrow採取) · fonts.css 書き出し`)
 process.exit(failed === 0 ? 0 : 1)
