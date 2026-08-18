@@ -1,0 +1,432 @@
+/*
+ * 担当業務の詳細パネル(11段階)。作品一覧(works-section.module.css)と同じ列の同じ枠へ
+ * 差し替えで入るため、外周の余白はそちらと同値にする。
+ *
+ * 色・書体・間隔は tokens.css の変数だけを参照する。面の階調は既存の3段
+ * (--ground → --surface-cream → 罫線 --rule)に従い、新しい影・角丸は持ち込まない。
+ * 赤(--accent)はラベル専用の約束どおり、キッカー・事実表のラベル・核の縦罫にだけ使う。
+ */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+  padding: 60px 80px;
+  min-width: 0;
+}
+
+/* 非表示側のパネルは hidden 属性で隠す。UA 既定の display:none をこのモジュールの
+   指定が上書きしないよう、同じ詳細度以上で明示する */
+.panel[hidden] {
+  display: none;
+}
+
+/*
+ * 作品一覧への戻り道。1025px以上ではタブが同じ役目を持つので出さない。
+ * 寸法・字送りは左列の詳細トリガー(.detailTrigger)と揃え、押せる高さを 40px 以上確保する
+ */
+.back {
+  display: none;
+  align-self: flex-start;
+  align-items: center;
+  padding: 10px 16px;
+  border: 1px solid var(--rule);
+  background: none;
+  font-family: var(--f-label);
+  font-size: 0.7rem;
+  font-weight: var(--fw-medium);
+  line-height: 1.6;
+  letter-spacing: 0.1em;
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color var(--motion) var(--ease-reveal);
+}
+
+.back:hover {
+  border-color: var(--ink);
+}
+
+/* 見出し塊。社名を h2 に置き、その下に期間と役割の1行を添える */
+.head {
+  min-width: 0;
+}
+
+/* キッカー。左列の PORTFOLIO — 2026 と同じ役割・同じトーン */
+.eyebrow {
+  margin: 0 0 var(--space-sm);
+  font-family: var(--f-mono);
+  font-size: 0.65rem;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* 社名。作品カードの題字と同じ書体・同じ可変指定の考え方を採るが、
+   ページ内で作品題字より上位に見えないよう上限を一段下げる。
+   320px幅では 1.15rem まで縮み、最長の文節(9字=約166px)が枠240pxに収まる */
+.company {
+  margin: 0;
+  font-family: var(--f-title);
+  font-size: clamp(1.15rem, 4.5vw, 1.5rem);
+  font-weight: var(--fw-display);
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.headMeta {
+  margin: var(--space-2xs) 0 0;
+  font-family: var(--f-label);
+  font-size: 0.75rem;
+  line-height: 1.6;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-mid);
+}
+
+/* 総論。一段浮いた面(--surface-cream)に載せ、以降の節と区別する */
+.overview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  min-width: 0;
+  padding: var(--space-md);
+  border: 1px solid var(--rule);
+  background-color: var(--surface-cream);
+}
+
+.overviewTitle {
+  margin: 0;
+  font-family: var(--f-title);
+  font-size: 1.05rem;
+  font-weight: var(--fw-display);
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.overviewMeta {
+  margin: 0;
+  font-family: var(--f-label);
+  font-size: 0.7rem;
+  line-height: 1.6;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-mid);
+}
+
+/* 節の共通骨格(現場フロー・機能一覧・アプリの外でやったこと) */
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+/* 節見出し。作品カードの詳細(work-detail.module.css .sectionTitle)と同じトーンに揃える */
+.blockHeading {
+  margin: 0;
+  padding-bottom: var(--space-2xs);
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--f-label);
+  font-size: 0.7rem;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+/* 節の導入・補足。本文より一段弱い */
+.lead,
+.note {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.7;
+  color: var(--ink-mid);
+}
+
+/* 折り返す本文。行間は 1.5 を下回らせない */
+.body {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.9;
+  color: var(--ink-secondary);
+}
+
+/* 現場フローのコマ列。折り返す前提なので幅は固定しない */
+.flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* コマの器。枠はこの中の span が持つので、送り記号は枠の外側に出る */
+.flowItem {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+/* コマ間の送り記号。文言ではなく装飾なので CSS が持つ(左列の「+」と同じ扱い) */
+.flowItem + .flowItem::before {
+  content: '\203a';
+  margin-right: var(--space-2xs);
+  font-family: var(--f-mono);
+  font-size: 0.7rem;
+  color: var(--ink-mid);
+}
+
+.flowChip,
+.flowChipStrong {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  padding: 4px 10px;
+  border: 1px solid var(--rule);
+  font-size: 0.7rem;
+  line-height: 1.6;
+  letter-spacing: 0.02em;
+  color: var(--ink-mid);
+}
+
+/* 骨格を決めたコマ。枠線と文字の濃さを上げる(強調自体は strong が担う) */
+.flowChipStrong {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.flowStrongText {
+  font-weight: var(--fw-medium);
+}
+
+/* 判断の核。左の縦罫だけで囲みを作り、面は増やさない */
+.core {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  min-width: 0;
+  padding-left: var(--space-md);
+  border-left: 2px solid var(--accent);
+}
+
+.coreClaim {
+  margin: 0;
+  font-family: var(--f-title);
+  font-size: 1rem;
+  font-weight: var(--fw-display);
+  line-height: 1.7;
+  color: var(--ink);
+}
+
+/* 事実の列。ラベル列 + 値列で、行の作りは仕様表(work-spec.module.css)を踏襲する */
+.facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin: 0;
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--rule);
+}
+
+.factRow {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  gap: var(--space-sm);
+  align-items: baseline;
+}
+
+/* 赤はラベル専用。値・本文には使わない */
+.factLabel {
+  font-family: var(--f-label);
+  font-size: 0.65rem;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.factValue {
+  margin: 0;
+  min-width: 0;
+  font-size: 0.85rem;
+  line-height: 1.8;
+  color: var(--ink-secondary);
+}
+
+/* 機能一覧。日付 / 名前 / 技術チップ / 工程バッジの4要素を1行に組む */
+.features {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.feature {
+  display: grid;
+  grid-template-columns: 5rem minmax(0, 1fr) auto;
+  grid-template-areas:
+    'date name roles'
+    'date tech roles';
+  column-gap: var(--space-sm);
+  row-gap: var(--space-2xs);
+  align-items: baseline;
+  min-width: 0;
+  padding: var(--space-sm) 0;
+}
+
+.feature:first-child {
+  padding-top: 0;
+}
+
+.feature + .feature {
+  border-top: 1px solid var(--rule);
+}
+
+.featureDate {
+  grid-area: date;
+  margin: 0;
+  font-family: var(--f-mono);
+  font-size: 0.7rem;
+  line-height: 1.6;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-mid);
+}
+
+.featureName {
+  grid-area: name;
+  margin: 0;
+  min-width: 0;
+  font-size: 0.85rem;
+  font-weight: var(--fw-bold);
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+.featureTech {
+  grid-area: tech;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3xs);
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  list-style: none;
+}
+
+/* 工程バッジ。担当は塗り、担当外は枠だけ — 濃度差だけでなく塗りの有無で分ける。
+   読み上げ側の区別は各バッジ内の .srOnly が担う */
+.roles {
+  grid-area: roles;
+  display: flex;
+  flex-wrap: wrap;
+  align-self: start;
+  gap: var(--space-3xs);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.roleOwned,
+.roleOff {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border: 1px solid transparent;
+  font-family: var(--f-label);
+  font-size: 0.6rem;
+  font-weight: var(--fw-medium);
+  line-height: 1.6;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.roleOwned {
+  border-color: var(--ink);
+  background-color: var(--ink);
+  color: var(--ground);
+}
+
+.roleOff {
+  border-color: var(--rule);
+  color: var(--ink-mid);
+}
+
+/* アプリの外でやったこと。見出し + 本文の対を積む */
+.asides {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.aside {
+  min-width: 0;
+}
+
+.asideTitle {
+  margin: 0 0 var(--space-3xs);
+  font-size: 0.85rem;
+  font-weight: var(--fw-bold);
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+/* 読み上げ専用テキスト。工程バッジに担当・担当外を添えるためだけに置く */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/*
+ * 1列に畳まれる幅。外周の余白は上に積まれる作品一覧(works-section.module.css)と同値にし、
+ * タブが消えるぶん戻り道のボタンをここで出す。
+ * 事実表・機能一覧は列を畳んで縦に積む — ラベル列を残すと値側が狭まり、
+ * 文節が枠に入らなくなって語中で折れる(work-spec.module.css の 360px 分岐と同じ理由)
+ */
+@media (max-width: 1024px) {
+  .panel {
+    padding: 48px 40px 64px;
+  }
+
+  .back {
+    display: inline-flex;
+  }
+
+  .factRow {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3xs);
+  }
+
+  .feature {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'date'
+      'name'
+      'tech'
+      'roles';
+  }
+}
+
+/*
+ * モバイル。文節単位(keep-all + wbr)は狭い幅では行末が凸凹になるため、長文の本文だけ
+ * 標準の字詰めへ切り替える(禁則は line-break: strict が維持)。
+ * 見出し・ラベル・チップは文節単位のまま — work-detail.module.css と同じ切り分け
+ */
+@media (max-width: 767px) {
+  .body,
+  .lead,
+  .note,
+  .factValue {
+    word-break: normal;
+  }
+}

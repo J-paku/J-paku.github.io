@@ -138,6 +138,51 @@
   color: var(--ink-mid);
 }
 
+/* 経歴ごとの詳細トリガー(11段階)。右列を作品一覧からこの経歴の詳細へ差し替える起点。
+   寸法・字送りは同じ小ラベルである .outLink・設定メニューの言語リンクに合わせる。
+   点線の下線は「押せる場所」の符号で、作品カードの詳細トグルと同じ役割を accent が担う */
+.detailTrigger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  /* 上下の詰めは触れる高さを 24px 以上にするため。下だけ浅いのは下線を文字へ寄せるため */
+  padding: 5px 0 3px;
+  margin: var(--space-2xs) 0 0;
+  border: none;
+  border-bottom: 1px dotted var(--accent);
+  background: none;
+  font-family: var(--f-label);
+  font-size: 0.7rem;
+  font-weight: var(--fw-medium);
+  line-height: 1.6;
+  letter-spacing: 0.1em;
+  color: var(--ink-mid);
+  cursor: pointer;
+  transition: color var(--motion) var(--ease-reveal);
+}
+
+.detailTrigger:hover {
+  color: var(--ink);
+}
+
+/* 表示中の経歴。現在地の見せ方は設定メニューの言語リンク(aria-current)と同じく
+   文字を --ink まで上げて下線を引く。線種も点線から実線へ変えるので、色で判別できなくても分かる */
+.detailTrigger[aria-current='true'] {
+  border-bottom-style: solid;
+  border-bottom-color: var(--ink);
+  color: var(--ink);
+}
+
+/* 読み上げ専用テキスト。ボタンのアクセシブルネームへ社名を足すためだけに置く */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 /* 下塊 — space-between のもう一方の端。列の底に落ちる */
 .out {
   display: flex;

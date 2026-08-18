@@ -13,6 +13,7 @@ export const profile: Profile = {
   },
   careers: [
     {
+      id: 'current',
       // ※회사명은 비공개로 두고 업종 표기. 공개해도 무방하면 이 줄을 교체
       company: '의료·간병용품 상사(사내 시스템 개발)',
       period: '2025.01 - 현재',
@@ -27,12 +28,145 @@ export const profile: Profile = {
         'AI 에이전트 개발 환경(하네스)을 자작해 팀에 배포·정착까지 담당',
         '설계 규약을 문서화하고 hook으로 기계 강제하는 운용으로 전환',
       ],
+      detail: {
+        overview: {
+          title: '사내 업무 슈퍼앱',
+          body: '현장 업무를 iPhone 1대로 돌린다. 기능을 계속 더해가는 사내 배포형 앱.',
+          meta: '2025.06 착수 · 2025.12 본운용 · 운용 중(14개월)',
+        },
+        origin: {
+          heading: '앱의 골격을 만든 첫 기능 — 등원 세트',
+          lead: '유치원에 소모품을 납품하는 서비스',
+          flow: [
+            { label: '이동' },
+            { label: '납품' },
+            { label: '앱 실행' },
+            { label: '위치정보로 거래처 자동 판정', emphasis: true },
+            { label: '납품 입력' },
+            { label: '서멀 프린터로 납품서 실제 인쇄', emphasis: true },
+            { label: '붙이고 다음으로' },
+          ],
+          note: '축적된 데이터는 사업 분석으로 이어진다.',
+        },
+        core: {
+          claim: '이 기능을 만드는 과정에서 앱 전체의 구성이 정해졌다.',
+          body: '2025.06에 PWA로 착수했다가 2025.07에 철회했다. Safari가 Web Bluetooth API를 지원하지 않았다. Web UI는 그대로 WKWebView에 얹고, 통신부만 네이티브로 남겼다. 이 구성이 이후 모든 기능의 토대가 됐다.',
+        },
+        facts: [
+          {
+            label: '구성',
+            value: 'Next.js Web UI / WKWebView / BLE 프린터 SDK(네이티브) / Pleasanter API / Microsoft Intune',
+          },
+          {
+            label: '담당 범위',
+            value: '과제 정의 · 설계 · 구현 · 배포 기반 정비 · 운용 · 개선',
+          },
+          {
+            label: '통신량',
+            value: '납품 화면이 받던 API 응답이 220KB → 1.2KB. 서버 부하와 앱 반응 시간이 동시에 내려갔다',
+          },
+          {
+            label: '인쇄 속도',
+            value: '납품 등록 조작부터 납품서 인쇄 완료까지 2초 이내',
+          },
+          {
+            label: '장비',
+            value: 'Windows 태블릿과 세트로 쓰던 서멀 프린터째로 불필요해졌다. 180g BLE 프린터 1대로 현장이 돌아간다',
+          },
+          {
+            label: '처음',
+            value: 'React, Swift — 앱 전체가 이 2가지의 첫 실전이었다',
+          },
+        ],
+        features: {
+          heading: '기능 일람',
+          lead: '착수 기준 / 릴리스는 운영 반영 기준',
+          items: [
+            {
+              date: '2025.06',
+              name: '등원 세트',
+              tech: ['BLE SDK', 'WKWebView'],
+              roles: ['design', 'build', 'release'],
+            },
+            {
+              date: '2025.10',
+              name: '클레임 보고',
+              tech: ['REST'],
+              roles: ['design', 'build', 'release'],
+            },
+            {
+              date: '2025.10',
+              name: 'AI 영업일보',
+              tech: ['REST'],
+              roles: ['design', 'release'],
+            },
+            {
+              date: '2026.01',
+              name: '레터팩 재고 관리',
+              tech: ['QR'],
+              roles: ['design', 'build', 'release'],
+            },
+            {
+              date: '2026.03',
+              name: '정기 배송 관리',
+              tech: ['.NET 레거시 이관'],
+              roles: ['design', 'build', 'release'],
+            },
+            {
+              date: '2026.04',
+              name: '명함 관리',
+              tech: ['Gemini', 'AVFoundation'],
+              roles: ['design', 'build', 'release'],
+            },
+            {
+              date: '2026.06',
+              name: 'Garoon 연동 사원 맵',
+              tech: ['SOAP / REST', '리버스 프록시'],
+              roles: ['design', 'build', 'release'],
+            },
+            {
+              date: '2026.07',
+              name: '보이스 레코드 AI 요약',
+              tech: ['Share Extension', 'App Group'],
+              roles: ['design', 'build'],
+            },
+            {
+              date: '2026.08',
+              name: '로그 분석 페이지',
+              tech: ['Recharts'],
+              roles: ['design', 'build'],
+            },
+          ],
+        },
+        asides: {
+          heading: '앱 밖에서 한 일',
+          items: [
+            {
+              title: '파괴적 조작을 hook으로 차단',
+              body: 'reset --hard · stash · clean은 실행 전에 멈추고 판단을 사람에게 돌린다. 규약 위반도 커밋 전에 검출한다.',
+            },
+            {
+              title: 'AI 에이전트 개발 환경 자작',
+              body: '팀원 4명에게 배포하고 정착까지 동행했다. 도입 후 2개월 만에 팀의 코드 추가 행수가 15,811행에서 63,307행으로 약 4배가 됐다.',
+            },
+            {
+              title: 'Power BI로 사업 지표 가시화',
+              body: 'Microsoft SQL Server에서 업무 데이터를 꺼내 대시보드로 만들었다. 앱이 쌓은 데이터가 여기로 온다.',
+            },
+            {
+              title: '웹개발팀 리더',
+              body: '2025.10부터. 팀원 4명 + 테스터 1명으로 웹과 iOS 양쪽을 본다.',
+            },
+          ],
+        },
+      },
     },
     {
+      id: 'spa-migration',
       // ※재직은 1개사(수탁개발 회사)이고 그 안의 파견처별로 나눴다. 사명은 양쪽 다 비공개
       // ※입사·퇴사 월은 확인 필요. 재직 2년 10개월
       company: '수탁개발 회사 재직 — 파견처: 시스템 개발 회사',
-      period: '2023.10 - 2024',
+      period: '2023.10 - 2024.12',
       stack: ['Nuxt.js', 'Vue.js', 'Delphi', 'Oracle', 'PostgreSQL'],
       role: '프론트엔드 엔지니어',
       summary:
@@ -42,10 +176,44 @@ export const profile: Profile = {
         'Delphi 레거시 기간계 시스템의 Oracle → PostgreSQL 이관. 방언 차이를 흡수하며 등가성 보증. 주는 SPA 쪽이고 이쪽은 서브 프로젝트',
         '※DB 계층 치환이며 UI 프레임워크 치환·신구 공존은 미경험',
       ],
+      detail: {
+        overview: {
+          title: '부품 재고 관리 시스템 신규 구축과 데이터베이스 이관',
+          body: '파견처 정보시스템 부문에서 Nuxt.js에 의한 재고 관리 시스템 신규 구축과, Delphi 레거시 기간계 시스템의 데이터베이스 이관을 담당했다.',
+          meta: '2023.10 - 2024.12 · 파견처 정보시스템 부문',
+        },
+        core: {
+          claim: '소스를 읽을 수 없는 전제여도, 동작이 같으면 다시 만들 수 있다.',
+          body: '기존 시스템의 소스코드를 참조할 수 없는 상황에서, 화면 동작만 관찰해 사양을 세우고 동등하게 동작하는 SPA를 구축했다(behavior parity 방식).',
+        },
+        facts: [
+          {
+            label: '구성',
+            value: 'Nuxt.js / Vue.js / Oracle / PostgreSQL / Delphi',
+          },
+          {
+            label: '담당 범위',
+            value: 'SPA 신규 구축(주) / 데이터베이스 이관(서브 프로젝트)',
+          },
+          {
+            label: '이관',
+            value: 'Oracle → PostgreSQL. SQL 방언 차이를 흡수하며 데이터 등가성을 검증해 담보했다',
+          },
+          {
+            label: '전제',
+            value: '기존 시스템의 소스코드는 참조할 수 없다. 화면 동작만이 사양의 출처였다',
+          },
+          {
+            label: '비고',
+            value: 'DB 계층 치환이며 UI 프레임워크 치환·신구 공존은 미경험',
+          },
+        ],
+      },
     },
     {
+      id: 'infra-automation',
       company: '수탁개발 회사 재직 — 파견처: 사업회사 정보시스템 부문',
-      period: '2022 - 2023.10',
+      period: '2022.04 - 2023.09',
       stack: ['SharePoint', 'Power Automate'],
       role: '사내 정보기반 운용·업무 자동화',
       summary:
@@ -54,6 +222,31 @@ export const profile: Profile = {
         'SharePoint 운용과 Power Automate에 의한 사내 업무 플로우 자동화',
         '※이 기간은 SPA 개발을 포함하지 않는다. SPA는 다음 파견처부터',
       ],
+      detail: {
+        overview: {
+          title: '사내 정보기반 운용과 신청·승인 플로우 자동화',
+          body: '파견처 정보시스템 부문에서 SharePoint에 의한 사내 정보기반 운용과, Power Automate를 이용한 신청·승인 플로우 자동화를 담당했다.',
+          meta: '2022.04 - 2023.09 · 파견처 정보시스템 부문',
+        },
+        core: {
+          claim: '수작업으로 돌던 신청 플로우를, 전수 점검부터 다시 만들었다.',
+          body: '기존 플로우의 전수 점검부터 들어가, 어떤 승인이 무엇을 위해 필요한지 정리한 뒤 자동화로 치환했다.',
+        },
+        facts: [
+          {
+            label: '구성',
+            value: 'SharePoint / Power Automate',
+          },
+          {
+            label: '담당 범위',
+            value: '사내 정보기반 운용 · 신청 승인 플로우 자동화',
+          },
+          {
+            label: '비고',
+            value: '이 기간은 SPA 개발을 포함하지 않는다. SPA는 다음 파견처부터',
+          },
+        ],
+      },
     },
   ],
   strengths: [

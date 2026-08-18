@@ -48,6 +48,18 @@ export type UiStrings = {
   notFound: { title: string; body: string; backHome: string }
   // ページ最下部の奥付(10段階)。著作権表記とデザイン出自の1行
   colophon: { copyright: string; credit: string }
+  // 左列の経歴トリガーと右列の担当業務パネル(11段階)
+  // roleOwned/roleNotOwned は工程バッジの状態を色・濃度以外でも伝えるための読み上げ専用文言
+  career: {
+    openDetail: string
+    tabDetail: string
+    backToWorks: string
+    roleDesign: string
+    roleBuild: string
+    roleRelease: string
+    roleOwned: string
+    roleNotOwned: string
+  }
 }
 
 // ---------- 作品 ----------
@@ -117,9 +129,48 @@ export type Work = {
   story?: WorkStory
 }
 
+// ---------- 経歴の詳細(11段階) ----------
+
+// 担当した工程。roles に含まれない工程は「担当外」として淡く描く
+export type CareerRole = 'design' | 'build' | 'release'
+
+// 現場フローの1コマ。emphasis が true の要素だけ強調する
+export type CareerFlowStep = { label: string; emphasis?: boolean }
+
+// 事実表の1行。label が見出し列、value が本文列
+export type CareerFact = { label: string; value: string }
+
+// 機能一覧の1行。roles は実際に担当した工程だけを並べる
+export type CareerFeature = {
+  date: string
+  name: string
+  tech: string[]
+  roles: CareerRole[]
+}
+
+// 本体の外でやったことの1項目。title は太字の見出し
+export type CareerAside = { title: string; body: string }
+
+export type CareerDetail = {
+  // 何を作っていたのかの総論。meta は期間・状態の1行
+  overview: { title: string; body: string; meta: string }
+  // 骨格を決めた最初の機能の現場フロー。持たない経歴もある
+  origin?: { heading: string; lead?: string; flow: CareerFlowStep[]; note?: string }
+  // 判断の核。1行の主張 + その理由
+  core?: { claim: string; body: string }
+  // 構成・担当範囲・数値などの事実の列。全ての経歴が持つ
+  facts: CareerFact[]
+  // 機能一覧。持たない経歴もある
+  features?: { heading: string; lead?: string; items: CareerFeature[] }
+  // 本体の外でやったことの列。持たない経歴もある
+  asides?: { heading: string; items: CareerAside[] }
+}
+
 // ---------- プロフィール ----------
 
 export type Career = {
+  // 右列の差し替え対象を指す安定キー。表示しないので社名を含めない。ja/koで同じ値
+  id: string
   company: string
   period: string
   // その在籍期間で実際に触れた技術(08段階の左列 .cv .tech)
@@ -127,6 +178,8 @@ export type Career = {
   role: string
   summary: string
   highlights: string[]
+  // 右列に差し替えで出す担当業務の詳細。持たない経歴はトリガー自体を出さない
+  detail?: CareerDetail
 }
 
 export type Strength = {

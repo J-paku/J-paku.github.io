@@ -41,6 +41,17 @@ export const ui: UiStrings = {
     pauseScene: '自動送りを一時停止',
     resumeScene: '自動送りを再開',
   },
+  // 左列の経歴から右列に差し替える担当業務詳細パネルの文言(11段階)。作品一覧タブのラベルは work.index を再利用する
+  career: {
+    openDetail: '担当業務の詳細',
+    tabDetail: '担当業務',
+    backToWorks: '作品一覧へ戻る',
+    roleDesign: '設計',
+    roleBuild: '実装',
+    roleRelease: 'リリース',
+    roleOwned: '担当',
+    roleNotOwned: '担当外',
+  },
   colophon: {
     copyright: '© 2026 朴 裁弘',
     credit: 'Design explored with Variant',

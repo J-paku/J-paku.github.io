@@ -5,6 +5,7 @@
 //
 // 直下は .top / .out の2塊だけに保つ。列が justify-content: space-between で
 // 上下の端へ振り分けるため、ここに3つ目の直下要素を足すと分配が崩れる
+// (11段階の詳細トリガーも各経歴の <li> の中へ入れ、直下要素は増やさない)
 import { useContent } from '@/hooks/use-content'
 import { getTechIconPath } from '@/utils/tech-icons'
 import PhraseText from '@/components/PhraseText'
@@ -13,8 +14,15 @@ import styles from './profile-column.module.css'
 // 区切り文字はコンテンツ側に持たせない(型の定義どおり配列で受け取り、ここで繋ぐ)
 const SEPARATOR = ' · '
 
-function ProfileColumn() {
-  const { profile } = useContent()
+type ProfileColumnProps = {
+  // 右列に出ている経歴の id。null なら右列は作品一覧
+  activeCareerId: string | null
+  // トリガー押下の通知。押された button 自身も渡す(閉じたときのフォーカス復帰に使うため)
+  onSelectCareer: (id: string, trigger: HTMLButtonElement) => void
+}
+
+function ProfileColumn({ activeCareerId, onSelectCareer }: ProfileColumnProps) {
+  const { profile, ui } = useContent()
 
   return (
     <div className={styles.column}>
@@ -44,6 +52,21 @@ function ProfileColumn() {
                 <PhraseText text={career.role} />
               </p>
               <p className={styles.tech}>{career.stack.join(SEPARATOR)}</p>
+              {/* 詳細を持つ経歴だけがトリガーを出す。押すと右列(panel-career)が差し替わる */}
+              {career.detail !== undefined ? (
+                <button
+                  type='button'
+                  className={styles.detailTrigger}
+                  aria-controls='panel-career'
+                  aria-current={activeCareerId === career.id ? 'true' : undefined}
+                  onClick={(event) => onSelectCareer(career.id, event.currentTarget)}
+                >
+                  {/* ボタンが3つ並ぶため、どの経歴のものかを読み上げ名だけに社名で足す。
+                      表示文字列の合成はしない(社名も文言も content から来たものをそのまま置く) */}
+                  <span className={styles.srOnly}>{career.company}</span>
+                  {ui.career.openDetail}
+                </button>
+              ) : null}
             </li>
           ))}
         </ul>
