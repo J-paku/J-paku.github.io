@@ -249,9 +249,52 @@ async function main() {
   let forcedCount = 0
   let measuredElements = 0
 
+  // 1状態(初期状態、または経歴トリガーを1つ開いた状態)ぶんの計測結果を集計へ足しこむ。
+  // panel-career は初期状態で hidden のため、開かないまま計測すると中の本文の改行が
+  // 一度も測定対象に入らず、そこに潜む違反が PASS 方向に見えてしまう(03-pitfalls.md #5・#7 と同型)
+  function recordMeasurement(label, { style, results }) {
+    for (const [property, expected] of Object.entries(EXPECTED_STYLE)) {
+      if (style[property] !== expected) {
+        failures += 1
+        console.error(`[NG] ${label}: body の ${property} が "${style[property]}"、期待は "${expected}"`)
+      }
+    }
+
+    for (const result of results) {
+      measuredElements += 1
+      if (result.badBreaks.length > 0) {
+        failures += 1
+        console.error(`[NG] ${label} ${result.selector}: 文節の途中で改行`)
+        for (const bad of result.badBreaks) console.error(`       ${bad}`)
+      }
+      if (result.kinsokuStart.length > 0 || result.kinsokuEnd.length > 0) {
+        failures += 1
+        console.error(`[NG] ${label} ${result.selector}: 禁則違反`)
+        for (const item of [...result.kinsokuStart, ...result.kinsokuEnd]) {
+          console.error(`       ${item}`)
+        }
+      }
+      if (result.forcedBreaks.length > 0) {
+        forcedCount += result.forcedBreaks.length
+        console.warn(`[不可避] ${label} ${result.selector}: 枠より長い語のため語中で改行`)
+        for (const forced of result.forcedBreaks) console.warn(`       ${forced}`)
+      }
+      if (result.isOrphan) {
+        orphanCount += 1
+        console.warn(`[孤立] ${label} ${result.selector}: 最終行が "${result.lastLine}" のみ`)
+      }
+      if (isVerbose && result.lines.length > 1) {
+        console.log(`  ${label} ${result.selector}`)
+        for (const line of result.lines) console.log(`      | ${line}`)
+      }
+    }
+  }
+
   try {
     for (const targetPath of targetPaths) {
       for (const width of WIDTHS) {
+        // 幅を変えるたびに context を作り直す(=ページを開き直す)ので、経歴トグルの
+        // 開閉状態はここで確実に初期化される
         const context = await browser.newContext({ viewport: { width, height: 900 } })
         const page = await context.newPage()
         const url = new URL(targetPath, baseUrl).toString()
@@ -263,46 +306,23 @@ async function main() {
         // 自己ホストのフォントが載り切るまで待つ。載る前に測ると幅が変わる
         await page.evaluate(() => document.fonts.ready)
 
-        const { style, results } = await measurePage(page)
-        await context.close()
-
         const label = `${targetPath} @${width}px`
+        recordMeasurement(label, await measurePage(page))
 
-        for (const [property, expected] of Object.entries(EXPECTED_STYLE)) {
-          if (style[property] !== expected) {
-            failures += 1
-            console.error(`[NG] ${label}: body の ${property} が "${style[property]}"、期待は "${expected}"`)
-          }
+        // 左列の経歴トリガーを1つずつ開き、その都度計測する。経歴どうしは排他
+        // (1つ開くと前の状態は消える)なので、開いてから毎回そのまま計測すればよい。
+        // トリガーが無い経路(作品ストーリーページ等)はループが空になり、従来どおり初期状態のみになる
+        const careerTriggers = await page.$$('button[aria-controls="panel-career"]:not([role="tab"])')
+        for (const [index, trigger] of careerTriggers.entries()) {
+          await trigger.click()
+          await page.waitForFunction(() => {
+            const panel = document.querySelector('#panel-career')
+            return panel !== null && !panel.hasAttribute('hidden')
+          })
+          recordMeasurement(`${targetPath} (経歴${index + 1}) @${width}px`, await measurePage(page))
         }
 
-        for (const result of results) {
-          measuredElements += 1
-          if (result.badBreaks.length > 0) {
-            failures += 1
-            console.error(`[NG] ${label} ${result.selector}: 文節の途中で改行`)
-            for (const bad of result.badBreaks) console.error(`       ${bad}`)
-          }
-          if (result.kinsokuStart.length > 0 || result.kinsokuEnd.length > 0) {
-            failures += 1
-            console.error(`[NG] ${label} ${result.selector}: 禁則違反`)
-            for (const item of [...result.kinsokuStart, ...result.kinsokuEnd]) {
-              console.error(`       ${item}`)
-            }
-          }
-          if (result.forcedBreaks.length > 0) {
-            forcedCount += result.forcedBreaks.length
-            console.warn(`[不可避] ${label} ${result.selector}: 枠より長い語のため語中で改行`)
-            for (const forced of result.forcedBreaks) console.warn(`       ${forced}`)
-          }
-          if (result.isOrphan) {
-            orphanCount += 1
-            console.warn(`[孤立] ${label} ${result.selector}: 最終行が "${result.lastLine}" のみ`)
-          }
-          if (isVerbose && result.lines.length > 1) {
-            console.log(`  ${label} ${result.selector}`)
-            for (const line of result.lines) console.log(`      | ${line}`)
-          }
-        }
+        await context.close()
       }
     }
   } finally {

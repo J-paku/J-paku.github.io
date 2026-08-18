@@ -29,7 +29,29 @@ if (!baseUrl || targetPaths.length === 0) {
 
 const axeSource = readFileSync(path.join(ROOT_DIR, 'node_modules/axe-core/axe.min.js'), 'utf-8')
 
-// 1経路ぶんの axe 実行結果を WCAG 違反と best-practice 違反に分けて返す
+// 現在のページに対して axe を1回実行し、WCAG 違反と best-practice 違反に分けて返す
+async function runAxe(page) {
+  const result = await page.evaluate(
+    async ({ wcagTags, bestPracticeTag }) =>
+      window.axe.run(document, { runOnly: { type: 'tag', values: [...wcagTags, bestPracticeTag] } }),
+    { wcagTags: WCAG_TAGS, bestPracticeTag: BEST_PRACTICE_TAG },
+  )
+
+  const wcagViolations = result.violations.filter((violation) =>
+    violation.tags.some((tag) => WCAG_TAGS.includes(tag)),
+  )
+  const bestPracticeViolations = result.violations.filter(
+    (violation) => !violation.tags.some((tag) => WCAG_TAGS.includes(tag)),
+  )
+
+  return { wcagViolations, bestPracticeViolations }
+}
+
+// 1経路ぶんの axe 実行結果を返す。初期状態に加え、左列の経歴トリガーを1つずつ開いた
+// 状態でも検査する。panel-career は初期状態で hidden のため、開かないまま検査すると
+// 中の本文が一度も検査対象に入らず、そこに潜む違反が PASS 方向に見えてしまう
+// (03-pitfalls.md #5・#7 と同型)。経歴トリガーが無い経路(作品ストーリーページ等)は
+// 従来どおり初期状態のみを検査する
 async function auditPath(browser, targetPath) {
   const page = await browser.newPage()
   // Home のスタガーリビールが opacity:0 から始まるため、モーションを止めた状態で計測しないと
@@ -45,21 +67,24 @@ async function auditPath(browser, targetPath) {
   })
 
   await page.addScriptTag({ content: axeSource })
-  const result = await page.evaluate(
-    async ({ wcagTags, bestPracticeTag }) =>
-      window.axe.run(document, { runOnly: { type: 'tag', values: [...wcagTags, bestPracticeTag] } }),
-    { wcagTags: WCAG_TAGS, bestPracticeTag: BEST_PRACTICE_TAG },
-  )
+
+  const reports = [{ label: targetPath, ...(await runAxe(page)) }]
+
+  // タブ(role=tab)は同じ panel-career を指すが別トリガーなので除外する。
+  // 経歴どうしは排他(1つ開くと前の状態は消える)なので、開いてから毎回そのまま検査すればよい
+  const careerTriggers = await page.$$('button[aria-controls="panel-career"]:not([role="tab"])')
+  for (const [index, trigger] of careerTriggers.entries()) {
+    await trigger.click()
+    await page.waitForFunction(() => {
+      const panel = document.querySelector('#panel-career')
+      return panel !== null && !panel.hasAttribute('hidden')
+    })
+    reports.push({ label: `${targetPath} (経歴${index + 1})`, ...(await runAxe(page)) })
+  }
+
   await page.close()
 
-  const wcagViolations = result.violations.filter((violation) =>
-    violation.tags.some((tag) => WCAG_TAGS.includes(tag)),
-  )
-  const bestPracticeViolations = result.violations.filter(
-    (violation) => !violation.tags.some((tag) => WCAG_TAGS.includes(tag)),
-  )
-
-  return { targetPath, wcagViolations, bestPracticeViolations }
+  return reports
 }
 
 function printViolation(violation) {
@@ -73,7 +98,7 @@ async function main() {
 
   try {
     for (const targetPath of targetPaths) {
-      reports.push(await auditPath(browser, targetPath))
+      reports.push(...(await auditPath(browser, targetPath)))
     }
   } finally {
     await browser.close()
@@ -81,13 +106,13 @@ async function main() {
 
   let totalWcagViolations = 0
 
-  for (const { targetPath, wcagViolations, bestPracticeViolations } of reports) {
+  for (const { label, wcagViolations, bestPracticeViolations } of reports) {
     totalWcagViolations += wcagViolations.length
 
     if (wcagViolations.length === 0) {
-      console.log(`[OK] ${targetPath}: WCAG違反 0件(best-practice違反 ${bestPracticeViolations.length}件・参考のみ)`)
+      console.log(`[OK] ${label}: WCAG違反 0件(best-practice違反 ${bestPracticeViolations.length}件・参考のみ)`)
     } else {
-      console.error(`[NG] ${targetPath}: WCAG違反 ${wcagViolations.length}件`)
+      console.error(`[NG] ${label}: WCAG違反 ${wcagViolations.length}件`)
       wcagViolations.forEach(printViolation)
     }
   }
