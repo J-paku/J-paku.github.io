@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, useLocation } from 'react-router'
 import { LocaleProvider } from '@/contexts/LocaleContext/LocaleProvider'
 import { ThemeProvider } from '@/contexts/ThemeContext/ThemeProvider'
 import { useContent } from '@/hooks/use-content'
+import { usePageviewTracking } from '@/hooks/use-pageview-tracking'
 import SettingsMenu from '@/components/SettingsMenu'
 import Home from '@/pages/Home'
 import WorkStory from '@/pages/WorkStory'
@@ -25,6 +26,7 @@ function useScrollRestoration(): void {
 function AppShell() {
   const { ui } = useContent()
   useScrollRestoration()
+  usePageviewTracking()
 
   return (
     <>
