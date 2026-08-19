@@ -7,6 +7,9 @@
     <!-- 自己ホストInter(ラテン専用サブセット)をpreload。fonts.googleapis.com/gstatic.comへは実行時アクセスしない -->
     <link rel="preload" href="/fonts/inter-latin-var.woff2" as="font" type="font/woff2" crossorigin />
     <title>J-paku</title>
+    <!-- アクセス解析(GoatCounter)。Cookie 不使用。初回表示はこのタグが自動で送り、
+         以降のルート遷移は src/hooks/use-pageview-tracking.ts から送る -->
+    <script data-goatcounter="https://tottannim.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
   </head>
   <body>
     <div id="root"></div>
