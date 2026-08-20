@@ -10,7 +10,7 @@ export const meishiCrossPlatform: Work = {
   context: '実務の進行中案件 — 名刺管理のiOS化',
   contextKind: 'work',
   role: '設計・実装・リリース',
-  stack: ['Swift', 'AVFoundation', 'Vision', 'WKWebView', 'React'],
+  stack: ['Swift', 'AVFoundation', 'Vision', 'Gemini', 'WKWebView', 'React'],
   links: {},
   // カード用サムネイル。story場面4つ(カメラ撮影・その場で登録・Web統合・拠点距離)を
   // 文字なしの図解へ起こした自作SVG
@@ -35,8 +35,9 @@ export const meishiCrossPlatform: Work = {
       {
         id: 'register',
         title: '撮った名刺が、その場でデータになる',
-        body: '撮影した名刺はその場で確認して登録フォームへ。カメラから保存までがアプリの中で途切れない。',
+        body: '撮影した名刺はその場で文字起こしにかけ、その結果をGeminiが項目ごとに整理する。値が入った登録フォームを確認して保存するだけで、カメラから登録までがアプリの中で途切れない。',
         chips: [
+          { name: 'Gemini', note: '文字起こしの結果を名刺の項目ごとに整理' },
           { name: 'Swift', note: '撮影から登録までの画面遷移と状態管理' },
         ],
         image: '/works/meishi/scene2-register.svg',
@@ -69,6 +70,7 @@ export const meishiCrossPlatform: Work = {
         { name: 'Swift', note: 'カメラ・登録フローのネイティブ実装' },
         { name: 'AVFoundation', note: 'カメラ制御' },
         { name: 'Vision', note: '矩形検出' },
+        { name: 'Gemini', note: '文字起こし結果の項目整理' },
         { name: 'WKWebView', note: 'Web統合の橋渡し' },
         { name: 'React', note: '既存管理画面の継続利用' },
         { name: 'Yahoo!ジオコーダ', note: '距離表示の基盤' },

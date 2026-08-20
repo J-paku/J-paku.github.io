@@ -26,7 +26,7 @@
 }
 
 /* Noto Sans JP — 本文・ラベルの日本語ゴシック(--f-body / --f-label / --f-mono の後段)
-   対象: 505文字。実体: public/fonts/noto-sans-jp-body.woff2 */
+   対象: 507文字。実体: public/fonts/noto-sans-jp-body.woff2 */
 @font-face {
   font-family: 'Noto Sans JP';
   font-style: normal;
@@ -51,7 +51,7 @@
     U+53d6-53d7, U+53f0, U+5408, U+540c-540d, U+542b, U+5438, U+54c1, U+5584,
     U+56de, U+56e0, U+56f2, U+5712, U+571f, U+5728, U+5730, U+578b,
     U+57cb, U+57fa, U+5831, U+5834, U+5883, U+5897, U+58c1, U+5909,
-    U+5916, U+5927, U+59cb, U+5b58, U+5b88-5b89, U+5b8c, U+5b9a, U+5b9f,
+    U+5916, U+5927, U+59cb, U+5b57-5b58, U+5b88-5b89, U+5b8c, U+5b9a, U+5b9f,
     U+5bb9, U+5bdf, U+5bfe, U+5c0e-5c0f, U+5c40, U+5c45, U+5c4a, U+5c64,
     U+5dee, U+5e03, U+5e2d, U+5e30, U+5e33, U+5e79, U+5e7c, U+5e83,
     U+5ea6-5ea7, U+5eab, U+5f0f, U+5f15, U+5f18, U+5f37, U+5f53, U+5f62,
@@ -83,8 +83,8 @@
     U+8ffd, U+9000, U+9014, U+901a, U+901f, U+9031-9032, U+904b, U+9054-9055,
     U+9060, U+9063, U+9077-9078, U+907f, U+90e8, U+90ed, U+914d, U+91cd,
     U+91cf, U+9332, U+9577, U+9580, U+958b, U+9593, U+95a2, U+9650,
-    U+969b, U+96a3, U+96c6, U+96e2, U+96fb, U+9732, U+9762, U+982d,
-    U+983c, U+984c, U+9a13;
+    U+969b, U+96a3, U+96c6, U+96e2, U+96fb, U+9732, U+9762, U+9805,
+    U+982d, U+983c, U+984c, U+9a13;
 }
 
 /* Noto Sans JP — ラベルの日本語ゴシック500。合成ボールドを避けるため実物の太さを持つ
@@ -137,7 +137,7 @@
 }
 
 /* Noto Sans KR — 本文・ラベルの韓国語ゴシック。ja とはロケール別チェーンで分けている
-   対象: 409文字。実体: public/fonts/noto-sans-kr-body.woff2 */
+   対象: 411文字。実体: public/fonts/noto-sans-kr-body.woff2 */
 @font-face {
   font-family: 'Noto Sans KR';
   font-style: normal;
@@ -146,7 +146,7 @@
   src: url('/fonts/noto-sans-kr-body.woff2') format('woff2');
   unicode-range:
     U+a9, U+b7, U+2014, U+2192, U+300c-300d, U+5f18, U+6734, U+88c1,
-    U+ac00-ac01, U+ac04, U+ac07, U+ac10-ac11, U+ac14-ac15, U+ac19, U+ac1c, U+ac70,
+    U+ac00-ac01, U+ac04, U+ac07, U+ac10-ac12, U+ac14-ac15, U+ac19, U+ac1c, U+ac70,
     U+ac74, U+ac78, U+ac80, U+ac83, U+ac8c, U+aca9, U+acac, U+acb0,
     U+acbc-acbd, U+acc4, U+ace0, U+ace8, U+acf3, U+acf5, U+acfc-acfd, U+ad00,
     U+ad6c-ad6d, U+adc0, U+addc, U+adf8, U+adfc, U+ae08-ae09, U+ae0b, U+ae30,
@@ -186,10 +186,10 @@
     U+d130, U+d14c, U+d15c, U+d1a0, U+d1b5, U+d22c, U+d234, U+d2b8,
     U+d2c0, U+d2f0, U+d300, U+d30c, U+d310, U+d328, U+d3b8, U+d3ec,
     U+d3f0, U+d3fc, U+d45c, U+d480, U+d488, U+d48b, U+d504, U+d50c,
-    U+d53c, U+d544, U+d558, U+d55c, U+d560, U+d568-d569, U+d574, U+d588-d589,
-    U+d5d8, U+d5e4, U+d600, U+d604, U+d615, U+d638, U+d654-d655, U+d658,
-    U+d65c, U+d669, U+d68c, U+d6a8, U+d6c4-d6c5, U+d750, U+d761, U+d788,
-    U+d78c, U+d790;
+    U+d53c, U+d544, U+d558, U+d55c, U+d560, U+d568-d569, U+d56d, U+d574,
+    U+d588-d589, U+d5d8, U+d5e4, U+d600, U+d604, U+d615, U+d638, U+d654-d655,
+    U+d658, U+d65c, U+d669, U+d68c, U+d6a8, U+d6c4-d6c5, U+d750, U+d761,
+    U+d788, U+d78c, U+d790;
 }
 
 /* Noto Sans KR — ラベルの韓国語ゴシック500
