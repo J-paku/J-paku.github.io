@@ -66,6 +66,7 @@ const mergeProfile = (ja: Profile, ko: Profile): Profile => ({
   goal: pick(ja.goal, ko.goal, 'profile.goal'),
   links: {
     github: pickOptionalString(ja.links.github, ko.links.github, 'profile.links.github'),
+    email: pickOptionalString(ja.links.email, ko.links.email, 'profile.links.email'),
   },
   // careers・strengths は要素単位のキーを持たないため配列丸ごと単位でのみ判定する(部分マージはしない)
   careers: pick(ja.careers, ko.careers, 'profile.careers'),
