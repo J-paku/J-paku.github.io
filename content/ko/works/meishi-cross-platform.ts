@@ -10,7 +10,7 @@ export const meishiCrossPlatform: Work = {
   context: '실무 진행 중 안건 — 명함 관리의 iOS화',
   contextKind: 'work',
   role: '설계·구현·릴리스',
-  stack: ['Swift', 'AVFoundation', 'Vision', 'WKWebView', 'React'],
+  stack: ['Swift', 'AVFoundation', 'Vision', 'Gemini', 'WKWebView', 'React'],
   links: {},
   // カード用サムネイル。story場面4つ(カメラ撮影・その場で登録・Web統合・拠点距離)を
   // 文字なしの図解へ起こした自作SVG
@@ -35,8 +35,9 @@ export const meishiCrossPlatform: Work = {
       {
         id: 'register',
         title: '찍은 명함이 그 자리에서 데이터가 된다',
-        body: '촬영한 명함은 그 자리에서 확인하고 등록 폼으로. 카메라에서 저장까지 앱 안에서 끊기지 않는다.',
+        body: '촬영한 명함은 그 자리에서 문자 인식을 거치고, 그 결과를 Gemini가 항목별로 정리한다. 값이 채워진 등록 폼을 확인하고 저장하면 되니, 카메라에서 등록까지 앱 안에서 끊기지 않는다.',
         chips: [
+          { name: 'Gemini', note: '문자 인식 결과를 명함 항목별로 정리' },
           { name: 'Swift', note: '촬영부터 등록까지 화면 전환과 상태 관리' },
         ],
         image: '/works/meishi/scene2-register.svg',
@@ -69,6 +70,7 @@ export const meishiCrossPlatform: Work = {
         { name: 'Swift', note: '카메라·등록 플로우 네이티브 구현' },
         { name: 'AVFoundation', note: '카메라 제어' },
         { name: 'Vision', note: '사각형 검출' },
+        { name: 'Gemini', note: '문자 인식 결과의 항목 정리' },
         { name: 'WKWebView', note: '웹 통합의 다리' },
         { name: 'React', note: '기존 관리화면 계속 사용' },
         { name: 'Yahoo!지오코더', note: '거리 표시 기반' },
