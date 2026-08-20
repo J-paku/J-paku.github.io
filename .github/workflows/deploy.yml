@@ -38,9 +38,12 @@ jobs:
       # emulateMedia(reduced motion)でスタガーリビールを止めて計測するため load-delay は不要
       # 巡回先は「/」「/ko」に加え、story を持つ作品のストーリーページ(ja/ko)。08段階で廃した
       # 作品詳細ルートはストーリーページとして復活したため、以前のような NotFound の空検査ではない
+      # 末尾スラッシュは必須。付けないと vite preview が SPA フォールバックで ja のシェルを返し、
+      # ko のページを ja の書体チェーンで測ってしまう(実測: /ko/works/... は lang=ja が返っていた)。
+      # GitHub Pages は 301 で付け直すので実配信では起きないが、検査は preview に対して走る
       - name: axe accessibility check
         run: |
-          node scripts/check-a11y.mjs http://localhost:4173 / /ko /works/meishi-cross-platform /ko/works/meishi-cross-platform
+          node scripts/check-a11y.mjs http://localhost:4173 / /ko/ /works/meishi-cross-platform/ /ko/works/meishi-cross-platform/
       # 日本語は語の間に空白が無いため、既定では画面幅とエンジンの実装で改行位置が決まる。
       # PhraseText が入れる <wbr> と body の word-break: keep-all で位置を固定しているので、
       # 文節の途中で切れていないか・禁則を破っていないかを6幅で実測する。
@@ -50,7 +53,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y fonts-noto-cjk
       - name: Japanese line-break check
         run: |
-          node scripts/check-ja-linebreak.mjs http://localhost:4173 / /ko /works/meishi-cross-platform /ko/works/meishi-cross-platform
+          node scripts/check-ja-linebreak.mjs http://localhost:4173 / /ko/ /works/meishi-cross-platform/ /ko/works/meishi-cross-platform/
       # setup-chrome は廃止した(axe が chromedriver 経由で CI から起動できなかったため)。
       # Lighthouse も axe と同じ Playwright 管理の Chromium を使う。二重に用意しない
       - name: Lighthouse CI
