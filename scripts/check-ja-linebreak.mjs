@@ -303,7 +303,7 @@ async function main() {
           const root = document.querySelector('#root')
           return root !== null && root.childElementCount > 0
         })
-        // 自己ホストのフォントが載り切るまで待つ。載る前に測ると幅が変わる
+        // 配信CSSの書体が載り切るまで待つ。載る前に測ると代替書体の幅で測ってしまう
         await page.evaluate(() => document.fonts.ready)
 
         const label = `${targetPath} @${width}px`
