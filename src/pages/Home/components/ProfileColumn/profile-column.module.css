@@ -64,13 +64,17 @@
   color: var(--accent);
 }
 
-/* ページの識別そのもの。display 階層の太さはトークンに委ねる */
+/* ページの識別そのもの。display 階層の太さはトークンに委ねる。
+   2.5rem ではページ内で最も大きい文字が名前なのに重心にならず、上部が静かすぎた。
+   列幅(400px - 左右padding 80px = 320px)に収まる範囲で最大化する。
+   clamp の上限は実測で決めた — Playfair の『J-Paku』6文字は 80px で約230px */
 .name {
   margin: 0;
   font-family: var(--f-display);
-  font-size: 2.5rem;
+  font-size: clamp(2.5rem, 5.5vw, 5rem);
   font-weight: var(--fw-display);
-  line-height: 1;
+  line-height: 0.95;
+  letter-spacing: -0.02em;
   color: var(--ink);
 }
 
