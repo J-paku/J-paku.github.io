@@ -13,21 +13,44 @@
   align-self: start;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   height: 100vh;
   min-width: 0;
-  padding: 60px 40px;
+  /* 下だけ env() を足すのはホームバー(ノッチ端末)の帯を避けるため。上下左右の 60/40 は原案どおり */
+  padding: 60px 40px calc(60px + env(safe-area-inset-bottom, 0px));
   border-right: 1px solid var(--rule);
   background: var(--ground);
-  /* 実機タブレット横持ちはブラウザUIが高さを削り、100vh より中身が背高になる。
-     sticky はページスクロールで中身を送れないため、溢れた下端(GitHubリンク)が永久に見えなくなる。
-     列内スクロールを許可して逃がす — 収まっている環境ではスクロールバーは出ない */
-  overflow-y: auto;
+  /* 列そのものは送らない。溢れを引き受けるのは経歴リスト(.cv)だけで、
+     名前と連絡先は画面の高さに関わらず枠として残る */
+  overflow: hidden;
 }
 
-/* 上塊。space-between の一方の端を担うため、名前から経歴までを1つに束ねる */
+/*
+ * iOS Safari の 100vh は「下ツールバーが隠れた状態」の高さを返す。ツールバーが出ている間は
+ * その差分だけ列が背高になり、下端(連絡先)がツールバーの裏へ潜って見えない・触れない。
+ * 100dvh は表示中のツールバーを引いた実寸を返すのでこれが直る。
+ *
+ * @supports で包むのは、同じ property を2行並べる書き方(height:100vh; height:100dvh;)だと
+ * ビルド時の最適化でフォールバック側が丸ごと消えるため(dist を実測して確認済み)。
+ * この位置は 1024px 分岐より前 — 分岐側の height:auto を後勝ちで残すため。
+ */
+@supports (height: 100dvh) {
+  .column {
+    height: 100dvh;
+  }
+}
+
+/*
+ * 上塊。名前から経歴までを束ねる。
+ * 自身も縦フレックスにして、内側の .cv だけが余った高さを取る形にする
+ * (min-height: 0 が無いとフレックスアイテムの既定 min-height: auto が効き、
+ *  中身の高さぶん .top が膨らんで .cv が縮まない)
+ */
 .top {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
   min-width: 0;
+  min-height: 0;
 }
 
 /* キッカー(10段階)。赤はラベル専用 — ここと NO. 行と仕様表ラベルにしか使わない */
@@ -79,13 +102,40 @@
   color: var(--ink-mid);
 }
 
+/*
+ * 経歴リスト。列の中で唯一スクロールする帯。
+ * 画面が低い端末でも、経歴が何件に増えても、上の名前と下の連絡先は動かない
+ * (実測: 1440x780 で列の中身は 995px あり、この帯が無いと下端 215px が切れていた)。
+ *
+ * 右の padding と負の margin は対で、スクロールバーだけを列の余白側(40px)へ逃がすための指定。
+ * 文字の位置は他の行と揃ったまま、つまみが本文に被らない
+ */
 .cv {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: var(--space-md);
-  margin: var(--space-xl) 0 0;
-  padding: 0;
+  min-height: 0;
+  margin: var(--space-xl) calc(var(--space-sm) * -1) 0 0;
+  padding: 0 var(--space-sm) 0 0;
+  overflow-y: auto;
   list-style: none;
+  /* Safari・Chrome の重ね表示スクロールバーは触るまで出ない = 送れることが分からない。
+     細い実体のあるつまみを常時出して「まだ下がある」を見せる */
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule) transparent;
+}
+
+.cv::-webkit-scrollbar {
+  width: 4px;
+}
+
+.cv::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.cv::-webkit-scrollbar-thumb {
+  background: var(--rule);
 }
 
 .cvItem {
@@ -183,30 +233,37 @@
   white-space: nowrap;
 }
 
-/* 下塊 — space-between のもう一方の端。列の底に落ちる */
+/* 下塊 — 列の底の帯。上の罫線は経歴リストとの切れ目。
+   列の右罫線と同じ --rule で、線を増やしても濃度は増やさない */
 .out {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
   padding-top: var(--space-lg);
+  border-top: 1px solid var(--rule);
 }
 
+/* 連絡先だけを一段浮いた面へ載せる。左の縦棒は「ここが導線」の符号で、
+   赤はラベル専用色の用法をそのまま継ぐ(文字には使わない)。
+   左 padding が 3px 少ないのは、棒の太さの分だけ文字の頭が右へずれないようにするため */
+.card {
+  display: flex;
+  /* 既定の stretch だと中のリンクがカード幅いっぱいに伸び、メールの下線が
+     文字と関係ない所まで引かれる。下線を「押せる文字の幅」に留めるため先頭寄せにする */
+  align-items: flex-start;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  padding: var(--space-md) var(--space-md) var(--space-md) calc(var(--space-md) - 3px);
+  border-left: 3px solid var(--accent);
+  background: var(--surface-cream);
+}
+
+/* 所在地。ラベル語を置かない代わりに、本文より一段弱い明度で「見出し的な一行」に見せる */
 .location {
   margin: 0;
+  font-family: var(--f-label);
   font-size: 0.7rem;
   font-weight: var(--fw-medium);
   line-height: 1.6;
   letter-spacing: 0.1em;
-  text-transform: uppercase;
   color: var(--ink-mid);
-}
-
-/* 原案 .links。横並びではなく縦に積む */
-.outLinks {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-2xs);
 }
 
 .outLink {
@@ -224,6 +281,25 @@
 
 .outLink:hover {
   opacity: 0.5;
+}
+
+/* メールアドレスはラテンと記号だけなので等幅で組み、ラベル用の字送りは 0 に戻す。
+   下線は「押せる場所」の符号で、経歴の詳細トリガーと同じ役割を担う。
+   hover は他のリンクの opacity ではなく下線の色で返す(薄くすると住所が読めなくなるため) */
+.mail {
+  font-family: var(--f-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0;
+  word-break: break-all;
+  border-bottom: 1px solid var(--rule);
+  transition:
+    border-color var(--motion) var(--ease-reveal),
+    opacity var(--motion) var(--ease-reveal);
+}
+
+.mail:hover {
+  opacity: 1;
+  border-bottom-color: var(--accent);
 }
 
 /* GitHub ロゴ。文字色をそのまま継ぐ */
@@ -245,6 +321,14 @@
     height: auto;
     border-right: none;
     border-bottom: 1px solid var(--rule);
+    /* 列がページと一緒に送られるので、内側に送る帯を作る理由が無い */
+    overflow: visible;
+  }
+
+  .cv {
+    margin-right: 0;
+    padding-right: 0;
+    overflow-y: visible;
   }
 
   .out {
