@@ -2,10 +2,9 @@
  * 全体リセット・アクセシビリティ骨格
  *
  * import は次ラウンド（App.tsx / main.tsx 担当）が行う。
- * fonts.css（自己ホストInterの@font-face）はここから読み込む。main.tsx側の
- * import列は増やさず、既にimportされている本ファイル経由でぶら下げる。
+ * 書体の @font-face はこのリポジトリでは持たない。Google Fonts の配信CSSを
+ * index.html の <link> から読み込む（ロケール別の差し替えは scripts/emit-routes.mjs）。
  */
-@import './fonts.css';
 
 *,
 *::before,
@@ -74,8 +73,8 @@ summary {
 /*
  * フォーム系の書体はブラウザ実装の既定(Chromium は Arial)で、親からは継承されない。
  * 放置すると button の中の文字だけトークンのチェーンから外れ、CJKが環境依存のフォントになる。
- * D5でボタンの読み上げ用テキストが Arial 経由でシステムフォントに落ちていたのを
- * check-glyph-coverage が検出したため、原因側をここで塞ぐ。
+ * D5でボタンの読み上げ用テキストが Arial 経由でシステムフォントに落ちていた実績があるので、
+ * 原因側をここで塞ぐ。
  * サイズ・太さは各コンポーネントが指定しているので、ここでは書体だけを継承させる。
  */
 button,

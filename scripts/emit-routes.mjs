@@ -24,18 +24,38 @@ if (!existsSync(shellHtmlPath)) {
 }
 const shellHtml = readFileSync(shellHtmlPath, 'utf-8')
 
+// ko ページ用の書体リンク。ja 側は index.html が持っており、ここでは ko の分だけを定義する。
+// 日本語の『日本語』(言語切替ラベル)は Noto Sans KR が漢字を持つので描ける。逆向き
+// (ja ページのハングル)は JP に glyph が無いため index.html 側で text= の1枚を足している
+// media/onload は index.html 側と同じ理由(描画を止めない)
+const KO_FONT_LINK =
+  '<link rel="stylesheet" data-fonts="ko" media="print" onload="this.media=\'all\'" href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@400&family=Playfair+Display:wght@400&display=swap" />'
+
 // routeDir へ dist/index.html の複製を書き出す。routeDir は DIST_DIR からの相対パス。
-// lang を渡すと <html lang> を差し替える — D5でフォントのチェーンを
-// :root[lang='ko'] で切り替えたため、JSが lang を立てる前の初回ペイントで
-// 日本語フォントが要求されてしまうのを防ぐ(韓国語ページで45KBの無駄になる)
+// lang を渡すと <html lang> と書体リンクを差し替える — フォントのチェーンを
+// :root[lang='ko'] で切り替えているため、JSが lang を立てる前の初回ペイントで
+// 日本語フォントが要求されてしまうのを防ぐ
 function emitRoute(routeDir, lang) {
   const dir = path.join(DIST_DIR, routeDir)
   mkdirSync(dir, { recursive: true })
   const outPath = path.join(dir, 'index.html')
-  const html = lang === undefined ? shellHtml : shellHtml.replace(/<html lang="[^"]*"/, `<html lang="${lang}"`)
+  let html = lang === undefined ? shellHtml : shellHtml.replace(/<html lang="[^"]*"/, `<html lang="${lang}"`)
   if (lang !== undefined && html === shellHtml) {
     console.error(`emit-routes: <html lang> を差し替えられなかった(${routeDir})`)
     process.exit(1)
+  }
+  if (lang === 'ko') {
+    // ja 用の2枚(本体 + ハングル3文字)を ko 用の1枚に置き換える。
+    // 差し替えられなかったら黙って ja のフォントを配ることになるので、そこで止める
+    // ビルド後のHTMLでは属性が複数行に分かれて残るため、改行をまたげる書き方にする
+    const swapped = html
+      .replace(/<link[^>]*data-fonts="ja"[^>]*>/, KO_FONT_LINK)
+      .replace(/<link[^>]*data-fonts-alt="ja"[^>]*>/, '')
+    if (swapped === html || swapped.includes('data-fonts="ja"') || swapped.includes('data-fonts-alt="ja"')) {
+      console.error(`emit-routes: 書体リンクを ko へ差し替えられなかった(${routeDir})`)
+      process.exit(1)
+    }
+    html = swapped
   }
   writeFileSync(outPath, html)
   console.log(`emit-routes: ${path.relative(ROOT_DIR, outPath)} (lang=${lang ?? 'ja'})`)
