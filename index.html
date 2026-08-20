@@ -4,8 +4,34 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <!-- 自己ホストInter(ラテン専用サブセット)をpreload。fonts.googleapis.com/gstatic.comへは実行時アクセスしない -->
-    <link rel="preload" href="/fonts/inter-latin-var.woff2" as="font" type="font/woff2" crossorigin />
+    <!-- 書体は Google Fonts から配信する。unicode-range で分割されているので、
+         そのページで実際に描かれる符号位置のスライスだけが落ちてくる。
+         data-fonts の値はロケール識別子で、scripts/emit-routes.mjs が /ko/ 用に差し替える。
+
+         media="print" + onload で描画を止めない形にしている。素の <link> にすると
+         このCSSの取得が終わるまで最初の描画が始まらない(実測: レンダーブロック 1170ms・
+         FCP 2.0s→2.6s・Lighthouse性能 95→92)。display=swap なのでどちらにせよ本文は
+         代替書体で先に出るため、止める意味が無い。
+         JS 無効時の <noscript> フォールバックは置かない — このサイトはSPAで、JSが無ければ
+         本文自体が描かれないため、書体だけ救っても意味が無い -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      data-fonts="ja"
+      media="print"
+      onload="this.media='all'"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Serif+JP:wght@400&family=Playfair+Display:wght@400&display=swap"
+    />
+    <!-- 言語切替の『한국어』だけは Noto Sans JP にグリフが無く、置かないとシステムフォントで描かれる。
+         text= で3文字だけを要求するので、この行の実体は 1KB に満たない -->
+    <link
+      rel="stylesheet"
+      data-fonts-alt="ja"
+      media="print"
+      onload="this.media='all'"
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@500&text=%ED%95%9C%EA%B5%AD%EC%96%B4&display=swap"
+    />
     <title>J-paku</title>
     <!-- アクセス解析(GoatCounter)。Cookie 不使用。初回表示はこのタグが自動で送り、
          以降のルート遷移は src/hooks/use-pageview-tracking.ts から送る -->

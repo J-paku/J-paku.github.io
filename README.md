@@ -81,9 +81,9 @@ npm run typecheck   # tsc -b --noEmit
 npm run lint        # oxlint
 ```
 
-コンテンツに新しい文字を足したときは、ビルド済みの `dist/` を静的配信した上で
-`node scripts/build-font-subsets.mjs <baseUrl> <path...>` を走らせてサブセットフォントを作り直します
-(CI のフォント被覆検査が漏れを検出します)。
+書体は Google Fonts から配信します(`index.html` の `<link>`、`/ko/` 用の差し替えは
+`scripts/emit-routes.mjs`)。unicode-range で分割済みのため、コンテンツに文字を足しても
+フォント側の作業は要りません。
 
 > 配信は Settings → Pages → Source を「GitHub Actions」にした状態で `main` への push により行われます。
 

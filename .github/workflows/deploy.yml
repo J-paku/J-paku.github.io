@@ -41,18 +41,11 @@ jobs:
       - name: axe accessibility check
         run: |
           node scripts/check-a11y.mjs http://localhost:4173 / /ko /works/meishi-cross-platform /ko/works/meishi-cross-platform
-      # 日本語・韓国語のフォントは「描画された文字だけ」を持つサブセット(fonts.css)。
-      # コンテンツに文字が増えるとその文字だけシステムフォントへ落ち、1つの文字列の中で
-      # 書体が割れる。型チェックもビルドも通ってしまうので、配信物を見るこの検査で止める。
-      # 落ちたときは scripts/build-font-subsets.mjs を走らせてフォントを作り直す
-      - name: Font glyph coverage check
-        run: |
-          node scripts/check-glyph-coverage.mjs http://localhost:4173 / /ko/ /works/meishi-cross-platform /ko/works/meishi-cross-platform
       # 日本語は語の間に空白が無いため、既定では画面幅とエンジンの実装で改行位置が決まる。
       # PhraseText が入れる <wbr> と body の word-break: keep-all で位置を固定しているので、
       # 文節の途中で切れていないか・禁則を破っていないかを6幅で実測する。
-      # スクリプトは測定前に fc-list でCJKフォントの存在を確認して落ちる。自己ホストのサブセットが
-      # 読めなかった場合にシステムフォントで測ってしまうのを防ぐ門なので、先に入れておく
+      # スクリプトは測定前に fc-list でCJKフォントの存在を確認して落ちる。CJKフォントが
+      # 1つも無い環境では豆腐の幅で測ってしまい、改行判定が意味を失うため先に入れておく
       - name: Install CJK fonts for measurement
         run: sudo apt-get update && sudo apt-get install -y fonts-noto-cjk
       - name: Japanese line-break check
