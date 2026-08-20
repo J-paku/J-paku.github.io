@@ -134,8 +134,8 @@ export const profile: Profile = {
             {
               date: '2026.08',
               name: 'ログ分析ページ',
-              tech: ['Recharts'],
-              roles: ['design', 'build'],
+              tech: ['Recharts', 'JSONL'],
+              roles: ['design', 'build', 'release'],
             },
           ],
         },
