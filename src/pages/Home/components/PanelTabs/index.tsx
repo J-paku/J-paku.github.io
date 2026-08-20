@@ -3,7 +3,9 @@
 // 状態は持たず、選択中かどうかを受け取って描くだけ — 実体は Home の use-career-panel が持つ。
 //
 // 1024px 以下ではタブを出さない(CSS の display: none)。畳んだ幅では詳細パネル側の
-// 「作品一覧へ戻る」ボタンが同じ役割を担う
+// 「作品一覧へ戻る」ボタンが同じ役割を担う。
+// 描かれるのは担当業務を見ている間だけ(条件は Home 側)。出ている間は上端に貼り付き、
+// 読み進めても作品一覧へ戻る道が視界から消えないようにする
 import { useRef, type KeyboardEvent } from 'react'
 import { useContent } from '@/hooks/use-content'
 import PhraseText from '@/components/PhraseText'

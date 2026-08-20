@@ -22,7 +22,10 @@ function Home() {
 
       {/* 右列。タブ + パネル2枚を縦に積むだけの器で、余白は各パネルが自分で持つ */}
       <div className={styles.panels}>
-        {panelCareer !== null ? (
+        {/* 担当業務を見ている間だけ出す。作品一覧に戻ったら消える —
+            何も選んでいない状態では選択肢が1つしか無く、タブ列が意味を持たないため。
+            出ている間は上端に貼り付き、スクロールしても戻り道が視界から消えない */}
+        {activeCareer !== null ? (
           <PanelTabs
             isCareerActive={activeCareer !== null}
             onSelectWorks={showWorks}
