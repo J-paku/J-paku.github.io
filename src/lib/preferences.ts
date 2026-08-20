@@ -5,6 +5,8 @@
 // 旧バージョンが保存した 'system' は下の検証で弾かれ、既定の light になる
 export type ThemePreference = 'light' | 'dark'
 
+// このキー文字列は index.html の先行反映script(ブートローダー前のテーマ適用)も直接読む。
+// あちらは React 起動前に走るため import できない。キーを変える時は index.html 側も同時に更新する
 const THEME_STORAGE_KEY = 'theme-preference'
 
 // 保存値が無い・壊れている・廃止済みの 'system' だった場合に落ちる先
