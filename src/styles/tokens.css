@@ -72,7 +72,7 @@
      10段階の初版は Playfair(ラテン専用サブセット)だけを自己ホストしていたため、CJKは
      環境依存のゴシックへ落ち、『AIエージェント開発環境』のように1語の中で
      セリフとゴシックが入れ替わっていた(実測: A=16.0px/Playfair・座=26.0px/システムゴシック)。
-     日本語・韓国語も自己ホストのサブセットを持たせ、システムフォントより前に置く。
+     日本語・韓国語も Google Fonts から読み、システムフォントより前に置く。
 
      --f-display  名前(J-Paku)専用。ラテンだけの文字列なので Playfair の字面をそのまま使う
      --f-title    作品カードの見出し。ラテンもCJKも Noto Serif の1書体で組む
@@ -82,13 +82,18 @@
      --f-mono     ラテンの数字・記号だけのラベル(NO.01 / PORTFOLIO — 2026 / MEASURED)。
                   将来CJKが混ざっても環境依存にならないよう Noto Sans を後段に置く
 
-     サブセットは配信ページに描画された文字だけを持つ。足りない文字が出たときは
-     システムの明朝/ゴシックへ落ちるので、被覆は scripts/check-glyph-coverage.mjs が機械検査する。 */
+     実体は Google Fonts の配信CSS(index.html の <link>、ko は emit-routes.mjs が差し替える)。
+     unicode-range で分割済みなので、そのページで描かれる符号位置のスライスだけが落ちてくる。
+     ここに書いたファミリ名が <link> の family= と食い違うと、その書体だけ
+     システムフォントへ落ちる — 名前を変えるときは index.html と emit-routes.mjs も直す。 */
   --f-display: 'Playfair Display', 'Noto Serif JP', 'Yu Mincho', serif;
   --f-title: 'Noto Serif JP', 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+  /* 末尾の 'Noto Sans KR' は言語切替の『한국어』専用。Noto Sans JP はハングルのグリフを
+     持たないので、これが無いとその1語だけシステムフォント(Windows なら Malgun Gothic)で描かれる。
+     index.html が text= で3文字だけを要求しているため、実体は 1KB に満たない */
   --f-body:
-    'Inter', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans',
-    'Yu Gothic UI', sans-serif;
+    'Inter', 'Noto Sans JP', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'Hiragino Sans', 'Yu Gothic UI', sans-serif;
   --f-label: 'Noto Sans JP', 'Hiragino Sans', 'Yu Gothic UI', sans-serif;
   --f-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Noto Sans JP', monospace;
 
