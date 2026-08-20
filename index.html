@@ -4,6 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- テーマの先行反映。ThemeProvider(React)が立つ前にブートローダーと本文の初回ペイントが
+         走るため、保存済みテーマをここで data-theme に反映しておかないとダーク選択者に
+         ライトの地色が一瞬見える。localStorage の正本は src/lib/preferences.ts で、
+         キー 'theme-preference' はそこと同値。変更時は両方を同時に更新する -->
+    <script>
+      try {
+        if (localStorage.getItem('theme-preference') === 'dark') {
+          document.documentElement.setAttribute('data-theme', 'dark')
+        }
+      } catch (e) {
+        /* プライベートモード等は既定(ライト)のまま */
+      }
+    </script>
     <!-- 書体は Google Fonts から配信する。unicode-range で分割されているので、
          そのページで実際に描かれる符号位置のスライスだけが落ちてくる。
          data-fonts の値はロケール識別子で、scripts/emit-routes.mjs が /ko/ 用に差し替える。
@@ -33,12 +46,150 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@500&text=%ED%95%9C%EA%B5%AD%EC%96%B4&display=swap"
     />
     <title>J-paku</title>
+    <!-- ブートローダーの見た目。地色・文字色はトークン(var)参照なので、上の先行反映と合わせて
+         ダーク選択時もローダーからダークで描かれる。バンドルCSS(トークン定義)は head の
+         render-blocking な <link> なので、初回ペイント時点で var は必ず解決済み。
+         書体スワップ(FOUT)はこのローダーが画面を覆っている間に終わらせる設計で、
+         公開条件・上限は body 末尾の script が持つ -->
+    <style>
+      #boot {
+        position: fixed;
+        inset: 0;
+        /* SettingsMenu(z-index:100)より上、dialog(top-layer)は起動中に開かないので対象外 */
+        z-index: 200;
+        display: grid;
+        place-items: center;
+        background: var(--ground);
+        transition: opacity var(--motion-slow) var(--ease-reveal);
+      }
+      #boot[data-done] {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #boot svg {
+        width: clamp(150px, 32vw, 240px);
+        height: auto;
+        overflow: visible;
+      }
+      /* Playfair Display 400 の字形をパス化したもの(下のSVG)。pathLength=1 に正規化してあるので
+         dasharray/dashoffset は文字ごとの実長に依存しない。1文字ずつ 80ms ずらして輪郭を描き、
+         描き終わりに合わせて塗りを入れる。全6文字で約1.1sに収まる */
+      #boot path {
+        --boot-i: 0;
+        fill: var(--ink);
+        fill-opacity: 0;
+        stroke: var(--ink);
+        stroke-width: 1;
+        stroke-dasharray: 1;
+        stroke-dashoffset: 1;
+        animation:
+          boot-draw 0.4s var(--ease-reveal) forwards,
+          boot-fill 0.35s ease forwards;
+        animation-delay: calc(var(--boot-i) * 80ms), calc(var(--boot-i) * 80ms + 320ms);
+      }
+      #boot path:nth-of-type(2) { --boot-i: 1; }
+      #boot path:nth-of-type(3) { --boot-i: 2; }
+      #boot path:nth-of-type(4) { --boot-i: 3; }
+      #boot path:nth-of-type(5) { --boot-i: 4; }
+      #boot path:nth-of-type(6) { --boot-i: 5; }
+      @keyframes boot-draw {
+        to { stroke-dashoffset: 0; }
+      }
+      @keyframes boot-fill {
+        to { fill-opacity: 1; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #boot {
+          transition: none;
+        }
+        #boot path {
+          animation: none;
+          fill-opacity: 1;
+          stroke-dashoffset: 0;
+        }
+      }
+    </style>
     <!-- アクセス解析(GoatCounter)。Cookie 不使用。初回表示はこのタグが自動で送り、
          以降のルート遷移は src/hooks/use-pageview-tracking.ts から送る -->
     <script data-goatcounter="https://tottannim.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
   </head>
   <body>
+    <!-- ブートローダー。React マウント + 書体ロード完了(上限2s)まで画面を覆い、
+         スワップの瞬間を見せない。装飾のみなので支援技術からは隠す。
+         パスは Playfair Display 400(OFL) の J-Paku 6字形を opentype.js で抽出したもの -->
+    <div id="boot" aria-hidden="true">
+      <svg viewBox="-8 15 318 110" xmlns="http://www.w3.org/2000/svg">
+        <path pathLength="1" d="M-2 118.80L-2 116.90Q2.50 116.80 5.55 114.70Q8.60 112.60 10.15 107.75Q11.70 102.90 11.70 94.80L11.70 39.80Q11.70 36.10 11.10 34.35Q10.50 32.60 8.75 31.95Q7 31.30 3.60 31.20L3.60 29.20Q5.70 29.30 9.10 29.40Q12.50 29.50 16.20 29.50Q19.90 29.50 23.35 29.40Q26.80 29.30 29.10 29.20L29.10 31.20Q25.70 31.30 23.95 31.95Q22.20 32.60 21.60 34.35Q21 36.10 21 39.80L21 76.40Q21 80.50 20.90 85.30Q20.80 90.10 20.45 94.60Q20.10 99.10 19.30 102.50Q17.60 109.50 12.15 114.15Q6.70 118.80-2 118.80"/>
+        <path pathLength="1" d="M39.50 70.20L75.60 70.20L75.60 76L39.50 76"/>
+        <path pathLength="1" d="M86.70 31.20L86.70 29.20Q88.80 29.30 92.20 29.40Q95.60 29.50 98.90 29.50Q103.60 29.50 107.90 29.40Q112.20 29.30 114 29.30Q126.10 29.30 132.10 34.80Q138.10 40.30 138.10 49Q138.10 52.60 136.90 56.55Q135.70 60.50 132.75 63.85Q129.80 67.20 124.70 69.30Q119.60 71.40 111.80 71.40L102.20 71.40L102.20 69.40L110.80 69.40Q117.90 69.40 121.65 66.70Q125.40 64 126.75 59.60Q128.10 55.20 128.10 50.10Q128.10 40.60 124.35 35.90Q120.60 31.20 111.50 31.20Q106.90 31.20 105.50 32.90Q104.10 34.60 104.10 39.80L104.10 89.40Q104.10 93 104.85 94.80Q105.60 96.60 107.80 97.20Q110 97.80 114.20 98L114.20 100Q111.60 99.80 107.60 99.75Q103.60 99.70 99.50 99.70Q95.60 99.70 92.20 99.75Q88.80 99.80 86.70 100L86.70 98Q90.10 97.80 91.85 97.20Q93.60 96.60 94.20 94.80Q94.80 93 94.80 89.40L94.80 39.80Q94.80 36.10 94.20 34.35Q93.60 32.60 91.85 31.95Q90.10 31.30 86.70 31.20"/>
+        <path pathLength="1" d="M158.10 100.70Q154 100.70 151 99.15Q148 97.60 146.45 94.80Q144.90 92 144.90 88.30Q144.90 83.90 146.95 81.10Q149 78.30 152.20 76.60Q155.40 74.90 158.95 73.75Q162.50 72.60 165.70 71.55Q168.90 70.50 170.95 69.10Q173 67.70 173 65.40L173 59.20Q173 55 171.75 52.80Q170.50 50.60 168.40 49.85Q166.30 49.10 163.70 49.10Q161.20 49.10 158.35 49.80Q155.50 50.50 153.80 52.70Q155.70 53.10 157.10 54.70Q158.50 56.30 158.50 58.80Q158.50 61.30 156.90 62.75Q155.30 64.20 152.80 64.20Q149.90 64.20 148.55 62.35Q147.20 60.50 147.20 58.20Q147.20 55.60 148.50 54Q149.80 52.40 151.80 51Q154.10 49.40 157.75 48.25Q161.40 47.10 166 47.10Q170.10 47.10 173 48.05Q175.90 49 177.80 50.80Q180.40 53.20 181.20 56.65Q182 60.10 182 64.90L182 92.70Q182 95.20 182.75 96.30Q183.50 97.40 185.10 97.40Q186.20 97.40 187.20 96.90Q188.20 96.40 189.60 95.30L190.70 97Q188.60 98.60 186.70 99.65Q184.80 100.70 181.60 100.70Q178.70 100.70 176.80 99.70Q174.90 98.70 173.95 96.75Q173 94.80 173 91.80Q170.30 96.30 166.55 98.50Q162.80 100.70 158.10 100.70M161.70 96.70Q165 96.70 167.85 94.80Q170.70 92.90 173 89.10L173 69.50Q171.80 71.20 169.50 72.35Q167.20 73.50 164.50 74.65Q161.80 75.80 159.35 77.35Q156.90 78.90 155.30 81.40Q153.70 83.90 153.70 87.90Q153.70 91.90 155.85 94.30Q158 96.70 161.70 96.70"/>
+        <path pathLength="1" d="M209.40 21.60L209.40 90.70Q209.40 94.90 210.90 96.40Q212.40 97.90 216 97.90L216 100Q214.40 99.90 211.25 99.75Q208.10 99.60 204.90 99.60Q201.50 99.60 198 99.75Q194.50 99.90 192.80 100L192.80 97.90Q196.90 97.90 198.65 96.40Q200.40 94.90 200.40 90.70L200.40 33.60Q200.40 29.10 198.80 26.95Q197.20 24.80 192.80 24.80L192.80 22.70Q196 23 199 23Q201.90 23 204.55 22.65Q207.20 22.30 209.40 21.60M241.20 48.50L241.20 50.50Q238.70 50.70 236.50 51.85Q234.30 53 232.20 55.20L218.10 70L219.50 67.20L238.10 92.70Q239.80 95 241.35 96.30Q242.90 97.60 245.10 97.90L245.10 100Q244 99.90 241.65 99.75Q239.30 99.60 237 99.60Q233.90 99.60 230.70 99.75Q227.50 99.90 225.90 100L225.90 97.90Q227.90 97.90 228.70 96.90Q229.50 95.90 228.40 94.50L216.90 77.70Q215 75 213.45 74.20Q211.90 73.40 209 73.30L209 71.30Q212.20 70.90 214.20 69.95Q216.20 69 218 67.10L225.40 59.40Q228.60 56.10 228.60 54.15Q228.60 52.20 226.55 51.35Q224.50 50.50 221.20 50.50L221.20 48.50Q223.80 48.60 227.05 48.75Q230.30 48.90 232.50 48.90Q234.20 48.90 235.80 48.85Q237.40 48.80 238.80 48.70Q240.20 48.60 241.20 48.50"/>
+        <path pathLength="1" d="M294.10 47.40L294.10 89.20Q294.10 93.70 295.75 95.85Q297.40 98 301.70 98L301.70 100.10Q298.60 99.80 295.50 99.80Q292.60 99.80 289.95 100.10Q287.30 100.40 285.10 101.20L285.10 89.40Q282.60 95.90 278.05 98.65Q273.50 101.40 268.70 101.40Q265.20 101.40 262.60 100.40Q260 99.40 258.30 97.60Q256.40 95.60 255.70 92.40Q255 89.20 255 84.50L255 59.40Q255 54.90 253.40 52.75Q251.80 50.60 247.40 50.60L247.40 48.50Q250.60 48.80 253.60 48.80Q256.50 48.80 259.15 48.45Q261.80 48.10 264 47.40L264 86.70Q264 89.80 264.40 92.40Q264.80 95 266.40 96.60Q268 98.20 271.60 98.20Q275.50 98.20 278.55 95.80Q281.60 93.40 283.35 89.30Q285.10 85.20 285.10 80.10L285.10 59.40Q285.10 54.90 283.50 52.75Q281.90 50.60 277.50 50.60L277.50 48.50Q280.70 48.80 283.70 48.80Q286.60 48.80 289.25 48.45Q291.90 48.10 294.10 47.40"/>
+      </svg>
+    </div>
+    <noscript>
+      <!-- JS無しではアプリ本体が描かれないが、ローダーだけ永久に残るのは避ける -->
+      <style>
+        #boot { display: none; }
+      </style>
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <!-- ローダーの公開制御。公開条件 = React マウント(#root に子が入る) + document.fonts.ready。
+         描画アニメ(約1.1s)完走までは最低保持し、どんな回線でも 2s で無条件公開する。
+         reduced-motion 時はアニメが無いので最低保持もしない -->
+    <script>
+      ;(function () {
+        var boot = document.getElementById('boot')
+        if (boot === null) return
+        var t0 = Date.now()
+        var MIN = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 1100
+        var CAP = 2000
+        var done = false
+        var reveal = function () {
+          if (done) return
+          done = true
+          boot.setAttribute('data-done', '')
+          window.setTimeout(function () { boot.remove() }, 500)
+        }
+        var finish = function () {
+          var rest = MIN - (Date.now() - t0)
+          if (rest > 0) window.setTimeout(reveal, rest)
+          else reveal()
+        }
+        window.setTimeout(reveal, CAP)
+        /* fonts.ready は「その時点で読み込み中のものが無い」だけで解決するため、
+           本文描画がグリフ由来の取得を発行する前に見ると素通りする(実測: 低速回線で
+           status=loading のまま公開された)。マウント後2フレーム置いてから、
+           status が loading の間は ready を取り直して回る。上限は上の CAP が担う */
+        var waitFonts = function () {
+          if (document.fonts.status === 'loading') {
+            document.fonts.ready.then(function () {
+              window.requestAnimationFrame(waitFonts)
+            }, finish)
+          } else {
+            finish()
+          }
+        }
+        /* 書体CSSは media=print で読み、onload で all に切り替わる(head 参照)。
+           切り替わる前は @font-face 自体が無く fonts.status が当てにならないため、
+           「マウント済み + 書体CSS適用済み」まで待ってから status を見る。
+           CSSが落ちてこない場合は CAP が公開する */
+        var root = document.getElementById('root')
+        var fontCss = document.querySelector('link[data-fonts]')
+        var poll = function () {
+          var mounted = root !== null && root.childElementCount > 0
+          var cssApplied = fontCss === null || fontCss.media === 'all'
+          if (mounted && cssApplied) {
+            window.requestAnimationFrame(function () {
+              window.requestAnimationFrame(waitFonts)
+            })
+          } else {
+            window.requestAnimationFrame(poll)
+          }
+        }
+        window.requestAnimationFrame(poll)
+      })()
+    </script>
   </body>
 </html>
