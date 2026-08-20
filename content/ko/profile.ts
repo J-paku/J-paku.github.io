@@ -10,6 +10,7 @@ export const profile: Profile = {
   goal: 'UI/UX를 거의 전부 스스로 설계해왔지만, 그 판단이 정말 좋은지 검증할 수단이 없다. 반론이 돌아오는 환경에서 설계 판단의 정확도를 올리고 싶다.',
   links: {
     github: 'https://github.com/J-paku',
+    email: 'pjhrecr@gmail.com',
   },
   careers: [
     {

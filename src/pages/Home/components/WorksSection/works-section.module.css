@@ -67,8 +67,14 @@
  * 横 40px は上に積まれる左列(ProfileColumn の padding 60px 40px)と揃えた値
  */
 @media (max-width: 1024px) {
+  /*
+   * 下 padding が 64px だけだと、最下部までスクロールした時にモバイルブラウザの下ツールバー
+   * (iOS Safari で約50px + ホームインジケータ約34px)が奥付に被さる。少し戻すとツールバーが
+   * 畳まれてまた見える、という状態になっていた(実測: 奥付下端から画面下端まで64px)。
+   * 下の @supports がツールバーぶんを実測値で足す。ここは非対応ブラウザ向けの下限
+   */
   .works {
-    padding: 48px 40px 64px;
+    padding: 48px 40px calc(64px + env(safe-area-inset-bottom, 0px));
   }
 
   .header {
@@ -81,5 +87,18 @@
 
   .colophon {
     margin-top: 88px;
+  }
+}
+
+/*
+ * ツールバーの高さを定数で置かない。lvh(ツールバーが畳まれた時の高さ)と
+ * svh(出ている時の高さ)の差がツールバーの高さそのものなので、機種やブラウザが変わっても
+ * 自動で合う。ツールバーを持たない環境では差が 0 になり、上の 64px のままになる
+ */
+@supports (height: 100svh) {
+  @media (max-width: 1024px) {
+    .works {
+      padding-bottom: calc(64px + (100lvh - 100svh) + env(safe-area-inset-bottom, 0px));
+    }
   }
 }

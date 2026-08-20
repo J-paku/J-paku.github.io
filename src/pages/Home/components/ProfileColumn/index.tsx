@@ -3,8 +3,9 @@
 //
 // h1 は profile.name。共通ヘッダーを廃した08段階では、この列がページの識別そのものを担う
 //
-// 直下は .top / .out の2塊だけに保つ。列が justify-content: space-between で
-// 上下の端へ振り分けるため、ここに3つ目の直下要素を足すと分配が崩れる
+// 直下は .top / .out の2塊だけに保つ。列は「上=識別と経歴 / 下=連絡先」の2段の枠で、
+// 溢れを引き受けるのは .top の中の経歴リストだけ。ここに3つ目の直下要素を足すと
+// その帯の高さ計算(.top が flex: 1 で余りを取る)が崩れる
 // (11段階の詳細トリガーも各経歴の <li> の中へ入れ、直下要素は増やさない)
 import { useContent } from '@/hooks/use-content'
 import { getTechIconPath } from '@/utils/tech-icons'
@@ -72,12 +73,21 @@ function ProfileColumn({ activeCareerId, onSelectCareer }: ProfileColumnProps) {
         </ul>
       </div>
 
-      {/* 下塊。space-between のもう一方の端で、ここだけが外部への導線 */}
+      {/* 下塊。列の底に置く外部への導線。一段浮いた面に載せて、連絡先だけを物として立ち上げる。
+          ラベル語は置かない — 所在地・メール・GitHub は形を見れば何かが分かる */}
       <div className={styles.out}>
-        <p className={styles.location}>
-          <PhraseText text={profile.location} />
-        </p>
-        <div className={styles.outLinks}>
+        <div className={styles.card}>
+          <p className={styles.location}>
+            <PhraseText text={profile.location} />
+          </p>
+
+          {profile.links.email !== undefined ? (
+            /* mailto: のスキームはここで付ける。content が持つのは素のアドレスだけ */
+            <a href={`mailto:${profile.links.email}`} className={`${styles.outLink} ${styles.mail}`}>
+              {profile.links.email}
+            </a>
+          ) : null}
+
           {profile.links.github !== undefined ? (
             <a href={profile.links.github} rel="noreferrer" className={styles.outLink}>
               {/* ラベルが GitHub なのでブランドロゴを添える。装飾なので aria-hidden */}

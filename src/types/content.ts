@@ -188,8 +188,10 @@ export type Strength = {
 }
 
 // 外部プロフィールへの導線(08段階の左列 .out)
+// email は mailto: を組み立てる素のアドレス。スキームはコンポーネント側で付ける
 export type ProfileLinks = {
   github?: string
+  email?: string
 }
 
 export type Profile = {
