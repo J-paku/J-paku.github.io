@@ -134,8 +134,10 @@ function SceneModal({
   const isFirst = activeIndex === 0
   const isLast = activeIndex === scenes.length - 1
 
-  // 自動送りの一時停止フラグ(WCAG 2.2.2 対応)。activeIndex とは独立した state のため、
-  // 手動での場面送り(handlePrev/handleNext)を挟んでも一時停止状態はそのまま保持される
+  // 一時停止フラグ(WCAG 2.2.2 対応)。場面の自動送りと、場面SVG内部のアニメーションの
+  // 両方を止める — 送りだけ止めても絵が動き続けると「止まっていない」としか見えないため。
+  // activeIndex とは独立した state なので、手動での場面送り(handlePrev/handleNext)を
+  // 挟んでも一時停止状態はそのまま保持される
   const [isAutoAdvancePaused, setIsAutoAdvancePaused] = useState(false)
 
   // タップのたびに「今の操作」を短く出すための鍵。key を変えて要素を作り直すことで
@@ -202,7 +204,7 @@ function SceneModal({
   // activeIndex を effect の依存にしているため、手動prev/nextでactiveIndexが変わった時も
   // 同じ effect が発火し直し、新しい場面の周期でタイマーが再設定される
   // (手動操作用に別途タイマーをリセットする処理は不要)。
-  // ScenePlayer 側は活性化のたびに img を key 変更で再マウントするため(該当コンポーネントのコメント参照)、
+  // ScenePlayer 側は活性化のたびにSVGを組み直すため(該当コンポーネントのコメント参照)、
   // 表示され始めた場面のアニメーションは常に0から再生される — このタイマーの周期と自然に同期する
   useEffect(() => {
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -273,7 +275,12 @@ function SceneModal({
         >
           <div className={styles.frameWrap}>
             <DeviceFrame>
-              <ScenePlayer scenes={scenes} activeIndex={activeIndex} placeholder={placeholder} />
+              <ScenePlayer
+                scenes={scenes}
+                activeIndex={activeIndex}
+                placeholder={placeholder}
+                paused={isAutoAdvancePaused}
+              />
             </DeviceFrame>
           </div>
 
