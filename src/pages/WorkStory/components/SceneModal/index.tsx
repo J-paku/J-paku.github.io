@@ -89,7 +89,7 @@ function NextIcon() {
 // 装飾専用の一時停止アイコン(縦棒2本)。読み上げはボタンの aria-label が担うため aria-hidden
 function PauseIcon() {
   return (
-    <svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' className={styles.autoAdvanceIcon}>
+    <svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' className={styles.pulseIcon}>
       <path fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' d='M8 5v14M16 5v14' />
     </svg>
   )
@@ -98,7 +98,7 @@ function PauseIcon() {
 // 装飾専用の再開アイコン(再生三角)。読み上げはボタンの aria-label が担うため aria-hidden
 function PlayIcon() {
   return (
-    <svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' className={styles.autoAdvanceIcon}>
+    <svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' className={styles.pulseIcon}>
       <path
         fill='none'
         stroke='currentColor'
@@ -137,6 +137,10 @@ function SceneModal({
   // 自動送りの一時停止フラグ(WCAG 2.2.2 対応)。activeIndex とは独立した state のため、
   // 手動での場面送り(handlePrev/handleNext)を挟んでも一時停止状態はそのまま保持される
   const [isAutoAdvancePaused, setIsAutoAdvancePaused] = useState(false)
+
+  // タップのたびに「今の操作」を短く出すための鍵。key を変えて要素を作り直すことで
+  // 同じアニメーションを毎回頭から再生させる(CSSアニメーションは再代入では再生されない)
+  const [pulseKey, setPulseKey] = useState(0)
 
   // マウント時にネイティブモーダルとして開き、閉じるボタンへフォーカスを移す。
   // StrictMode の二重実行対策として、既に open な場合は showModal を呼び直さない
@@ -233,6 +237,7 @@ function SceneModal({
 
   function handleToggleAutoAdvance() {
     setIsAutoAdvancePaused((prev) => !prev)
+    setPulseKey((prev) => prev + 1)
   }
 
   return (
@@ -244,18 +249,6 @@ function SceneModal({
       onCancel={onClose}
     >
       <div className={styles.panel}>
-        {/* 自動送りの一時停止/再開トグル(WCAG 2.2.2)。WAI-ARIA APGのカルーセル回転停止コントロールに倣い、
-            状態表現は aria-label の文言差し替えのみで行う — aria-pressed を併用すると、停止中に
-            「再開、押されています」と読み上げられ意味が矛盾するため付けない */}
-        <button
-          type='button'
-          className={styles.autoAdvanceToggle}
-          aria-label={isAutoAdvancePaused ? resumeLabel : pauseLabel}
-          onClick={handleToggleAutoAdvance}
-        >
-          {isAutoAdvancePaused ? <PlayIcon /> : <PauseIcon />}
-        </button>
-
         <button
           ref={closeButtonRef}
           type='button'
@@ -266,11 +259,37 @@ function SceneModal({
           <CloseIcon />
         </button>
 
-        <div className={styles.frameWrap}>
-          <DeviceFrame>
-            <ScenePlayer scenes={scenes} activeIndex={activeIndex} placeholder={placeholder} />
-          </DeviceFrame>
-        </div>
+        {/* 自動送りの一時停止/再開(WCAG 2.2.2)。角の小さなボタンではなく画面そのものを押させる —
+            動画プレイヤーと同じ操作感で、閉じるボタンと近接して誤タップになるのも避けられる。
+            状態表現は aria-label の文言差し替えのみで行う。WAI-ARIA APGのカルーセル回転停止
+            コントロールに倣った判断で、aria-pressed を併用すると停止中に「再開、押されています」と
+            読み上げられ意味が矛盾するため付けない。
+            中身は img とテキストだけで、押せる要素を含まない(入れ子の対話要素にならない) */}
+        <button
+          type='button'
+          className={styles.sceneToggle}
+          aria-label={isAutoAdvancePaused ? resumeLabel : pauseLabel}
+          onClick={handleToggleAutoAdvance}
+        >
+          <div className={styles.frameWrap}>
+            <DeviceFrame>
+              <ScenePlayer scenes={scenes} activeIndex={activeIndex} placeholder={placeholder} />
+            </DeviceFrame>
+          </div>
+
+          {/* 押した直後だけ出て消える合図。装飾なので読み上げ対象から外す */}
+          <span key={pulseKey} className={styles.pulse} aria-hidden='true'>
+            {isAutoAdvancePaused ? <PlayIcon /> : <PauseIcon />}
+          </span>
+
+          {/* 停止中はその状態が続いていることを示し続ける。合図が消えたあとも
+              「止まっている」と分かるようにするため、パルスとは別に置く */}
+          {isAutoAdvancePaused ? (
+            <span className={styles.pausedMark} aria-hidden='true'>
+              <PlayIcon />
+            </span>
+          ) : null}
+        </button>
 
         <div className={styles.controls}>
           <button

@@ -56,11 +56,14 @@
   margin-inline: auto;
 }
 
-/* 右上の閉じるボタン。44px 以上のヒットボックスを確保する。塗りはスクリムに馴染む半透明の暗色 */
+/* 右上の閉じるボタン。44px 以上のヒットボックスを確保する。塗りはスクリムに馴染む半透明の暗色。
+   端末フレームの角(absolute)ではなく画面の角(fixed)に置く — フレームは画面の広さで縮むので、
+   フレーム基準だと狭い端末ほど他の要素へ寄っていき、余白が端末ごとにばらついていた。
+   ノッチ端末では env() の分だけ内側へ入れる */
 .close {
-  position: absolute;
-  top: calc(-1 * var(--space-xl));
-  right: 0;
+  position: fixed;
+  top: calc(var(--space-md) + env(safe-area-inset-top, 0px));
+  right: calc(var(--space-md) + env(safe-area-inset-right, 0px));
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -83,31 +86,72 @@
   height: 1.25rem;
 }
 
-/* 左上の自動送り一時停止/再開トグル。.close と対称の位置に置き、同じ見た目言語(スクリムに馴染む半透明の暗色)で揃える */
-.autoAdvanceToggle {
-  position: absolute;
-  top: calc(-1 * var(--space-xl));
-  left: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
+/* 場面そのものが一時停止/再開のボタン。見た目は素の面のままにして、押せる合図は
+   タップ時のパルスと停止中の印が担う。角に小さなボタンを置くと閉じるボタンと近接して
+   誤タップになるため、この形にした */
+.sceneToggle {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
   border: none;
-  border-radius: 50%;
-  background-color: color-mix(in srgb, var(--color-scrim) 60%, transparent);
+  background: none;
   color: var(--color-scrim-ink);
   cursor: pointer;
-  transition: background-color var(--motion);
 }
 
-.autoAdvanceToggle:hover {
-  background-color: color-mix(in srgb, var(--color-scrim) 85%, transparent);
+.sceneToggle:focus-visible {
+  outline: 2px solid var(--color-scrim-ink);
+  outline-offset: 4px;
 }
 
-.autoAdvanceIcon {
-  width: 1.1rem;
-  height: 1.1rem;
+/* 押した直後に一度だけ出る合図。操作の受理を伝えるだけなので、押せない要素として扱う */
+.pulse {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background-color: color-mix(in srgb, var(--color-scrim) 70%, transparent);
+  pointer-events: none;
+  opacity: 0;
+  animation: scene-toggle-pulse 620ms var(--ease-reveal);
+}
+
+@keyframes scene-toggle-pulse {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(0.7);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.35);
+  }
+}
+
+/* 停止している間ずっと出しておく印。合図(パルス)が消えたあとも状態が分かるようにする */
+.pausedMark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background-color: color-mix(in srgb, var(--color-scrim) 55%, transparent);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.pulseIcon {
+  width: 1.75rem;
+  height: 1.75rem;
 }
 
 /* 場面送りのコントロール行。frameWrap の下、panel の幅いっぱいに中央寄せで置く
@@ -183,8 +227,14 @@
 
 @media (prefers-reduced-motion: reduce) {
   .dialog::backdrop,
-  .panel {
+  .panel,
+  .pulse {
     animation: none;
+  }
+
+  /* パルスが出ないぶん、停止中の印だけで状態を伝える */
+  .pulse {
+    display: none;
   }
 }
 
@@ -194,11 +244,4 @@
     padding: var(--space-md) var(--space-sm);
   }
 
-  .close {
-    top: calc(-1 * var(--space-lg));
-  }
-
-  .autoAdvanceToggle {
-    top: calc(-1 * var(--space-lg));
-  }
 }

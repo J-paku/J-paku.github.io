@@ -10,6 +10,18 @@
   z-index: 100;
 }
 
+/*
+ * 全画面モーダル(<dialog showModal>)が開いている間は隠す。
+ * dialog は top-layer に載るので z-index では前後を入れ替えられず、モバイル幅では
+ * この歯車が場面モーダルの閉じるボタンに重なっていた(実測 390px で 29×24px の重なり)。
+ * showModal 中は dialog 以外が inert になり、そもそも押せないボタンが見えているだけの状態
+ * なので、見えなくするのが実態と一致する。
+ * :has() 非対応の環境では従来どおり見えたままになる — 機能は変わらない
+ */
+body:has(dialog[open]) .root {
+  display: none;
+}
+
 /* トリガー。原本の ThemeToggle と同じ「塗りを持たない枠線」の見た目をアイコン専用ボタンへ縮める */
 .trigger {
   display: inline-flex;
@@ -68,7 +80,8 @@
 }
 
 /* 言語リンク。旧 locale-switcher.module.css の .link をそのまま踏襲する
-   (フォントは太さ別サブセットのため、既存と異なる weight を新設しない) */
+   (配信CSSへ要求しているのは 400/500/700 だけなので、それ以外の weight を新設しない —
+    無い太さを指定するとブラウザが合成して字画が濁る) */
 .optionLink {
   padding-bottom: 2px;
   border-bottom: 1px solid transparent;
