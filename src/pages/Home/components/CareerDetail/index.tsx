@@ -141,6 +141,55 @@ function CareerDetail({ career, isHidden, onBackToWorks, panelRef }: CareerDetai
         ))}
       </dl>
 
+      {/* 派遣先ごとの担当内容。在籍1社・派遣先複数の経歴だけが持つ。
+          パネル内の第2階層の切れ目なので、節ラベル(ASSIGNMENT NN)+題字で文書のように区切る。
+          節番号はラテンのみの装飾 — CAREER DETAIL と同じ扱いで content には置かない */}
+      {detail.assignments !== undefined
+        ? detail.assignments.map((assignment, index) => (
+            <section key={assignment.client} className={styles.assignmentBlock}>
+              <p className={styles.assignmentEyebrow}>
+                {`ASSIGNMENT ${String(index + 1).padStart(2, '0')}`}
+              </p>
+              <h3 className={styles.assignmentClient}>
+                <PhraseText text={assignment.client} />
+              </h3>
+              <p className={styles.assignmentTitle}>
+                <PhraseText text={assignment.title} />
+              </p>
+              <p className={styles.overviewMeta}>
+                <PhraseText text={assignment.meta} />
+              </p>
+              {assignment.lead !== undefined ? (
+                <p className={styles.lead}>
+                  <PhraseText text={assignment.lead} />
+                </p>
+              ) : null}
+              {assignment.core !== undefined ? (
+                <div className={styles.core}>
+                  <p className={styles.coreClaim}>
+                    <PhraseText text={assignment.core.claim} />
+                  </p>
+                  <p className={styles.body}>
+                    <PhraseText text={assignment.core.body} />
+                  </p>
+                </div>
+              ) : null}
+              <dl className={styles.facts}>
+                {assignment.facts.map((fact) => (
+                  <div key={fact.label} className={styles.factRow}>
+                    <dt className={styles.factLabel}>
+                      <PhraseText text={fact.label} />
+                    </dt>
+                    <dd className={styles.factValue}>
+                      <PhraseText text={fact.value} />
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          ))
+        : null}
+
       {detail.features !== undefined ? (
         <section className={styles.block}>
           <h3 className={styles.blockHeading}>

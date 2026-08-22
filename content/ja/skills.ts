@@ -58,7 +58,7 @@ export const skills: SkillCategory[] = [
     category: '開発環境・AIオーケストレーション',
     items: [
       {
-        name: 'マルチエージェント・ハーネス設計',
+        name: 'チーム標準AI開発基盤の設計(マルチエージェント)',
         evidence: ['ai-harness'],
         note: 'フック25個、eval 36ケース、worktree隔離による並列実行',
       },

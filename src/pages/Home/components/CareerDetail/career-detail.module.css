@@ -134,6 +134,47 @@
   color: var(--ink);
 }
 
+/* 派遣先ごとの節。パネル内の第2階層の切れ目なので、上罫線+広い余白+節ラベルで
+   1つの文書のように区切る。ラベル・題字のトーンは .eyebrow / .company の階層を一段下げて継ぐ */
+.assignmentBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  min-width: 0;
+  margin-top: var(--space-md);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--rule);
+}
+
+/* 節ラベル。.eyebrow と同じトーン(赤はラベル専用色の用法) */
+.assignmentEyebrow {
+  margin: 0;
+  font-family: var(--f-mono);
+  font-size: 0.65rem;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* 派遣先の題字。パネル題字(.company)より一段小さく、節見出し(.blockHeading)より明確に上位 */
+.assignmentClient {
+  margin: 0;
+  font-family: var(--f-title);
+  font-size: clamp(1.05rem, 3.5vw, 1.25rem);
+  font-weight: var(--fw-display);
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+/* 案件の1行。題字の直下に添える副題 */
+.assignmentTitle {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.7;
+  color: var(--ink-secondary);
+}
+
 /* 節の導入・補足。本文より一段弱い */
 .lead,
 .note {
