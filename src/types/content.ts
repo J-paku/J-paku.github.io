@@ -151,6 +151,19 @@ export type CareerFeature = {
 // 本体の外でやったことの1項目。title は太字の見出し
 export type CareerAside = { title: string; body: string }
 
+// 担当業務パネル内の派遣先1件分。在籍1社の中で現場が替わった経歴を1項目に畳むための枠。
+// client が派遣先(題字)、title が案件の1行、meta が期間・役割の1行。
+// core・facts の意味は CareerDetail 本体と同じ。節番号(ASSIGNMENT 01)はラテンのみの装飾なので
+// コンポーネント側が index から作り、content には持たせない
+export type CareerDetailAssignment = {
+  client: string
+  title: string
+  meta: string
+  lead?: string
+  core?: { claim: string; body: string }
+  facts: CareerFact[]
+}
+
 export type CareerDetail = {
   // 何を作っていたのかの総論。meta は期間・状態の1行
   overview: { title: string; body: string; meta: string }
@@ -164,15 +177,22 @@ export type CareerDetail = {
   features?: { heading: string; lead?: string; items: CareerFeature[] }
   // 本体の外でやったことの列。持たない経歴もある
   asides?: { heading: string; items: CareerAside[] }
+  // 派遣先ごとの担当内容。在籍1社・派遣先複数の経歴だけが持つ
+  assignments?: CareerDetailAssignment[]
 }
 
 // ---------- プロフィール ----------
+
+// 左列の経歴ブロックに出す派遣先の1行。在籍1社の中の配属を期間付きで並べる
+export type CareerAssignment = { period: string; label: string }
 
 export type Career = {
   // 右列の差し替え対象を指す安定キー。表示しないので社名を含めない。ja/koで同じ値
   id: string
   company: string
   period: string
+  // 在籍1社の中で派遣先が替わった経歴だけが持つ。表示は左列の経歴ブロック内の小さな行
+  assignments?: CareerAssignment[]
   // その在籍期間で実際に触れた技術(08段階の左列 .cv .tech)
   stack: string[]
   role: string

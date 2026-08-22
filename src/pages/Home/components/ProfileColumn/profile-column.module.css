@@ -192,6 +192,29 @@
   color: var(--ink-mid);
 }
 
+/* 在籍1社の中の派遣先リスト。期間(等幅・桁揃え)+配属先を .tech と同じ小ささで積む */
+.assignments {
+  margin: var(--space-3xs) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.assignment {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+  font-size: 0.7rem;
+  line-height: 1.6;
+  letter-spacing: 0.05em;
+  color: var(--ink-mid);
+}
+
+.assignmentWhen {
+  flex: none;
+  font-family: var(--f-label);
+  font-variant-numeric: tabular-nums;
+}
+
 /* 経歴ごとの詳細トリガー(11段階)。右列を作品一覧からこの経歴の詳細へ差し替える起点。
    寸法・字送りは同じ小ラベルである .outLink・設定メニューの言語リンクに合わせる。
    点線の下線は「押せる場所」の符号で、作品カードの詳細トグルと同じ役割を accent が担う */

@@ -58,7 +58,7 @@ export const skills: SkillCategory[] = [
     category: '개발 환경·AI 오케스트레이션',
     items: [
       {
-        name: '멀티 에이전트 하네스 설계',
+        name: '팀 표준 AI 개발 기반 설계(멀티 에이전트)',
         evidence: ['ai-harness'],
         note: '훅 25개, eval 36케이스, worktree 격리 병렬 실행',
       },
