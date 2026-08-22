@@ -52,6 +52,17 @@ function ProfileColumn({ activeCareerId, onSelectCareer }: ProfileColumnProps) {
               <p className={styles.post}>
                 <PhraseText text={career.role} />
               </p>
+              {/* 在籍1社の中の派遣先。期間と配属先を経歴ブロック内に小さく積む(在籍1社であることを列の見た目でも示す) */}
+              {career.assignments !== undefined ? (
+                <ul className={styles.assignments}>
+                  {career.assignments.map((assignment) => (
+                    <li key={assignment.period} className={styles.assignment}>
+                      <span className={styles.assignmentWhen}>{assignment.period}</span>
+                      <PhraseText text={assignment.label} />
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
               <p className={styles.tech}>{career.stack.join(SEPARATOR)}</p>
               {/* 詳細を持つ経歴だけがトリガーを出す。押すと右列(panel-career)が差し替わる */}
               {career.detail !== undefined ? (
