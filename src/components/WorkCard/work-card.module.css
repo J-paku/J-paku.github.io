@@ -303,13 +303,27 @@
    画面(1200px以上)ではコンテンツ幅が1000pxを容易に超え、4:3比率のまま間延びしてしまう。
    上限600px(+aspect-ratio 4/3 で高さは常に450px以下)を付けて中央寄せする。コンテンツ幅が
    600pxに届かない帯(タブレット・モバイルの多くの幅)ではこの上限は実質無効
-   (自然に全幅で収まる) */
+   (自然に全幅で収まる)
+
+   ビューポート高さが低い帯(1440×790など)では450px固定だとカード総高がビューポートを
+   超え、パネル(仕様表)が初期表示に入らない。--shot-h で「キャプチャの高さがこうあって
+   ほしい」目標値(100svh - 520px。520pxはヘッダー・intro・panel・行間の概算控除)を
+   200〜450pxの間でキャップして持ち、実際の width にはそれを4/3倍した値を与える。
+   height 自体は明示せず auto のままにする — 非置換要素の仕様上 aspect-ratio は auto側の
+   1軸だけを他方の確定値から逆算するため、width と height の両方を明示すると
+   aspect-ratio が働かず、コンテンツ幅が優勢な帯(タブレット・モバイル)で比率が崩れる
+   (実測で確認済み)。width だけを明示し height を auto に残すことで、height-linked な
+   帯では width→height が --shot-h 通りに、100%側が勝つ帯では width→height が
+   従来通り実際の幅から4:3で決まる。max-width: 600px は --shot-h が上限450pxに達した
+   時の値(600px)と一致する保険として残す */
 .shot {
   grid-area: shot;
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
+  --shot-h: clamp(200px, calc(100svh - 520px), 450px);
+  width: min(100%, calc(var(--shot-h) * 4 / 3));
   max-width: 600px;
   aspect-ratio: 4 / 3;
   align-self: start;
@@ -359,8 +373,9 @@
   letter-spacing: 0.05em;
   line-height: 1.6;
   text-align: center;
-  /* --surface の上に載る文字。ink-mid はライトの --surface 上で 4.47 と AA を割るため一段濃い階調にする */
-  color: var(--ink-secondary);
+  /* --surface の上に載る文字。--ink-mid は #615e58 化(tokens.css)で --surface 上 4.82 と
+     AA を満たすようになったため、通常の補助テキスト色に復元する */
+  color: var(--ink-mid);
 }
 
 /*
