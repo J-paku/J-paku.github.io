@@ -25,6 +25,14 @@
  *     変数名は D1 のまま据え置き、値だけを無彩色へ置き換えた（参照側のCSSを触らないため）。
  *     色相での区別（accent の紫、marker の橙など）が使えなくなるので、
  *     区別は「明度の段階」と「枠線の有無」が担う。
+ * D6: 対比コメントが旧パレットの実測値のまま更新されておらずずれていたため、全対比コメントを
+ *     実測で再計算した回。ライトの --ink-mid と --rule-input は実測が基準を割っていたため
+ *     値も変更した:
+ *       ライト --ink-mid    #66635d(--surface 上 4.47 で AA 4.5 未達) → #615e58
+ *                            (--ground 上 5.24 / --surface 上 4.82 / --surface-cream 上 5.68)
+ *       ライト --rule-input #8c8c8c(--ground 上 2.73 で非テキスト 3:1 未達) → #7d7d7d
+ *                            (--ground 上 3.34 / --surface 上 3.07 / --surface-cream 上 3.62)
+ *     ダークは全ペアが実測で基準を満たしていたため値の変更なし。
  *
  * ダーク側では、ライトで定義した色変数を一つ残らず再定義する。
  * D2 で accent-deep / accent-subtle の再定義漏れがあり、ライトの値が漏れてダークの
@@ -37,16 +45,19 @@
   --surface: #e2ded8; /* 地の上に載る面（カード内の画像枠など） */
   --surface-cream: #f2f0ec; /* D1では暖色の緩衝帯だったが、モノクロ化で色相を落とし
                                 「地から一段沈んだ面」の意味だけを残す */
-  --ink: #1a1a18; /* 文字の基準色。原案 light の --fg。--ground 上で 21.00:1 */
-  --ink-secondary: #3a3a36; /* ink より一段弱い本文用。--ground 上で 12.63:1 */
-  --ink-mid: #66635d; /* 補助テキスト。原案 light の --accent(#666)。
-                          --ground 上で 5.74:1、--surface 上で 5.27:1 と、いずれもAA(4.5)を満たす */
+  --ink: #1a1a18; /* 文字の基準色。原案 light の --fg。--ground 上で 14.13:1 */
+  --ink-secondary: #3a3a36; /* ink より一段弱い本文用。--ground 上で 9.26:1 */
+  --ink-mid: #615e58; /* 補助テキスト。原案 light の --accent(#666)。D6で実測再計算し #66635d から変更
+                          (--surface 上 4.47 で AA 4.5 未達だったため)。--ground 上で 5.24:1、
+                          --surface 上で 4.82:1 と、いずれもAA(4.5)を満たす */
   --rule: rgba(26, 26, 24, 0.14); /* 罫線。原案 light の --border */
-  --rule-input: #8c8c8c; /* 入力枠。非テキストのため 3:1 が下限で、--ground 上で 3.36:1 */
-  --accent: #b33a2b; /* モノクロでは強調＝インクそのもの。--ink と同値 */
-  --accent-ink: #ffffff; /* accent を地にしたときの文字色。--ground と同値 */
+  --rule-input: #7d7d7d; /* 入力枠。非テキストのため 3:1 が下限。D6で実測再計算し #8c8c8c から変更
+                             (--ground 上 2.73 で 3:1 未達だったため)。--ground 上で 3.34:1 */
+  --accent: #b33a2b; /* D4で導入した暖色の強調色。キッカー・NO.・仕様表ラベル専用。
+                         --ground 上で 4.79:1、--surface-cream 上で 5.19:1 */
+  --accent-ink: #ffffff; /* accent を地にしたときの文字色。--accent 上で 5.90:1 */
   --marker: #6b6862; /* wip 状態専用。橙が使えないので、インクより一段弱い明度で「まだ弱い」を示す。
-                         --ground 上で 12.63:1 */
+                         --ground 上で 4.50:1 とAA(4.5)ぎりぎりで通過(実使用は --ground 背景のみ) */
 
   /* ===== 端末フレーム専用色 =====
      WorkStory の DeviceFrame(iPhone 17 Pro 風モックアップ)専用。チタン・ガラスという実体の色で
@@ -162,15 +173,15 @@
   --ground: #171613; /* 原案 dark の --bg */
   --surface: #201e1a; /* 原案の画像プレースホルダ(#1a1a1a)。地(#000)から一段浮いた面 */
   --surface-cream: #26241f; /* surface より更に一段浮いた面。地との差 1.35:1 で、境界は --rule が担う */
-  --ink: #edeae4; /* --ground 上で 21.00:1、--surface 上で 17.40:1 */
-  --ink-secondary: #cfcbc3; /* --ground 上で 13.08:1、--surface 上で 10.84:1 */
-  --ink-mid: #959087; /* 原案 dark の --accent(#888)。--ground 上で 5.92:1、--surface 上で 4.91:1 と
+  --ink: #edeae4; /* --ground 上で 15.07:1、--surface 上で 13.86:1 */
+  --ink-secondary: #cfcbc3; /* --ground 上で 11.19:1、--surface 上で 10.29:1 */
+  --ink-mid: #959087; /* 原案 dark の --accent(#888)。--ground 上で 5.70:1、--surface 上で 5.24:1 と
                           いずれもAA(4.5)を満たす。これ以上暗くすると --surface 上で割る */
   --rule: rgba(237, 234, 228, 0.14); /* 原案 dark の --border */
-  --rule-input: #808080; /* 非テキスト。--ground 上で 5.32:1 */
-  --accent: #e06d5a; /* --ink と同値 */
+  --rule-input: #808080; /* 非テキスト。--ground 上で 4.58:1 */
+  --accent: #e06d5a; /* D4で導入した暖色の強調色。--ground 上で 5.60:1、--surface-cream(パネル) 上で 4.80:1 */
   --accent-ink: #171613; /* --ground と同値 */
-  --marker: #959087; /* wip。--surface 上で 10.84:1 */
+  --marker: #959087; /* wip。--ink-mid と同値。--surface 上で 5.24:1 */
 
   /* 端末フレーム専用色。テーマ非依存のため :root と同じ値 */
   --color-device-bezel-highlight: #efece6;
@@ -190,9 +201,9 @@
   --surface-cream: #f2f0ec;
   --ink: #1a1a18;
   --ink-secondary: #3a3a36;
-  --ink-mid: #66635d;
+  --ink-mid: #615e58;
   --rule: rgba(26, 26, 24, 0.14);
-  --rule-input: #8c8c8c;
+  --rule-input: #7d7d7d;
   --accent: #b33a2b;
   --accent-ink: #ffffff;
   --marker: #6b6862;
