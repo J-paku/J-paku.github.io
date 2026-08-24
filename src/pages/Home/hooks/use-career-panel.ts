@@ -78,15 +78,22 @@ export function useCareerPanel(careers: Career[]) {
     const panel = panelRef.current
     if (panel === null) return
 
-    // スクロールはこちらで決める。広い幅では右列が既に見えているので動かさない
+    // スクロールはこちらで決める
     panel.focus({ preventScroll: true })
-    if (!matchesMedia(NARROW_QUERY)) return
-    if (typeof panel.scrollIntoView !== 'function') return
+    const behavior: ScrollBehavior = matchesMedia(REDUCED_MOTION_QUERY) ? 'auto' : 'smooth'
 
-    panel.scrollIntoView({
-      block: 'start',
-      behavior: matchesMedia(REDUCED_MOTION_QUERY) ? 'auto' : 'smooth',
-    })
+    if (matchesMedia(NARROW_QUERY)) {
+      // 1列の幅ではパネルが左列の下に積まれるので、パネル先頭へ送る
+      if (typeof panel.scrollIntoView !== 'function') return
+      panel.scrollIntoView({ block: 'start', behavior })
+      return
+    }
+
+    // 広い幅でもパネル上端が見えていなければページ先頭へ戻す — 作品一覧を下まで
+    // 送った状態から開くと、パネルの頭ではなく途中が出たままになるため。
+    // 上端が見えている(=右列が既に見えている)ときは従来どおり動かさない
+    if (panel.getBoundingClientRect().top >= 0) return
+    window.scrollTo({ top: 0, behavior })
   }, [activeCareerId])
 
   return { activeCareerId, activeCareer, panelCareer, openCareer, showDetail, showWorks, panelRef }
