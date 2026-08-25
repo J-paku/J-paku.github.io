@@ -140,6 +140,9 @@ export type CareerFlowStep = { label: string; emphasis?: boolean }
 // 事実表の1行。label が見出し列、value が本文列
 export type CareerFact = { label: string; value: string }
 
+// 技術スタック表の1層分(Web / Native など)。title は層見出し、rows は facts と同じ行構造
+export type CareerStackGroup = { title: string; rows: CareerFact[] }
+
 // 機能一覧の1行。roles は実際に担当した工程だけを並べる
 export type CareerFeature = {
   date: string
@@ -173,6 +176,8 @@ export type CareerDetail = {
   core?: { claim: string; body: string }
   // 構成・担当範囲・数値などの事実の列。全ての経歴が持つ
   facts: CareerFact[]
+  // 技術スタック表。groups は Web / Native などの層別、rows は facts と同じ label+value
+  stacks?: { heading: string; groups: CareerStackGroup[] }
   // 機能一覧。持たない経歴もある
   features?: { heading: string; lead?: string; items: CareerFeature[] }
   // 本体の外でやったことの列。持たない経歴もある

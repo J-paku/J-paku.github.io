@@ -26,14 +26,14 @@ export const profile: Profile = {
         '기간계 데이터를 Pleasanter로 이관한 위에, 업무 플로우 청취와 데이터 구조에 맞춰 재구축',
         '좌석 맵·명함 관리·장표 등 사내 앱을 상태 동기와 렌더 설계부터 자력 구축',
         '회사에 전례가 없던 Swift/iOS를 도입하고 Apple Enterprise 프로그램 개설',
-        '팀 표준 AI 개발 기반을 자작해 배포·정착까지 담당',
+        '팀 표준 AI 개발 기반을 자작해 배포·정착까지 담당. 도입 2개월 만에 코드 추가 행수는 15,811행에서 63,307행으로',
         '설계 규약을 문서화하고 hook으로 기계 강제하는 운용으로 전환',
       ],
       detail: {
         overview: {
           title: '사내 업무 슈퍼앱',
           body: '현장 업무를 iPhone 1대로 돌린다. 기능을 계속 더해가는 사내 배포형 앱.',
-          meta: '2025.06 착수 · 2025.12 본운용 · 운용 중(14개월)',
+          meta: '2025.06 착수 · 2025.12 본운용 · 운용 중(14개월) · 전사 200명 이상 사용 · 418라우트 · TypeScript 16만 행',
         },
         origin: {
           heading: '앱의 골격을 만든 첫 기능 — 등원 세트',
@@ -55,10 +55,6 @@ export const profile: Profile = {
         },
         facts: [
           {
-            label: '구성',
-            value: 'Next.js Web UI / WKWebView / BLE 프린터 SDK(네이티브) / Pleasanter API / Microsoft Intune',
-          },
-          {
             label: '담당 범위',
             value: '과제 정의 · 설계 · 구현 · 배포 기반 정비 · 운용 · 개선',
           },
@@ -79,6 +75,39 @@ export const profile: Profile = {
             value: 'React, Swift — 앱 전체가 이 2가지의 첫 실전이었다',
           },
         ],
+        stacks: {
+          heading: '기술 스택',
+          groups: [
+            {
+              title: 'Web',
+              rows: [
+                { label: '프레임워크', value: 'Next.js 16(Pages Router)' },
+                { label: 'UI', value: 'React 19 / Tailwind CSS 4 / MUI 7 / Radix UI' },
+                { label: '언어', value: 'TypeScript 5' },
+                { label: '데이터 페칭', value: 'SWR 2.3 / axios 1.13 / Zod 4.3' },
+                { label: 'API', value: 'Pleasanter REST API' },
+                { label: '테이블', value: 'AG Grid 35 / @tanstack/react-virtual 3' },
+                { label: '차트', value: 'Recharts 3' },
+                { label: '제스처·D&D', value: '@dnd-kit/core 6 / sortablejs / Embla Carousel 8' },
+                { label: '상태 관리', value: 'React Hooks(커스텀 훅 분리)' },
+                { label: '영속화', value: 'IndexedDB + sessionStorage 폴백' },
+                { label: '빌드', value: 'Turbopack + React Compiler' },
+                { label: '배포', value: '정적 익스포트(output: export)' },
+              ],
+            },
+            {
+              title: 'Native',
+              rows: [
+                { label: '언어', value: 'Swift 5' },
+                { label: 'UI', value: 'UIKit / SwiftUI 병용' },
+                { label: '네이티브 연동', value: 'WKWebView postMessage / WKScriptMessageHandler' },
+                { label: '카메라', value: 'AVCaptureSession / Vision(사각형 검출·QR)' },
+                { label: '인쇄', value: 'SII SDK(Bluetooth 감열)' },
+                { label: '배포', value: 'Xcode Archive → In-House .ipa → MDM(Microsoft Intune)' },
+              ],
+            },
+          ],
+        },
         features: {
           heading: '기능 일람',
           lead: '착수 기준 / 릴리스는 운영 반영 기준',
