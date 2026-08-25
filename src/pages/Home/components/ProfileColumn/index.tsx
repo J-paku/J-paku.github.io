@@ -76,7 +76,11 @@ function ProfileColumn({ activeCareerId, onSelectCareer }: ProfileColumnProps) {
                   {/* ボタンが3つ並ぶため、どの経歴のものかを読み上げ名だけに社名で足す。
                       表示文字列の合成はしない(社名も文言も content から来たものをそのまま置く) */}
                   <span className={styles.srOnly}>{career.company}</span>
-                  {ui.career.openDetail}
+                  <span className={styles.detailLabel}>{ui.career.openDetail}</span>
+                  {/* 矢印は「押せる物」の符号として足した装飾のみ。読み上げ対象から外す */}
+                  <span className={styles.detailArrow} aria-hidden='true'>
+                    ›
+                  </span>
                 </button>
               ) : null}
             </li>
