@@ -4,7 +4,7 @@
 //
 // 文言は career と ui からのみ取る。ラテンのみのキッカー(CAREER DETAIL)は
 // 左列の PORTFOLIO — 2026 と同じ扱いで content には置かない
-import type { RefObject } from 'react'
+import { Fragment, type RefObject } from 'react'
 import type { Career, CareerRole } from '@/types/content'
 import { useContent } from '@/hooks/use-content'
 import PhraseText from '@/components/PhraseText'
@@ -140,6 +140,34 @@ function CareerDetail({ career, isHidden, onBackToWorks, panelRef }: CareerDetai
           </div>
         ))}
       </dl>
+
+      {/* 技術スタック表。Web / Native などの層ごとに見出しを立て、行は facts と同じ構造で描く。
+          層見出し(Web / Native)はラテンのみの固定文字列相当で、機能一覧の日付(featureDate)と
+          同じ扱いで PhraseText を通さない */}
+      {detail.stacks !== undefined ? (
+        <section className={styles.block}>
+          <h3 className={styles.blockHeading}>
+            <PhraseText text={detail.stacks.heading} />
+          </h3>
+          {detail.stacks.groups.map((group) => (
+            <Fragment key={group.title}>
+              <h4 className={styles.stackGroupTitle}>{group.title}</h4>
+              <dl className={styles.facts}>
+                {group.rows.map((row) => (
+                  <div key={row.label} className={styles.factRow}>
+                    <dt className={styles.factLabel}>
+                      <PhraseText text={row.label} />
+                    </dt>
+                    <dd className={styles.factValue}>
+                      <PhraseText text={row.value} />
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </Fragment>
+          ))}
+        </section>
+      ) : null}
 
       {/* 派遣先ごとの担当内容。在籍1社・派遣先複数の経歴だけが持つ。
           パネル内の第2階層の切れ目なので、節ラベル(ASSIGNMENT NN)+題字で文書のように区切る。

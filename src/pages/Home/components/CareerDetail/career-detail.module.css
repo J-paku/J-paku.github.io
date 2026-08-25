@@ -134,6 +134,17 @@
   color: var(--ink);
 }
 
+/* 技術スタック表の層見出し(Web / Native)。節見出し(.blockHeading)より一段軽く、
+   本文内の題字(.asideTitle)と同じトーンを使う。直後の事実表(.facts)が上罫線を持つので
+   ここには罫線を足さない */
+.stackGroupTitle {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: var(--fw-bold);
+  line-height: 1.6;
+  color: var(--ink);
+}
+
 /* 派遣先ごとの節。パネル内の第2階層の切れ目なので、上罫線+広い余白+節ラベルで
    1つの文書のように区切る。ラベル・題字のトーンは .eyebrow / .company の階層を一段下げて継ぐ */
 .assignmentBlock {

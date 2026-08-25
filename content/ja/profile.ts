@@ -26,14 +26,14 @@ export const profile: Profile = {
         '基幹データをPleasanterへ移行した上で、業務フローの聞き取りとデータ構造に合わせて再構築',
         '座席マップ・名刺管理・帳票などの社内アプリを、状態同期と描画設計から自力で構築',
         '会社として前例のなかったSwift/iOSを導入し、Apple Enterpriseプログラムを開設',
-        'チーム標準のAI開発基盤を自作し、配布・定着まで担当',
+        'チーム標準のAI開発基盤を自作し、配布・定着まで担当。導入2か月でコード追加行数は15,811行から63,307行へ',
         '設計規約を文書化し、hookで機械的に強制する運用へ切り替え',
       ],
       detail: {
         overview: {
           title: '社内業務スーパーアプリ',
           body: '現場の業務をiPhone1台で回す。機能を足し続ける社内配布型アプリ。',
-          meta: '2025.06着手 · 2025.12本運用 · 運用中(14か月)',
+          meta: '2025.06着手 · 2025.12本運用 · 運用中(14か月) · 全社200名以上が利用 · 418ルート · TypeScript 16万行',
         },
         origin: {
           heading: 'アプリの骨格を作った最初の機能 — 登園セット',
@@ -55,10 +55,6 @@ export const profile: Profile = {
         },
         facts: [
           {
-            label: '構成',
-            value: 'Next.js Web UI / WKWebView / BLEプリンターSDK(ネイティブ) / Pleasanter API / Microsoft Intune',
-          },
-          {
             label: '担当範囲',
             value: '課題定義 · 設計 · 実装 · 配布基盤の整備 · 運用 · 改善',
           },
@@ -79,6 +75,39 @@ export const profile: Profile = {
             value: 'React、Swift — アプリ全体が、この2つにとって初の実戦だった',
           },
         ],
+        stacks: {
+          heading: '技術スタック',
+          groups: [
+            {
+              title: 'Web',
+              rows: [
+                { label: 'フレームワーク', value: 'Next.js 16(Pages Router)' },
+                { label: 'UI', value: 'React 19 / Tailwind CSS 4 / MUI 7 / Radix UI' },
+                { label: '言語', value: 'TypeScript 5' },
+                { label: 'データ取得', value: 'SWR 2.3 / axios 1.13 / Zod 4.3' },
+                { label: 'API', value: 'Pleasanter REST API' },
+                { label: 'テーブル', value: 'AG Grid 35 / @tanstack/react-virtual 3' },
+                { label: 'チャート', value: 'Recharts 3' },
+                { label: 'ジェスチャー・D&D', value: '@dnd-kit/core 6 / sortablejs / Embla Carousel 8' },
+                { label: '状態管理', value: 'React Hooks(カスタムフック分離)' },
+                { label: '永続化', value: 'IndexedDB + sessionStorageフォールバック' },
+                { label: 'ビルド', value: 'Turbopack + React Compiler' },
+                { label: '配信', value: '静的エクスポート(output: export)' },
+              ],
+            },
+            {
+              title: 'Native',
+              rows: [
+                { label: '言語', value: 'Swift 5' },
+                { label: 'UI', value: 'UIKit / SwiftUI併用' },
+                { label: 'ネイティブ連携', value: 'WKWebView postMessage / WKScriptMessageHandler' },
+                { label: 'カメラ', value: 'AVCaptureSession / Vision(矩形検出・QR)' },
+                { label: '印刷', value: 'SII SDK(Bluetooth感熱)' },
+                { label: '配布', value: 'Xcode Archive → In-House .ipa → MDM(Microsoft Intune)' },
+              ],
+            },
+          ],
+        },
         features: {
           heading: '機能一覧',
           lead: '着手基準 / リリースは本番反映基準',
