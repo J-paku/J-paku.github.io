@@ -31,6 +31,11 @@ const shellHtml = readFileSync(shellHtmlPath, 'utf-8')
 const KO_FONT_LINK =
   '<link rel="stylesheet" data-fonts="ko" media="print" onload="this.media=\'all\'" href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@400&family=Playfair+Display:wght@400&display=swap" />'
 
+// ko ページ用の meta description・og:description の文言。og:locale の ko_KR 化とあわせて
+// ko 複製時にだけ差し替える(og:title・og:site_name はブランド名なので ja/ko 共通のまま)
+const KO_DESCRIPTION =
+  '업무 시스템 UI를 모바일 조작감까지 설계하고 운용까지 책임지는 프론트엔드 엔지니어. Web·iOS를 넘나드는 사내 슈퍼앱, 좌석 맵, AI 개발 기반 등 작품과 경력'
+
 // routeDir へ dist/index.html の複製を書き出す。routeDir は DIST_DIR からの相対パス。
 // lang を渡すと <html lang> と書体リンクを差し替える — フォントのチェーンを
 // :root[lang='ko'] で切り替えているため、JSが lang を立てる前の初回ペイントで
@@ -56,7 +61,34 @@ function emitRoute(routeDir, lang) {
       process.exit(1)
     }
     html = swapped
+
+    // description・og:description・og:locale を ko 用に差し替える。こちらも改行をまたげる書き方にする
+    const metaSwapped = html
+      .replace(/<meta name="description" content="[^"]*"/, `<meta name="description" content="${KO_DESCRIPTION}"`)
+      .replace(/<meta property="og:description" content="[^"]*"/, `<meta property="og:description" content="${KO_DESCRIPTION}"`)
+      .replace(/<meta property="og:locale" content="[^"]*"/, '<meta property="og:locale" content="ko_KR"')
+    const koDescriptionCount = metaSwapped.split(KO_DESCRIPTION).length - 1
+    if (
+      koDescriptionCount !== 2 ||
+      !metaSwapped.includes('og:locale" content="ko_KR"') ||
+      metaSwapped.includes('og:locale" content="ja_JP"')
+    ) {
+      console.error(`emit-routes: description・og:description・og:locale を ko へ差し替えられなかった(${routeDir})`)
+      process.exit(1)
+    }
+    html = metaSwapped
   }
+
+  // og:url は lang と無関係に、複製先ルートの実URLへ差し替える。ja トップ(shellHtml 原本)は
+  // vite 出力そのままで既に https://j-paku.github.io/ なので、emitRoute を経由しない限り触らない
+  const routeUrl = `https://j-paku.github.io/${routeDir.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')}/`
+  const urlSwapped = html.replace(/<meta property="og:url" content="[^"]*"/, `<meta property="og:url" content="${routeUrl}"`)
+  if (urlSwapped === html || !urlSwapped.includes(`og:url" content="${routeUrl}"`)) {
+    console.error(`emit-routes: og:url を差し替えられなかった(${routeDir})`)
+    process.exit(1)
+  }
+  html = urlSwapped
+
   writeFileSync(outPath, html)
   console.log(`emit-routes: ${path.relative(ROOT_DIR, outPath)} (lang=${lang ?? 'ja'})`)
 }
