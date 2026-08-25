@@ -7,10 +7,15 @@
  * 赤(--accent)はラベル専用の約束どおり、キッカー・事実表のラベル・核の縦罫にだけ使う。
  */
 .panel {
+  /* 下部固定CTA(.back)自身の高さ。CTAと padding-bottom の両方から参照する共通値
+     (work-story.module.css の .page と同じ組み立て方) */
+  --cta-height: 56px;
+  /* CTAが本文を覆わないための下余白。高さ+CTA自身の上下ゆとり(--space-md ×2)+ノッチ端末のsafe-area */
+  --cta-clearance: calc(var(--cta-height) + var(--space-md) * 2 + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   gap: var(--space-xl);
-  padding: 60px 80px;
+  padding: 60px 80px calc(60px + var(--cta-clearance));
   min-width: 0;
 }
 
@@ -21,28 +26,53 @@
 }
 
 /*
- * 作品一覧への戻り道。1025px以上ではタブが同じ役目を持つので出さない。
- * 寸法・字送りは左列の詳細トリガー(.detailTrigger)と揃え、押せる高さを 40px 以上確保する
+ * 作品一覧への戻り道。タブ廃止により、幅を問わずこのCTAが唯一の復帰経路になった —
+ * パネルが hidden(作品一覧を表示中)の間は祖先ごと一緒に隠れるので、常時表示でよい。
+ * 下部固定CTA(Toss式)。位置・寸法・配色は work-story.module.css の .viewSceneCta を踏襲する
+ * (--accent/--accent-ink は「accentを地にした時の対色」として組で定義済み — 両テーマともAA(4.5:1)を満たす)
  */
 .back {
-  display: none;
-  align-self: flex-start;
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--space-md) + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 50;
+  display: inline-flex;
   align-items: center;
-  padding: 10px 16px;
-  border: 1px solid var(--rule);
-  background: none;
+  justify-content: center;
+  width: calc(100% - var(--space-md) * 2);
+  max-width: 420px;
+  height: var(--cta-height);
+  padding: 0 var(--space-lg);
+  border: none;
+  border-radius: 999px;
+  background-color: var(--accent);
+  color: var(--accent-ink);
   font-family: var(--f-label);
-  font-size: 0.7rem;
+  font-size: 0.8rem;
   font-weight: var(--fw-medium);
-  line-height: 1.6;
-  letter-spacing: 0.1em;
-  color: var(--ink);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   cursor: pointer;
-  transition: border-color var(--motion) var(--ease-reveal);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--ink) 25%, transparent);
+  transition: filter var(--motion) var(--ease-reveal);
 }
 
-.back:hover {
-  border-color: var(--ink);
+.back:hover,
+.back:focus-visible {
+  filter: brightness(1.08);
+}
+
+/* accent地の上では accent色のフォーカスリング(global.cssの既定)が同化して見えなくなるため、
+   対色(accent-ink)へ上書きする */
+.back:focus-visible {
+  outline-color: var(--accent-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .back {
+    transition: none;
+  }
 }
 
 /* 見出し塊。社名を h2 に置き、その下に期間と役割の1行を添える */
@@ -440,18 +470,13 @@
 }
 
 /*
- * 1列に畳まれる幅。外周の余白は上に積まれる作品一覧(works-section.module.css)と同値にし、
- * タブが消えるぶん戻り道のボタンをここで出す。
+ * 1列に畳まれる幅。外周の余白は上に積まれる作品一覧(works-section.module.css)と同値にする。
  * 事実表・機能一覧は列を畳んで縦に積む — ラベル列を残すと値側が狭まり、
  * 文節が枠に入らなくなって語中で折れる(work-spec.module.css の 360px 分岐と同じ理由)
  */
 @media (max-width: 1024px) {
   .panel {
-    padding: 48px 40px 64px;
-  }
-
-  .back {
-    display: inline-flex;
+    padding: 48px 40px calc(64px + var(--cta-clearance));
   }
 
   .factRow {

@@ -1,7 +1,8 @@
 // 右列の作品ストリーム。並び順はローダーが確定済みのものをそのまま使い、ここで再ソートしない。
 // 10段階でジグザグを廃したためカードは単純に縦へ積む。index は NO. 表示のためカードへ渡す。
 // 言語・テーマは右上固定の SettingsMenu へ統合したため、ここには置かない
-// 11段階で右列はタブパネルの1枚になった。表示切替は親が持ち、ここは hidden を受け取るだけ
+// 右列は作品一覧⇄担当業務詳細の差し替えで、表示切替は親が持つ。ここは hidden を受け取るだけ
+// (タブ廃止により tabpanel の役割は失った)
 import { useContent } from '@/hooks/use-content'
 import WorkCard from '@/components/WorkCard'
 import PhraseText from '@/components/PhraseText'
@@ -16,17 +17,12 @@ function WorksSection({ isHidden }: WorksSectionProps) {
   const { ui, works } = useContent()
 
   return (
-    // tabpanel の名前はタブ側の見出しが持つ。二重ラベルになるため索引見出しは紐づけない
-    <section
-      id='panel-works'
-      role='tabpanel'
-      aria-labelledby='tab-works'
-      hidden={isHidden}
-      className={styles.works}
-    >
+    // タブ廃止により tabpanel/panel-works の参照先は消滅した。見出し自身に id を持たせ、
+    // section は普通の索引セクションとして自分の見出しをラベルにする
+    <section aria-labelledby='works-section-heading' hidden={isHidden} className={styles.works}>
       {/* ヘッダーバー(10段階)。索引文言のみ。下に全幅のヘアライン */}
       <header className={styles.header}>
-        <h2 className={styles.title}>
+        <h2 id='works-section-heading' className={styles.title}>
           <PhraseText text={ui.work.index} />
         </h2>
       </header>

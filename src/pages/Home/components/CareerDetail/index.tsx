@@ -16,7 +16,7 @@ type CareerDetailProps = {
   career: Career
   // 作品一覧を表示中は true。アンマウントせず hidden で隠す
   isHidden: boolean
-  // 1024px以下でだけ見える「作品一覧へ戻る」から呼ぶ
+  // 下部固定CTA「作品一覧へ戻る」から呼ぶ
   onBackToWorks: () => void
   // 開いた直後に親が focus({ preventScroll: true }) するための参照
   panelRef: RefObject<HTMLElement | null>
@@ -44,21 +44,15 @@ function CareerDetail({ career, isHidden, onBackToWorks, panelRef }: CareerDetai
   return (
     <section
       id='panel-career'
-      role='tabpanel'
-      aria-labelledby='tab-career'
+      aria-labelledby='career-detail-heading'
       tabIndex={-1}
       ref={panelRef}
       hidden={isHidden}
       className={styles.panel}
     >
-      {/* 1024px以下ではタブが隠れるため、ここが作品一覧への唯一の戻り道になる(出し分けはCSS) */}
-      <button type='button' className={styles.back} onClick={onBackToWorks}>
-        <PhraseText text={ui.career.backToWorks} />
-      </button>
-
       <header className={styles.head}>
         <p className={styles.eyebrow}>CAREER DETAIL</p>
-        <h2 className={styles.company}>
+        <h2 id='career-detail-heading' className={styles.company}>
           <PhraseText text={career.company} />
         </h2>
         <p className={styles.headMeta}>
@@ -282,6 +276,12 @@ function CareerDetail({ career, isHidden, onBackToWorks, panelRef }: CareerDetai
           </ul>
         </section>
       ) : null}
+
+      {/* タブ廃止により、下部固定CTA(Toss式)が作品一覧への唯一の戻り道になった。
+          幅を問わず全幅で常時表示 — パネル自体が hidden の間は祖先ごと一緒に隠れる */}
+      <button type='button' className={styles.back} onClick={onBackToWorks}>
+        <PhraseText text={ui.career.backToWorks} />
+      </button>
     </section>
   )
 }
