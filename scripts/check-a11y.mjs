@@ -79,6 +79,14 @@ async function auditPath(browser, targetPath) {
       const panel = document.querySelector('#panel-career')
       return panel !== null && !panel.hasAttribute('hidden')
     })
+    // 2つ目以降はパネルが既に開いていて従来の条件が即真になり、React が aria-current を
+    // 移す前に axe が走る(色の半端なスナップショットで color-contrast を誤検出)。
+    // クリックした本人が current になるまで待って状態確定を保証する
+    await page.waitForFunction((el) => el.getAttribute('aria-current') === 'true', trigger)
+    // aria-current 反映後もスタイル再計算・ペイントが同フレームに乗り切らない場合があるため、2フレーム待って確定させる
+    await page.evaluate(() => new Promise((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(resolve))
+    }))
     reports.push({ label: `${targetPath} (経歴${index + 1})`, ...(await runAxe(page)) })
   }
 
@@ -90,6 +98,16 @@ async function auditPath(browser, targetPath) {
 function printViolation(violation) {
   const firstTarget = violation.nodes[0]?.target.join(' ') ?? '(不明)'
   console.error(`  - ${violation.id} [${violation.impact}] 対象${violation.nodes.length}件 例: ${firstTarget}`)
+
+  // CI でしか再現しない色系フレークの原因特定用に、判定に使われた実色を残す
+  if (violation.id === 'color-contrast') {
+    for (const node of violation.nodes) {
+      const data = node.any[0]?.data
+      if (data) {
+        console.error(`    fg=${data.fgColor} bg=${data.bgColor} ratio=${data.contrastRatio}`)
+      }
+    }
+  }
 }
 
 async function main() {
