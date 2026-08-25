@@ -215,39 +215,93 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* 経歴ごとの詳細トリガー(11段階)。右列を作品一覧からこの経歴の詳細へ差し替える起点。
-   寸法・字送りは同じ小ラベルである .outLink・設定メニューの言語リンクに合わせる。
-   点線の下線は「押せる場所」の符号で、作品カードの詳細トグルと同じ役割を accent が担う */
+/* 経歴ごとの詳細トリガー(13段階→Toss式の弱ボタンへ再設計)。右列を作品一覧からこの経歴の詳細へ差し替える起点。
+   円形バッジ+パルスの符号は廃し、面全体をアクセントの薄色で塗った「弱ボタン」にする。
+   表示中(aria-current)だけ面をアクセント本色へ反転させ「強ボタン」化して現在地を示す */
 .detailTrigger {
-  position: relative;
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  /* 上下の詰めは触れる高さを 24px 以上にするため。下だけ浅いのは下線を文字へ寄せるため */
-  padding: 5px 0 3px;
+  justify-content: space-between;
+  width: 100%;
+  min-width: 0;
+  /* 上下 padding 13px + 行送り(0.78rem×1.6≈20px)で実ヒット高さは 13+20+13=46px となり、
+     44px のタップ最小サイズを満たす */
+  padding: 13px 16px;
   margin: var(--space-2xs) 0 0;
   border: none;
-  border-bottom: 1px dotted var(--accent);
-  background: none;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
   font-family: var(--f-label);
-  font-size: 0.7rem;
-  font-weight: var(--fw-medium);
+  font-size: 0.78rem;
+  font-weight: var(--fw-bold);
   line-height: 1.6;
-  letter-spacing: 0.1em;
-  color: var(--ink-mid);
+  letter-spacing: 0.06em;
+  /* 素の accent は 9% ティント面の上で 4.22:1 となり AA(4.5) 未達のため、--ink 側へ 15% 寄せて 5.08(ライト) / 5.83(ダーク) を確保する */
+  color: color-mix(in srgb, var(--accent) 85%, var(--ink));
   cursor: pointer;
-  transition: color var(--motion) var(--ease-reveal);
+  transition: background-color var(--motion) var(--ease-reveal);
 }
 
-.detailTrigger:hover {
-  color: var(--ink);
+/* ラベル文言を包むだけの箱。矢印を右端に押し出すための flex 整形用で、文言自体は content 由来のまま */
+.detailLabel {
+  min-width: 0;
 }
 
-/* 表示中の経歴。現在地の見せ方は設定メニューの言語リンク(aria-current)と同じく
-   文字を --ink まで上げて下線を引く。線種も点線から実線へ変えるので、色で判別できなくても分かる */
+/* 矢印は平文の記号に戻す(12段階の円形バッジ+パルスは今回の再設計で廃止) */
+.detailArrow {
+  flex: none;
+  margin-left: var(--space-2xs);
+  font-size: 1rem;
+  /* 対比不足の是正 — 15% を --ink へ寄せる(.detailTrigger と同じ算出) */
+  color: color-mix(in srgb, var(--accent) 85%, var(--ink));
+  transition: transform var(--motion) var(--ease-reveal);
+}
+
+/* focus-visible はタッチのスティッキーhover問題が無いため、ガード無しで即時反応させる */
+.detailTrigger:focus-visible {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.detailTrigger:focus-visible .detailArrow {
+  transform: translateX(3px);
+}
+
+/* hover はタッチ環境でタップ後も :hover が残留する(sticky hover)ため、ポインタ環境だけに掛ける
+   — WorkCard の .detailToggle(work-card.module.css)と同じ処方 */
+@media (hover: hover) and (pointer: fine) {
+  .detailTrigger:hover {
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+  }
+
+  .detailTrigger:hover .detailArrow {
+    transform: translateX(3px);
+  }
+}
+
+/* 表示中の経歴。弱ボタンの面をアクセント本色へ反転させて強ボタン化し、「今開いている」を色面で示す */
 .detailTrigger[aria-current='true'] {
-  border-bottom-style: solid;
-  border-bottom-color: var(--ink);
-  color: var(--ink);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.detailTrigger[aria-current='true'] .detailArrow {
+  color: var(--accent-ink);
+}
+
+/* 動きを抑えたい環境では面の遷移・矢印の移動とも停止する(WorkCard の .detailToggle と同じ対応方針) */
+@media (prefers-reduced-motion: reduce) {
+  .detailTrigger {
+    transition: none;
+  }
+
+  .detailArrow {
+    transition: none;
+  }
+
+  .detailTrigger:hover .detailArrow,
+  .detailTrigger:focus-visible .detailArrow {
+    transform: none;
+  }
 }
 
 /* 読み上げ専用テキスト。ボタンのアクセシブルネームへ社名を足すためだけに置く */
