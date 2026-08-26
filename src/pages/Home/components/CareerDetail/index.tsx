@@ -278,7 +278,7 @@ function CareerDetail({ career, isHidden, onBackToWorks, panelRef }: CareerDetai
       ) : null}
 
       {/* タブ廃止により、このCTA(Toss式)が作品一覧への唯一の戻り道になった。
-          position: sticky でパネル内に留め、表示中は下端に張り付く — パネル自体が
+          下部固定CTA(position: fixed)で幅を問わず常時表示する — パネル自体が
           hidden の間は祖先ごと一緒に隠れる */}
       <button type='button' className={styles.back} onClick={onBackToWorks}>
         <PhraseText text={ui.career.backToWorks} />

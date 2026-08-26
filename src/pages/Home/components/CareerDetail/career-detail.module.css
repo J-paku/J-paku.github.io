@@ -7,10 +7,15 @@
  * 赤(--accent)はラベル専用の約束どおり、キッカー・事実表のラベル・核の縦罫にだけ使う。
  */
 .panel {
+  /* 下部固定CTA(.back)自身の高さ。CTAと padding-bottom の両方から参照する共通値
+     (work-story.module.css の .page と同じ組み立て方) */
+  --cta-height: 56px;
+  /* CTAが本文を覆わないための下余白。高さ+CTA自身の上下ゆとり(--space-md ×2)+ノッチ端末のsafe-area */
+  --cta-clearance: calc(var(--cta-height) + var(--space-md) * 2 + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   gap: var(--space-xl);
-  padding: 60px 80px;
+  padding: 60px 80px calc(60px + var(--cta-clearance));
   min-width: 0;
 }
 
@@ -23,24 +28,26 @@
 /*
  * 作品一覧への戻り道。タブ廃止により、幅を問わずこのCTAが唯一の復帰経路になった —
  * パネルが hidden(作品一覧を表示中)の間は祖先ごと一緒に隠れるので、常時表示でよい。
- * position: sticky で実装する。fixed はビューポート直接固定のぶん実機で脆く、
- * iOSの動的ツールバーによるビューポート変動や、祖先の hidden 切り替え直後の
- * 再描画で消失・誤位置になることがある(検証環境では再現しない)。stickyなら
- * パネルという祖先のフロー内に留まるため、その種の再計算に巻き込まれない。
- * 寸法・配色は work-story.module.css の .viewSceneCta を踏襲する
+ * position: fixed で実装する。寸法・配色は work-story.module.css の .viewSceneCta を踏襲する
  * (--accent/--accent-ink は「accentを地にした時の対色」として組で定義済み — 両テーマともAA(4.5:1)を満たす)
+ *
+ * 過去の撤回記録: 一度 position: sticky + bottom を試したが、実機iPhone検証でこちらより
+ * 悪化した。iOS Safariは可変(収縮式)の下部ツールバーをsticky-bottomのアンカー基準に
+ * 追従させないため、ボタンが表示領域の約55〜60pt下へ沈み、スクロール中は隠れてしまう
+ * (デスクトップ・エミュレータでは再現しない)。sticky を再検討する際はこの実機差を要確認
  */
 .back {
-  position: sticky;
+  position: fixed;
+  left: 50%;
   bottom: calc(var(--space-md) + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
   z-index: 50;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
+  width: calc(100% - var(--space-md) * 2);
   max-width: 420px;
-  margin-inline: auto;
-  height: 56px;
+  height: var(--cta-height);
   padding: 0 var(--space-lg);
   border: none;
   border-radius: 999px;
@@ -474,7 +481,7 @@
  */
 @media (max-width: 1024px) {
   .panel {
-    padding: 48px 40px 64px;
+    padding: 48px 40px calc(64px + var(--cta-clearance));
   }
 
   .factRow {
