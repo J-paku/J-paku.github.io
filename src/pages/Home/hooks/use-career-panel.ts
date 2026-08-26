@@ -23,6 +23,8 @@ export function useCareerPanel(careers: Career[]) {
   const triggerRef = useRef<HTMLElement | null>(null)
   // 焦点をパネルへ移す要求。タブ操作では焦点をタブに残すため、要求が立った時だけ動かす
   const focusRequestRef = useRef(false)
+  // 作品一覧へ戻す要求。パネルが消えて作品一覧に差し替わった後の描画で焦点とスクロールを行う
+  const returnRequestRef = useRef(false)
 
   // detail を持たない経歴は開かない。トリガーも出さないので、ここが対象の全部になる
   const detailCareers = careers.filter((career) => career.detail !== undefined)
@@ -32,12 +34,12 @@ export function useCareerPanel(careers: Career[]) {
   const panelCareer = activeCareer ?? detailCareers[0] ?? null
 
   const showWorks = useCallback(() => {
-    setActiveCareerId(null)
+    // ここで即座に焦点・スクロールを行うと、右列がまだパネル表示のままの古いレイアウトを対象にしてしまう
+    // (パネルが消えて作品一覧に差し替わるのは次の描画)。トリガーは ref に残したまま要求だけ立て、
+    // 実際に作品一覧へ差し替わった後の副作用(下の useEffect)で焦点とスクロールを行う
     focusRequestRef.current = false
-    // 隠れる側に焦点が残ると body へ落ちるので、開いたときのトリガーへ戻す
-    const trigger = triggerRef.current
-    triggerRef.current = null
-    trigger?.focus()
+    returnRequestRef.current = true
+    setActiveCareerId(null)
   }, [])
 
   // 左列のトリガーから呼ばれる。同じ経歴をもう一度押したら作品一覧へ戻す(トグル)
@@ -93,6 +95,32 @@ export function useCareerPanel(careers: Career[]) {
     // 送った状態から開くと、パネルの頭ではなく途中が出たままになるため。
     // 上端が見えている(=右列が既に見えている)ときは従来どおり動かさない
     if (panel.getBoundingClientRect().top >= 0) return
+    window.scrollTo({ top: 0, behavior })
+  }, [activeCareerId])
+
+  // 作品一覧へ戻る側。パネルが消えて作品一覧に差し替わった描画(activeCareerId が null になった後)で発火する
+  useEffect(() => {
+    if (activeCareerId !== null) return
+    if (!returnRequestRef.current) return
+    returnRequestRef.current = false
+
+    const trigger = triggerRef.current
+    triggerRef.current = null
+    if (trigger === null) return
+
+    // スクロールはこちらで決める
+    trigger.focus({ preventScroll: true })
+    const behavior: ScrollBehavior = matchesMedia(REDUCED_MOTION_QUERY) ? 'auto' : 'smooth'
+
+    if (matchesMedia(NARROW_QUERY)) {
+      // 1列の幅ではパネルが左列の下に積まれているので、トリガーを画面上端へ送る
+      if (typeof trigger.scrollIntoView !== 'function') return
+      trigger.scrollIntoView({ block: 'start', behavior })
+      return
+    }
+
+    // 広い幅では左列が sticky で常に画面内に固定されており、トリガー基準のスクロールは意味を持たない
+    // (scrollIntoView が no-op になる)。作品一覧を頭から見せるため、ページ先頭へ戻す
     window.scrollTo({ top: 0, behavior })
   }, [activeCareerId])
 
