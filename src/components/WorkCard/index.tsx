@@ -2,7 +2,7 @@
 // 見出し(intro) → 画面キャプチャ(shot) → 事実パネル(panel)の1列縦積みにする。
 // 仕様表・技術タグ・リンクは下部の枠線パネルへ集約し、カードの終端を明示する。
 // wip は不変ルール5どおりリンクを持たない — links 自体が空なので WorkLinks が何も描かない
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router'
 import { useLocale } from '@/contexts/LocaleContext/locale-context'
 import type { Work } from '@/types/content'
@@ -30,6 +30,28 @@ function WorkCard({ work, index }: WorkCardProps) {
   const { ref, isRevealed } = useReveal()
   // 画面に丸ごと収まっている間だけ写真の色を戻す。縁に掛かっている間は灰色のまま
   const { ref: shotRef, isFullyVisible } = useFullyVisible<HTMLDivElement>()
+
+  // 実操作デモの動画を静止画の代わりに描画してよいか。use-reveal と同じ判定パターン
+  // (window.matchMedia の prefers-reduced-motion)を、マウント時1回だけ評価する
+  // (SSR無しのVite SPAのため initializer での確定で足り、変化の監視は不要)
+  const [prefersReducedMotion] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+  const showVideo = work.video !== undefined && !prefersReducedMotion
+
+  // 動画の一時停止/再開(WCAG 2.2.2)。自動再生・ループする動画に停止手段を持たせる。
+  // SceneModal の isAutoAdvancePaused と同じ判断で aria-pressed は使わず、
+  // ラベル(aria-label)の差し替えだけで状態を伝える(SceneModal 264〜267行の注記参照 —
+  // APGのカルーセル停止コントロールに倣い、押下状態の読み上げ矛盾を避けるため)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const [isVideoPaused, setIsVideoPaused] = useState(false)
+
+  function handleToggleVideo() {
+    const nextPaused = !isVideoPaused
+    setIsVideoPaused(nextPaused)
+    const videoElement = videoRef.current
+    if (videoElement === null) return
+    if (nextPaused) videoElement.pause()
+    else videoElement.play().catch(() => {})
+  }
 
   // リンクの覆い。ポインタ環境ではホバー(と focus-within)で出し、タッチ環境ではタップで開閉する。
   // この state はタップ用 — ホバー表示は CSS 側の @media (hover: hover) が担う。
@@ -107,11 +129,54 @@ function WorkCard({ work, index }: WorkCardProps) {
       {/* グリフは背景装飾。要素として置くと支援技術から隠しても色コントラスト検査に掛かるため、
           data 属性で渡して CSS の疑似要素として描く */}
       <div ref={shotRef} className={shotClassName} data-glyph={work.glyph}>
-        {work.thumbnail !== undefined ? (
+        {showVideo ? (
+          /* 実操作デモ動画。装飾専用(既存の img alt="" と同等の扱い)なので aria-hidden で読み上げから外す。
+             停止手段は下の videoToggle が別途担う(WCAG 2.2.2) */
+          <video
+            ref={videoRef}
+            className={styles.video}
+            src={work.video}
+            poster={work.thumbnail}
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload='metadata'
+            aria-hidden='true'
+          />
+        ) : work.thumbnail !== undefined ? (
           <img src={work.thumbnail} alt="" className={styles.thumbnail} />
         ) : (
           <span className={styles.shotPlaceholder}>{ui.work.shotPlaceholder}</span>
         )}
+        {showVideo ? (
+          /* .shotTrigger(inset:0の透明ボタン)より上のスタッキングに独立配置し(CSS側のz-index)、
+             クリックが奪われないようにする。中身はアイコンのみ — 文字は画面に描かない
+             (aria-label 専用文字列はフォントサブセット再生成が不要という、このリポの確認済み前例に倣う) */
+          <button
+            type='button'
+            className={styles.videoToggle}
+            aria-label={isVideoPaused ? ui.work.resumeVideo : ui.work.pauseVideo}
+            onClick={handleToggleVideo}
+          >
+            {isVideoPaused ? (
+              <svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' className={styles.videoToggleIcon}>
+                <path
+                  fill='none'
+                  stroke='currentColor'
+                  strokeWidth='2'
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  d='M7 5l12 7-12 7z'
+                />
+              </svg>
+            ) : (
+              <svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' className={styles.videoToggleIcon}>
+                <path fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' d='M8 5v14M16 5v14' />
+              </svg>
+            )}
+          </button>
+        ) : null}
         {hasOverlay ? (
           <button
             type="button"

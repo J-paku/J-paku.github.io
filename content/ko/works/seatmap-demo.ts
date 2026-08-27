@@ -28,6 +28,7 @@ export const seatmapDemo: Work = {
   // カード用サムネイル。実キャプチャは社内データ(氏名・連絡先)が写るため使えないので、
   // 主要3画面(座席マップ / 社員一覧 / 社員詳細)と拠点平面図を文字なしの図解へ起こした自作SVG
   thumbnail: '/shots/seatmap-demo.svg',
+  video: '/shots/seatmap-demo-live.mp4',
   // 詳細ページ用。WKWebViewが起こしたクラッシュの原因調査と、着手の動機を語る2節
   detail: {
     sections: [
