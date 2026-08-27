@@ -1,0 +1,52 @@
+/*
+ * ページ先頭へ戻る浮きボタン。Home が1列に畳まれる 1024px 以下だけで出す
+ * (2列では左列が sticky で常に見えており、長スクロールの迷子が起きないため)。
+ * fixed + safe-area 加算は career-detail.module.css の .back と同じ、実機iPhoneで
+ * 実績のある形(sticky-bottom は iOS の収縮ツールバーで沈む — 同ファイルの撤回記録参照)。
+ * 非表示は opacity だけでなく visibility も切り替え、Tab 順からも外す
+ */
+.button {
+  position: fixed;
+  right: var(--space-md);
+  bottom: calc(var(--space-md) + env(safe-area-inset-bottom, 0px));
+  /* 下部固定CTA(z-index: 50)より下、本文より上 */
+  z-index: 40;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+  border-radius: 50%;
+  background-color: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  visibility: hidden;
+  opacity: 0;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--ink) 18%, transparent);
+  /* 消える時は opacity が終わってから visibility を切る(遅延つき 0s 遷移) */
+  transition: opacity var(--motion) var(--ease-reveal), visibility 0s linear var(--motion);
+}
+
+@media (max-width: 1024px) {
+  .button {
+    display: inline-flex;
+  }
+}
+
+.buttonShown {
+  visibility: visible;
+  opacity: 1;
+  transition: opacity var(--motion) var(--ease-reveal);
+}
+
+/* 下部固定CTAを持つ画面用。CTAの器(.page 等)が定義する --cta-height を継承して持ち上げる */
+.buttonRaised {
+  bottom: calc(var(--space-md) + var(--cta-height, 56px) + var(--space-sm) + env(safe-area-inset-bottom, 0px));
+}
+
+.icon {
+  width: 1.2rem;
+  height: 1.2rem;
+  fill: currentColor;
+}

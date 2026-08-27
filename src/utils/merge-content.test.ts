@@ -21,6 +21,7 @@ const makeWork = (overrides: Partial<Work> = {}): Work => ({
 const makeContent = (overrides: Partial<Content> = {}): Content => ({
   ui: {
     skipToMain: 'skip',
+    scrollTop: 'scrollTop',
     localeMenu: { label: 'locale', ja: 'ja', ko: 'ko' },
     settingsMenu: { label: 'settings' },
     theme: { label: 'theme', light: 'light', dark: 'dark' },

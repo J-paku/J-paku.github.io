@@ -52,6 +52,7 @@ const mergeUi = (ja: UiStrings, ko: UiStrings): UiStrings => ({
   theme: mergeStringRecord(ja.theme, ko.theme, 'ui.theme'),
   work: mergeStringRecord(ja.work, ko.work, 'ui.work'),
   workStory: mergeStringRecord(ja.workStory, ko.workStory, 'ui.workStory'),
+  scrollTop: pick(ja.scrollTop, ko.scrollTop, 'ui.scrollTop'),
   notFound: mergeStringRecord(ja.notFound, ko.notFound, 'ui.notFound'),
   colophon: mergeStringRecord(ja.colophon, ko.colophon, 'ui.colophon'),
   career: mergeStringRecord(ja.career, ko.career, 'ui.career'),
