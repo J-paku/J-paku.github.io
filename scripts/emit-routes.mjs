@@ -34,7 +34,7 @@ const KO_FONT_LINK =
 // ko ページ用の meta description・og:description の文言。og:locale の ko_KR 化とあわせて
 // ko 複製時にだけ差し替える(og:title・og:site_name はブランド名なので ja/ko 共通のまま)
 const KO_DESCRIPTION =
-  '업무 시스템 UI를 모바일 조작감까지 설계하고 운용까지 책임지는 프론트엔드 엔지니어. Web·iOS를 넘나드는 사내 슈퍼앱, 좌석 맵, AI 개발 기반 등 작품과 경력'
+  '읽기만 하는 포트폴리오가 아닙니다. 좌석 지도도 명함 앱도 여기서 실제로 움직입니다. 만들고 운영까지 가져가는 프론트엔드 엔지니어.'
 
 // routeDir へ dist/index.html の複製を書き出す。routeDir は DIST_DIR からの相対パス。
 // lang を渡すと <html lang> と書体リンクを差し替える — フォントのチェーンを
