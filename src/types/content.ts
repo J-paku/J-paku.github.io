@@ -30,6 +30,9 @@ export type UiStrings = {
     // カード折りたたみ詳細の開閉ボタン文言
     showDetail: string
     hideDetail: string
+    // 実操作デモ動画(自動再生・ループ)の一時停止/再開トグルの読み上げ名(WCAG 2.2.2)
+    pauseVideo: string
+    resumeVideo: string
   }
   // 作品ストーリーページ(/works/:slug)専用の文言
   // viewScene: 場面プレビューを開く全画面モーダルのトリガー文言
@@ -123,6 +126,8 @@ export type Work = {
   links: WorkLinks
   // 画像資産はまだ無い。ある時だけカードが描画するための空き枠
   thumbnail?: string
+  // 実操作デモ動画(mp4)を持つ作品だけが持つ
+  video?: string
   // カード折りたたみ詳細(見出し+本文段落のセクション列による叙事)。wip作品は持たない — 不変ルール5の延長
   detail?: WorkDetail
   // 専用ストーリーページ(/works/:slug)を持つ作品のみ。detailとは別物。imageはロケール共通 — glyphの前例に倣う

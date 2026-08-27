@@ -353,6 +353,49 @@
   filter: grayscale(0%) contrast(100%);
 }
 
+/* 実操作デモの動画。枠内の詰め方(サイズ・object-fit)は .thumbnail と同一規格に揃える。
+   動画自体が実写そのままなので .thumbnail のグレースケール演出は持たせない
+   (prefers-reduced-motion 環境では JS 側が .thumbnail の img に差し替えるため、
+   ここに @media (prefers-reduced-motion: reduce) の上書きは不要) */
+.video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 動画の一時停止/再開(WCAG 2.2.2)。写真・動画は任意の色を持ちうるため、サイトのテーマ
+   トークン(--ink 等)では対比を保証できない — SceneModal の .close/.navButton と同じ、
+   テーマに依存しない --color-scrim 系(01-authoring.md #9 のモーダル暗幕と同じ扱い)を使う。
+   ヒットボックスは44px以上。.shotTrigger(inset:0の透明ボタン)・.shotOverlay はどちらも
+   z-index を持たない(auto)ため、この明示的な z-index だけで独立して最前面に立つ
+   (DOM順に関係なく安定する) */
+.videoToggle {
+  position: absolute;
+  top: var(--space-2xs);
+  right: var(--space-2xs);
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background-color: color-mix(in srgb, var(--color-scrim) 60%, transparent);
+  color: var(--color-scrim-ink);
+  cursor: pointer;
+  transition: background-color var(--motion);
+}
+
+.videoToggle:hover {
+  background-color: color-mix(in srgb, var(--color-scrim) 85%, transparent);
+}
+
+.videoToggleIcon {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
 /* 背景に敷く装飾グリフ。data-glyph が無いカードでは content が空になり何も描かれない */
 .shot::before {
   content: attr(data-glyph);

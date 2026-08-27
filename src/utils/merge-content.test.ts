@@ -39,6 +39,8 @@ const makeContent = (overrides: Partial<Content> = {}): Content => ({
       shotPlaceholder: 'shotPlaceholder',
       showDetail: 'showDetail',
       hideDetail: 'hideDetail',
+      pauseVideo: 'pauseVideo',
+      resumeVideo: 'resumeVideo',
     },
     workStory: { back: 'back', viewScene: 'viewScene', close: 'close', prevScene: 'prevScene', nextScene: 'nextScene', pauseScene: 'pauseScene', resumeScene: 'resumeScene' },
     notFound: { title: 'notFound', body: 'body', backHome: 'backHome' },
@@ -129,6 +131,18 @@ describe('mergeWorks — slug基準の要素単位マージ', () => {
     const koWorks = [makeWork({ slug: 'a', tagline: 'ko-a' })]
     const merged = mergeWorks(jaWorks, koWorks)
     expect(merged.find((w) => w.slug === 'b')).toEqual(jaWorkB)
+  })
+
+  it('18: works.videoはkoに値があればko値を採用する', () => {
+    const jaWorks = [makeWork({ slug: 'a', video: '/shots/ja-video.mp4' })]
+    const koWorks = [makeWork({ slug: 'a', video: '/shots/ko-video.mp4' })]
+    expect(mergeWorks(jaWorks, koWorks)[0].video).toBe('/shots/ko-video.mp4')
+  })
+
+  it('19: works.videoはkoに無くjaにあればja値へフォールバックする', () => {
+    const jaWorks = [makeWork({ slug: 'a', video: '/shots/ja-video.mp4' })]
+    const koWorks = [makeWork({ slug: 'a', video: undefined })]
+    expect(mergeWorks(jaWorks, koWorks)[0].video).toBe('/shots/ja-video.mp4')
   })
 
   it('13: works.detailはkoが無ければja値を丸ごと採用する', () => {
