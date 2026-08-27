@@ -31,8 +31,8 @@ export const ui: UiStrings = {
     shotPlaceholder: '화면 캡처는 준비 중',
     showDetail: '자세히 보기',
     hideDetail: '접기',
-    pauseVideo: '데모 영상 일시정지',
-    resumeVideo: '데모 영상 재생',
+    pauseMotion: '데모 움직임 일시정지',
+    resumeMotion: '데모 움직임 재생',
   },
   workStory: {
     back: '목록으로 돌아가기',

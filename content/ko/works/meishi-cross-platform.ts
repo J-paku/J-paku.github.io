@@ -15,6 +15,7 @@ export const meishiCrossPlatform: Work = {
   // カード用サムネイル。story場面4つ(カメラ撮影・その場で登録・Web統合・拠点距離)を
   // 文字なしの図解へ起こした自作SVG
   thumbnail: '/shots/meishi-cross-platform.svg',
+  storyReel: true,
   story: {
     intro: {
       title: '명함등록어플',
