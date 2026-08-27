@@ -103,6 +103,7 @@ const mergeWork = (ja: Work, ko: Work): Work => ({
     repo: pickOptionalString(ja.links.repo, ko.links.repo, `works.${ko.slug}.links.repo`),
   },
   thumbnail: pickOptionalString(ja.thumbnail, ko.thumbnail, `works.${ko.slug}.thumbnail`),
+  video: pickOptionalString(ja.video, ko.video, `works.${ko.slug}.video`),
   glyph: pickOptionalString(ja.glyph, ko.glyph, `works.${ko.slug}.glyph`),
   detail: pickDetail(ja.detail, ko.detail),
   story: pickStory(ja.story, ko.story),
