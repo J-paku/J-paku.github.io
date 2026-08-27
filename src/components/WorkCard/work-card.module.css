@@ -363,8 +363,50 @@
   object-fit: cover;
 }
 
-/* 動画の一時停止/再開(WCAG 2.2.2)。写真・動画は任意の色を持ちうるため、サイトのテーマ
-   トークン(--ink 等)では対比を保証できない — SceneModal の .close/.navButton と同じ、
+/*
+ * ストーリー場面の循環リール(DeviceFrame + ScenePlayer)。DeviceFrame は padding・border-radius・
+ * 側面ボタンの absolute オフセットが px 固定(device-frame.module.css)のため、.shot の可変高さに
+ * 合わせて幅で直接縮小すると比率が崩れる(IntroPreview の frameWrap/frameScale と同じ理由・
+ * 同じ手法)。ここでも DeviceFrame は自然サイズ(320px)のまま描画し、.reelScale の
+ * transform: scale() で丸ごと縮小する。
+ *
+ * calc() は length 同士の除算を許さないため、.shot の可変高さ(--shot-h: 200〜450px)に連動する
+ * 連続的な縮尺は組めない(IntroPreview 側のコメントと同じ制約)。かわりに .shot の実際の高さ帯に
+ * 近い固定値を2段階(既定/モバイル)で持たせ、はみ出す分は .shot の overflow: hidden に任せる —
+ * 中央寄せは .shot 自身の display: flex; align-items: center; justify-content: center; が担うため
+ * ここでは追加しない
+ */
+.reel {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reelScale {
+  /* 320px = device-frame.module.css の .frame max-width(自然サイズの基準幅) */
+  --frame-w: 320px;
+  /* 28px = .frame の padding(14px)×2、874/402 は .screen の aspect-ratio。
+     自然幅から自然高さ(約662.85px)を逆算する */
+  --frame-h: calc((var(--frame-w) - 28px) * 874 / 402 + 28px);
+  /* 0.57 = 目標高さ約378px ÷ 自然高さ約662.85px(デスクトップ〜タブレット表示) */
+  --scale: 0.57;
+  flex: none;
+  width: var(--frame-w);
+  height: var(--frame-h);
+  transform: scale(var(--scale));
+}
+
+/* モバイル(767px以下)は .shot の実高さが小さくなるため縮尺も合わせて下げる */
+@media (max-width: 767px) {
+  .reelScale {
+    /* 0.34 = 目標高さ約225px ÷ 自然高さ約662.85px */
+    --scale: 0.34;
+  }
+}
+
+/* 動画・リールの一時停止/再開(WCAG 2.2.2)。写真・動画・リールは任意の色を持ちうるため、
+   サイトのテーマトークン(--ink 等)では対比を保証できない — SceneModal の .close/.navButton と同じ、
    テーマに依存しない --color-scrim 系(01-authoring.md #9 のモーダル暗幕と同じ扱い)を使う。
    ヒットボックスは44px以上。.shotOverlay の子として置く(position: absolute の基準は
    .shotOverlay 自身 — inset: 0 で .shot と同じ矩形なので、見た目の角位置は従来と変わらない)。
@@ -398,7 +440,7 @@
 }
 
 /*
- * 動画カード専用・デスクトップ限定の全面トグル。SceneModal の .sceneToggle と同じ
+ * 動画・リールカード共通・デスクトップ限定の全面トグル。SceneModal の .sceneToggle と同じ
  * 「画面そのものを押させる」設計 — 角の小さなボタンより誤操作が少ない。見た目は持たず、
  * 状態合図は下の .videoPulse / .videoPausedMark が担う。.shotOverlay より前に置いて
  * 覆いの下に沈める(z-index は持たせずDOM順に任せる — 下の .shotHasVideo 分岐で
@@ -566,11 +608,11 @@
   }
 }
 
-/* 動画カードだけの分岐(.shotHasVideo)。ホバー中の覆い「背景」には pointer-events: auto を
-   与えない — 下に敷いた .videoToggleFull(全面トグル)へ覆いの空きスペースのクリックを
-   落とすため。リンクボタンは個別に auto を戻して押せる状態を保つ(.videoToggle はタッチ環境
-   専用でこの帯には描画されないため対象に含めない)。非動画カードはこのブロックに
-   一切マッチしないため、既存の挙動は変わらない */
+/* モーション(動画・リール)カードだけの分岐(.shotHasVideo)。ホバー中の覆い「背景」には
+   pointer-events: auto を与えない — 下に敷いた .videoToggleFull(全面トグル)へ覆いの
+   空きスペースのクリックを落とすため。リンクボタンは個別に auto を戻して押せる状態を保つ
+   (.videoToggle はタッチ環境専用でこの帯には描画されないため対象に含めない)。
+   モーションを持たないカードはこのブロックに一切マッチしないため、既存の挙動は変わらない */
 @media (hover: hover) and (pointer: fine) {
   .shot.shotHasVideo:hover .shotOverlay {
     pointer-events: none;

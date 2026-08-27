@@ -1,8 +1,9 @@
-import { afterEach, beforeAll, describe, expect, it } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { LocaleProvider } from '@/contexts/LocaleContext/LocaleProvider'
 import type { Work } from '@/types/content'
+import { DEFAULT_SCENE_ANIMATION_DURATION_MS } from '@/utils/scene-durations'
 import { ui } from '@content/ja/ui'
 import WorkCard from './index'
 
@@ -49,6 +50,14 @@ beforeAll(() => {
   HTMLMediaElement.prototype.pause = () => {}
 })
 
+// jsdom(Node の実 fetch)は相対URLを解決できず常に失敗する。ScenePlayer(SceneSvg)が場面SVGを
+// fetch で取得する経路を実行させ、プレースホルダへ落ちずに場面がそのまま描画されるようにするため、
+// 有効な最小SVGを返すスタブをこのファイルの中だけで与える(実ブラウザでのアセット取得は保証しない)
+const STUB_SCENE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1" data-stub-scene="true"></svg>'
+beforeAll(() => {
+  globalThis.fetch = (async () => new Response(STUB_SCENE_SVG, { status: 200 })) as typeof fetch
+})
+
 const TITLE = '在庫管理システム'
 const PERIOD = '2024.04–2024.09'
 const ROLE = 'フロントエンド'
@@ -69,6 +78,23 @@ const work: Work = {
   links: {},
 }
 
+// storyReel を持つ作品。meishi-cross-platform と同じく links を持たず story だけを持つ形にする
+// (hasStoryOverlay 経路も一緒に確かめられる)
+const REEL_WORK: Work = {
+  ...work,
+  slug: 'reel-work',
+  thumbnail: '/shots/reel-work.png',
+  storyReel: true,
+  story: {
+    intro: { title: 'イントロ見出し', lead: 'イントロ導入' },
+    scenes: [
+      { id: 'scene-a', title: '場面A', body: '場面Aの本文', chips: [], image: '/works/reel/scene-a.svg' },
+      { id: 'scene-b', title: '場面B', body: '場面Bの本文', chips: [], image: '/works/reel/scene-b.svg' },
+    ],
+    outro: { title: 'まとめ見出し', body: 'まとめ本文', stackSummary: [] },
+  },
+}
+
 // WorkCard は useLocation(hash 判定)・useLocale(PhraseText 等)を使うため Router で包む
 function renderWorkCard(target: Work, index: number) {
   return render(
@@ -81,6 +107,11 @@ function renderWorkCard(target: Work, index: number) {
 }
 
 describe('WorkCard', () => {
+  it('pauseMotion/resumeMotion の文言が動画専用ではなく動画・リール双方に通用する表現になっている', () => {
+    expect(ui.work.pauseMotion).toBe('デモの動きを一時停止')
+    expect(ui.work.resumeMotion).toBe('デモの動きを再生')
+  })
+
   it('タイトル・通し番号・仕様表(期間/役割/規模)を props から描画する', () => {
     renderWorkCard(work, 0)
 
@@ -125,13 +156,15 @@ describe('WorkCard', () => {
     const workWithVideo: Work = { ...work, thumbnail: '/shots/sample.png', video: '/shots/seatmap-demo-live.mp4' }
     renderWorkCard(workWithVideo, 0)
 
-    const toggle = screen.getByRole('button', { name: ui.work.pauseVideo })
+    const toggle = screen.getByRole('button', { name: ui.work.pauseMotion })
     expect(toggle).toBeInTheDocument()
+    // ラベルの参照だけでなく実際の文言も単言する(動画専用文言の混入を検出できるように)
+    expect(toggle).toHaveAccessibleName('デモの動きを一時停止')
 
     fireEvent.click(toggle)
 
-    expect(screen.queryByRole('button', { name: ui.work.pauseVideo })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: ui.work.resumeVideo })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: ui.work.pauseMotion })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: ui.work.resumeMotion })).toBeInTheDocument()
   })
 
   it('video とリンクを持つ作品はタッチ(coarse pointer)で shot 全面がリンク覆いの開閉トリガーのままになり、動画の一時停止/再開はオーバーレイ内の別ボタンが担う', () => {
@@ -150,16 +183,116 @@ describe('WorkCard', () => {
     expect(overlayTrigger).toHaveAttribute('aria-expanded', 'true')
 
     // 動画の一時停止/再開はオーバーレイ内の別ボタンが担う(WCAG 2.2.2)
-    const videoToggle = screen.getByRole('button', { name: ui.work.pauseVideo })
+    const videoToggle = screen.getByRole('button', { name: ui.work.pauseMotion })
     expect(videoToggle).toBeInTheDocument()
 
     fireEvent.click(videoToggle)
 
-    expect(screen.queryByRole('button', { name: ui.work.pauseVideo })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: ui.work.resumeVideo })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: ui.work.pauseMotion })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: ui.work.resumeMotion })).toBeInTheDocument()
 
     // 動画トグルの押下がオーバーレイの onClick(背景タップ=閉じる)へ伝播していない
     // (stopPropagation が効いていれば開いたまま。伝播すれば aria-expanded が false に落ちる)
     expect(overlayTrigger).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('storyReel を持つ作品はサムネイル画像の代わりに ScenePlayer の場面を描画し、shot 全面が一時停止トグルになる', async () => {
+    const { container } = renderWorkCard(REEL_WORK, 0)
+
+    // サムネイル画像は描画されない(story場面の循環リールがその位置を占める)
+    expect(container.querySelector('img')).toBeNull()
+
+    // デスクトップ(fine pointer)では shot 全面が一時停止トグルになる(動画カードと同じ規則)
+    expect(screen.getByRole('button', { name: ui.work.pauseMotion })).toBeInTheDocument()
+
+    // ScenePlayer(SceneSvg)の場面が実際にシャドウルートへ展開されている
+    await waitFor(() => {
+      const hosts = Array.from(container.querySelectorAll('[aria-hidden="true"]'))
+      const rendered = hosts.some((host) => host.shadowRoot?.innerHTML.includes('data-stub-scene') === true)
+      expect(rendered).toBe(true)
+    })
+  })
+
+  it('storyReel の全面トグルを押すとラベルが再生用に入れ替わる(WCAG 2.2.2)', async () => {
+    const { container } = renderWorkCard(REEL_WORK, 0)
+
+    // 場面SVGの非同期取得を先に確定させる(act 警告を避けるため、クリック前に済ませておく)
+    await waitFor(() => {
+      const hosts = Array.from(container.querySelectorAll('[aria-hidden="true"]'))
+      expect(hosts.some((host) => host.shadowRoot?.innerHTML.includes('data-stub-scene') === true)).toBe(true)
+    })
+
+    const toggle = screen.getByRole('button', { name: ui.work.pauseMotion })
+    // ラベルの参照(ui.work.pauseMotion)が一致するだけでは、動画専用文言の使い回しを見逃す
+    // (今回の実欠陥の原因)。実際の文言そのものが動画・リール双方に通用する表現であることを
+    // リテラルで単言する
+    expect(toggle).toHaveAccessibleName('デモの動きを一時停止')
+    fireEvent.click(toggle)
+
+    expect(screen.queryByRole('button', { name: ui.work.pauseMotion })).not.toBeInTheDocument()
+    const resumed = screen.getByRole('button', { name: ui.work.resumeMotion })
+    expect(resumed).toHaveAccessibleName('デモの動きを再生')
+  })
+
+  it('storyReel を持つ作品もモーション抑制環境ではリールの代わりに静止画(thumbnail)を描画する', () => {
+    reducedMotionMatches = true
+    const { container } = renderWorkCard(REEL_WORK, 0)
+
+    expect(container.querySelector('img')?.getAttribute('src')).toBe(REEL_WORK.thumbnail)
+  })
+
+  it('ロケール切替相当(WorkCard再マウント無しでworkだけ差し替え)で場面数が減っても reelIndex の添字事故で例外を投げない', () => {
+    vi.useFakeTimers()
+    try {
+      const threeScenes: Work = {
+        ...REEL_WORK,
+        story: {
+          ...REEL_WORK.story!,
+          scenes: [
+            { id: 'x1', title: 't1', body: 'b1', chips: [], image: '/works/reel/x1.svg' },
+            { id: 'x2', title: 't2', body: 'b2', chips: [], image: '/works/reel/x2.svg' },
+            { id: 'x3', title: 't3', body: 'b3', chips: [], image: '/works/reel/x3.svg' },
+          ],
+        },
+      }
+      const { rerender } = render(
+        <MemoryRouter initialEntries={['/']}>
+          <LocaleProvider>
+            <WorkCard work={threeScenes} index={0} />
+          </LocaleProvider>
+        </MemoryRouter>,
+      )
+
+      // 自動送りタイマーを2回進め、reelIndexを3件中の末尾(2)まで進める
+      act(() => {
+        vi.advanceTimersByTime(DEFAULT_SCENE_ANIMATION_DURATION_MS)
+      })
+      act(() => {
+        vi.advanceTimersByTime(DEFAULT_SCENE_ANIMATION_DURATION_MS)
+      })
+
+      // 場面数が1件だけの work へ差し替える(ロケール切替でWorkCardが再マウントされず
+      // reelIndexだけが引き継がれる状況を再現する)。reelIndex(=2)は新しい配列(長さ1)の
+      // 範囲外になるが、剰余で常に有効な添字に丸めるため例外を投げずに描画できるはず
+      const oneScene: Work = {
+        ...threeScenes,
+        story: { ...threeScenes.story!, scenes: [threeScenes.story!.scenes[0]] },
+      }
+
+      expect(() => {
+        rerender(
+          <MemoryRouter initialEntries={['/']}>
+            <LocaleProvider>
+              <WorkCard work={oneScene} index={0} />
+            </LocaleProvider>
+          </MemoryRouter>,
+        )
+        act(() => {
+          vi.advanceTimersByTime(DEFAULT_SCENE_ANIMATION_DURATION_MS)
+        })
+      }).not.toThrow()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

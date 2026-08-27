@@ -39,8 +39,8 @@ const makeContent = (overrides: Partial<Content> = {}): Content => ({
       shotPlaceholder: 'shotPlaceholder',
       showDetail: 'showDetail',
       hideDetail: 'hideDetail',
-      pauseVideo: 'pauseVideo',
-      resumeVideo: 'resumeVideo',
+      pauseMotion: 'pauseMotion',
+      resumeMotion: 'resumeMotion',
     },
     workStory: { back: 'back', viewScene: 'viewScene', close: 'close', prevScene: 'prevScene', nextScene: 'nextScene', pauseScene: 'pauseScene', resumeScene: 'resumeScene' },
     notFound: { title: 'notFound', body: 'body', backHome: 'backHome' },
@@ -233,6 +233,15 @@ describe('mergeWorks — slug基準の要素単位マージ', () => {
     const jaWorks = [makeWork({ slug: 'a', story: jaStory })]
     const koWorks = [makeWork({ slug: 'a', story: koStory })]
     expect(mergeWorks(jaWorks, koWorks)[0].story).toEqual(koStory)
+  })
+
+  it('20: works.storyReelはkoが明示していればko値を、無ければja値を採用する', () => {
+    const jaWorks = [makeWork({ slug: 'a', storyReel: true })]
+    const koWorksWithoutOverride = [makeWork({ slug: 'a' })]
+    expect(mergeWorks(jaWorks, koWorksWithoutOverride)[0].storyReel).toBe(true)
+
+    const koWorksWithOverride = [makeWork({ slug: 'a', storyReel: false })]
+    expect(mergeWorks(jaWorks, koWorksWithOverride)[0].storyReel).toBe(false)
   })
 })
 

@@ -31,8 +31,8 @@ export const ui: UiStrings = {
     shotPlaceholder: '画面キャプチャは準備中',
     showDetail: '詳しく見る',
     hideDetail: '閉じる',
-    pauseVideo: 'デモ動画を一時停止',
-    resumeVideo: 'デモ動画を再生',
+    pauseMotion: 'デモの動きを一時停止',
+    resumeMotion: 'デモの動きを再生',
   },
   workStory: {
     back: '一覧へ戻る',

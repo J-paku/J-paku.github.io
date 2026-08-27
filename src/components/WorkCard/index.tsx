@@ -12,11 +12,14 @@ import { useReveal } from '@/hooks/use-reveal'
 import { useFullyVisible } from '@/hooks/use-fully-visible'
 import { getTechIconPath } from '@/utils/tech-icons'
 import { withLocale } from '@/utils/locale-path'
+import { SCENE_ANIMATION_DURATIONS_MS, DEFAULT_SCENE_ANIMATION_DURATION_MS } from '@/utils/scene-durations'
 import WorkSpec from '@/components/WorkSpec'
 import WorkStack from '@/components/WorkStack'
 import WorkLinks from '@/components/WorkLinks'
 import WorkDetail from '@/components/WorkDetail'
 import PhraseText from '@/components/PhraseText'
+import DeviceFrame from '@/components/DeviceFrame'
+import ScenePlayer from '@/components/ScenePlayer'
 import styles from './work-card.module.css'
 
 type WorkCardProps = {
@@ -64,31 +67,61 @@ function WorkCard({ work, index }: WorkCardProps) {
   const [prefersReducedMotion] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
   const showVideo = work.video !== undefined && !prefersReducedMotion
 
+  // ストーリー場面(story.scenes)をカードのサムネイル枠で循環再生してよいか。
+  // storyReel を持つ作品だけが対象 — 経路を重複保有せず story を単一ソースとして参照する。
+  // scenes.length > 0 も確認しておく(0除算で剰余が NaN になる添字事故を後段で起こさないため)
+  const storyScenes = work.story?.scenes
+  const showReel = work.storyReel === true && storyScenes !== undefined && storyScenes.length > 0 && !prefersReducedMotion
+
   // ホバー可能・高精度ポインタ(マウス等)を持つ環境かどうか。同じ initializer パターンで
   // マウント時1回だけ評価する(変化の監視はしない)。動画カードの操作面を
   // 「shot 全面トグル(デスクトップ)」と「オーバーレイ内の小ボタン(タッチ)」で出し分ける判定に使う
   const [isFinePointer] = useState(() => window.matchMedia('(hover: hover) and (pointer: fine)').matches)
 
-  // 動画の一時停止/再開(WCAG 2.2.2)。自動再生・ループする動画に停止手段を持たせる。
-  // SceneModal の isAutoAdvancePaused と同じ判断で aria-pressed は使わず、
+  // 動画/リールの一時停止/再開(WCAG 2.2.2)。自動再生・ループするモーション(動画またはストーリー
+  // リール)に停止手段を持たせる。SceneModal の isAutoAdvancePaused と同じ判断で aria-pressed は使わず、
   // ラベル(aria-label)の差し替えだけで状態を伝える(SceneModal 264〜267行の注記参照 —
   // APGのカルーセル停止コントロールに倣い、押下状態の読み上げ矛盾を避けるため)
   const videoRef = useRef<HTMLVideoElement>(null)
-  const [isVideoPaused, setIsVideoPaused] = useState(false)
+  const [isMotionPaused, setIsMotionPaused] = useState(false)
 
   // タップ/クリックのたびに「今の操作」を中央に短く出すための鍵。key を変えて要素を作り直すことで
   // 同じアニメーションを毎回頭から再生させる(SceneModal の pulseKey と同じ手法)
   const [pulseKey, setPulseKey] = useState(0)
 
-  function handleToggleVideo() {
-    const nextPaused = !isVideoPaused
-    setIsVideoPaused(nextPaused)
+  // 動画・リール共通のトグル操作(ユーチューブ式)。動画を持つカードだけ実際の再生要素を操作し、
+  // リールは isMotionPaused の状態変化だけで ScenePlayer の paused を切り替える
+  function handleToggleMotion() {
+    const nextPaused = !isMotionPaused
+    setIsMotionPaused(nextPaused)
     setPulseKey((prev) => prev + 1)
+    if (!showVideo) return
     const videoElement = videoRef.current
     if (videoElement === null) return
     if (nextPaused) videoElement.pause()
     else videoElement.play().catch(() => {})
   }
+
+  // リールの自動送り。SceneModal 209〜224行と同じ発想(場面ごとの周期・(i+1)%length の無限循環・
+  // 一時停止での停止)をカード用に簡略化したもの。カードには境界(先頭/末尾)が無く常に循環するため、
+  // SceneModal のフォーカス退避(境界での disabled 対策)は不要
+  const [reelIndex, setReelIndex] = useState(0)
+  // storyScenes.length で剰余を取り、常に配列の範囲内に収める(activeReelIndex はレンダー側でも使う)。
+  // ロケール切替では WorkCard 自体が再マウントされず reelIndex だけが引き継がれるため、
+  // ja/ko で場面数が食い違うコンテンツができると storyScenes[reelIndex] が undefined になり得る —
+  // 「参照が変わったら0へ戻す」別 effect 方式は、同一コミット内でこの自動送り effect と実行順が
+  // 絡み合い安全を保証しきれないため、剰余で常に有効な添字にする方式を採る
+  const activeReelIndex = showReel && storyScenes !== undefined ? reelIndex % storyScenes.length : 0
+  useEffect(() => {
+    if (!showReel || storyScenes === undefined) return
+    if (isMotionPaused) return
+    const currentScene = storyScenes[reelIndex % storyScenes.length]
+    const duration = SCENE_ANIMATION_DURATIONS_MS[currentScene.id] ?? DEFAULT_SCENE_ANIMATION_DURATION_MS
+    const timerId = window.setTimeout(() => {
+      setReelIndex((prev) => (prev + 1) % storyScenes.length)
+    }, duration)
+    return () => window.clearTimeout(timerId)
+  }, [showReel, storyScenes, reelIndex, isMotionPaused])
 
   // リンクの覆い。ポインタ環境ではホバー(と focus-within)で出し、タッチ環境ではタップで開閉する。
   // この state はタップ用 — ホバー表示は CSS 側の @media (hover: hover) が担う。
@@ -98,6 +131,10 @@ function WorkCard({ work, index }: WorkCardProps) {
   const hasStoryOverlay = !hasLinks && work.story !== undefined
   const hasOverlay = hasLinks || hasStoryOverlay
   const [isLinksOpen, setIsLinksOpen] = useState(false)
+
+  // 動画・リールいずれかのモーションを持つか。全面トグル・オーバーレイ内ボタン・中央パルス/
+  // 停止印の3箇所を両方の種別で共用するための束ね判定
+  const hasMotion = showVideo || showReel
 
   // 折りたたみ式の詳細。work.detail が無いカードはトグル自体を出さない
   const hasDetail = work.detail !== undefined
@@ -133,9 +170,9 @@ function WorkCard({ work, index }: WorkCardProps) {
   let cardClassName = isRevealed ? `${styles.card} ${styles.cardRevealed}` : styles.card
   if (hasDetail) cardClassName += ` ${styles.hasDetail}`
   let shotClassName = isFullyVisible ? `${styles.shot} ${styles.shotInView}` : styles.shot
-  // 動画カードの識別用修飾子。非動画カードのCSSは1px も変えず、この修飾子が付いた
-  // shot だけに分岐する(オーバーレイ背景の pointer-events 分岐で使う)
-  if (showVideo) shotClassName += ` ${styles.shotHasVideo}`
+  // モーション(動画・リール)を持つカードの識別用修飾子。持たないカードのCSSは1px も変えず、
+  // この修飾子が付いた shot だけに分岐する(オーバーレイ背景の pointer-events 分岐で使う)
+  if (hasMotion) shotClassName += ` ${styles.shotHasVideo}`
 
   // 通し番号。接頭辞などの文言は付けない(表示文字列は content/ の外に置かない)
   const serial = String(index + 1).padStart(2, '0')
@@ -184,12 +221,28 @@ function WorkCard({ work, index }: WorkCardProps) {
             preload='metadata'
             aria-hidden='true'
           />
+        ) : showReel && storyScenes !== undefined ? (
+          /* ストーリー場面の循環リール。装飾専用(video と同等の扱い)なので aria-hidden で読み上げから外す。
+             DeviceFrame は px固定の縁取りを持つため自然サイズで描画し、.reelScale の transform: scale()
+             で丸ごと縮小する(詳細は work-card.module.css 側のコメント参照) */
+          <div className={styles.reel} aria-hidden='true'>
+            <div className={styles.reelScale}>
+              <DeviceFrame>
+                <ScenePlayer
+                  scenes={storyScenes}
+                  activeIndex={activeReelIndex}
+                  placeholder={ui.work.shotPlaceholder}
+                  paused={isMotionPaused}
+                />
+              </DeviceFrame>
+            </div>
+          </div>
         ) : work.thumbnail !== undefined ? (
           <img src={work.thumbnail} alt="" className={styles.thumbnail} />
         ) : (
           <span className={styles.shotPlaceholder}>{ui.work.shotPlaceholder}</span>
         )}
-        {showVideo && isFinePointer ? (
+        {hasMotion && isFinePointer ? (
           /* デスクトップ: shot 全面が透明なトグルボタンになる(SceneModal の sceneToggle と同じ
              「画面そのものを押させる」設計 — 角の小さなボタンより誤操作が少ない)。見た目は持たず、
              状態合図は下の中央パルス/停止印が担う。.shotOverlay より前に置いて覆いの下に沈める —
@@ -198,23 +251,23 @@ function WorkCard({ work, index }: WorkCardProps) {
           <button
             type='button'
             className={styles.videoToggleFull}
-            aria-label={isVideoPaused ? ui.work.resumeVideo : ui.work.pauseVideo}
-            onClick={handleToggleVideo}
+            aria-label={isMotionPaused ? ui.work.resumeMotion : ui.work.pauseMotion}
+            onClick={handleToggleMotion}
           />
         ) : null}
-        {showVideo ? (
+        {hasMotion ? (
           <>
             {/* 中央のパルス合図(ユーチューブ式)。key を変えて要素を作り直し、押すたびに同じ
                 アニメーションを頭から再生させる。アイコンは新しい状態を示す(停止直後は▶、
                 再生直後は⏸) — SceneModal の pulse と同じ手法・同じ判断 */}
             <span key={pulseKey} className={styles.videoPulse} aria-hidden='true'>
-              {isVideoPaused ? (
+              {isMotionPaused ? (
                 <PlayIcon className={styles.videoPulseIcon} />
               ) : (
                 <PauseIcon className={styles.videoPulseIcon} />
               )}
             </span>
-            {isVideoPaused ? (
+            {isMotionPaused ? (
               /* 停止中はその状態が続いていることを示し続ける常時表示の印。パルスが消えたあとも
                  「止まっている」と分かるようにする */
               <span className={styles.videoPausedMark} aria-hidden='true'>
@@ -223,7 +276,7 @@ function WorkCard({ work, index }: WorkCardProps) {
             ) : null}
           </>
         ) : null}
-        {hasOverlay && !(showVideo && isFinePointer) ? (
+        {hasOverlay && !(hasMotion && isFinePointer) ? (
           <button
             type="button"
             className={styles.shotTrigger}
@@ -247,21 +300,21 @@ function WorkCard({ work, index }: WorkCardProps) {
             className={isLinksOpen ? `${styles.shotOverlay} ${styles.shotOverlayOpen}` : styles.shotOverlay}
             onClick={() => setIsLinksOpen(false)}
           >
-            {showVideo && !isFinePointer ? (
-              /* 動画の一時停止/再開ボタン(WCAG 2.2.2)。タッチ環境の操作口はこれ1つ
+            {hasMotion && !isFinePointer ? (
+              /* 動画・リールの一時停止/再開ボタン(WCAG 2.2.2)。タッチ環境の操作口はこれ1つ
                  (デスクトップは全面トグルが既に同じ役割を持つため、同名ボタンの重複を避けて
                  ここでは出さない)。覆いの onClick(背景タップ=閉じる)へ伝播すると
                  覆いごと閉じてしまうため stopPropagation で止める */
               <button
                 type='button'
                 className={styles.videoToggle}
-                aria-label={isVideoPaused ? ui.work.resumeVideo : ui.work.pauseVideo}
+                aria-label={isMotionPaused ? ui.work.resumeMotion : ui.work.pauseMotion}
                 onClick={(event: MouseEvent<HTMLButtonElement>) => {
                   event.stopPropagation()
-                  handleToggleVideo()
+                  handleToggleMotion()
                 }}
               >
-                {isVideoPaused ? (
+                {isMotionPaused ? (
                   <PlayIcon className={styles.videoToggleIcon} />
                 ) : (
                   <PauseIcon className={styles.videoToggleIcon} />
