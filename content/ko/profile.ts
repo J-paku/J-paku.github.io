@@ -33,7 +33,7 @@ export const profile: Profile = {
         overview: {
           title: '사내 업무 슈퍼앱',
           body: '현장 업무를 iPhone 1대로 돌린다. 기능을 계속 더해가는 사내 배포형 앱.',
-          meta: '2025.06 착수 · 2025.12 본운용 · 운용 중(14개월) · 전사 200명 이상 사용 · 418라우트 · TypeScript 16만 행',
+          meta: '2025.06 착수 · 개발·운용 14개월 · 2025.12 본운용(8개월) · 전사 200명 이상 사용 · 418라우트 · TypeScript 16만 행',
         },
         origin: {
           heading: '앱의 골격을 만든 첫 기능 — 등원 세트',
