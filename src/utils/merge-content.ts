@@ -107,6 +107,8 @@ const mergeWork = (ja: Work, ko: Work): Work => ({
   glyph: pickOptionalString(ja.glyph, ko.glyph, `works.${ko.slug}.glyph`),
   detail: pickDetail(ja.detail, ko.detail),
   story: pickStory(ja.story, ko.story),
+  // 翻訳文言ではなく技術的な区分値なので status と同様、ko が明示していればそちらを優先する
+  storyReel: ko.storyReel ?? ja.storyReel,
 })
 
 // slug基準で対応づける。ja側に存在してko側に無いslugはjaの要素をそのまま採用する
