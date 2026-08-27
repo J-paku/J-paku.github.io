@@ -3,8 +3,8 @@
 // クリックで場面1からモーダルを開く(場面送りはモーダル側の前へ/次へボタンが担う)
 import { useRef } from 'react'
 import type { WorkStoryScene } from '@/types/content'
-import DeviceFrame from '../DeviceFrame'
-import ScenePlayer from '../ScenePlayer'
+import DeviceFrame from '@/components/DeviceFrame'
+import ScenePlayer from '@/components/ScenePlayer'
 import styles from './intro-preview.module.css'
 
 type IntroPreviewProps = {
