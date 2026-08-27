@@ -3,6 +3,7 @@
 // 仕様表・技術タグ・リンクは下部の枠線パネルへ集約し、カードの終端を明示する。
 // wip は不変ルール5どおりリンクを持たない — links 自体が空なので WorkLinks が何も描かない
 import { useEffect, useRef, useState } from 'react'
+import type { MouseEvent } from 'react'
 import { Link, useLocation } from 'react-router'
 import { useLocale } from '@/contexts/LocaleContext/locale-context'
 import type { Work } from '@/types/content'
@@ -24,6 +25,32 @@ type WorkCardProps = {
   index: number
 }
 
+// 装飾専用の再生アイコン(三角)。読み上げはボタンの aria-label が担うため aria-hidden。
+// SceneModal の PlayIcon と同じ形(中央パルス・停止中の常時印・オーバーレイ内トグルの3箇所で再利用)
+function PlayIcon({ className }: { className: string }) {
+  return (
+    <svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' className={className}>
+      <path
+        fill='none'
+        stroke='currentColor'
+        strokeWidth='2'
+        strokeLinecap='round'
+        strokeLinejoin='round'
+        d='M7 5l12 7-12 7z'
+      />
+    </svg>
+  )
+}
+
+// 装飾専用の一時停止アイコン(縦棒2本)。読み上げはボタンの aria-label が担うため aria-hidden
+function PauseIcon({ className }: { className: string }) {
+  return (
+    <svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' className={className}>
+      <path fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' d='M8 5v14M16 5v14' />
+    </svg>
+  )
+}
+
 function WorkCard({ work, index }: WorkCardProps) {
   const { ui } = useContent()
   const { locale } = useLocale()
@@ -37,6 +64,11 @@ function WorkCard({ work, index }: WorkCardProps) {
   const [prefersReducedMotion] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
   const showVideo = work.video !== undefined && !prefersReducedMotion
 
+  // ホバー可能・高精度ポインタ(マウス等)を持つ環境かどうか。同じ initializer パターンで
+  // マウント時1回だけ評価する(変化の監視はしない)。動画カードの操作面を
+  // 「shot 全面トグル(デスクトップ)」と「オーバーレイ内の小ボタン(タッチ)」で出し分ける判定に使う
+  const [isFinePointer] = useState(() => window.matchMedia('(hover: hover) and (pointer: fine)').matches)
+
   // 動画の一時停止/再開(WCAG 2.2.2)。自動再生・ループする動画に停止手段を持たせる。
   // SceneModal の isAutoAdvancePaused と同じ判断で aria-pressed は使わず、
   // ラベル(aria-label)の差し替えだけで状態を伝える(SceneModal 264〜267行の注記参照 —
@@ -44,9 +76,14 @@ function WorkCard({ work, index }: WorkCardProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [isVideoPaused, setIsVideoPaused] = useState(false)
 
+  // タップ/クリックのたびに「今の操作」を中央に短く出すための鍵。key を変えて要素を作り直すことで
+  // 同じアニメーションを毎回頭から再生させる(SceneModal の pulseKey と同じ手法)
+  const [pulseKey, setPulseKey] = useState(0)
+
   function handleToggleVideo() {
     const nextPaused = !isVideoPaused
     setIsVideoPaused(nextPaused)
+    setPulseKey((prev) => prev + 1)
     const videoElement = videoRef.current
     if (videoElement === null) return
     if (nextPaused) videoElement.pause()
@@ -95,7 +132,10 @@ function WorkCard({ work, index }: WorkCardProps) {
   // 詳細を持たないカード(大半)のモバイル1列表示に row-gap 分の空行が余白として残るため分ける
   let cardClassName = isRevealed ? `${styles.card} ${styles.cardRevealed}` : styles.card
   if (hasDetail) cardClassName += ` ${styles.hasDetail}`
-  const shotClassName = isFullyVisible ? `${styles.shot} ${styles.shotInView}` : styles.shot
+  let shotClassName = isFullyVisible ? `${styles.shot} ${styles.shotInView}` : styles.shot
+  // 動画カードの識別用修飾子。非動画カードのCSSは1px も変えず、この修飾子が付いた
+  // shot だけに分岐する(オーバーレイ背景の pointer-events 分岐で使う)
+  if (showVideo) shotClassName += ` ${styles.shotHasVideo}`
 
   // 通し番号。接頭辞などの文言は付けない(表示文字列は content/ の外に置かない)
   const serial = String(index + 1).padStart(2, '0')
@@ -131,7 +171,7 @@ function WorkCard({ work, index }: WorkCardProps) {
       <div ref={shotRef} className={shotClassName} data-glyph={work.glyph}>
         {showVideo ? (
           /* 実操作デモ動画。装飾専用(既存の img alt="" と同等の扱い)なので aria-hidden で読み上げから外す。
-             停止手段は下の videoToggle が別途担う(WCAG 2.2.2) */
+             停止手段は下の全面トグル(デスクトップ)/オーバーレイ内トグル(タッチ)が別途担う(WCAG 2.2.2) */
           <video
             ref={videoRef}
             className={styles.video}
@@ -149,35 +189,41 @@ function WorkCard({ work, index }: WorkCardProps) {
         ) : (
           <span className={styles.shotPlaceholder}>{ui.work.shotPlaceholder}</span>
         )}
-        {showVideo ? (
-          /* .shotTrigger(inset:0の透明ボタン)より上のスタッキングに独立配置し(CSS側のz-index)、
-             クリックが奪われないようにする。中身はアイコンのみ — 文字は画面に描かない
-             (aria-label 専用文字列はフォントサブセット再生成が不要という、このリポの確認済み前例に倣う) */
+        {showVideo && isFinePointer ? (
+          /* デスクトップ: shot 全面が透明なトグルボタンになる(SceneModal の sceneToggle と同じ
+             「画面そのものを押させる」設計 — 角の小さなボタンより誤操作が少ない)。見た目は持たず、
+             状態合図は下の中央パルス/停止印が担う。.shotOverlay より前に置いて覆いの下に沈める —
+             覆いの背景は動画カードだけホバー中も pointer-events: none にしてあるため(CSS側の
+             .shotHasVideo 分岐)、覆いの空きスペースのクリックはここまで落ちてくる */
           <button
             type='button'
-            className={styles.videoToggle}
+            className={styles.videoToggleFull}
             aria-label={isVideoPaused ? ui.work.resumeVideo : ui.work.pauseVideo}
             onClick={handleToggleVideo}
-          >
-            {isVideoPaused ? (
-              <svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' className={styles.videoToggleIcon}>
-                <path
-                  fill='none'
-                  stroke='currentColor'
-                  strokeWidth='2'
-                  strokeLinecap='round'
-                  strokeLinejoin='round'
-                  d='M7 5l12 7-12 7z'
-                />
-              </svg>
-            ) : (
-              <svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' className={styles.videoToggleIcon}>
-                <path fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' d='M8 5v14M16 5v14' />
-              </svg>
-            )}
-          </button>
+          />
         ) : null}
-        {hasOverlay ? (
+        {showVideo ? (
+          <>
+            {/* 中央のパルス合図(ユーチューブ式)。key を変えて要素を作り直し、押すたびに同じ
+                アニメーションを頭から再生させる。アイコンは新しい状態を示す(停止直後は▶、
+                再生直後は⏸) — SceneModal の pulse と同じ手法・同じ判断 */}
+            <span key={pulseKey} className={styles.videoPulse} aria-hidden='true'>
+              {isVideoPaused ? (
+                <PlayIcon className={styles.videoPulseIcon} />
+              ) : (
+                <PauseIcon className={styles.videoPulseIcon} />
+              )}
+            </span>
+            {isVideoPaused ? (
+              /* 停止中はその状態が続いていることを示し続ける常時表示の印。パルスが消えたあとも
+                 「止まっている」と分かるようにする */
+              <span className={styles.videoPausedMark} aria-hidden='true'>
+                <PlayIcon className={styles.videoPulseIcon} />
+              </span>
+            ) : null}
+          </>
+        ) : null}
+        {hasOverlay && !(showVideo && isFinePointer) ? (
           <button
             type="button"
             className={styles.shotTrigger}
@@ -201,6 +247,27 @@ function WorkCard({ work, index }: WorkCardProps) {
             className={isLinksOpen ? `${styles.shotOverlay} ${styles.shotOverlayOpen}` : styles.shotOverlay}
             onClick={() => setIsLinksOpen(false)}
           >
+            {showVideo && !isFinePointer ? (
+              /* 動画の一時停止/再開ボタン(WCAG 2.2.2)。タッチ環境の操作口はこれ1つ
+                 (デスクトップは全面トグルが既に同じ役割を持つため、同名ボタンの重複を避けて
+                 ここでは出さない)。覆いの onClick(背景タップ=閉じる)へ伝播すると
+                 覆いごと閉じてしまうため stopPropagation で止める */
+              <button
+                type='button'
+                className={styles.videoToggle}
+                aria-label={isVideoPaused ? ui.work.resumeVideo : ui.work.pauseVideo}
+                onClick={(event: MouseEvent<HTMLButtonElement>) => {
+                  event.stopPropagation()
+                  handleToggleVideo()
+                }}
+              >
+                {isVideoPaused ? (
+                  <PlayIcon className={styles.videoToggleIcon} />
+                ) : (
+                  <PauseIcon className={styles.videoToggleIcon} />
+                )}
+              </button>
+            ) : null}
             {work.links.live !== undefined ? (
               <a href={work.links.live} rel="noreferrer" className={styles.overlayPrimary}>
                 {ui.work.live}

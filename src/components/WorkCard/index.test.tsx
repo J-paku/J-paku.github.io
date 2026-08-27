@@ -10,24 +10,35 @@ import WorkCard from './index'
 // reduce を確かめるテストだけ true に切り替える
 let reducedMotionMatches = false
 
-// jsdom 29.1.1 は matchMedia を実装していない。use-reveal・WorkCard 自身が prefers-reduced-motion の
-// 判定に呼ぶため、このファイルの中だけで最小限のスタブを与える(実ブラウザの挙動保証はしない)
+// (hover: hover) and (pointer: fine) の判定結果を差し替えるためのフラグ。既定は true(デスクトップ)で、
+// タッチ環境を確かめるテストだけ false に切り替える
+let finePointerMatches = true
+
+// jsdom 29.1.1 は matchMedia を実装していない。use-reveal・WorkCard 自身が prefers-reduced-motion・
+// fine-pointer 判定の両方に呼ぶため、クエリ文字列ごとに異なる結果を返すスタブをこのファイルの中だけで
+// 与える(実ブラウザの挙動保証はしない)
 beforeAll(() => {
   if (typeof window.matchMedia === 'function') return
-  window.matchMedia = (query: string): MediaQueryList => ({
-    matches: reducedMotionMatches,
-    media: query,
-    onchange: null,
-    addListener: () => {},
-    removeListener: () => {},
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    dispatchEvent: () => false,
-  })
+  window.matchMedia = (query: string): MediaQueryList => {
+    let matches = false
+    if (query === '(prefers-reduced-motion: reduce)') matches = reducedMotionMatches
+    else if (query === '(hover: hover) and (pointer: fine)') matches = finePointerMatches
+    return {
+      matches,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }
+  }
 })
 
 afterEach(() => {
   reducedMotionMatches = false
+  finePointerMatches = true
 })
 
 // jsdom は HTMLMediaElement の play/pause を実装していない(呼ぶと「Not implemented」を吐く)。
@@ -110,7 +121,7 @@ describe('WorkCard', () => {
     expect(container.querySelector('img')?.getAttribute('src')).toBe(workWithVideo.thumbnail)
   })
 
-  it('video を持つ作品は一時停止トグルを持ち、押すとラベルが再生用に入れ替わる(WCAG 2.2.2)', () => {
+  it('video を持つ作品はデスクトップ(fine pointer)で shot 全面が一時停止トグルになり、押すとラベルが再生用に入れ替わる(WCAG 2.2.2)', () => {
     const workWithVideo: Work = { ...work, thumbnail: '/shots/sample.png', video: '/shots/seatmap-demo-live.mp4' }
     renderWorkCard(workWithVideo, 0)
 
@@ -121,5 +132,34 @@ describe('WorkCard', () => {
 
     expect(screen.queryByRole('button', { name: ui.work.pauseVideo })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: ui.work.resumeVideo })).toBeInTheDocument()
+  })
+
+  it('video とリンクを持つ作品はタッチ(coarse pointer)で shot 全面がリンク覆いの開閉トリガーのままになり、動画の一時停止/再開はオーバーレイ内の別ボタンが担う', () => {
+    finePointerMatches = false
+    const workWithVideoAndLinks: Work = {
+      ...work,
+      thumbnail: '/shots/sample.png',
+      video: '/shots/seatmap-demo-live.mp4',
+      links: { live: 'https://example.com/live' },
+    }
+    renderWorkCard(workWithVideoAndLinks, 0)
+
+    // shot 全面ボタンは動画トグルに変わらず、従来どおりリンク覆いの開閉トリガーのまま
+    const overlayTrigger = screen.getByRole('button', { name: ui.work.openLinks })
+    fireEvent.click(overlayTrigger)
+    expect(overlayTrigger).toHaveAttribute('aria-expanded', 'true')
+
+    // 動画の一時停止/再開はオーバーレイ内の別ボタンが担う(WCAG 2.2.2)
+    const videoToggle = screen.getByRole('button', { name: ui.work.pauseVideo })
+    expect(videoToggle).toBeInTheDocument()
+
+    fireEvent.click(videoToggle)
+
+    expect(screen.queryByRole('button', { name: ui.work.pauseVideo })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: ui.work.resumeVideo })).toBeInTheDocument()
+
+    // 動画トグルの押下がオーバーレイの onClick(背景タップ=閉じる)へ伝播していない
+    // (stopPropagation が効いていれば開いたまま。伝播すれば aria-expanded が false に落ちる)
+    expect(overlayTrigger).toHaveAttribute('aria-expanded', 'true')
   })
 })

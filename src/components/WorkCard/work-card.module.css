@@ -366,9 +366,10 @@
 /* 動画の一時停止/再開(WCAG 2.2.2)。写真・動画は任意の色を持ちうるため、サイトのテーマ
    トークン(--ink 等)では対比を保証できない — SceneModal の .close/.navButton と同じ、
    テーマに依存しない --color-scrim 系(01-authoring.md #9 のモーダル暗幕と同じ扱い)を使う。
-   ヒットボックスは44px以上。.shotTrigger(inset:0の透明ボタン)・.shotOverlay はどちらも
-   z-index を持たない(auto)ため、この明示的な z-index だけで独立して最前面に立つ
-   (DOM順に関係なく安定する) */
+   ヒットボックスは44px以上。.shotOverlay の子として置く(position: absolute の基準は
+   .shotOverlay 自身 — inset: 0 で .shot と同じ矩形なので、見た目の角位置は従来と変わらない)。
+   タッチ環境(hover不可)専用の操作口 — デスクトップは下の .videoToggleFull が同じ役割を持つため、
+   同名ボタンの重複を避けてこちらは描画しない(WorkCard 側の isFinePointer 分岐) */
 .videoToggle {
   position: absolute;
   top: var(--space-2xs);
@@ -394,6 +395,82 @@
 .videoToggleIcon {
   width: 1.1rem;
   height: 1.1rem;
+}
+
+/*
+ * 動画カード専用・デスクトップ限定の全面トグル。SceneModal の .sceneToggle と同じ
+ * 「画面そのものを押させる」設計 — 角の小さなボタンより誤操作が少ない。見た目は持たず、
+ * 状態合図は下の .videoPulse / .videoPausedMark が担う。.shotOverlay より前に置いて
+ * 覆いの下に沈める(z-index は持たせずDOM順に任せる — 下の .shotHasVideo 分岐で
+ * 覆いの背景だけ pointer-events: none にしてあるため、覆いの空きスペースの
+ * クリックはここまで届く)
+ */
+.videoToggleFull {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.videoToggleFull:focus-visible {
+  outline-offset: -3px;
+}
+
+/* 中央のパルス合図(ユーチューブ式)。押すたびに新しい要素として作り直され(WorkCard 側で
+   key を差し替える)、拡大しながらフェードアウトする一度きりのアニメーションを再生する。
+   SceneModal の .pulse と同じ手法・同じトークン */
+.videoPulse {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background-color: color-mix(in srgb, var(--color-scrim) 70%, transparent);
+  color: var(--color-scrim-ink);
+  pointer-events: none;
+  opacity: 0;
+  animation: video-toggle-pulse 500ms var(--ease-reveal);
+}
+
+@keyframes video-toggle-pulse {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(0.7);
+  }
+
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.3);
+  }
+}
+
+/* 停止している間ずっと出す印。パルスが消えたあとも「止まっている」と分かるようにする
+   (SceneModal の .pausedMark と同じ役割) */
+.videoPausedMark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background-color: color-mix(in srgb, var(--color-scrim) 55%, transparent);
+  color: var(--color-scrim-ink);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.videoPulseIcon {
+  width: 1.5rem;
+  height: 1.5rem;
 }
 
 /* 背景に敷く装飾グリフ。data-glyph が無いカードでは content が空になり何も描かれない */
@@ -485,6 +562,22 @@
 @media (hover: hover) and (pointer: fine) {
   .shot:hover .shotOverlay {
     opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+/* 動画カードだけの分岐(.shotHasVideo)。ホバー中の覆い「背景」には pointer-events: auto を
+   与えない — 下に敷いた .videoToggleFull(全面トグル)へ覆いの空きスペースのクリックを
+   落とすため。リンクボタンは個別に auto を戻して押せる状態を保つ(.videoToggle はタッチ環境
+   専用でこの帯には描画されないため対象に含めない)。非動画カードはこのブロックに
+   一切マッチしないため、既存の挙動は変わらない */
+@media (hover: hover) and (pointer: fine) {
+  .shot.shotHasVideo:hover .shotOverlay {
+    pointer-events: none;
+  }
+
+  .shot.shotHasVideo:hover .overlayPrimary,
+  .shot.shotHasVideo:hover .overlaySecondary {
     pointer-events: auto;
   }
 }
