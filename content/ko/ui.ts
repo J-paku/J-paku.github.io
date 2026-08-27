@@ -58,6 +58,7 @@ export const ui: UiStrings = {
     copyright: '© 2026 朴 裁弘',
     credit: 'Design explored with Variant',
   },
+  scrollTop: '맨 위로',
   notFound: {
     title: '페이지를 찾을 수 없습니다',
     body: '찾으시는 페이지가 존재하지 않거나 이동 또는 삭제되었을 수 있습니다.',

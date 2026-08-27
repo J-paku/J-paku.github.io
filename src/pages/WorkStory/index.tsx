@@ -7,6 +7,7 @@ import { useLocale } from '@/contexts/LocaleContext/locale-context'
 import { useContent } from '@/hooks/use-content'
 import { withLocale } from '@/utils/locale-path'
 import PhraseText from '@/components/PhraseText'
+import ScrollTopButton from '@/components/ScrollTopButton'
 import NotFound from '@/pages/NotFound'
 import { useActiveScene } from './hooks/use-active-scene'
 import IntroPreview from './components/IntroPreview'
@@ -123,6 +124,9 @@ function WorkStory() {
           <PhraseText text={ui.workStory.viewScene} />
         </button>
       ) : null}
+
+      {/* ページ先頭へ戻る浮きボタン(モバイル)。下部CTAと重ならないよう --cta-height ぶん持ち上げる */}
+      <ScrollTopButton raisedForCta />
 
       {openSceneIndex !== null ? (
         <SceneModal

@@ -58,6 +58,7 @@ export const ui: UiStrings = {
     copyright: '© 2026 朴 裁弘',
     credit: 'Design explored with Variant',
   },
+  scrollTop: 'ページの先頭へ戻る',
   notFound: {
     title: 'ページが見つかりません',
     body: 'お探しのページは存在しないか、移動または削除された可能性があります。',
