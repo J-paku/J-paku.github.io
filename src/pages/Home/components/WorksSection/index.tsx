@@ -5,6 +5,7 @@
 // (タブ廃止により tabpanel の役割は失った)
 import { useContent } from '@/hooks/use-content'
 import WorkCard from '@/components/WorkCard'
+import ScrollTopButton from '@/components/ScrollTopButton'
 import PhraseText from '@/components/PhraseText'
 import styles from './works-section.module.css'
 
@@ -42,6 +43,10 @@ function WorksSection({ isHidden }: WorksSectionProps) {
           <PhraseText text={ui.colophon.credit} />
         </p>
       </div>
+
+      {/* ページ先頭へ戻る浮きボタン(モバイル)。このセクションごと hidden になる構造なので、
+          担当業務パネル表示中(戻るCTAが下部を使う間)は自動で消える — 追加の出し分けは持たない */}
+      <ScrollTopButton />
     </section>
   )
 }

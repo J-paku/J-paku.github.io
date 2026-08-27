@@ -49,6 +49,8 @@ export type UiStrings = {
     pauseScene: string
     resumeScene: string
   }
+  // ページ先頭へ戻る浮きボタン(モバイル専用)の読み上げ名
+  scrollTop: string
   notFound: { title: string; body: string; backHome: string }
   // ページ最下部の奥付(10段階)。著作権表記とデザイン出自の1行
   colophon: { copyright: string; credit: string }
