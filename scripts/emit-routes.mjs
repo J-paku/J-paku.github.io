@@ -36,6 +36,21 @@ const KO_FONT_LINK =
 const KO_DESCRIPTION =
   '읽기만 하는 포트폴리오가 아닙니다. 좌석 지도도 명함 앱도 여기서 실제로 움직입니다. 만들고 운영까지 가져가는 프론트엔드 엔지니어.'
 
+// ko ページ用の <noscript data-fallback>。ja 側の正本は index.html にあり、
+// ko 複製時に中身を丸ごとこの文字列へ差し替える(構造は ja と同一に保つ)
+const KO_NOSCRIPT = `<noscript data-fallback>
+      <div style="max-width: 40em; margin: 4rem auto; padding: 0 1.5rem; line-height: 1.9">
+        <h1>J-Paku</h1>
+        <p>업무 시스템 UI·iOS·AI 개발 기반 포트폴리오. 본문은 JavaScript로 그려지기 때문에, 이 환경에서는 개요만 표시합니다.</p>
+        <p>전사 200명 이상이 사용하는 사내 업무 앱(9기능·418라우트·TypeScript 16만 행)의 프론트엔드를 설계·구현. AI 에이전트 개발 환경(하네스)으로 AI에 맡긴 작업의 87.6%가 사람의 손질 없이 완료.</p>
+        <ul>
+          <li><a href="https://j-paku.github.io/seatmap-demo/">좌석 지도 데모 — 실제로 움직입니다</a></li>
+          <li><a href="https://j-paku.github.io/ai-harness/">AI 에이전트 개발 환경 기록</a></li>
+          <li><a href="https://github.com/J-paku">GitHub (J-paku)</a></li>
+        </ul>
+      </div>
+    </noscript>`
+
 // routeDir へ dist/index.html の複製を書き出す。routeDir は DIST_DIR からの相対パス。
 // lang を渡すと <html lang> と書体リンクを差し替える — フォントのチェーンを
 // :root[lang='ko'] で切り替えているため、JSが lang を立てる前の初回ペイントで
@@ -77,6 +92,19 @@ function emitRoute(routeDir, lang) {
       process.exit(1)
     }
     html = metaSwapped
+
+    // <noscript data-fallback> の中身を ko 文言へ丸ごと差し替える。差し替え失敗を黙って
+    // ja のまま配らないよう、ko 固有文字列の存在と ja 文言の不在を両方検査する
+    const noscriptSwapped = html.replace(/<noscript data-fallback>[\s\S]*?<\/noscript>/, KO_NOSCRIPT)
+    if (
+      noscriptSwapped === html ||
+      !noscriptSwapped.includes('사람의 손질 없이 완료') ||
+      noscriptSwapped.includes('人の手直しなしで完了。')
+    ) {
+      console.error(`emit-routes: noscript フォールバックを ko へ差し替えられなかった(${routeDir})`)
+      process.exit(1)
+    }
+    html = noscriptSwapped
   }
 
   // og:url は lang と無関係に、複製先ルートの実URLへ差し替える。ja トップ(shellHtml 原本)は
