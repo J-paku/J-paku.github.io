@@ -25,8 +25,9 @@
          このCSSの取得が終わるまで最初の描画が始まらない(実測: レンダーブロック 1170ms・
          FCP 2.0s→2.6s・Lighthouse性能 95→92)。display=swap なのでどちらにせよ本文は
          代替書体で先に出るため、止める意味が無い。
-         JS 無効時の <noscript> フォールバックは置かない — このサイトはSPAで、JSが無ければ
-         本文自体が描かれないため、書体だけ救っても意味が無い -->
+         JS 無効環境には body 末尾の noscript フォールバック(data-fallback 属性)が概要とリンクを出す
+         (ATS・メール等のテキスト抽出器が本文0字と読む対策。本文の完全な複製はしない。
+         emit-routes.mjs がタグ実体を正規表現で差し替えるため、このコメントにタグ形は書かない) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -46,8 +47,10 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@500&text=%ED%95%9C%EA%B5%AD%EC%96%B4&display=swap"
     />
     <title>J-paku</title>
-    <!-- SEO・OGP用メタ(画像は無し)。descriptionとog:descriptionはja文言。ko複製時は
-         emit-routes.mjs が文言とog:localeをko用に差し替え、og:urlも各ルートの実URLへ差し替える -->
+    <!-- SEO・OGP用メタ。descriptionとog:descriptionはja文言。ko複製時は
+         emit-routes.mjs が文言とog:localeをko用に差し替え、og:urlも各ルートの実URLへ差し替える。
+         og:image は全ルート共通の1枚(public/og-card.png、1200x630)なので差し替え不要。
+         相対パスを解決しないパーサがあるため絶対URLで書く -->
     <meta name="description" content="読むだけのポートフォリオじゃない。座席マップも名刺アプリも、ここで実際に動く。作って運用まで持つフロントエンドエンジニア。" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="J-Paku" />
@@ -55,7 +58,10 @@
     <meta property="og:description" content="読むだけのポートフォリオじゃない。座席マップも名刺アプリも、ここで実際に動く。作って運用まで持つフロントエンドエンジニア。" />
     <meta property="og:url" content="https://j-paku.github.io/" />
     <meta property="og:locale" content="ja_JP" />
-    <meta name="twitter:card" content="summary" />
+    <meta property="og:image" content="https://j-paku.github.io/og-card.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
     <!-- ブートローダーの見た目。地色・文字色はトークン(var)参照なので、上の先行反映と合わせて
          ダーク選択時もローダーからダークで描かれる。バンドルCSS(トークン定義)は head の
          render-blocking な <link> なので、初回ペイント時点で var は必ず解決済み。
@@ -144,6 +150,22 @@
       </style>
     </noscript>
     <div id="root"></div>
+    <!-- JS無効環境・テキスト抽出器(ATS・メールのリンクプレビュー・クローラ)向けの最小フォールバック。
+         本文の完全な複製ではなく、概要と実URLだけを置く。文言はここ(ja)が正で、
+         ko 複製時は scripts/emit-routes.mjs が中身を丸ごと差し替える。
+         バンドルCSSはJS無しでも当たるので、地色・書体はサイトのトークンで描かれる -->
+    <noscript data-fallback>
+      <div style="max-width: 40em; margin: 4rem auto; padding: 0 1.5rem; line-height: 1.9">
+        <h1>J-Paku</h1>
+        <p>業務システムUI・iOS・AI開発基盤のポートフォリオ。本文はJavaScriptで描画されるため、この環境では概要のみ表示しています。</p>
+        <p>全社200名以上が利用する社内業務アプリ(9機能・418ルート・TypeScript 16万行)のフロントエンドを設計・実装。AIエージェント開発環境(ハーネス)により、AIに任せた作業の87.6%が人の手直しなしで完了。</p>
+        <ul>
+          <li><a href="https://j-paku.github.io/seatmap-demo/">座席マップデモ — 実際に動く</a></li>
+          <li><a href="https://j-paku.github.io/ai-harness/">AIエージェント開発環境の記録</a></li>
+          <li><a href="https://github.com/J-paku">GitHub (J-paku)</a></li>
+        </ul>
+      </div>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
     <!-- ローダーの公開制御。公開条件 = React マウント(#root に子が入る) + document.fonts.ready。
          描画アニメ(約1.1s)完走までは最低保持し、どんな回線でも 2s で無条件公開する。
