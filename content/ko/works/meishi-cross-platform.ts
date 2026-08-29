@@ -66,7 +66,7 @@ export const meishiCrossPlatform: Work = {
     ],
     outro: {
       title: '경계를 설계하는 크로스플랫폼',
-      body: '네이티브에서만 가능한 경험은 Swift로 만들고, 이미 돌아가는 웹은 그대로 살린다. 어디에 경계를 긋는지까지 포함해 설계한 구성. 개발은 지금도 진행중.',
+      body: '네이티브에서만 가능한 경험은 Swift로 만들고, 이미 돌아가는 웹은 그대로 살린다. 어디에 경계를 긋는지까지 포함해 설계한 구성. 첫 릴리스 후에도 기능 추가가 이어지고 있다.',
       stackSummary: [
         { name: 'Swift', note: '카메라·등록 플로우 네이티브 구현' },
         { name: 'AVFoundation', note: '카메라 제어' },
