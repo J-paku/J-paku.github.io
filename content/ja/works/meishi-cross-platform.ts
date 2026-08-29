@@ -66,7 +66,7 @@ export const meishiCrossPlatform: Work = {
     ],
     outro: {
       title: '境界を設計するクロスプラットフォーム',
-      body: 'ネイティブでしか出来ない体験はSwiftで作り、既に動いているWebはそのまま活かす。どこに境界を引くかまで含めて設計した構成。開発は現在も進行中。',
+      body: 'ネイティブでしか出来ない体験はSwiftで作り、既に動いているWebはそのまま活かす。どこに境界を引くかまで含めて設計した構成。初回リリース後も、機能追加が続いている。',
       stackSummary: [
         { name: 'Swift', note: 'カメラ・登録フローのネイティブ実装' },
         { name: 'AVFoundation', note: 'カメラ制御' },
