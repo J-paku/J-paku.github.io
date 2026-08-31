@@ -295,4 +295,29 @@ describe('WorkCard', () => {
       vi.useRealTimers()
     }
   })
+
+  it('story を持つ作品は下部リンク行(WorkLinks)に「ストーリー」ボタンを常設で描画する(live を持ち hasStoryOverlay が false になるケースで、overlay側の重複を排して単独確認する)', () => {
+    const workWithStoryAndLive: Work = { ...REEL_WORK, links: { live: 'https://example.com/reel-work' } }
+    renderWorkCard(workWithStoryAndLive, 0)
+
+    const storyLinks = screen.getAllByRole('link', { name: ui.work.story })
+    expect(storyLinks).toHaveLength(1)
+    expect(storyLinks[0]).toHaveAttribute('href', '/works/reel-work')
+  })
+
+  it('story のみを持つ作品(links 無し)は overlay と下部リンク行の両方にストーリーボタンを描画する(入口が2つになるのは意図した挙動 — overlay側は残したまま)', () => {
+    renderWorkCard(REEL_WORK, 0)
+
+    const storyLinks = screen.getAllByRole('link', { name: ui.work.story })
+    expect(storyLinks).toHaveLength(2)
+    storyLinks.forEach((link) => {
+      expect(link).toHaveAttribute('href', '/works/reel-work')
+    })
+  })
+
+  it('links・story のいずれも持たない作品はリンク要素(overlay・下部リンク行とも)を一切描画しない', () => {
+    renderWorkCard(work, 0)
+
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+  })
 })

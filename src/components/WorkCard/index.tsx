@@ -1,7 +1,7 @@
 // 作品カード。10段階で左右交互(ジグザグ)を廃し、全帯(全画面幅)で
 // 見出し(intro) → 画面キャプチャ(shot) → 事実パネル(panel)の1列縦積みにする。
 // 仕様表・技術タグ・リンクは下部の枠線パネルへ集約し、カードの終端を明示する。
-// wip は不変ルール5どおりリンクを持たない — links 自体が空なので WorkLinks が何も描かない
+// wip は不変ルール5どおりリンクを持たない — links も story も持たないため WorkLinks が何も描かない
 import { useEffect, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
 import { Link, useLocation } from 'react-router'
@@ -349,7 +349,11 @@ function WorkCard({ work, index }: WorkCardProps) {
       <div className={styles.panel}>
         <WorkSpec work={work} />
         <WorkStack stack={work.stack} />
-        <WorkLinks live={work.links.live} repo={work.links.repo} />
+        <WorkLinks
+          live={work.links.live}
+          repo={work.links.repo}
+          storySlug={work.story !== undefined ? work.slug : undefined}
+        />
       </div>
 
       {/* 詳細トグル。全幅バーではなく中央寄せの小さなテキストリンク然としたボタン。
