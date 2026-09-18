@@ -22,21 +22,9 @@ const FURNITURE: Record<'desk' | 'bed' | 'table', { w: number; keys: readonly Sp
 }
 
 export const facadeCells = (structure: Structure): FacadeCell[] => {
-  if ((structure.kind === 'bench' || structure.kind === 'fountain') && structure.scale === 2) {
-    const w = structure.kind === 'bench' ? 4 : 2
-    const kind = structure.kind
-    return Array.from({ length: w * 2 }, (_, i) => ({
-      cell: { x: structure.cell.x + (i % w), y: structure.cell.y + Math.floor(i / w) },
-      key: `${kind}-large-${i}` as SpriteKey,
-    }))
+  if (structure.kind === 'robot' || structure.kind === 'mailbox') {
+    return [{ cell: structure.cell, key: structure.kind }]
   }
-  if (structure.kind === 'bench') {
-    return [
-      { cell: structure.cell, key: 'bench-l' },
-      { cell: { x: structure.cell.x + 1, y: structure.cell.y }, key: 'bench-r' },
-    ]
-  }
-  if (structure.kind === 'fountain') return [{ cell: structure.cell, key: 'fountain' }]
   if (structure.kind !== 'house') {
     const { w, keys } = FURNITURE[structure.kind]
     return keys.map((key, i) => ({

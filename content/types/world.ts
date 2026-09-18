@@ -21,7 +21,7 @@ export type Tile =
   | 'doorway'
 export type RoofColor = 'red' | 'blue'
 // house: area = 屋根行 + 壁行(見た目)、solid = 壁行(通行不可)。扉は最下段の壁で doorX の列
-// bench: 2×1、fountain: 1×1。scale=2では描画と占有範囲を縦横2倍にする
+// robot: 1×1(AI 作業台の相棒ロボット)、mailbox: 1×1(郵便ポスト)
 // desk: cell から 3×2(PC 机)、bed: cell から 1×2、table: cell から 2×2 — いずれも通行不可
 export type Structure =
   | {
@@ -33,8 +33,8 @@ export type Structure =
       doorX: number
       doorWidth?: 1 | 2
     }
-  | { id: string; kind: 'bench'; cell: Cell; scale?: 2 }
-  | { id: string; kind: 'fountain'; cell: Cell; scale?: 2 }
+  | { id: string; kind: 'robot'; cell: Cell }
+  | { id: string; kind: 'mailbox'; cell: Cell }
   | { id: string; kind: 'desk'; cell: Cell }
   | { id: string; kind: 'bed'; cell: Cell }
   | { id: string; kind: 'table'; cell: Cell }
@@ -85,6 +85,7 @@ export type VillageText = {
   intro: string // マップ上部の1行
   promise: string // 「1分・5か所・代表作3つ」の約束(intro の下)
   hint: string // 操作案内(会話窓の既定文)
+  noTarget: string // 近くに話せる地点が無い時の一言(E を押した時など)
   arriveAt: string // 地点到着の吹き出し。{place} を置換
   exitHint: string // 屋内で出口を案内する一言
   headTo: string // 次の目的地案内。{place} を置換
