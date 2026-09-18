@@ -1,6 +1,6 @@
 // パスと locale の相互変換のみを行う純粋関数群。
 // locale の判定はここ一箇所に集約する(各所で pathname.startsWith('/ko') を書かせない)
-import type { Locale } from '@/types/content'
+import type { Locale } from '@content/types/content'
 
 export const DEFAULT_LOCALE: Locale = 'ja'
 
@@ -23,4 +23,11 @@ export const withLocale = (pathname: string, locale: Locale): string => {
   const bare = stripLocale(pathname)
   if (locale === 'ja') return bare
   return bare === '/' ? '/ko' : `/ko${bare}`
+}
+
+// 静的 export は trailingSlash: true で出力するため、リンクも末尾スラッシュ付きで作る。
+// 付けないと GitHub Pages が 301 で付け直す1往復が増える
+export const toHref = (pathname: string, locale: Locale): string => {
+  const localized = withLocale(pathname, locale)
+  return localized.endsWith('/') ? localized : `${localized}/`
 }

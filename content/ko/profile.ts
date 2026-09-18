@@ -1,5 +1,5 @@
 // プロフィール(ko) — jaと同じ型・同じキー構成を満たす
-import type { Profile } from '@/types/content'
+import type { Profile } from '@content/types/content'
 
 export const profile: Profile = {
   name: 'J-Paku',
@@ -60,7 +60,8 @@ export const profile: Profile = {
           },
           {
             label: '통신량',
-            value: '납품 화면이 받던 API 응답이 220KB → 1.2KB. 서버 부하와 앱 반응 시간이 동시에 내려갔다',
+            value:
+              '납품 화면이 받던 API 응답이 220KB → 1.2KB. 서버 부하와 앱 반응 시간이 동시에 내려갔다',
           },
           {
             label: '인쇄 속도',
@@ -68,7 +69,8 @@ export const profile: Profile = {
           },
           {
             label: '장비',
-            value: 'Windows 태블릿과 세트로 쓰던 서멀 프린터째로 불필요해졌다. 180g BLE 프린터 1대로 현장이 돌아간다',
+            value:
+              'Windows 태블릿과 세트로 쓰던 서멀 프린터째로 불필요해졌다. 180g BLE 프린터 1대로 현장이 돌아간다',
           },
           {
             label: '처음',
@@ -197,7 +199,15 @@ export const profile: Profile = {
       // ※입사·퇴사 월은 확인 필요
       company: '수탁개발 회사 재직(파견처 2곳)',
       period: '2022.04 - 2024.12',
-      stack: ['Nuxt.js', 'Vue.js', 'Delphi', 'Oracle', 'PostgreSQL', 'SharePoint', 'Power Automate'],
+      stack: [
+        'Nuxt.js',
+        'Vue.js',
+        'Delphi',
+        'Oracle',
+        'PostgreSQL',
+        'SharePoint',
+        'Power Automate',
+      ],
       role: '프론트엔드 / 사내 정보기반',
       assignments: [
         { period: '2023.10 - 2024.12', label: '파견처: 대형 엘리베이터 제조사 정보시스템 부문' },
@@ -223,7 +233,8 @@ export const profile: Profile = {
           },
           {
             label: '파견처',
-            value: '대형 엘리베이터 제조사(2023.10 - 2024.12)/ 대형 물류 시스템 제조사(2022.04 - 2023.09)',
+            value:
+              '대형 엘리베이터 제조사(2023.10 - 2024.12)/ 대형 물류 시스템 제조사(2022.04 - 2023.09)',
           },
         ],
         assignments: [
@@ -247,7 +258,8 @@ export const profile: Profile = {
               },
               {
                 label: '이관',
-                value: 'Oracle → PostgreSQL. SQL 방언 차이를 흡수하며 데이터 등가성을 검증해 담보했다',
+                value:
+                  'Oracle → PostgreSQL. SQL 방언 차이를 흡수하며 데이터 등가성을 검증해 담보했다',
               },
               {
                 label: '전제',
@@ -255,7 +267,8 @@ export const profile: Profile = {
               },
               {
                 label: '회귀',
-                value: '사양서가 없고 동작만이 정답이었기에, 수정이 다른 기능의 회귀를 낳기 쉬웠다. 고치기 전에 검증 수단부터 마련하는 진행 방식은 이 환경에서 몸에 붙었다.',
+                value:
+                  '사양서가 없고 동작만이 정답이었기에, 수정이 다른 기능의 회귀를 낳기 쉬웠다. 고치기 전에 검증 수단부터 마련하는 진행 방식은 이 환경에서 몸에 붙었다.',
               },
               {
                 label: '비고',
