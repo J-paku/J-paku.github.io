@@ -17,7 +17,7 @@ export const aiHarness: Work = {
     live: 'https://j-paku.github.io/ai-harness/',
     repo: 'https://github.com/J-paku/ai-harness',
   },
-  // カード用サムネイル。fan-out 実行フローを文字なしで図解した自作SVG(seatmap と同じ視覚文法)
+  // カード用サムネイル。fan-out実行フローを文字なしで図解した自作SVG(seatmapと同じ視覚文法)
   thumbnail: '/shots/ai-harness.svg?v=3',
   // 詳細ページ用。構築の動機から配布・定着、実績と未解決の課題までを語る4節
   detail: {
