@@ -33,10 +33,11 @@ const HOLD_MS = 150
 const SETTLE_MS = 320
 const WORK_SLUG = 'meishi-cross-platform'
 
-// ブート演出が消えるまで待ち、キー操作を受け取る村の枠へフォーカスする
+// ブート演出が消えるまで待ち、キー操作を受け取る村の枠へフォーカスする。
+// 操作帯のスティックも role=application なので data-village で枠を指す
 const focusVillage = async (page: Page) => {
   await page.waitForSelector('#boot', { state: 'detached', timeout: 5_000 })
-  await page.getByRole('application').focus()
+  await page.locator('[data-village]').focus()
 }
 
 const openVillage = async (page: Page, prefix: string) => {

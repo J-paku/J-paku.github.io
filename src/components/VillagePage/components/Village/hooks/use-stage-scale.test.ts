@@ -1,5 +1,6 @@
-// computeCell の境界と、追従カメラ cameraOffset の原点計算・approachCamera の減衰追従
-import { describe, expect, it } from 'vitest'
+// computeCell の境界と、追従カメラ cameraOffset の原点計算・approachCamera の減衰追従。
+// bandHeight は --band として書き込む値そのものなので、静的配置(縦持ち)と 0px になる場合を確認する
+import { describe, expect, it, vi } from 'vitest'
 import {
   CAM_SNAP_CELLS,
   CAM_TAU,
@@ -8,6 +9,8 @@ import {
   VIEW_COLS,
   VIEW_ROWS,
   approachCamera,
+  bandGap,
+  bandHeight,
   cameraOffset,
   computeCell,
 } from './use-stage-scale'
@@ -32,6 +35,42 @@ describe('computeCell', () => {
   it('極端に小さい舞台でも下限12px(200×100)', () => {
     // 高さ 100/9=11 は下限を割るので 12 へ引き上げる
     expect(computeCell(200, 100, 0, VIEW_COLS, VIEW_ROWS)).toBe(CELL_MIN)
+  })
+})
+
+describe('bandHeight', () => {
+  // node 環境には DOM が無いので、必要なプロパティだけを持つ最小限のオブジェクトを
+  // Partial<HTMLDivElement> 経由で型付けする(as unknown は使わない)
+  const band = { offsetHeight: 104 } as Partial<HTMLDivElement> as HTMLDivElement
+
+  it('静的配置(縦持ちの帯)なら offsetHeight をそのまま --band の値にする', () => {
+    vi.stubGlobal('getComputedStyle', (): Partial<CSSStyleDeclaration> => ({ position: 'static' }))
+    expect(bandHeight(band)).toBe(104)
+    vi.unstubAllGlobals()
+  })
+
+  it('absolute配置(横持ち)は帯が枠に重なるだけなので --band は0px', () => {
+    vi.stubGlobal('getComputedStyle', (): Partial<CSSStyleDeclaration> => ({
+      position: 'absolute',
+    }))
+    expect(bandHeight(band)).toBe(0)
+    vi.unstubAllGlobals()
+  })
+
+  it('帯の要素そのものが無ければ0px', () => {
+    expect(bandHeight(null)).toBe(0)
+  })
+})
+
+describe('bandGap', () => {
+  it('帯が画面下端に接していなければ、舞台下端から帯の上端までの距離を返す(664-442=222)', () => {
+    expect(bandGap(664, 442)).toBe(222)
+  })
+  it('帯の上端が舞台下端と一致すれば0', () => {
+    expect(bandGap(664, 664)).toBe(0)
+  })
+  it('帯の上端が舞台下端より下(負の距離になる場合)は0に丸める', () => {
+    expect(bandGap(664, 700)).toBe(0)
   })
 })
 
