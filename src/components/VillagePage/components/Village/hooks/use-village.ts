@@ -58,6 +58,8 @@ type UseVillage = {
   onKeyUp: VillageInput['onKeyUp']
   onBlur: VillageInput['onBlur']
   onPointerDown: VillageInput['onPointerDown']
+  onPointerMove: VillageInput['onPointerMove']
+  onPointerUp: VillageInput['onPointerUp']
   openTalk: () => void
   openMap: () => void
   closeOverlay: () => void
@@ -100,8 +102,19 @@ export function useVillage({ worldSet, text, sprites }: VillageOptions): UseVill
   const lockedRef = useRef(false)
   const actionsRef = useRef<VillageActions>(NO_ACTIONS)
 
-  const { heldRef, setHeld, tapped, consumeTap, onKeyDown, onKeyUp, onBlur, onPointerDown } =
-    useVillageInput({ actions: actionsRef, locked: lockedRef })
+  const {
+    heldRef,
+    setHeld,
+    tapped,
+    consumeTap,
+    onKeyDown,
+    onKeyUp,
+    onBlur,
+    onPointerDown,
+    pointerTargetRef,
+    onPointerMove,
+    onPointerUp,
+  } = useVillageInput({ actions: actionsRef, locked: lockedRef })
 
   const {
     visitedRef,
@@ -153,6 +166,7 @@ export function useVillage({ worldSet, text, sprites }: VillageOptions): UseVill
     bump,
     tapped,
     consumeTap,
+    pointerTargetRef,
   })
 
   const { mode, openTalk, openMap, closeOverlay, goNext, travel } = useVillageOverlay({
@@ -230,6 +244,8 @@ export function useVillage({ worldSet, text, sprites }: VillageOptions): UseVill
     onKeyUp,
     onBlur,
     onPointerDown,
+    onPointerMove,
+    onPointerUp,
     openTalk,
     openMap,
     closeOverlay,

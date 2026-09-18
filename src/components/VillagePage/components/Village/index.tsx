@@ -67,6 +67,8 @@ function Village({
     onKeyUp,
     onBlur,
     onPointerDown,
+    onPointerMove,
+    onPointerUp,
     openTalk,
     openMap,
     closeOverlay,
@@ -106,6 +108,11 @@ function Village({
           onPointerDown={event =>
             onPointerDown(event, event.currentTarget.clientWidth / VIEW_COLS, camRef.current)
           }
+          onPointerMove={event =>
+            onPointerMove(event, event.currentTarget.clientWidth / VIEW_COLS, camRef.current)
+          }
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
         >
           {/* data-world は描画済みワールドの印。rAF 側はこれが今のワールドと一致するまでカメラを動かさない */}
           {/* ワープ後の描画待ちが長引いた時だけ rAF 側が data-show を付ける。文言は持たず点滅の点だけ */}
