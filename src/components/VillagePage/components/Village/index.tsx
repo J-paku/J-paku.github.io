@@ -57,7 +57,7 @@ function Village({
     reduceMotion,
     locatorVisible,
     placeNames,
-    talkCell,
+    talkAt,
     talkText,
     talkAnchor,
     talkLabel,
@@ -114,7 +114,12 @@ function Village({
             <span />
             <span />
           </div>
-          <div ref={worldLayerRef} className={styles.world} style={worldStyle} data-world={world.id}>
+          <div
+            ref={worldLayerRef}
+            className={styles.world}
+            style={worldStyle}
+            data-world={world.id}
+          >
             <Ground world={world} sprites={sprites} destination={destination} />
             <div
               ref={playerRef}
@@ -137,11 +142,11 @@ function Village({
                 />
               </div>
             ) : null}
-            {talkCell !== null && talkText !== null && mode !== 'talk' ? (
+            {talkAt !== null && talkText !== null && mode !== 'talk' ? (
               <TalkBubble
                 text={talkText}
                 lang={lang}
-                cell={talkCell}
+                at={talkAt}
                 actionLabel={talkLabel}
                 onAction={openTalk}
               />
