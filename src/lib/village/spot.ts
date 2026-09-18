@@ -1,6 +1,6 @@
 // 会話地点の判定。家具の上下左右に隣接する通路なら、プレイヤーの向きを問わず話せる。
 // コース順(order)は全ワールド通しの通番なので、次の地点はワールドをまたいで探す
-import type { Cell, Direction, Spot, World, WorldSet } from '@content/types/world'
+import type { Cell, Direction, Rect, Spot, World, WorldSet } from '@content/types/world'
 
 import { isWalkable, structureRect } from './collision'
 
@@ -18,6 +18,17 @@ export const facedCell = (spot: Spot): Cell => ({
   x: spot.cell.x + FACING[spot.facing].x,
   y: spot.cell.y + FACING[spot.facing].y,
 })
+
+// 吹き出しやモーダルを付ける相手の範囲。家は入口の列、家具は占有矩形。物が見つからなければ向いている 1 マス
+export const talkTarget = (world: World, spot: Spot): Rect => {
+  const structure = world.structures.find(s => s.id === spot.structureId)
+  if (structure === undefined) return { ...facedCell(spot), w: 1, h: 1 }
+  if (structure.kind === 'house') {
+    const y = structure.solid.y + structure.solid.h - 1
+    return { x: structure.doorX, y, w: structure.doorWidth ?? 1, h: 1 }
+  }
+  return structureRect(structure)
+}
 
 export const spotAt = (world: World, cell: Cell): Spot | null => {
   if (!isWalkable(world, cell)) return null

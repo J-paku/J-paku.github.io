@@ -627,23 +627,24 @@ const largeTiles = (arts: PixelArt[]): PixelArt[] => {
       .map(row => row.slice((i % cols) * 16, (i % cols) * 16 + 16))
   )
 }
+// 2マス幅の入口は観音開きの扉。左マスは左枠+左の扉板で、右端の1列が中央の合わせ目。右マスは左右反転
 const entranceLeft: PixelArt = [
-  'hhHHHHHHHHHHHHHH',
-  'hHxxxxxxxxxxxxxx',
-  'HxDDDDDDDDDDDDDD',
-  'HxDDDDDDDDDDDDDD',
-  'HxDDDDDDDDDDDDDD',
-  'HxDDDDDDDDDDDDDD',
-  'HxDDDDDDDDDDDDDD',
-  'HxDDDDDDDDDDDDDD',
-  'HxDDDDDDDDDDDDDD',
-  'HxDDDDDDDDDDDDDD',
-  'HxDDDDDDDDDDDDDD',
-  'HxDDDDDDDDDDDDDD',
-  'HxDDDDDDDDDDDDDD',
-  'Hsssssssssssssss',
-  'shhhhhhhhhhhhhhh',
-  'xxxxxxxxxxxxxxxx',
+  'hhhhhhhhhhhhhhhh',
+  'hHhhhhhhhhhhhhhh',
+  'hhxxxxxxxxxxxxxx',
+  'hhxDDDDDDDDDDDDD',
+  'HHxddDdddDdddDdD',
+  'hhxddDdddDdddDdD',
+  'hhxddDdddDdddDdD',
+  'hhxddDdddDdddDdD',
+  'hhxddDdddDdddDFD',
+  'HHxddDdddDdddDdD',
+  'hhxddDdddDdddDdD',
+  'hhxddDdddDdddDdD',
+  'hhxddDdddDdddDdD',
+  'HHxddDdddDdddDdD',
+  'HHxddDdddDdddDdD',
+  'xxxddDdddDdddDdD',
 ]
 const largeBench = largeTiles([benchLeft, mirrorX(benchLeft)])
 const largeFountain = largeTiles([
