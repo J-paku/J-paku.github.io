@@ -1,10 +1,8 @@
 import { defineConfig, configDefaults } from 'vitest/config'
-import react from '@vitejs/plugin-react'
 import { fileURLToPath, URL } from 'node:url'
 
+// S1 のテスト対象は純粋関数のみ。DOM 環境は持たない
 export default defineConfig({
-  base: '/',
-  plugins: [react()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
@@ -12,10 +10,9 @@ export default defineConfig({
     },
   },
   test: {
-    environment: 'jsdom',
-    setupFiles: ['./src/test-setup.ts'],
+    environment: 'node',
     globals: true,
-    // 他セッションの worktree 写しが古いテストを抱えるため .claude/ を除外する
-    exclude: [...configDefaults.exclude, '**/.claude/**'],
+    include: ['src/**/*.test.ts'],
+    exclude: [...configDefaults.exclude, '**/.claude/**', 'src/_v1-pages/**', 'tests/**'],
   },
 })
