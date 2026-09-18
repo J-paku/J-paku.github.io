@@ -1,5 +1,5 @@
 // 作品(ja) — チーム標準のAI開発基盤。構築・配布・定着・課題までの記録
-import type { Work } from '@/types/content'
+import type { Work } from '@content/types/content'
 
 export const aiHarness: Work = {
   slug: 'ai-harness',
