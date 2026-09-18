@@ -52,6 +52,21 @@ describe('facadeCells (house)', () => {
     expect(row(tall, 3)).toEqual(['wall-l', 'wall-m', 'wall-m', 'wall-r'])
     expect(row(tall, 4)).toEqual(['wall-l', 'door', 'wall-m', 'wall-r'])
   })
+  it('壁行が 1 段だけなら、その 1 段がそのまま扉行になる(窓行は無い)', () => {
+    const oneWall: House = {
+      ...house,
+      area: { x: 2, y: 2, w: 4, h: 3 },
+      solid: { x: 2, y: 4, w: 4, h: 1 },
+    }
+    expect(row(oneWall, 2)).toEqual(['roof-red-l', 'roof-red-m', 'roof-red-m', 'roof-red-r'])
+    expect(row(oneWall, 3)).toEqual([
+      'roof-red-l-low',
+      'roof-red-m-low',
+      'roof-red-m-low',
+      'roof-red-r-low',
+    ])
+    expect(row(oneWall, 4)).toEqual(['wall-l', 'door', 'wall-m', 'wall-r'])
+  })
   it('屋根が 2 段なら 2 段目は -low', () => {
     const tallRoof: House = {
       ...house,

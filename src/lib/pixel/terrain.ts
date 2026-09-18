@@ -14,6 +14,7 @@ const grassPart: PixelArt = [
   'gggggggg',
 ]
 
+// 石畳は8×8の石1個。1マスには compose で2×2=4個並べ、敷石らしく見せる
 const pathPart: PixelArt = [
   'PPPPPPPP',
   'Pppppppp',
@@ -124,44 +125,24 @@ const flowerQuarter: PixelArt = [
   'gggggggg',
 ]
 
-// 木は 2×2 マス(32×32 ドット)。左半分だけを手描きし、右半分は mirrorX で対称に作る
-// 上の 3/4 が丸い樹冠、下は中央に太い幹。外側の角は草にして輪郭を丸く見せる
-const treeTopLeft: PixelArt = [
-  'ggggggggxxxxxxxx',
-  'ggGggxxxTTTTTTTT',
-  'gGgxxTTTtttttttt',
-  'ggxTTttttttttttt',
-  'gxTTtttttttttttt',
-  'gxTtttttTttttttt',
-  'xTTttttttttttttt',
-  'xTtttttttttttttt',
-  'xTttttTttttttttt',
-  'xTtttttttttttttt',
-  'xTttttttttTttttt',
-  'xTtttttttttttttt',
-  'xTtttTtttttttttt',
-  'xTtttttttttttttt',
-  'xTttttttTttttttt',
-  'xTtttttttttttttt',
-]
-
-const treeBottomLeft: PixelArt = [
-  'xTtttttttttttttt',
-  'xTtttttTtttttttt',
-  'gxTTtttttttttttt',
-  'gxTttttttttttttt',
-  'ggxTTttttttttttt',
-  'gggxxTTTtttttttt',
-  'gggggxxxTTTTTTTT',
-  'ggGgggggxxxxxxxx',
-  'gggggggggggggxkk',
-  'gggggggggggggxkk',
-  'ggGggggggggggxkk',
-  'gGgGgggggggggxkk',
-  'gggggggggggggxkk',
-  'ggggggggggggxkkk',
-  'ggggyggggggxkkkk',
-  'gggGyGgggggGGGGG',
+// 木は 1 マス(16×16 ドット)。丸い樹冠と短い幹だけの小さな木。四隅は草にして輪郭を丸く見せる
+const tree: PixelArt = [
+  'ggggggxTTxgggggg',
+  'ggggxTTttTTxgggg',
+  'gggxTTttttTTxggg',
+  'ggxTttttttttTxgg',
+  'ggxTttttttttTxgg',
+  'gggxTTttttTTxggg',
+  'ggggxTTttTTxgggg',
+  'ggggggxTTxgggggg',
+  'ggggggxkkxgggggg',
+  'ggggggxkkxgggggg',
+  'ggggggxkkxgggggg',
+  'ggggggxkkxgggggg',
+  'gggggggggggggggg',
+  'gggggggggggggggg',
+  'gggggggggggggggg',
+  'gggggggggggggggg',
 ]
 
 const fenceLeft: PixelArt = [
@@ -260,7 +241,7 @@ export const terrainArt: Record<Tile, PixelArt> = {
     mirrorX(grassPart),
     mirrorY(mirrorX(grassPart))
   ),
-  path: compose(pathPart, mirrorX(pathPart), mirrorY(pathPart), mirrorY(mirrorX(pathPart))),
+  path: compose(pathPart, pathPart, pathPart, pathPart),
   water: compose(waterTopLeft, waterTopRight, waterBottomLeft, waterBottomRight),
   plaza: compose(plazaTopLeft, plazaTopRight, plazaBottomLeft, plazaBottomRight),
   flower: compose(
@@ -269,10 +250,7 @@ export const terrainArt: Record<Tile, PixelArt> = {
     mirrorY(flowerQuarter),
     mirrorY(mirrorX(flowerQuarter))
   ),
-  'tree-tl': treeTopLeft,
-  'tree-tr': mirrorX(treeTopLeft),
-  'tree-bl': treeBottomLeft,
-  'tree-br': mirrorX(treeBottomLeft),
+  tree,
   fence: compose(fenceLeft, mirrorX(fenceLeft), mirrorY(fenceLeft), mirrorY(mirrorX(fenceLeft))),
   floor: compose(floorPart, floorPart, floorPart, floorPart),
   wall: compose(wallTopPart, wallTopPart, wallBottomPart, wallBottomPart),
