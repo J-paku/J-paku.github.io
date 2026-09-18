@@ -107,3 +107,14 @@
   top: auto;
   bottom: calc(100% + 2px);
 }
+
+/* 帯(スティック・A/B)は覆わない。--band は帯の上端までの距離なので、A は次へ、
+   B は閉じるとして使えるように帯の上で止まる */
+@media (pointer: coarse) and (orientation: portrait) {
+  .overlay {
+    bottom: var(--band, 0px);
+  }
+  .panel {
+    max-height: calc(100vh - var(--band, 0px) - 32px);
+  }
+}
