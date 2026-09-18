@@ -32,8 +32,8 @@ const MINI_COLORS: Record<Tile, string> = {
 const STRUCTURE_COLORS = {
   'house-red': '#c9553f',
   'house-blue': '#4c6fb0',
-  bench: '#8a6a3a',
-  fountain: '#7fb7d6',
+  robot: '#8a6a3a',
+  mailbox: '#7fb7d6',
   desk: '#8a6a3a',
   bed: '#8a6a3a',
   table: '#8a6a3a',

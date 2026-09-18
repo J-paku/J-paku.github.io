@@ -106,17 +106,14 @@ describe('facadeCells (house)', () => {
   })
 })
 
-describe('facadeCells (bench / fountain)', () => {
-  it('ベンチは cell と右隣の 2 マス', () => {
-    const bench: Structure = { id: 'b', kind: 'bench', cell: { x: 1, y: 9 } }
-    expect(facadeCells(bench)).toEqual([
-      { cell: { x: 1, y: 9 }, key: 'bench-l' },
-      { cell: { x: 2, y: 9 }, key: 'bench-r' },
-    ])
+describe('facadeCells (robot / mailbox)', () => {
+  it('ロボットは cell の 1 マス', () => {
+    const robot: Structure = { id: 'r', kind: 'robot', cell: { x: 1, y: 9 } }
+    expect(facadeCells(robot)).toEqual([{ cell: { x: 1, y: 9 }, key: 'robot' }])
   })
-  it('噴水は 1 マス', () => {
-    const fountain: Structure = { id: 'f', kind: 'fountain', cell: { x: 9, y: 12 } }
-    expect(facadeCells(fountain)).toEqual([{ cell: { x: 9, y: 12 }, key: 'fountain' }])
+  it('ポストは cell の 1 マス', () => {
+    const mailbox: Structure = { id: 'm', kind: 'mailbox', cell: { x: 9, y: 12 } }
+    expect(facadeCells(mailbox)).toEqual([{ cell: { x: 9, y: 12 }, key: 'mailbox' }])
   })
 })
 
@@ -150,7 +147,7 @@ describe('facadeCells (屋内の家具)', () => {
   })
 })
 
-describe('拡大した入口と家具', () => {
+describe('拡大した入口', () => {
   it('2マスの開口部を隙間なく横に並べる', () => {
     expect(row({ ...house, doorWidth: 2 }, 4)).toEqual([
       'wall-l',
@@ -158,15 +155,5 @@ describe('拡大した入口と家具', () => {
       'entrance-r',
       'wall-r',
     ])
-  })
-  it('大型ベンチは4×2、噴水は2×2を重複なく描く', () => {
-    for (const kind of ['bench', 'fountain'] as const) {
-      const cells = facadeCells({ id: kind, kind, cell: { x: 2, y: 3 }, scale: 2 })
-      const width = kind === 'bench' ? 4 : 2
-      expect(cells).toHaveLength(width * 2)
-      expect(new Set(cells.map(c => c.cell.x + ',' + c.cell.y)).size).toBe(width * 2)
-      expect(Math.max(...cells.map(c => c.cell.x))).toBe(2 + width - 1)
-      expect(Math.max(...cells.map(c => c.cell.y))).toBe(4)
-    }
   })
 })

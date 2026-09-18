@@ -16,18 +16,10 @@ const WALKABLE_TILES: readonly Tile[] = [
 const inRect = (r: Rect, c: Cell): boolean =>
   c.x >= r.x && c.x < r.x + r.w && c.y >= r.y && c.y < r.y + r.h
 
-// 構造物が占有する矩形。家は area 全体、ベンチは横 2、机は 3×2、ベッドは縦 2、テーブルは 2×2
+// 構造物が占有する矩形。家は area 全体、机は 3×2、ベッドは縦 2、テーブルは 2×2、その他は 1×1
 export const structureRect = (structure: Structure): Rect => {
   if (structure.kind === 'house') return structure.area
   const { x, y } = structure.cell
-  if (structure.kind === 'bench') {
-    const scale = structure.scale ?? 1
-    return { x, y, w: 2 * scale, h: scale }
-  }
-  if (structure.kind === 'fountain') {
-    const scale = structure.scale ?? 1
-    return { x, y, w: scale, h: scale }
-  }
   if (structure.kind === 'desk') return { x, y, w: 3, h: 2 }
   if (structure.kind === 'bed') return { x, y, w: 1, h: 2 }
   if (structure.kind === 'table') return { x, y, w: 2, h: 2 }
