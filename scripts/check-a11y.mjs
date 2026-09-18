@@ -33,15 +33,17 @@ const axeSource = readFileSync(path.join(ROOT_DIR, 'node_modules/axe-core/axe.mi
 async function runAxe(page) {
   const result = await page.evaluate(
     async ({ wcagTags, bestPracticeTag }) =>
-      window.axe.run(document, { runOnly: { type: 'tag', values: [...wcagTags, bestPracticeTag] } }),
-    { wcagTags: WCAG_TAGS, bestPracticeTag: BEST_PRACTICE_TAG },
+      window.axe.run(document, {
+        runOnly: { type: 'tag', values: [...wcagTags, bestPracticeTag] },
+      }),
+    { wcagTags: WCAG_TAGS, bestPracticeTag: BEST_PRACTICE_TAG }
   )
 
-  const wcagViolations = result.violations.filter((violation) =>
-    violation.tags.some((tag) => WCAG_TAGS.includes(tag)),
+  const wcagViolations = result.violations.filter(violation =>
+    violation.tags.some(tag => WCAG_TAGS.includes(tag))
   )
   const bestPracticeViolations = result.violations.filter(
-    (violation) => !violation.tags.some((tag) => WCAG_TAGS.includes(tag)),
+    violation => !violation.tags.some(tag => WCAG_TAGS.includes(tag))
   )
 
   return { wcagViolations, bestPracticeViolations }
@@ -59,12 +61,15 @@ async function auditPath(browser, targetPath) {
   await page.emulateMedia({ reducedMotion: 'reduce' })
 
   const url = new URL(targetPath, baseUrl).toString()
-  await page.goto(url, { waitUntil: 'networkidle' })
-  // React のマウント完了を実測して待つ(固定スリープではなく #root の中身が入るまで待機)
-  await page.waitForFunction(() => {
-    const root = document.querySelector('#root')
-    return root !== null && root.childElementCount > 0
-  })
+  const response = await page.goto(url, { waitUntil: 'networkidle' })
+  // 消えた経路を検査対象に残すと 404 ページを検査して通ってしまう(03-pitfalls.md #11)。
+  // 静的配信は存在しない経路に 404 を返すので、応答コードで先に落とす
+  if (response === null || !response.ok()) {
+    throw new Error(`${targetPath}: HTTP ${response?.status() ?? '(応答なし)'} — 経路が存在しない`)
+  }
+  // 静的エクスポートは本文が HTML に入っているのでマウント待ちは不要。
+  // 村ページだけはブートの覆い(#boot)が外れるまで待つ。覆いの下を検査すると隠れた状態を測ることになる
+  await page.waitForFunction(() => document.querySelector('#boot') === null)
 
   await page.addScriptTag({ content: axeSource })
 
@@ -82,11 +87,14 @@ async function auditPath(browser, targetPath) {
     // 2つ目以降はパネルが既に開いていて従来の条件が即真になり、React が aria-current を
     // 移す前に axe が走る(色の半端なスナップショットで color-contrast を誤検出)。
     // クリックした本人が current になるまで待って状態確定を保証する
-    await page.waitForFunction((el) => el.getAttribute('aria-current') === 'true', trigger)
+    await page.waitForFunction(el => el.getAttribute('aria-current') === 'true', trigger)
     // aria-current 反映後もスタイル再計算・ペイントが同フレームに乗り切らない場合があるため、2フレーム待って確定させる
-    await page.evaluate(() => new Promise((resolve) => {
-      requestAnimationFrame(() => requestAnimationFrame(resolve))
-    }))
+    await page.evaluate(
+      () =>
+        new Promise(resolve => {
+          requestAnimationFrame(() => requestAnimationFrame(resolve))
+        })
+    )
     reports.push({ label: `${targetPath} (経歴${index + 1})`, ...(await runAxe(page)) })
   }
 
@@ -97,7 +105,9 @@ async function auditPath(browser, targetPath) {
 
 function printViolation(violation) {
   const firstTarget = violation.nodes[0]?.target.join(' ') ?? '(不明)'
-  console.error(`  - ${violation.id} [${violation.impact}] 対象${violation.nodes.length}件 例: ${firstTarget}`)
+  console.error(
+    `  - ${violation.id} [${violation.impact}] 対象${violation.nodes.length}件 例: ${firstTarget}`
+  )
 
   // CI でしか再現しない色系フレークの原因特定用に、判定に使われた実色を残す
   if (violation.id === 'color-contrast') {
@@ -128,7 +138,9 @@ async function main() {
     totalWcagViolations += wcagViolations.length
 
     if (wcagViolations.length === 0) {
-      console.log(`[OK] ${label}: WCAG違反 0件(best-practice違反 ${bestPracticeViolations.length}件・参考のみ)`)
+      console.log(
+        `[OK] ${label}: WCAG違反 0件(best-practice違反 ${bestPracticeViolations.length}件・参考のみ)`
+      )
     } else {
       console.error(`[NG] ${label}: WCAG違反 ${wcagViolations.length}件`)
       wcagViolations.forEach(printViolation)
@@ -143,7 +155,7 @@ async function main() {
   console.log('axe: 全経路でWCAG違反 0件')
 }
 
-main().catch((error) => {
+main().catch(error => {
   console.error(error)
   process.exit(1)
 })

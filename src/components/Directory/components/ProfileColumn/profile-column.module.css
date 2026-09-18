@@ -1,0 +1,411 @@
+/*
+ * 左列。モノクロ建築系リデザインの .profile-col をそのまま採る。
+ * 幾何(sticky / 100vh / padding 60px 40px / space-between / 右罫線)は原案どおりで、
+ * 色・書体だけをトークン参照に置き換えている。
+ *
+ * 列幅はここでは持たない — 400px を決めるのは Home 側の grid(.layout)。
+ * sticky はこの要素自身が持ち、親からは子孫結合子で中身に触らない
+ * (過去に親の子孫結合子がカード内部まで巻き込んだ事故がある)。
+ */
+.column {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  min-width: 0;
+  /* 下だけ env() を足すのはホームバー(ノッチ端末)の帯を避けるため。上下左右の 60/40 は原案どおり */
+  padding: 60px 40px calc(60px + env(safe-area-inset-bottom, 0px));
+  border-right: 1px solid var(--rule);
+  background: var(--ground);
+  /* 列そのものは送らない。溢れを引き受けるのは経歴リスト(.cv)だけで、
+     名前と連絡先は画面の高さに関わらず枠として残る */
+  overflow: hidden;
+}
+
+/*
+ * iOS Safari の 100vh は「下ツールバーが隠れた状態」の高さを返す。ツールバーが出ている間は
+ * その差分だけ列が背高になり、下端(連絡先)がツールバーの裏へ潜って見えない・触れない。
+ * 100dvh は表示中のツールバーを引いた実寸を返すのでこれが直る。
+ *
+ * @supports で包むのは、同じ property を2行並べる書き方(height:100vh; height:100dvh;)だと
+ * ビルド時の最適化でフォールバック側が丸ごと消えるため(dist を実測して確認済み)。
+ * この位置は 1024px 分岐より前 — 分岐側の height:auto を後勝ちで残すため。
+ */
+@supports (height: 100dvh) {
+  .column {
+    height: 100dvh;
+  }
+}
+
+/*
+ * 上塊。名前から経歴までを束ねる。
+ * 自身も縦フレックスにして、内側の .cv だけが余った高さを取る形にする
+ * (min-height: 0 が無いとフレックスアイテムの既定 min-height: auto が効き、
+ *  中身の高さぶん .top が膨らんで .cv が縮まない)
+ */
+.top {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* キッカー(10段階)。赤はラベル専用 — ここと NO. 行と仕様表ラベルにしか使わない */
+.kicker {
+  margin: 0 0 var(--space-md);
+  font-family: var(--f-mono);
+  font-size: 0.65rem;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* ページの識別そのもの。display 階層の太さはトークンに委ねる。
+   2.5rem ではページ内で最も大きい文字が名前なのに重心にならず、上部が静かすぎた。
+   列幅(400px - 左右padding 80px = 320px)に収まる範囲で最大化する。
+   clamp の上限は実測で決めた — Playfair の『J-Paku』6文字は 80px で約230px */
+.name {
+  margin: 0;
+  font-family: var(--f-display);
+  font-size: clamp(2.5rem, 5.5vw, 5rem);
+  font-weight: var(--fw-display);
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.role {
+  margin: var(--space-md) 0 0;
+  font-size: 0.75rem;
+  font-weight: var(--fw-medium);
+  line-height: 1.6;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.scope {
+  margin: var(--space-3xs) 0 0;
+  font-size: 0.7rem;
+  line-height: 1.6;
+  letter-spacing: 0.1em;
+  color: var(--ink-mid);
+}
+
+/* 原案 .bio p。折り返す本文なので行間は 1.5 を下回らせない
+   (check-ai-tells.mjs ルール#15 = 実際に2行以上描かれた本文は行間比1.5以上) */
+.claim {
+  max-width: 280px;
+  margin: var(--space-lg) 0 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--ink-mid);
+}
+
+/*
+ * 経歴リスト。列の中で唯一スクロールする帯。
+ * 画面が低い端末でも、経歴が何件に増えても、上の名前と下の連絡先は動かない
+ * (実測: 1440x780 で列の中身は 995px あり、この帯が無いと下端 215px が切れていた)。
+ *
+ * 右の padding と負の margin は対で、スクロールバーだけを列の余白側(40px)へ逃がすための指定。
+ * 文字の位置は他の行と揃ったまま、つまみが本文に被らない
+ */
+.cv {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-height: 0;
+  margin: var(--space-xl) calc(var(--space-sm) * -1) 0 0;
+  padding: 0 var(--space-sm) 0 0;
+  overflow-y: auto;
+  list-style: none;
+  /* Safari・Chrome の重ね表示スクロールバーは触るまで出ない = 送れることが分からない。
+     細い実体のあるつまみを常時出して「まだ下がある」を見せる */
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule) transparent;
+}
+
+.cv::-webkit-scrollbar {
+  width: 4px;
+}
+
+.cv::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.cv::-webkit-scrollbar-thumb {
+  background: var(--rule);
+}
+
+.cvItem {
+  min-width: 0;
+}
+
+/* モックアップの「+ 経歴」接頭。文言ではなく装飾なので CSS で持つ */
+.cvItem::before {
+  content: '+';
+  display: block;
+  margin-bottom: var(--space-3xs);
+  font-family: var(--f-mono);
+  font-size: 0.7rem;
+  color: var(--ink-mid);
+}
+
+.when {
+  margin: 0;
+  /* 『2025.01 - 現在』のようにラテンとCJKが混ざる。--f-mono だと現在だけ別書体になるため
+     1書体で通す(数字の桁揃えは font-variant-numeric が担う) */
+  font-family: var(--f-label);
+  font-size: 0.7rem;
+  line-height: 1.6;
+  letter-spacing: 0.1em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-mid);
+}
+
+/* 経歴ブロック内で最初に拾わせたい固有名。ここだけ本文より一段太くする */
+.org {
+  margin: var(--space-3xs) 0 0;
+  font-size: 0.8rem;
+  font-weight: var(--fw-bold);
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+.post {
+  margin: var(--space-3xs) 0 0;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: var(--ink-secondary);
+}
+
+.tech {
+  margin: var(--space-3xs) 0 0;
+  font-size: 0.7rem;
+  line-height: 1.6;
+  letter-spacing: 0.05em;
+  color: var(--ink-mid);
+}
+
+/* 在籍1社の中の派遣先リスト。期間(等幅・桁揃え)+配属先を .tech と同じ小ささで積む */
+.assignments {
+  margin: var(--space-3xs) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.assignment {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+  font-size: 0.7rem;
+  line-height: 1.6;
+  letter-spacing: 0.05em;
+  color: var(--ink-mid);
+}
+
+.assignmentWhen {
+  flex: none;
+  font-family: var(--f-label);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 経歴ごとの詳細トリガー(13段階→Toss式の弱ボタンへ再設計)。右列を作品一覧からこの経歴の詳細へ差し替える起点。
+   円形バッジ+パルスの符号は廃し、面全体をアクセントの薄色で塗った「弱ボタン」にする。
+   表示中(aria-current)だけ面をアクセント本色へ反転させ「強ボタン」化して現在地を示す */
+.detailTrigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-width: 0;
+  /* 上下 padding 13px + 行送り(0.78rem×1.6≈20px)で実ヒット高さは 13+20+13=46px となり、
+     44px のタップ最小サイズを満たす */
+  padding: 13px 16px;
+  margin: var(--space-2xs) 0 0;
+  border: none;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  font-family: var(--f-label);
+  font-size: 0.78rem;
+  font-weight: var(--fw-bold);
+  line-height: 1.6;
+  letter-spacing: 0.06em;
+  /* 素の accent は 9% ティント面の上で 4.22:1 となり AA(4.5) 未達のため、--ink 側へ 15% 寄せて 5.08(ライト) / 5.83(ダーク) を確保する */
+  color: color-mix(in srgb, var(--accent) 85%, var(--ink));
+  /* v2 で button からアンカーへ替えたため、既定の下線だけ消して見た目は据え置く */
+  text-decoration: none;
+  box-sizing: border-box;
+  cursor: pointer;
+  transition: background-color var(--motion) var(--ease-reveal);
+}
+
+/* ラベル文言を包むだけの箱。矢印を右端に押し出すための flex 整形用で、文言自体は content 由来のまま */
+.detailLabel {
+  min-width: 0;
+}
+
+/* 矢印は平文の記号に戻す(12段階の円形バッジ+パルスは今回の再設計で廃止) */
+.detailArrow {
+  flex: none;
+  margin-left: var(--space-2xs);
+  font-size: 1rem;
+  /* 対比不足の是正 — 15% を --ink へ寄せる(.detailTrigger と同じ算出) */
+  color: color-mix(in srgb, var(--accent) 85%, var(--ink));
+  transition: transform var(--motion) var(--ease-reveal);
+}
+
+/* focus-visible はタッチのスティッキーhover問題が無いため、ガード無しで即時反応させる */
+.detailTrigger:focus-visible {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.detailTrigger:focus-visible .detailArrow {
+  transform: translateX(3px);
+}
+
+/* hover はタッチ環境でタップ後も :hover が残留する(sticky hover)ため、ポインタ環境だけに掛ける
+   — WorkCard の .detailToggle(work-card.module.css)と同じ処方 */
+@media (hover: hover) and (pointer: fine) {
+  .detailTrigger:hover {
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+  }
+
+  .detailTrigger:hover .detailArrow {
+    transform: translateX(3px);
+  }
+}
+
+/* 動きを抑えたい環境では面の遷移・矢印の移動とも停止する(WorkCard の .detailToggle と同じ対応方針) */
+@media (prefers-reduced-motion: reduce) {
+  .detailTrigger {
+    transition: none;
+  }
+
+  .detailArrow {
+    transition: none;
+  }
+
+  .detailTrigger:hover .detailArrow,
+  .detailTrigger:focus-visible .detailArrow {
+    transform: none;
+  }
+}
+
+/* 読み上げ専用テキスト。導線のアクセシブルネームへ社名を足すためだけに置く */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* 下塊 — 列の底の帯。上の罫線は経歴リストとの切れ目。
+   列の右罫線と同じ --rule で、線を増やしても濃度は増やさない */
+.out {
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--rule);
+}
+
+/* 連絡先だけを一段浮いた面へ載せる。左の縦棒は「ここが導線」の符号で、
+   赤はラベル専用色の用法をそのまま継ぐ(文字には使わない)。
+   左 padding が 3px 少ないのは、棒の太さの分だけ文字の頭が右へずれないようにするため */
+.card {
+  display: flex;
+  /* 既定の stretch だと中のリンクがカード幅いっぱいに伸び、メールの下線が
+     文字と関係ない所まで引かれる。下線を「押せる文字の幅」に留めるため先頭寄せにする */
+  align-items: flex-start;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  padding: var(--space-md) var(--space-md) var(--space-md) calc(var(--space-md) - 3px);
+  border-left: 3px solid var(--accent);
+  background: var(--surface-cream);
+}
+
+/* 所在地。ラベル語を置かない代わりに、本文より一段弱い明度で「見出し的な一行」に見せる */
+.location {
+  margin: 0;
+  font-family: var(--f-label);
+  font-size: 0.7rem;
+  font-weight: var(--fw-medium);
+  line-height: 1.6;
+  letter-spacing: 0.1em;
+  color: var(--ink-mid);
+}
+
+.outLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: var(--fw-medium);
+  line-height: 1.6;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+  text-decoration: none;
+  transition: opacity var(--motion) var(--ease-reveal);
+}
+
+.outLink:hover {
+  opacity: 0.5;
+}
+
+/* メールアドレスはラテンと記号だけなので等幅で組み、ラベル用の字送りは 0 に戻す。
+   下線は「押せる場所」の符号で、経歴の詳細トリガーと同じ役割を担う。
+   hover は他のリンクの opacity ではなく下線の色で返す(薄くすると住所が読めなくなるため) */
+.mail {
+  font-family: var(--f-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0;
+  word-break: break-all;
+  border-bottom: 1px solid var(--rule);
+  transition:
+    border-color var(--motion) var(--ease-reveal),
+    opacity var(--motion) var(--ease-reveal);
+}
+
+.mail:hover {
+  opacity: 1;
+  border-bottom-color: var(--accent);
+}
+
+/* GitHub ロゴ。文字色をそのまま継ぐ */
+.outIcon {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  fill: currentColor;
+}
+
+/*
+ * 1列に畳む幅では sticky を解除する。height: 100vh のまま static にすると
+ * 右列との間に画面1つ分の空白が空くため、高さも auto に戻す。
+ * 列の境界は右罫線から下罫線へ移す(原案の 1024px 分岐と同じ)
+ */
+@media (max-width: 1024px) {
+  .column {
+    position: static;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--rule);
+    /* 列がページと一緒に送られるので、内側に送る帯を作る理由が無い */
+    overflow: visible;
+  }
+
+  .cv {
+    margin-right: 0;
+    padding-right: 0;
+    overflow-y: visible;
+  }
+
+  .out {
+    padding-top: var(--space-xl);
+  }
+}

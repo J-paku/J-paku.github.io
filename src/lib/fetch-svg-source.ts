@@ -7,7 +7,7 @@ export function fetchSvgSource(url: string): Promise<string> {
   const cached = sourceCache.get(url)
   if (cached !== undefined) return cached
 
-  const pending = fetch(url).then((response) => {
+  const pending = fetch(url).then(response => {
     if (!response.ok) throw new Error(`SVGの取得に失敗した: ${url} (${response.status})`)
     return response.text()
   })
