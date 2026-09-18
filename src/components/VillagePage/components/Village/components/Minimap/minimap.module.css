@@ -1,0 +1,22 @@
+.minimap {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  z-index: 4;
+  display: block;
+  padding: 2px;
+  border: 2px solid #181818;
+  border-radius: 0;
+  background: #fff;
+  line-height: 0;
+  cursor: pointer;
+}
+
+.minimap:focus-visible {
+  outline: 2px solid #181818;
+  outline-offset: 2px;
+}
+
+.minimap svg {
+  display: block;
+}

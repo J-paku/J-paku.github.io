@@ -1,0 +1,109 @@
+.overlay {
+  position: fixed;
+  z-index: 20;
+  display: grid;
+  padding: 16px;
+  inset: 0;
+  place-items: center;
+  background: rgba(10, 9, 8, 0.55);
+}
+
+.panel {
+  position: relative;
+  width: min(100%, 480px);
+  max-height: calc(100vh - 32px);
+  box-sizing: border-box;
+  padding: 18px 20px 24px;
+  border: 3px solid #181818;
+  border-radius: 0;
+  box-shadow:
+    inset 0 0 0 2px #fff,
+    inset 0 0 0 3px #181818;
+  background: #fff;
+  color: #181818;
+}
+
+.title {
+  min-height: 32px;
+  margin: 0 88px 14px 0;
+  font: 600 20px/1.4 var(--f-label);
+}
+
+.close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  min-height: 36px;
+  padding: 5px 9px;
+  border: 3px solid #181818;
+  border-radius: 0;
+  box-shadow:
+    inset 0 0 0 2px #fff,
+    inset 0 0 0 3px #181818;
+  background: #fff;
+  color: #181818;
+  font: 500 13px/1.4 var(--f-label);
+  cursor: pointer;
+}
+
+.mapViewport {
+  max-width: 100%;
+  max-height: calc(100vh - 128px);
+  overflow: auto;
+}
+
+.mapCanvas {
+  position: relative;
+  margin: 20px;
+}
+
+.mapCanvas > svg {
+  display: block;
+}
+
+.spot {
+  position: absolute;
+  top: var(--spot-y);
+  left: var(--spot-x);
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 2px dashed transparent;
+  transform: translate(-50%, -50%);
+  background: transparent;
+  cursor: pointer;
+}
+
+.spot:hover,
+.spot:focus-visible {
+  border-color: #181818;
+  outline: none;
+}
+
+.spotLabel,
+.spotLabelAbove {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 50%;
+  z-index: 1;
+  width: max-content;
+  max-width: 112px;
+  padding: 2px 4px;
+  border: 2px solid #181818;
+  transform: translateX(-50%);
+  background: #fff;
+  color: #181818;
+  font: 500 10px/1.25 var(--f-label);
+  pointer-events: none;
+}
+
+.close:focus-visible {
+  outline: 2px solid #181818;
+  outline-offset: 2px;
+}
+
+/* 上向き配置のラベル */
+.spotLabelAbove {
+  top: auto;
+  bottom: calc(100% + 2px);
+}
