@@ -1,5 +1,10 @@
-// ドット絵エンジン。文字マトリクスを組み立て・検証し、1枚のスプライトシートSVGへ変換する
+// ドット絵エンジン。文字マトリクスを組み立て・検証し、1枚のスプライトシートPNGへ変換する
 // CHRバンク方式に倣い、8×8部品4枚で16×16メタタイルを作る。DOM・Reactには一切依存しない
+// SVG ではなく PNG にするのは描画コストのため。SVG の data URI を background-image にすると
+// マスごとに SVG 文書の描画が走り、町(約 700 マス)の 1 回の再描画に約 200ms 掛かる(実測)。
+// 書体の読み込みなどで舞台が再描画されるたびに主スレッドが止まり、その間のキー入力が落ちる
+import { pngDataUri } from './png'
+import type { RgbaImage } from './png'
 
 export type Palette = Record<string, string> // 1文字→CSS色。'.'は透明(登録不要)
 export type PixelArt = readonly string[] // 行の配列。全行同じ長さ
@@ -51,45 +56,51 @@ export const validateArt = (art: PixelArt, palette: Palette, size: number): stri
   return issues
 }
 
-// 横ランレングスで<rect>を出す(同色連続は1つにまとめる)。'.'は出力しない
-export const toSvgRects = (art: PixelArt, palette: Palette, dx: number, dy: number): string => {
-  let out = ''
-  art.forEach((row, y) => {
-    const chars = [...row]
-    let x = 0
-    while (x < chars.length) {
-      const ch = chars[x]
-      let end = x + 1
-      while (end < chars.length && chars[end] === ch) end += 1
-      const fill = palette[ch]
-      if (ch !== EMPTY && fill !== undefined) {
-        const w = end - x
-        out += `<rect x="${dx + x}" y="${dy + y}" width="${w}" height="1" fill="${fill}"/>`
-      }
-      x = end
-    }
-  })
-  return out
+// パレットの CSS 色を RGBA へ。対応は #rgb・#rrggbb・#rrggbbaa の 16 進表記だけ
+export const parseHexColor = (css: string): [number, number, number, number] => {
+  const hex = css.startsWith('#') ? css.slice(1) : ''
+  const digits = hex.length === 3 ? [...hex].map(ch => ch + ch).join('') : hex
+  if (!/^[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/.test(digits)) {
+    throw new Error(`16進表記の色ではありません(${css})`)
+  }
+  const value = Number.parseInt(digits.padEnd(8, 'f'), 16)
+  return [(value >>> 24) & 0xff, (value >>> 16) & 0xff, (value >>> 8) & 0xff, value & 0xff]
 }
 
-// 全アートを横一列に並べた1枚のSVG(data URI)。index[key]=何枚目か
+// アートを横一列に並べて RGBA へ落とす。'.' は透明(0,0,0,0)。全アートは同じ size 四方であること
+export const rasterize = (arts: readonly PixelArt[], palette: Palette, size: number): RgbaImage => {
+  const width = arts.length * size
+  const data = new Uint8Array(width * size * 4)
+  arts.forEach((art, i) => {
+    art.forEach((row, y) => {
+      Array.from(row).forEach((ch, x) => {
+        if (ch === EMPTY) return
+        const fill = palette[ch]
+        if (fill === undefined) return
+        data.set(parseHexColor(fill), (y * width + i * size + x) * 4)
+      })
+    })
+  })
+  return { width, height: size, data }
+}
+
+// 全アートを横一列に並べた1枚のPNG(data URI)。index[key]=何枚目か
 export const buildSheet = (arts: Record<string, PixelArt>, palette: Palette): Sheet => {
   const keys = Object.keys(arts)
   const index: Record<string, number> = {}
-  let rects = ''
   keys.forEach((key, i) => {
-    const art = arts[key]
-    const issues = validateArt(art, palette, TILE)
+    const issues = validateArt(arts[key], palette, TILE)
     if (issues.length > 0) throw new Error(`${key}: ${issues.join('\n')}`)
     index[key] = i
-    rects += toSvgRects(art, palette, i * TILE, 0)
   })
-  const width = keys.length * TILE
-  const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${TILE}" ` +
-    `viewBox="0 0 ${width} ${TILE}" shape-rendering="crispEdges">${rects}</svg>`
   return {
-    uri: `data:image/svg+xml,${encodeURIComponent(svg)}`,
+    uri: pngDataUri(
+      rasterize(
+        keys.map(key => arts[key]),
+        palette,
+        TILE
+      )
+    ),
     index,
     count: keys.length,
     tile: TILE,
