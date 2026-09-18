@@ -21,6 +21,7 @@ export const village: VillageText = {
   shortcuts: '작품으로 바로 가기',
   toList: '웹으로 보기',
   toVillage: '마을로 보기',
+  allSeen: '다섯 곳을 모두 봤어요. 「{list}」에서 작품을 다시 볼 수 있어요.',
   buttonA: '선택',
   buttonB: '취소',
   joystick: '이동 스틱',
