@@ -44,6 +44,8 @@ export type WalkLoopOptions = {
   bump: (cell: Cell) => void
   tapped: Cell | null
   consumeTap: () => void
+  // 押されている間、ポインタの下にあるマス。離すと null。毎フレーム読んで経路を作り直す
+  pointerTargetRef: RefObject<Cell | null>
 }
 
 export function useWalkLoop({
@@ -66,6 +68,7 @@ export function useWalkLoop({
   bump,
   tapped,
   consumeTap,
+  pointerTargetRef,
 }: WalkLoopOptions): void {
   const spriteKeyRef = useRef('')
   // 新しいワールドの DOM を待ち始めた時刻。null は待っていない
@@ -74,6 +77,11 @@ export function useWalkLoop({
   // ワールドが変わったら一度キーを離すまで方向入力を捨てる
   const enteredWorldRef = useRef<World | null>(null)
   const ignoreHeldRef = useRef(false)
+  // 直前に経路を作った押しっぱなし先のマス。同じマスなら毎フレーム経路を作り直さない
+  const plannedTargetRef = useRef<Cell | null>(null)
+  // ワープ直後は押しっぱなしのマスが前のワールドの座標のままなので、一度離す(null になる)まで捨てる。
+  // ignoreHeldRef と同じ考え方
+  const staleTargetRef = useRef(false)
   // 減衰追従した後のカメラ原点。null は初回(補間せず目標から始める)
   const smoothedCamRef = useRef<{ x: number; y: number } | null>(null)
   // 直前に描いたワールド。差し替わったフレームは補間を挟まず新しい原点へ飛ばす
@@ -160,11 +168,40 @@ export function useWalkLoop({
         enteredWorldRef.current = worldRef.current
         // 初回(起動時)は押しっぱなしではないので捨てる必要がない
         ignoreHeldRef.current = heldRef.current !== null
+        // ワープ直後の押しっぱなしポインタは前のワールドの座標のままなので、
+        // 一度離す(pointerTargetRef が null になる)まで捨てる。ignoreHeldRef と同じ考え方
+        staleTargetRef.current = pointerTargetRef.current !== null
+        plannedTargetRef.current = null
       }
       if (ignoreHeldRef.current && heldRef.current === null) ignoreHeldRef.current = false
+      if (staleTargetRef.current && pointerTargetRef.current === null) {
+        staleTargetRef.current = false
+      }
       const held = ignoreHeldRef.current ? null : heldRef.current
       // 利用者の入力で経路が捨てられたら自動で開くのも取り消す
       if (held !== null) autoTalkRef.current = false
+      // 押しっぱなしのポインタへ向けて経路を作り直す。目標が変わった時、または経路を使い切って
+      // 足が止まる時(motion も route も空 = step 内の startNext がそのまま停止を返す状態)に限る。
+      // 同じ目標のまま経路が残っている間は毎フレーム作り直さない(足踏みしないため)
+      const pointerTarget = staleTargetRef.current ? null : pointerTargetRef.current
+      if (pointerTarget !== null && held === null) {
+        const s = stateRef.current
+        const planned = plannedTargetRef.current
+        const changed =
+          planned === null || planned.x !== pointerTarget.x || planned.y !== pointerTarget.y
+        if (changed || (s.route.length === 0 && s.motion === null)) {
+          const route = findPath(worldRef.current, s.cell, pointerTarget)
+          plannedTargetRef.current = pointerTarget
+          if (route !== null && route.length > 0) {
+            pendingRouteRef.current = route
+            pendingFastRef.current = false
+            // 利用者の入力で経路が捨てられたら自動で開くのも取り消す
+            autoTalkRef.current = false
+          }
+        }
+      } else if (pointerTargetRef.current === null) {
+        plannedTargetRef.current = null
+      }
       const result = step(
         worldRef.current,
         stateRef.current,
@@ -194,6 +231,7 @@ export function useWalkLoop({
     pendingRouteRef,
     pendingFastRef,
     autoTalkRef,
+    pointerTargetRef,
   ])
 
   // タップ → 経路を作って次のステップへ渡す。通れない場所は無視
