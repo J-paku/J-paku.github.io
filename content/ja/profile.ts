@@ -1,5 +1,5 @@
 // プロフィール(ja) — 名前・ポジショニング・経歴・強み3点
-import type { Profile } from '@/types/content'
+import type { Profile } from '@content/types/content'
 
 export const profile: Profile = {
   name: 'J-Paku',
@@ -28,6 +28,7 @@ export const profile: Profile = {
         '会社として前例のなかったSwift/iOSを導入し、Apple Enterpriseプログラムを開設',
         'チーム標準のAI開発基盤を自作し、配布・定着まで担当。AIに任せた作業の87.6%が人の手直しなしで完了する',
         '設計規約を文書化し、hookで機械的に強制する運用へ切り替え',
+        '手書き申込書をローカルLLM(Gemma 4)で読み取る仕組みを構築中。個人情報を社外へ出さず、欄ごとの切り出しと人名辞書の照合で読み違いを「要確認」に落とす',
       ],
       detail: {
         overview: {
@@ -60,7 +61,8 @@ export const profile: Profile = {
           },
           {
             label: '通信量',
-            value: '納品画面が受け取っていたAPI応答が220KB → 1.2KB。サーバー負荷が下がり、アプリの反応も速くなった',
+            value:
+              '納品画面が受け取っていたAPI応答が220KB → 1.2KB。サーバー負荷が下がり、アプリの反応も速くなった',
           },
           {
             label: '印刷速度',
@@ -68,7 +70,8 @@ export const profile: Profile = {
           },
           {
             label: '機材',
-            value: 'Windowsタブレットが、セットで使っていたサーマルプリンターごと不要になった。180gのBLEプリンター1台で現場が回る',
+            value:
+              'Windowsタブレットが、セットで使っていたサーマルプリンターごと不要になった。180gのBLEプリンター1台で現場が回る',
           },
           {
             label: '初めて',
@@ -88,7 +91,10 @@ export const profile: Profile = {
                 { label: 'API', value: 'Pleasanter REST API' },
                 { label: 'テーブル', value: 'AG Grid 35 / @tanstack/react-virtual 3' },
                 { label: 'チャート', value: 'Recharts 3' },
-                { label: 'ジェスチャー・D&D', value: '@dnd-kit/core 6 / sortablejs / Embla Carousel 8' },
+                {
+                  label: 'ジェスチャー・D&D',
+                  value: '@dnd-kit/core 6 / sortablejs / Embla Carousel 8',
+                },
                 { label: '状態管理', value: 'React Hooks(カスタムフック分離)' },
                 { label: '永続化', value: 'IndexedDB + sessionStorageフォールバック' },
                 { label: 'ビルド', value: 'Turbopack + React Compiler' },
@@ -100,10 +106,25 @@ export const profile: Profile = {
               rows: [
                 { label: '言語', value: 'Swift 5' },
                 { label: 'UI', value: 'UIKit / SwiftUI併用' },
-                { label: 'ネイティブ連携', value: 'WKWebView postMessage / WKScriptMessageHandler' },
+                {
+                  label: 'ネイティブ連携',
+                  value: 'WKWebView postMessage / WKScriptMessageHandler',
+                },
                 { label: 'カメラ', value: 'AVCaptureSession / Vision(矩形検出・QR)' },
                 { label: '印刷', value: 'SII SDK(Bluetooth感熱)' },
                 { label: '配布', value: 'Xcode Archive → In-House .ipa → MDM(Microsoft Intune)' },
+              ],
+            },
+            {
+              title: 'ローカルLLM',
+              rows: [
+                { label: 'モデル', value: 'Gemma 4(mlx-vlm・Mac上で実行)' },
+                {
+                  label: '前処理',
+                  value: 'poppler / Pillow / NumPy(位置合わせ・欄切り出し・空欄判定・○検出)',
+                },
+                { label: '照合', value: '人名辞書 / 郵便番号データ' },
+                { label: '学習', value: 'LoRA追加学習(検証中)' },
               ],
             },
           ],
@@ -166,6 +187,12 @@ export const profile: Profile = {
               tech: ['Recharts', 'JSONL'],
               roles: ['design', 'build', 'release'],
             },
+            {
+              date: '2026.09',
+              name: '手書き申込書のAI読み取り',
+              tech: ['Gemma 4', 'mlx-vlm', 'Python'],
+              roles: ['design', 'build'],
+            },
           ],
         },
         asides: {
@@ -187,6 +214,10 @@ export const profile: Profile = {
               title: 'Web開発チームリーダー',
               body: '2025.10から。メンバー4名 + テスター1名で、WebとiOSの両方を見る。',
             },
+            {
+              title: '手書き申込書をローカルLLMで読む',
+              body: '個人情報を社外へ出せない前提で、Mac上のGemma 4に申込書を読ませる仕組みを構築中。A4を丸ごと渡さず欄ごとに切り出し、空欄はAIに渡さない。答えは人名辞書・郵便番号データと照らして ok / 要確認 / 空欄 の3つに分け、人は「要確認」だけ見る。確定した答えを学習材料として貯め、追加学習は未学習の申込書で比べてから切り替える運用まで設計済み。',
+            },
           ],
         },
       },
@@ -197,7 +228,15 @@ export const profile: Profile = {
       // ※入社・退社月は要確認
       company: '受託開発会社に在籍(派遣先2社)',
       period: '2022.04 - 2024.12',
-      stack: ['Nuxt.js', 'Vue.js', 'Delphi', 'Oracle', 'PostgreSQL', 'SharePoint', 'Power Automate'],
+      stack: [
+        'Nuxt.js',
+        'Vue.js',
+        'Delphi',
+        'Oracle',
+        'PostgreSQL',
+        'SharePoint',
+        'Power Automate',
+      ],
       role: 'フロントエンド / 社内情報基盤',
       assignments: [
         { period: '2023.10 - 2024.12', label: '派遣先: 大手エレベーターメーカー 情報システム部門' },
@@ -223,7 +262,8 @@ export const profile: Profile = {
           },
           {
             label: '派遣先',
-            value: '大手エレベーターメーカー(2023.10 - 2024.12)/ 大手物流システムメーカー(2022.04 - 2023.09)',
+            value:
+              '大手エレベーターメーカー(2023.10 - 2024.12)/ 大手物流システムメーカー(2022.04 - 2023.09)',
           },
         ],
         assignments: [
@@ -247,15 +287,18 @@ export const profile: Profile = {
               },
               {
                 label: '移行',
-                value: 'Oracle → PostgreSQL。SQL方言の差を吸収しながら、データの等価性を検証して担保した',
+                value:
+                  'Oracle → PostgreSQL。SQL方言の差を吸収しながら、データの等価性を検証して担保した',
               },
               {
                 label: '前提',
-                value: '既存システムのソースコードは参照できなかった。画面の挙動だけが仕様の出どころだった',
+                value:
+                  '既存システムのソースコードは参照できなかった。画面の挙動だけが仕様の出どころだった',
               },
               {
                 label: '回帰',
-                value: '仕様書が無く挙動だけが正だったため、修正が別機能の回帰を生みやすかった。修正の前に検証手段を先に用意する進め方は、この環境で身についた。',
+                value:
+                  '仕様書が無く挙動だけが正だったため、修正が別機能の回帰を生みやすかった。修正の前に検証手段を先に用意する進め方は、この環境で身についた。',
               },
               {
                 label: '注記',
