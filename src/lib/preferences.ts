@@ -1,34 +1,92 @@
-// localStorage へのアクセスはこのファイルに集約する(アプリ内で唯一の外部境界)。
-// 保存対象はテーマのみ。言語は URL が正本なのでここには持たない
-//
-// テーマは light / dark の2値。OS設定に追従する 'system' は廃止した。
-// 旧バージョンが保存した 'system' は下の検証で弾かれ、既定の light になる
-export type ThemePreference = 'light' | 'dark'
+// テーマと村の進行状況を安全に保存・復元する唯一の窓口
+import type { Cell, Direction } from '@content/types/world'
 
-// このキー文字列は index.html の先行反映script(ブートローダー前のテーマ適用)も直接読む。
-// あちらは React 起動前に走るため import できない。キーを変える時は index.html 側も同時に更新する
-const THEME_STORAGE_KEY = 'theme-preference'
+export type Theme = 'light' | 'dark'
+// worldId = 復元先のワールド。村は複数ワールドなのでマスだけでは位置が決まらない
+export type VillagePosition = { worldId: string; cell: Cell; facing: Direction }
 
-// 保存値が無い・壊れている・廃止済みの 'system' だった場合に落ちる先
-const DEFAULT_THEME: ThemePreference = 'light'
+export const THEME_STORAGE_KEY = 'theme'
 
-const isThemePreference = (value: string): value is ThemePreference =>
-  value === 'light' || value === 'dark'
+const DIRECTIONS: readonly Direction[] = ['up', 'down', 'left', 'right']
 
-// localStorage はプライベートモード等で例外を投げうるので必ず握る
-export const readTheme = (): ThemePreference => {
+function isDirection(value: unknown): value is Direction {
+  return typeof value === 'string' && DIRECTIONS.includes(value as Direction)
+}
+
+function isCell(value: unknown): value is Cell {
+  if (typeof value !== 'object' || value === null) return false
+
+  const cell = value as Record<string, unknown>
+  return (
+    typeof cell.x === 'number' &&
+    Number.isFinite(cell.x) &&
+    typeof cell.y === 'number' &&
+    Number.isFinite(cell.y)
+  )
+}
+
+function isVillagePosition(value: unknown): value is VillagePosition {
+  if (typeof value !== 'object' || value === null) return false
+
+  const position = value as Record<string, unknown>
+  return (
+    typeof position.worldId === 'string' &&
+    position.worldId.length > 0 &&
+    isCell(position.cell) &&
+    isDirection(position.facing)
+  )
+}
+
+export function readTheme(): Theme | null {
   try {
-    const stored = window.localStorage.getItem(THEME_STORAGE_KEY)
-    return stored !== null && isThemePreference(stored) ? stored : DEFAULT_THEME
+    const theme = localStorage.getItem(THEME_STORAGE_KEY)
+    return theme === 'light' || theme === 'dark' ? theme : null
   } catch {
-    return DEFAULT_THEME
+    return null
   }
 }
 
-export const writeTheme = (value: ThemePreference): void => {
+export function writeTheme(theme: Theme): void {
   try {
-    window.localStorage.setItem(THEME_STORAGE_KEY, value)
+    localStorage.setItem(THEME_STORAGE_KEY, theme)
+  } catch {}
+}
+
+// setId = WorldSet の id。位置も訪問も村ひとまとまりで保存する
+export function readPosition(setId: string): VillagePosition | null {
+  try {
+    const value: unknown = JSON.parse(sessionStorage.getItem(`village:${setId}:pos`) ?? '')
+    return isVillagePosition(value) ? value : null
   } catch {
-    // 書き込み失敗時は何もしない。次回起動時も既定へフォールバックするだけで済む
+    return null
   }
+}
+
+export function writePosition(setId: string, position: VillagePosition): void {
+  try {
+    sessionStorage.setItem(`village:${setId}:pos`, JSON.stringify(position))
+  } catch {}
+}
+
+export function readVisited(setId: string): string[] {
+  try {
+    const value: unknown = JSON.parse(sessionStorage.getItem(`village:${setId}:visited`) ?? '')
+    return Array.isArray(value) && value.every(id => typeof id === 'string') ? value : []
+  } catch {
+    return []
+  }
+}
+
+export function writeVisited(setId: string, ids: string[]): void {
+  try {
+    sessionStorage.setItem(`village:${setId}:visited`, JSON.stringify(ids))
+  } catch {}
+}
+
+// 再読み込みでは最初からやり直すため、位置と訪問をまとめて捨てる
+export function clearVillageProgress(setId: string): void {
+  try {
+    sessionStorage.removeItem(`village:${setId}:pos`)
+    sessionStorage.removeItem(`village:${setId}:visited`)
+  } catch {}
 }

@@ -1,0 +1,62 @@
+// 会話地点の判定。家具の上下左右に隣接する通路なら、プレイヤーの向きを問わず話せる。
+// コース順(order)は全ワールド通しの通番なので、次の地点はワールドをまたいで探す
+import type { Cell, Direction, Spot, World, WorldSet } from '@content/types/world'
+
+import { isWalkable, structureRect } from './collision'
+
+export type SpotRef = { worldId: string; spot: Spot }
+
+const FACING: Record<Direction, Cell> = {
+  up: { x: 0, y: -1 },
+  down: { x: 0, y: 1 },
+  left: { x: -1, y: 0 },
+  right: { x: 1, y: 0 },
+}
+
+// 地点で向いている先のマス(話しかける相手の物が置いてある所)
+export const facedCell = (spot: Spot): Cell => ({
+  x: spot.cell.x + FACING[spot.facing].x,
+  y: spot.cell.y + FACING[spot.facing].y,
+})
+
+export const spotAt = (world: World, cell: Cell): Spot | null => {
+  if (!isWalkable(world, cell)) return null
+  // 既存の案内先が重なる場合は、明示された立ち位置を優先する
+  const exact = world.spots.find(s => s.cell.x === cell.x && s.cell.y === cell.y)
+  if (exact !== undefined) return exact
+  return (
+    world.spots.find(spot => {
+      const structure = world.structures.find(s => s.id === spot.structureId)
+      if (structure === undefined) return false
+      if (structure.kind === 'house') {
+        // 家は壁越しではなく、開口幅と一致する正面の通路から案内する
+        return (
+          cell.y === structure.solid.y + structure.solid.h &&
+          cell.x >= structure.doorX &&
+          cell.x < structure.doorX + (structure.doorWidth ?? 1)
+        )
+      }
+      const r = structureRect(structure)
+      const beside =
+        (cell.x === r.x - 1 || cell.x === r.x + r.w) && cell.y >= r.y && cell.y < r.y + r.h
+      const aboveOrBelow =
+        (cell.y === r.y - 1 || cell.y === r.y + r.h) && cell.x >= r.x && cell.x < r.x + r.w
+      return beside || aboveOrBelow
+    }) ?? null
+  )
+}
+
+// 全ワールドの地点を order 昇順で
+const refsInOrder = (set: WorldSet): SpotRef[] =>
+  Object.entries(set.worlds)
+    .flatMap(([worldId, world]) => world.spots.map(spot => ({ worldId, spot })))
+    .sort((a, b) => a.spot.order - b.spot.order)
+
+export const allSpots = (set: WorldSet): Spot[] => refsInOrder(set).map(ref => ref.spot)
+
+// コース順の次の地点。最後の地点なら null
+export const nextSpot = (set: WorldSet, current: Spot): SpotRef | null =>
+  refsInOrder(set).find(ref => ref.spot.order === current.order + 1) ?? null
+
+export const spotWorldId = (set: WorldSet, spotId: string): string | null =>
+  refsInOrder(set).find(ref => ref.spot.id === spotId)?.worldId ?? null
