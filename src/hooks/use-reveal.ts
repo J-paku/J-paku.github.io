@@ -29,7 +29,7 @@ export function useReveal<T extends HTMLElement = HTMLElement>() {
     }
 
     const observer = new IntersectionObserver(
-      (entries) => {
+      entries => {
         for (const entry of entries) {
           if (!entry.isIntersecting) continue
           setIsRevealed(true)
@@ -37,7 +37,7 @@ export function useReveal<T extends HTMLElement = HTMLElement>() {
           observer.unobserve(entry.target)
         }
       },
-      { threshold: REVEAL_THRESHOLD },
+      { threshold: REVEAL_THRESHOLD }
     )
 
     observer.observe(element)
