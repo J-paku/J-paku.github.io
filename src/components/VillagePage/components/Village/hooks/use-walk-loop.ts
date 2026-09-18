@@ -34,6 +34,8 @@ export type WalkLoopOptions = {
   stateRef: RefObject<MoveState>
   pendingRouteRef: RefObject<Cell[] | null>
   pendingFastRef: RefObject<boolean>
+  // 次へボタンでの自動歩行の印。利用者の入力で経路が捨てられたら取り消す
+  autoTalkRef: RefObject<boolean>
   lockedRef: RefObject<boolean>
   heldRef: RefObject<Direction | null>
   sprites: Sheet
@@ -55,6 +57,7 @@ export function useWalkLoop({
   stateRef,
   pendingRouteRef,
   pendingFastRef,
+  autoTalkRef,
   lockedRef,
   heldRef,
   sprites,
@@ -160,6 +163,8 @@ export function useWalkLoop({
       }
       if (ignoreHeldRef.current && heldRef.current === null) ignoreHeldRef.current = false
       const held = ignoreHeldRef.current ? null : heldRef.current
+      // 利用者の入力で経路が捨てられたら自動で開くのも取り消す
+      if (held !== null) autoTalkRef.current = false
       const result = step(
         worldRef.current,
         stateRef.current,
@@ -178,7 +183,18 @@ export function useWalkLoop({
     }
     raf = window.requestAnimationFrame(loop)
     return () => window.cancelAnimationFrame(raf)
-  }, [heldRef, arrive, bump, paint, lockedRef, worldRef, stateRef, pendingRouteRef, pendingFastRef])
+  }, [
+    heldRef,
+    arrive,
+    bump,
+    paint,
+    lockedRef,
+    worldRef,
+    stateRef,
+    pendingRouteRef,
+    pendingFastRef,
+    autoTalkRef,
+  ])
 
   // タップ → 経路を作って次のステップへ渡す。通れない場所は無視
   useEffect(() => {
@@ -187,7 +203,9 @@ export function useWalkLoop({
     if (route !== null && route.length > 0) {
       pendingRouteRef.current = route
       pendingFastRef.current = false
+      // 利用者の入力で経路が捨てられたら自動で開くのも取り消す
+      autoTalkRef.current = false
     }
     consumeTap()
-  }, [tapped, consumeTap, worldRef, stateRef, pendingRouteRef, pendingFastRef])
+  }, [tapped, consumeTap, worldRef, stateRef, pendingRouteRef, pendingFastRef, autoTalkRef])
 }
