@@ -6,9 +6,13 @@
   inset: 0;
   bottom: max(76px, calc(var(--minimap-h, 0px) + 16px));
   background: rgba(10, 9, 8, 0.55);
+  /* 本文パネルの末端まで触ってもページ側へスクロールの慣性が抜けないようにする
+     (抜けると枠ごと一瞬持ち上がって見える) */
+  touch-action: none;
+  overscroll-behavior: none;
 }
 
-/* 話しかけた物の位置から広がる。原点は枠内の px なので枠いっぱいの箱に置く */
+/* 枠いっぱいの箱に中央寄せで置く。フェードだけで、拡大・縮小はしない */
 .pop {
   display: flex;
   position: absolute;
@@ -16,27 +20,36 @@
   inset: 0;
   align-items: center;
   justify-content: center;
-  transform-origin: var(--ax, 50%) var(--ay, 50%);
-  animation: pop 180ms ease-out;
+  animation: fade 120ms ease-out;
 }
 
-/* 枠と自前のスクロール棒をまとめる箱。高さは中身なりで、枠の帯より上に収まる分だけ */
+/* 枠・スクロール棒・操作ボタンをまとめる箱。枠線と影はここに置き、パネルと操作ボタンの
+   両方を囲む。高さは中身なりで、帯より上に収まる分だけ */
 .box {
   display: flex;
   position: relative;
   width: min(100%, 480px);
   max-height: 100%;
   flex-direction: column;
+  border: 3px solid #181818;
+  border-radius: 0;
+  box-shadow:
+    inset 0 0 0 2px #fff,
+    inset 0 0 0 3px #181818;
+  background: #fff;
 }
 
-@keyframes pop {
+/* パネルとスクロール棒だけをまとめる。.rail はここを基準に上下 8px の余白で置く */
+.body {
+  position: relative;
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+@keyframes fade {
   from {
     opacity: 0;
-    transform: scale(0.2);
-  }
-  to {
-    opacity: 1;
-    transform: none;
   }
 }
 
@@ -68,11 +81,10 @@
   .rail {
     top: 6px;
     right: 6px;
-    bottom: 6px;
     width: 7px;
   }
   .actions {
-    margin: 12px -14px 0;
+    margin-top: 12px;
     padding: 8px 14px 12px;
   }
   .actions > button,
@@ -92,23 +104,21 @@
   touch-action: pan-y;
   /* OS のスクロールバーは隠し、右端に自前の棒(.rail)を描く。右の余白はその棒の分 */
   scrollbar-width: none;
-  /* 下の余白は貼り付けた操作ボタン側が持つ(sticky の基準が内容箱なので、ここに残すと隙間から本文が覗く) */
-  padding: 18px 28px 0 20px;
-  border: 3px solid #181818;
-  border-radius: 0;
-  box-shadow:
-    inset 0 0 0 2px #fff,
-    inset 0 0 0 3px #181818;
-  background: #fff;
+  /* 枠(.box)の下は操作ボタン(.actions)なので、最後の行が詰まらない分だけ自分で余白を持つ */
+  padding: 18px 28px 18px 20px;
   color: #181818;
   font: 400 15px/1.6 var(--f-body);
+  /* 日本語は PhraseText の <wbr> でのみ折り返す。anywhere ではなく break-word を非常口にする
+     (anywhere は min-content 幅まで縮めて flex の配分を変えてしまう) */
+  line-break: strict;
+  overflow-wrap: break-word;
 }
 
 .panel::-webkit-scrollbar {
   display: none;
 }
 
-/* 自前のスクロール棒。枠線の内側、右端に立てる。つまみの位置と長さは JS が割合で入れる */
+/* 自前のスクロール棒。.body を基準に置くので、上下 8px の余白だけで常にパネルの領域に収まる */
 .rail {
   position: absolute;
   top: 8px;
@@ -157,15 +167,14 @@
   text-underline-offset: 3px;
 }
 
-/* 枠の中では本文が縦に収まらないので、操作ボタンはパネル下端に貼り付けて常に見せる */
+/* パネルとは別枠で、箱(.box)の下端に常に固定して見せる(sticky ではなく実の別要素) */
 .actions {
   display: flex;
-  position: sticky;
-  bottom: 0;
+  flex: none;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
-  margin: 18px -20px 0;
+  margin-top: 18px;
   padding: 10px 20px 18px;
   background: #fff;
 }
@@ -214,14 +223,12 @@
   .pop {
     padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
       max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
-    /* 原点は枠内 px なので画面全体では合わない。中央から開く */
-    transform-origin: 50% 50%;
   }
   .box {
     width: min(100%, 520px);
   }
   .panel {
-    padding: 18px 28px 0 20px;
+    padding: 18px 28px 18px 20px;
     font-size: 16px;
   }
   .place {
@@ -238,7 +245,7 @@
     width: 8px;
   }
   .actions {
-    margin: 18px -20px 0;
+    margin-top: 18px;
     padding: 10px 20px 18px;
   }
   .actions > button,

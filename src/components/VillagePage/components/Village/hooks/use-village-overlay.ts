@@ -1,5 +1,5 @@
 // 会話モーダルと地図の開閉を持つ。開いている間は移動入力を止め、閉じる時に次の目的地や高速移動を立てる
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Dispatch, RefObject, SetStateAction } from 'react'
 import type { Cell, Direction, Spot, VillageText, World, WorldSet } from '@content/types/world'
 import type { MoveState } from '@/lib/village/movement'
@@ -10,6 +10,9 @@ import { writeVisited } from '@/lib/preferences'
 import type { VillageActions } from './use-village-input'
 
 type Mode = 'walk' | 'talk' | 'map'
+
+// 一言を消すまでの間
+const HINT_DURATION = 2500
 
 export type VillageOverlayOptions = {
   worldSet: WorldSet
@@ -41,6 +44,11 @@ type UseVillageOverlay = {
   closeOverlay: () => void
   goNext: () => void
   travel: (spotId: string) => void
+  // 話せる相手がいない所で話しかけた時の一言。無ければ null(位置は use-village が生きた playerCell から作る)
+  hintText: string | null
+  // 一言を出した時点のマス。use-village が playerCell と比べて動いたら clearHint を呼ぶ
+  hintCellRef: RefObject<Cell | null>
+  clearHint: () => void
 }
 
 export function useVillageOverlay({
@@ -66,6 +74,29 @@ export function useVillageOverlay({
   heldRef,
 }: VillageOverlayOptions): UseVillageOverlay {
   const [mode, setMode] = useState<Mode>('walk')
+  const [hintText, setHintText] = useState<string | null>(null)
+  // 一言を消すタイマー。新しい一言が入ったら前の分を捨てる
+  const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // 一言を出した時点のマス。use-village がプレイヤーの現在地と比べて動いたかを判定する
+  const hintCellRef = useRef<Cell | null>(null)
+
+  // タイマー・一言・出した位置をまとめて消す
+  const clearHint = useCallback(() => {
+    if (hintTimerRef.current !== null) {
+      clearTimeout(hintTimerRef.current)
+      hintTimerRef.current = null
+    }
+    hintCellRef.current = null
+    setHintText(null)
+  }, [])
+
+  // アンマウント時に一言とタイマーを残さない
+  useEffect(() => clearHint, [clearHint])
+
+  // ワープ(ワールド変更)では一言を持ち越さない
+  useEffect(() => {
+    clearHint()
+  }, [world, clearHint])
 
   // モーダル・地図が開いている間は移動入力を捨てる
   useEffect(() => {
@@ -74,8 +105,17 @@ export function useVillageOverlay({
   }, [mode, heldRef, lockedRef])
 
   const openTalk = useCallback(() => {
+    if (lockedRef.current) return
     const spot = activeSpotRef.current
-    if (spot === null || lockedRef.current) return
+    if (spot === null) {
+      // 話せる相手がいない所で話しかけた時は、プレイヤーの頭上に一言だけ出す
+      clearHint()
+      hintCellRef.current = stateRef.current.cell
+      setHintText(text.noTarget)
+      hintTimerRef.current = setTimeout(() => clearHint(), HINT_DURATION)
+      return
+    }
+    clearHint()
     lockedRef.current = true
     heldRef.current = null
     pendingRouteRef.current = null
@@ -86,20 +126,35 @@ export function useVillageOverlay({
     visitedRef.current = marked
     setVisited(marked)
     writeVisited(worldSet.id, [...marked])
-  }, [heldRef, worldSet, activeSpotRef, lockedRef, pendingRouteRef, visitedRef, setVisited])
-
-  // 地図を持つのは屋外だけ。屋内では M キー・ミニマップともに効かない
-  const openMap = useCallback(() => {
-    if (lockedRef.current || world.kind !== 'exterior') return
-    lockedRef.current = true
-    heldRef.current = null
-    setMode('map')
-  }, [heldRef, world, lockedRef])
+  }, [
+    heldRef,
+    worldSet,
+    activeSpotRef,
+    lockedRef,
+    pendingRouteRef,
+    visitedRef,
+    setVisited,
+    stateRef,
+    text,
+    clearHint,
+  ])
 
   const closeOverlay = useCallback(() => {
     lockedRef.current = false
     setMode('walk')
   }, [lockedRef])
+
+  // M は開閉の切り替え。会話中は無視
+  const openMap = useCallback(() => {
+    if (mode === 'map') {
+      closeOverlay()
+      return
+    }
+    if (lockedRef.current || world.kind !== 'exterior') return
+    lockedRef.current = true
+    heldRef.current = null
+    setMode('map')
+  }, [heldRef, world, lockedRef, mode, closeOverlay])
 
   // 次の地点までは自動で歩く。到着したら会話窓を自動で開く(地図移動では開かない)。
   // 別ワールドの地点なら、そこへ通じる扉まで歩いて出る(目的地は扉を出た所で立てる)
@@ -197,5 +252,15 @@ export function useVillageOverlay({
     actionsRef.current = { onTalk: openTalk, onMap: openMap, onEscape: closeOverlay }
   }, [openTalk, openMap, closeOverlay, actionsRef])
 
-  return { mode, openTalk, openMap, closeOverlay, goNext, travel }
+  return {
+    mode,
+    openTalk,
+    openMap,
+    closeOverlay,
+    goNext,
+    travel,
+    hintText,
+    hintCellRef,
+    clearHint,
+  }
 }
