@@ -4,7 +4,7 @@ import { useMemo, useRef } from 'react'
 import type { RefObject } from 'react'
 import type { Cell, Spot, VillageText, World, WorldSet } from '@content/types/world'
 import type { Sheet } from '@/lib/pixel/art'
-import { facedCell } from '@/lib/village/spot'
+import { talkTarget } from '@/lib/village/spot'
 import { useVillageInput, type VillageActions } from './use-village-input'
 import { cameraOffset, useStageScale, VIEW_COLS, VIEW_ROWS } from './use-stage-scale'
 import { useVillageGuide } from './use-village-guide'
@@ -45,8 +45,9 @@ type UseVillage = {
   reduceMotion: boolean
   locatorVisible: boolean
   placeNames: Record<string, string>
-  // 話しかける物のマス(ワールド座標)と呼びかけ。吹き出しは world 層に置くのでカメラを引かない
-  talkCell: Cell | null
+  // 話しかける物の位置(ワールド座標・マス単位)。x は物の中央、y は上に出すなら物の上辺、下に出すなら下辺。
+  // 吹き出しは world 層に置くのでカメラを引かない
+  talkAt: { x: number; y: number } | null
   talkText: string | null
   // 話しかけた物の枠内位置(マス単位・中心)。モーダルはここから開く
   talkAnchor: { x: number; y: number } | null
@@ -175,13 +176,23 @@ export function useVillage({ worldSet, text, sprites }: VillageOptions): UseVill
     [world, text]
   )
 
-  const talkCell = activeSpot === null ? null : facedCell(activeSpot)
-  const talkText = activeSpot === null ? null : arriveSpeech(text, activeSpot.id)
-  // 会話中はカメラが止まるので、開いた時点の原点で枠内位置に直してよい(毎描画で計算し memo しない)
-  const talkAnchor =
-    talkCell === null
+  const target = activeSpot === null ? null : talkTarget(world, activeSpot)
+  // 吹き出しは物の上に出す。物がプレイヤーより下(下を向く地点)なら人物を隠すので、プレイヤーの頭上に出す
+  const talkAt =
+    activeSpot === null || target === null
       ? null
-      : { x: talkCell.x - camRef.current.x + 0.5, y: talkCell.y - camRef.current.y + 0.5 }
+      : activeSpot.facing === 'down'
+        ? { x: activeSpot.cell.x + 0.5, y: activeSpot.cell.y }
+        : { x: target.x + target.w / 2, y: target.y }
+  const talkText = activeSpot === null ? null : arriveSpeech(text, activeSpot.id)
+  // モーダルは物の中央から開く。会話中はカメラが止まるので、開いた時点の原点で枠内位置に直してよい
+  const talkAnchor =
+    target === null
+      ? null
+      : {
+          x: target.x + target.w / 2 - camRef.current.x,
+          y: target.y + target.h / 2 - camRef.current.y,
+        }
   const talkLabel = activeSpot === null ? undefined : (text.stops[activeSpot.id].talk ?? text.talk)
 
   return {
@@ -202,7 +213,7 @@ export function useVillage({ worldSet, text, sprites }: VillageOptions): UseVill
     reduceMotion,
     locatorVisible,
     placeNames,
-    talkCell,
+    talkAt,
     talkText,
     talkAnchor,
     talkLabel,

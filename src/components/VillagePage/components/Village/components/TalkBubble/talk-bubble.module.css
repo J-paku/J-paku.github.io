@@ -1,4 +1,4 @@
-/* 物のマスの中央上に、尾の分だけ浮かせて置く。人物(z 2)より上 */
+/* 指す点の中央上に、尾の分だけ浮かせて置く。人物(z 2)より上 */
 .bubble {
   position: absolute;
   top: calc(var(--cell) * var(--by) - 12px);
