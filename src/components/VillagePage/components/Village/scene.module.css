@@ -151,7 +151,20 @@
 @media (pointer: coarse) and (orientation: portrait) {
   .controls {
     display: flex;
-    padding: 12px 8px max(12px, env(safe-area-inset-bottom));
+    padding: 12px 8px max(16px, env(safe-area-inset-bottom));
+  }
+}
+/* 縦持ちは帯を親指ゾーン(画面の最下端)へ固定する。.screen を舞台いっぱいの縦並びにし、
+   枠は余った領域を margin:auto 0 で中央へ、帯(position:static のまま)はそのまま最下段に残る。
+   帯の高さは useStageScale が実測するので、ここで --cell に依存させてはいけない(循環対策は既存どおり) */
+@media (pointer: coarse) and (orientation: portrait) {
+  .screen {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+  .frame {
+    margin: auto 0;
   }
 }
 /* 横持ちは枠の上辺に重ねる。右下はミニマップ、下辺は会話窓が使うため、空いている上辺を取る。
@@ -171,6 +184,38 @@
   }
   .controls > * {
     pointer-events: auto;
+  }
+}
+/* 横幅にゆとりがある(useStageScale が計算する data-gutters)ときは、帯を枠へ重ねず
+   左右の余白(ガター)へ分けて置く。iPad 横持ちや幅広スマホ横持ちが対象。
+   帯自体は当たり判定を持たない透明な全画面層にし、スティックと A/B(帯の最後の子)だけを
+   それぞれ画面端で個別に fixed 配置する(横持ち重ね表示より優先させるため、詳細度で上書きする) */
+@media (pointer: coarse) {
+  [data-gutters] .controls {
+    display: block;
+    position: fixed;
+    inset: 0;
+    padding: 0;
+    z-index: 3;
+    opacity: 0.85;
+    pointer-events: none;
+  }
+  [data-gutters] .controls > * {
+    pointer-events: auto;
+  }
+  [data-gutters] .joystick {
+    position: fixed;
+    left: max(16px, env(safe-area-inset-left));
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  /* A/B(ActionButtons のルート要素)は帯の最後の子。他モジュールのクラス名を跨がないよう
+     構造セレクタで指す */
+  [data-gutters] .controls > :last-child {
+    position: fixed;
+    right: max(16px, env(safe-area-inset-right));
+    top: 50%;
+    transform: translateY(-50%);
   }
 }
 /* スティックはタッチ専用。物理ポインタではキーで足りる */

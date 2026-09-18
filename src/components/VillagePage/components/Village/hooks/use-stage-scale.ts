@@ -84,6 +84,12 @@ export const approachCamera = (
   }
 }
 
+// 幅にゆとりがあれば帯を枠へ重ねず左右のガター(余白)へ分けて置く。
+// 片側のガター幅が150px以上なら成立。iPad横持ちや幅広スマホ横持ちが対象で、縦持ちのスマホは届かない
+export const GUTTER_MIN = 150
+export const hasGutters = (rootWidth: number, cell: number, cols: number): boolean =>
+  (rootWidth - cell * cols) / 2 >= GUTTER_MIN
+
 export type StageScaleOptions = {
   // --cell を書き込む要素(舞台いっぱいの .root)
   root: RefObject<HTMLDivElement | null>
@@ -122,6 +128,12 @@ export function useStageScale({ root, band, cols, rows }: StageScaleOptions): vo
           : 0
       rootEl.style.setProperty('--cell', `${cell}px`)
       rootEl.style.setProperty('--band', `${gap}px`)
+      // scene.module.css の [data-gutters] が帯の配置(下段の帯 or 左右のガター)を切り替える
+      if (hasGutters(rootEl.clientWidth, cell, cols)) {
+        rootEl.setAttribute('data-gutters', '')
+      } else {
+        rootEl.removeAttribute('data-gutters')
+      }
     }
     apply()
     const observer = new ResizeObserver(apply)

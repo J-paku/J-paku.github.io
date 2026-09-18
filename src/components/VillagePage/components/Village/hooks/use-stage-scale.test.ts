@@ -13,6 +13,7 @@ import {
   bandHeight,
   cameraOffset,
   computeCell,
+  hasGutters,
 } from './use-stage-scale'
 
 describe('computeCell', () => {
@@ -71,6 +72,22 @@ describe('bandGap', () => {
   })
   it('帯の上端が舞台下端より下(負の距離になる場合)は0に丸める', () => {
     expect(bandGap(664, 700)).toBe(0)
+  })
+})
+
+describe('hasGutters', () => {
+  it('横持ちスマホ(750×342, cell38)は片側185pxのガターが立つ', () => {
+    expect(hasGutters(750, 38, VIEW_COLS)).toBe(true)
+  })
+  it('iPad横持ち(1024×768, cell64)は片側192pxのガターが立つ', () => {
+    expect(hasGutters(1024, 64, VIEW_COLS)).toBe(true)
+  })
+  it('iPad縦持ち(768×1024, cell64)は片側64pxしかなくガターは立たない(帯は下段のまま)', () => {
+    expect(hasGutters(768, 64, VIEW_COLS)).toBe(false)
+  })
+  it('境界の150pxちょうどは成立する', () => {
+    // cell40・cols10で枠400、幅700なら片側150px
+    expect(hasGutters(700, 40, VIEW_COLS)).toBe(true)
   })
 })
 

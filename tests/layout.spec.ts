@@ -1,5 +1,6 @@
-// 村の舞台レイアウト E2E。PC は原寸 640×576 で中央、縦持ちは幅いっぱい + 枠の下にスティックと A/B の帯、
-// 横持ちは枠の左上にスティック・右上に A/B を重ねる。useStageScale が --cell を実測で書いてから測る
+// 村の舞台レイアウト E2E。PC は原寸 640×576 で中央、縦持ちは幅いっぱい + 画面最下端の帯にスティックと A/B、
+// 横持ち・タブレットは枠の左右に150px以上のガターが空けば左右のガターへ、空かなければ枠の左右上に重ねる。
+// useStageScale が --cell(と data-gutters)を実測で書いてから測る
 import { expect, test, type Page } from '@playwright/test'
 
 // ブート演出が消え、useStageScale が舞台の実測を --cell に書き込むまで待つ。
@@ -25,6 +26,15 @@ const stageVars = (page: Page) =>
       rows: Number(root.style.getPropertyValue('--rows')),
       cell: Number.parseInt(root.style.getPropertyValue('--cell'), 10),
     }
+  })
+
+// useStageScale が実測して .root へ立てる data-gutters(帯を左右のガターへ分けるか)
+const hasGuttersAttr = (page: Page) =>
+  page.evaluate(() => {
+    const frame = document.querySelector('[data-village]')
+    const root = frame?.closest<HTMLElement>('[style*="--cols"]')
+    if (!(root instanceof HTMLElement)) throw new Error('.root が無い')
+    return root.hasAttribute('data-gutters')
   })
 
 // 期待マス寸法。useStageScale と同じ式(floor・下限 12・上限は視野 10 列で 64px)。
@@ -84,15 +94,20 @@ test.describe('縦持ちのスマートフォン', () => {
     expect(frame.height).toBe(cell * rows)
     expect(band.y).toBeGreaterThanOrEqual(frame.y + frame.height)
     expect(band.y + band.height).toBeLessThanOrEqual(viewport.height)
+    // 帯は親指ゾーン(画面の最下端)まで届く。テスト環境に safe-area は無いので端に密着する
+    expect(band.y + band.height).toBeGreaterThanOrEqual(viewport.height - 1)
     const joystick = await box(page, '[data-village-controls] [role="application"]')
     const a = await box(page, '[data-village-action="a"]')
     const b = await box(page, '[data-village-action="b"]')
-    // スティックは帯の左半分
+    // スティックは帯の左半分。縦持ちタッチは120px以上まで大きくする
+    expect(joystick.width).toBeGreaterThanOrEqual(120)
     expect(joystick.x).toBeGreaterThanOrEqual(band.x)
     expect(joystick.x + joystick.width).toBeLessThanOrEqual(band.x + band.width / 2)
     expect(joystick.y).toBeGreaterThanOrEqual(band.y)
     expect(joystick.y + joystick.height).toBeLessThanOrEqual(band.y + band.height)
-    // A・B は帯の右半分、どちらも帯の内側
+    // A・B は帯の右半分、どちらも帯の内側。縦持ちタッチは64px以上まで大きくする
+    expect(a.width).toBeGreaterThanOrEqual(64)
+    expect(b.width).toBeGreaterThanOrEqual(64)
     expect(a.x).toBeGreaterThanOrEqual(band.x + band.width / 2)
     expect(a.x + a.width).toBeLessThanOrEqual(band.x + band.width)
     expect(a.y).toBeGreaterThanOrEqual(band.y)
@@ -101,13 +116,34 @@ test.describe('縦持ちのスマートフォン', () => {
     expect(b.x + b.width).toBeLessThanOrEqual(band.x + band.width)
     expect(b.y).toBeGreaterThanOrEqual(band.y)
     expect(b.y + b.height).toBeLessThanOrEqual(band.y + band.height)
-    // B は A の左下(十字キーのような配置)
+    // A は B の右上(GBA と同じ配置)
     expect(b.x + b.width).toBeLessThanOrEqual(a.x + a.width)
-    expect(b.x).toBeLessThan(a.x)
-    expect(b.y).toBeGreaterThan(a.y)
+    expect(a.x).toBeGreaterThan(b.x)
+    expect(a.y).toBeLessThan(b.y)
     expect(await scrollOverflow(page)).toBeLessThanOrEqual(0)
   })
 })
+
+// 枠の左右に150px以上のガターが空く(片側 (viewport幅 - 枠幅)/2 ≥ 150px)横持ち・タブレットは、
+// 帯を枠へ重ねず左右のガターへ分けて置く。スティック・A/B とも枠の外(ガター側)に収まり、
+// 高さ方向は親指の位置(画面の縦中央)へ揃う
+const expectGutterLayout = async (page: Page, frame: { x: number; width: number }) => {
+  const viewport = page.viewportSize()
+  if (viewport === null) throw new Error('viewport 未設定')
+  expect(await hasGuttersAttr(page)).toBe(true)
+  const joystick = await box(page, '[data-village-controls] [role="application"]')
+  const a = await box(page, '[data-village-action="a"]')
+  const b = await box(page, '[data-village-action="b"]')
+  // スティックは枠の外(左のガター)に収まる
+  expect(joystick.x + joystick.width).toBeLessThanOrEqual(frame.x)
+  // A・B は枠の外(右のガター)に収まる
+  expect(a.x).toBeGreaterThanOrEqual(frame.x + frame.width)
+  expect(b.x).toBeGreaterThanOrEqual(frame.x + frame.width)
+  // 縦中央(親指の高さ)に寄る
+  const center = viewport.height / 2
+  expect(Math.abs(joystick.y + joystick.height / 2 - center)).toBeLessThanOrEqual(2)
+  expect(await scrollOverflow(page)).toBeLessThanOrEqual(0)
+}
 
 test.describe('横持ちのスマートフォン', () => {
   test.use({
@@ -117,33 +153,40 @@ test.describe('横持ちのスマートフォン', () => {
     deviceScaleFactor: 3,
   })
 
-  test('枠は高さ基準の整数マス、スティックは枠の左上、A/B は枠の右上に重なる', async ({ page }) => {
+  test('枠は高さ基準の整数マス、スティックと A/B は左右のガターへ分かれる', async ({ page }) => {
     await waitForStage(page)
     const viewport = page.viewportSize()
     if (viewport === null) throw new Error('viewport 未設定')
     const frame = await box(page, '[data-village]')
-    const joystick = await box(page, '[data-village-controls] [role="application"]')
-    const a = await box(page, '[data-village-action="a"]')
-    const b = await box(page, '[data-village-action="b"]')
     const { cols, rows, cell } = await stageVars(page)
     // 横持ちは帯が無いので min(floor(w/列), floor(h/行), 64)
     expect(cell).toBe(expectedCell(viewport.width, viewport.height, 0, cols, rows))
     expect(frame.width).toBe(cell * cols)
     expect(frame.height).toBe(cell * rows)
-    // スティックは枠の内側かつ左上四分の一に収まる(右下のミニマップ・下辺の会話窓と重ならない)
-    expect(joystick.x).toBeGreaterThanOrEqual(frame.x)
-    expect(joystick.y).toBeGreaterThanOrEqual(frame.y)
-    expect(joystick.x + joystick.width).toBeLessThanOrEqual(frame.x + frame.width / 2)
-    expect(joystick.y + joystick.height).toBeLessThanOrEqual(frame.y + frame.height / 2)
-    // A・B は枠の内側かつ右上四分の一に収まる
-    expect(a.x).toBeGreaterThanOrEqual(frame.x + frame.width / 2)
-    expect(a.x + a.width).toBeLessThanOrEqual(frame.x + frame.width)
-    expect(a.y).toBeGreaterThanOrEqual(frame.y)
-    expect(a.y + a.height).toBeLessThanOrEqual(frame.y + frame.height / 2)
-    expect(b.x).toBeGreaterThanOrEqual(frame.x + frame.width / 2)
-    expect(b.x + b.width).toBeLessThanOrEqual(frame.x + frame.width)
-    expect(b.y).toBeGreaterThanOrEqual(frame.y)
-    expect(b.y + b.height).toBeLessThanOrEqual(frame.y + frame.height / 2)
-    expect(await scrollOverflow(page)).toBeLessThanOrEqual(0)
+    // 750×342・cell38の枠幅380なら片側185pxのガターが空き、ガター配置になる
+    await expectGutterLayout(page, frame)
+  })
+})
+
+test.describe('iPad横持ち', () => {
+  test.use({
+    viewport: { width: 1024, height: 768 },
+    isMobile: true,
+    hasTouch: true,
+    deviceScaleFactor: 2,
+  })
+
+  test('枠は上限64pxで止まり、スティックと A/B は左右のガターへ分かれる', async ({ page }) => {
+    await waitForStage(page)
+    const viewport = page.viewportSize()
+    if (viewport === null) throw new Error('viewport 未設定')
+    const frame = await box(page, '[data-village]')
+    const { cols, rows, cell } = await stageVars(page)
+    // 1024×768はどちらの基準でも上限64pxで頭打ちになる
+    expect(cell).toBe(expectedCell(viewport.width, viewport.height, 0, cols, rows))
+    expect(frame.width).toBe(cell * cols)
+    expect(frame.height).toBe(cell * rows)
+    // 枠幅640に対し片側192pxのガターが空き、ガター配置になる
+    await expectGutterLayout(page, frame)
   })
 })

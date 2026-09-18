@@ -38,3 +38,14 @@
   outline-color: #f3d784;
   outline-offset: 4px;
 }
+
+/* 縦持ちタッチは画面最下端が操作帯(親指ゾーン)になり衝突するため、右上の設定歯車の隣へ移す。
+   歯車(SettingsMenu .trigger)は40px四方で top/right とも --space-md 基準に固定されているので、
+   同じ top に揃え、歯車の幅ぶん右へ避けて並べる */
+@media (pointer: coarse) and (orientation: portrait) {
+  .exit {
+    top: max(var(--space-md), env(safe-area-inset-top));
+    right: calc(max(var(--space-md), env(safe-area-inset-right)) + 40px + var(--space-2xs));
+    bottom: auto;
+  }
+}
