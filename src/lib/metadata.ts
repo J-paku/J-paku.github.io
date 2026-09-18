@@ -19,6 +19,10 @@ export const buildMetadata = ({
     title,
     description,
     metadataBase: new URL(SITE),
+    icons: {
+      icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }],
+      apple: [{ url: '/apple-touch-icon.png' }],
+    },
     alternates: {
       canonical: toHref(bare, locale),
       languages: { ja: toHref(bare, 'ja'), ko: toHref(bare, 'ko') },
