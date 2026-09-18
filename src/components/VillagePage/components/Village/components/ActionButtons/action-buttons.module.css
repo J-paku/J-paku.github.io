@@ -38,3 +38,27 @@
   grid-column: 2;
   grid-row: 1;
 }
+
+/* 縦持ちタッチは親指ゾーンに置くぶん大きく取れる。GBA の実機のように B は左下・A は右上だが、
+   段差はマス目1つぶんではなく指の可動域に合わせた ~24px に抑える(translateY で見た目だけ寄せる) */
+@media (pointer: coarse) and (orientation: portrait) {
+  .buttons {
+    grid-template-columns: repeat(2, 64px);
+    grid-template-rows: 64px;
+  }
+
+  .button {
+    width: 64px;
+    height: 64px;
+  }
+
+  .b {
+    grid-row: 1;
+    transform: translateY(12px);
+  }
+
+  .a {
+    grid-row: 1;
+    transform: translateY(-12px);
+  }
+}
