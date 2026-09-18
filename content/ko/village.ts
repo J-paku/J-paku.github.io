@@ -30,7 +30,7 @@ export const village: VillageText = {
       place: 'PC',
       arrive: '책상 위 PC가 켜져 있어요. 열어볼까요?',
       talk: 'PC 열기',
-      title: 'Frontend / Product Engineer — J-Paku',
+      title: 'Frontend / Product Engineer',
       claim: '회사의 업무 시스템을 웹과 앱 양쪽에서 개발하고 있습니다.',
       proof:
         '설계부터 구현, 출시 이후 운영까지 일관되게 담당하고 있습니다. iOS 연동과 모바일다운 조작감까지 포함해 설계하고 구현합니다.',
