@@ -136,6 +136,7 @@
      原案の --transition: 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) をそのまま採る */
   --motion-slow: 0.4s;
   --ease-reveal: cubic-bezier(0.2, 0.8, 0.2, 1);
+
 }
 
 /*
