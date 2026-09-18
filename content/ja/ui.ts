@@ -1,6 +1,6 @@
 import type { UiStrings } from '@content/types/content'
 
-// Header・SettingsMenu などが消費するUI文字列(日本語)
+// Header・SettingsMenuなどが消費するUI文字列(日本語)
 export const ui: UiStrings = {
   skipToMain: 'メインコンテンツへスキップ',
   localeMenu: {
@@ -43,7 +43,7 @@ export const ui: UiStrings = {
     pauseScene: '自動送りを一時停止',
     resumeScene: '自動送りを再開',
   },
-  // 左列の経歴から右列に差し替える担当業務詳細パネルの文言(11段階)。作品一覧タブのラベルは work.index を再利用する
+  // 左列の経歴から右列に差し替える担当業務詳細パネルの文言(11段階)。作品一覧タブのラベルはwork.indexを再利用する
   career: {
     openDetail: '担当業務の詳細',
     tabDetail: '担当業務',
