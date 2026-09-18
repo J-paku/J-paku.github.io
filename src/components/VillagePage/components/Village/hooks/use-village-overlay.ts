@@ -22,6 +22,7 @@ export type VillageOverlayOptions = {
   pendingRouteRef: RefObject<Cell[] | null>
   pendingFastRef: RefObject<boolean>
   pendingGoalRef: RefObject<SpotRef | null>
+  autoTalkRef: RefObject<boolean>
   setDestination: Dispatch<SetStateAction<Cell | null>>
   visitedRef: RefObject<ReadonlySet<string>>
   setVisited: Dispatch<SetStateAction<ReadonlySet<string>>>
@@ -53,6 +54,7 @@ export function useVillageOverlay({
   pendingRouteRef,
   pendingFastRef,
   pendingGoalRef,
+  autoTalkRef,
   setDestination,
   visitedRef,
   setVisited,
@@ -99,7 +101,7 @@ export function useVillageOverlay({
     setMode('walk')
   }, [lockedRef])
 
-  // 次の地点は目的地を立てるだけ。歩くのは利用者。
+  // 次の地点までは自動で歩く。到着したら会話窓を自動で開く(地図移動では開かない)。
   // 別ワールドの地点なら、そこへ通じる扉まで歩いて出る(目的地は扉を出た所で立てる)
   const goNext = useCallback(() => {
     const spot = activeSpotRef.current
@@ -107,16 +109,34 @@ export function useVillageOverlay({
     if (spot === null) return
     const next = nextSpot(worldSet, spot)
     if (next === null) return
-    setSpeech(text.headTo.replace('{place}', text.stops[next.spot.id].place))
     if (next.worldId === worldKeyRef.current) {
+      const route = findPath(worldRef.current, stateRef.current.cell, next.spot.cell)
+      if (route === null) {
+        setSpeech(text.headTo.replace('{place}', text.stops[next.spot.id].place))
+        destinationRef.current = next.spot.cell
+        setDestination(next.spot.cell)
+        return
+      }
+      // すでにその場に立っているなら到着扱いで会話をそのまま開く
+      if (route.length === 0) {
+        activeSpotRef.current = next.spot
+        openTalk()
+        return
+      }
+      setSpeech(text.headTo.replace('{place}', text.stops[next.spot.id].place))
+      pendingRouteRef.current = route
+      pendingFastRef.current = true
+      autoTalkRef.current = true
       destinationRef.current = next.spot.cell
       setDestination(next.spot.cell)
       return
     }
+    setSpeech(text.headTo.replace('{place}', text.stops[next.spot.id].place))
     const route = routeToWarp(worldRef.current, stateRef.current.cell, next.worldId)
     if (route === null) return
     pendingRouteRef.current = route
-    pendingFastRef.current = false
+    pendingFastRef.current = true
+    autoTalkRef.current = true
     pendingGoalRef.current = next
   }, [
     closeOverlay,
@@ -131,13 +151,17 @@ export function useVillageOverlay({
     pendingRouteRef,
     pendingFastRef,
     pendingGoalRef,
+    autoTalkRef,
     setDestination,
+    openTalk,
   ])
 
   // 地図からの移動は経路を高速で消費する。地図は屋外だけなので探索も今のワールドでよい
   const travel = useCallback(
     (spotId: string) => {
       closeOverlay()
+      // 地図からの移動は会話窓を自動で開かない
+      autoTalkRef.current = false
       const here = worldRef.current
       const spot = here.spots.find(s => s.id === spotId)
       if (spot === undefined) return
@@ -162,6 +186,7 @@ export function useVillageOverlay({
       stateRef,
       pendingRouteRef,
       pendingFastRef,
+      autoTalkRef,
       destinationRef,
       setDestination,
       setSpeech,

@@ -5,11 +5,13 @@ import type { Dispatch, RefObject, SetStateAction } from 'react'
 import type { Cell, Spot, VillageText, World, WorldSet } from '@content/types/world'
 import type { MoveState } from '@/lib/village/movement'
 import { isWalkable } from '@/lib/village/collision'
+import { findPath } from '@/lib/village/path'
 import { spotAt } from '@/lib/village/spot'
 import { warpAt } from '@/lib/village/warp'
 import { clearVillageProgress, readPosition, readVisited, writePosition } from '@/lib/preferences'
 import type { SpotRef } from '@/lib/village/spot'
 import { findWorld, type EnterWorld } from './use-village-world'
+import type { VillageActions } from './use-village-input'
 
 const EMPTY_VISITED: ReadonlySet<string> = new Set<string>()
 
@@ -30,6 +32,10 @@ export type VillageGuideOptions = {
   stateRef: RefObject<MoveState>
   destinationRef: RefObject<Cell | null>
   pendingGoalRef: RefObject<SpotRef | null>
+  pendingRouteRef: RefObject<Cell[] | null>
+  pendingFastRef: RefObject<boolean>
+  autoTalkRef: RefObject<boolean>
+  actionsRef: RefObject<VillageActions>
   setDestination: Dispatch<SetStateAction<Cell | null>>
   setPlayerCell: Dispatch<SetStateAction<Cell>>
   enterWorld: EnterWorld
@@ -58,6 +64,10 @@ export function useVillageGuide({
   stateRef,
   destinationRef,
   pendingGoalRef,
+  pendingRouteRef,
+  pendingFastRef,
+  autoTalkRef,
+  actionsRef,
   setDestination,
   setPlayerCell,
   enterWorld,
@@ -130,6 +140,14 @@ export function useVillageGuide({
           destinationRef.current = goal.spot.cell
           setDestination(goal.spot.cell)
           setSpeech(text.headTo.replace('{place}', text.stops[goal.spot.id].place))
+          // 次へボタンの自動歩行が続いている時だけ、到着ワールドの経路を作り直す(利用者が途中で割り込んだら目的地の印と案内だけ残す)
+          if (autoTalkRef.current) {
+            const route = findPath(target, warp.target.cell, goal.spot.cell)
+            if (route !== null && route.length > 0) {
+              pendingRouteRef.current = route
+              pendingFastRef.current = true
+            }
+          }
           return
         }
         setSpeech(defaultSpeech(target, text))
@@ -160,6 +178,11 @@ export function useVillageGuide({
           ? defaultSpeech(here, text)
           : text.headTo.replace('{place}', text.stops[goalSpot.id].place)
       )
+      // 次へボタンで歩いてきた到着なら、会話窓を自動で開く。利用者が自分で歩いた到着では開かない
+      if (autoTalkRef.current && goal !== null && goal.x === cell.x && goal.y === cell.y) {
+        autoTalkRef.current = false
+        if (spot !== null) actionsRef.current.onTalk()
+      }
     },
     [
       worldSet,
@@ -171,6 +194,10 @@ export function useVillageGuide({
       setPlayerCell,
       destinationRef,
       pendingGoalRef,
+      pendingRouteRef,
+      pendingFastRef,
+      autoTalkRef,
+      actionsRef,
       setDestination,
     ]
   )
