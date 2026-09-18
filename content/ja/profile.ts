@@ -1,5 +1,5 @@
 // プロフィール(ja) — 名前・ポジショニング・経歴・強み3点
-import type { Profile } from '@/types/content'
+import type { Profile } from '@content/types/content'
 
 export const profile: Profile = {
   name: 'J-Paku',
@@ -60,7 +60,8 @@ export const profile: Profile = {
           },
           {
             label: '通信量',
-            value: '納品画面が受け取っていたAPI応答が220KB → 1.2KB。サーバー負荷が下がり、アプリの反応も速くなった',
+            value:
+              '納品画面が受け取っていたAPI応答が220KB → 1.2KB。サーバー負荷が下がり、アプリの反応も速くなった',
           },
           {
             label: '印刷速度',
@@ -68,7 +69,8 @@ export const profile: Profile = {
           },
           {
             label: '機材',
-            value: 'Windowsタブレットが、セットで使っていたサーマルプリンターごと不要になった。180gのBLEプリンター1台で現場が回る',
+            value:
+              'Windowsタブレットが、セットで使っていたサーマルプリンターごと不要になった。180gのBLEプリンター1台で現場が回る',
           },
           {
             label: '初めて',
@@ -88,7 +90,10 @@ export const profile: Profile = {
                 { label: 'API', value: 'Pleasanter REST API' },
                 { label: 'テーブル', value: 'AG Grid 35 / @tanstack/react-virtual 3' },
                 { label: 'チャート', value: 'Recharts 3' },
-                { label: 'ジェスチャー・D&D', value: '@dnd-kit/core 6 / sortablejs / Embla Carousel 8' },
+                {
+                  label: 'ジェスチャー・D&D',
+                  value: '@dnd-kit/core 6 / sortablejs / Embla Carousel 8',
+                },
                 { label: '状態管理', value: 'React Hooks(カスタムフック分離)' },
                 { label: '永続化', value: 'IndexedDB + sessionStorageフォールバック' },
                 { label: 'ビルド', value: 'Turbopack + React Compiler' },
@@ -100,7 +105,10 @@ export const profile: Profile = {
               rows: [
                 { label: '言語', value: 'Swift 5' },
                 { label: 'UI', value: 'UIKit / SwiftUI併用' },
-                { label: 'ネイティブ連携', value: 'WKWebView postMessage / WKScriptMessageHandler' },
+                {
+                  label: 'ネイティブ連携',
+                  value: 'WKWebView postMessage / WKScriptMessageHandler',
+                },
                 { label: 'カメラ', value: 'AVCaptureSession / Vision(矩形検出・QR)' },
                 { label: '印刷', value: 'SII SDK(Bluetooth感熱)' },
                 { label: '配布', value: 'Xcode Archive → In-House .ipa → MDM(Microsoft Intune)' },
@@ -197,7 +205,15 @@ export const profile: Profile = {
       // ※入社・退社月は要確認
       company: '受託開発会社に在籍(派遣先2社)',
       period: '2022.04 - 2024.12',
-      stack: ['Nuxt.js', 'Vue.js', 'Delphi', 'Oracle', 'PostgreSQL', 'SharePoint', 'Power Automate'],
+      stack: [
+        'Nuxt.js',
+        'Vue.js',
+        'Delphi',
+        'Oracle',
+        'PostgreSQL',
+        'SharePoint',
+        'Power Automate',
+      ],
       role: 'フロントエンド / 社内情報基盤',
       assignments: [
         { period: '2023.10 - 2024.12', label: '派遣先: 大手エレベーターメーカー 情報システム部門' },
@@ -223,7 +239,8 @@ export const profile: Profile = {
           },
           {
             label: '派遣先',
-            value: '大手エレベーターメーカー(2023.10 - 2024.12)/ 大手物流システムメーカー(2022.04 - 2023.09)',
+            value:
+              '大手エレベーターメーカー(2023.10 - 2024.12)/ 大手物流システムメーカー(2022.04 - 2023.09)',
           },
         ],
         assignments: [
@@ -247,15 +264,18 @@ export const profile: Profile = {
               },
               {
                 label: '移行',
-                value: 'Oracle → PostgreSQL。SQL方言の差を吸収しながら、データの等価性を検証して担保した',
+                value:
+                  'Oracle → PostgreSQL。SQL方言の差を吸収しながら、データの等価性を検証して担保した',
               },
               {
                 label: '前提',
-                value: '既存システムのソースコードは参照できなかった。画面の挙動だけが仕様の出どころだった',
+                value:
+                  '既存システムのソースコードは参照できなかった。画面の挙動だけが仕様の出どころだった',
               },
               {
                 label: '回帰',
-                value: '仕様書が無く挙動だけが正だったため、修正が別機能の回帰を生みやすかった。修正の前に検証手段を先に用意する進め方は、この環境で身についた。',
+                value:
+                  '仕様書が無く挙動だけが正だったため、修正が別機能の回帰を生みやすかった。修正の前に検証手段を先に用意する進め方は、この環境で身についた。',
               },
               {
                 label: '注記',

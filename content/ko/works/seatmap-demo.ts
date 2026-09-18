@@ -1,5 +1,5 @@
 // 作品(ko) — 座席マップデモ。jaと同じ2節構成・同じkeyを保つ
-import type { Work } from '@/types/content'
+import type { Work } from '@content/types/content'
 
 export const seatmapDemo: Work = {
   slug: 'seatmap-demo',
