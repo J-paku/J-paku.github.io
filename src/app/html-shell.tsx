@@ -1,0 +1,40 @@
+// 言語ルート共通の <html> 枠。(ja)/(ko) の layout はこれに locale を渡すだけにし、
+// lang 属性と本文書体(Noto JP / KR)の差し替えだけをここで持つ。globals.css は各 layout 側で読む
+import type { ReactNode } from 'react'
+import type { Locale } from '@content/types/content'
+
+type HtmlShellProps = {
+  locale: Locale
+  children: ReactNode
+}
+
+// 文字列 'theme' は THEME_STORAGE_KEY と同じ値を保つ
+const THEME_INIT = `;(function(){try{var t=localStorage.getItem('theme');if(t==='dark'||t==='light'){document.documentElement.dataset.theme=t}}catch(e){}})()`
+
+// Google Fonts の配信 CSS(自前 @font-face は持たない)。Inter・Playfair は共通、本文書体だけ言語で切り替える
+const FONT_HREF: Record<Locale, string> = {
+  ja: 'https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Serif+JP:wght@400&family=Playfair+Display:wght@400&display=swap',
+  ko: 'https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@400&family=Playfair+Display:wght@400&display=swap',
+}
+
+// スキップリンクの文言は content から取るため各ページ側(VillagePage 等)が持つ
+function HtmlShell({ locale, children }: HtmlShellProps) {
+  return (
+    <html lang={locale} data-theme='light'>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
+        <link rel='preconnect' href='https://fonts.googleapis.com' />
+        <link rel='preconnect' href='https://fonts.gstatic.com' crossOrigin='anonymous' />
+        <link rel='stylesheet' href={FONT_HREF[locale]} />
+        <script
+          data-goatcounter='https://tottannim.goatcounter.com/count'
+          async
+          src='https://gc.zgo.at/count.js'
+        />
+      </head>
+      <body>{children}</body>
+    </html>
+  )
+}
+
+export default HtmlShell
