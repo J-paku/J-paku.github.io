@@ -124,6 +124,17 @@
   top: 0;
   left: 0;
 }
+/* 考え事の吹き出しの土台。人物と同じ変換を毎フレーム受けて頭の上に付いて回る */
+.hintAnchor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--cell);
+  height: var(--cell);
+  z-index: 3;
+  pointer-events: none;
+  will-change: transform;
+}
 /* 跳ねるのは目印だけ。動きを控える設定では静止させる */
 @media (prefers-reduced-motion: no-preference) {
   .locatorSprite {

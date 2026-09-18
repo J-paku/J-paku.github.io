@@ -46,6 +46,7 @@ function Village({
     controlsRef,
     playerRef,
     locatorRef,
+    hintRef,
     loadingRef,
     camRef,
     world,
@@ -60,7 +61,6 @@ function Village({
     talkAt,
     talkText,
     talkLabel,
-    hintAt,
     hintText,
     mode,
     setHeld,
@@ -160,8 +160,18 @@ function Village({
                 onAction={openTalk}
               />
             ) : null}
-            {hintAt !== null && hintText !== null ? (
-              <TalkBubble text={hintText} lang={lang} at={hintAt} kind='thought' />
+            {hintText !== null ? (
+              <div
+                ref={hintRef}
+                className={styles.hintAnchor}
+                aria-hidden='false'
+                // rAF が回り出すまでの土台。プレイヤーの今のマスへ先に置き、以後は毎フレーム上書きされる
+                style={{
+                  transform: `translate(calc(var(--cell) * ${playerCell.x}), calc(var(--cell) * ${playerCell.y}))`,
+                }}
+              >
+                <TalkBubble text={hintText} lang={lang} at={{ x: 0.5, y: 0 }} kind='thought' />
+              </div>
             ) : null}
           </div>
           <SpeechBox text={speech} lang={lang} />

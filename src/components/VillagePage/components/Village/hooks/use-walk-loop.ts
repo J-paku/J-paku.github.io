@@ -28,6 +28,8 @@ export type WalkLoopOptions = {
   camRef: RefObject<{ x: number; y: number }>
   playerRef: RefObject<HTMLDivElement | null>
   locatorRef: RefObject<HTMLDivElement | null>
+  // 考え事の吹き出しの土台。人物と同じ transform を受けて頭上に付いて回る
+  hintRef: RefObject<HTMLDivElement | null>
   // ワープ後に新しいワールドの描画を待つ間だけ出す覆い。閾値を超えた時だけ見せる
   loadingRef: RefObject<HTMLDivElement | null>
   worldRef: RefObject<World>
@@ -54,6 +56,7 @@ export function useWalkLoop({
   camRef,
   playerRef,
   locatorRef,
+  hintRef,
   loadingRef,
   worldRef,
   stateRef,
@@ -133,6 +136,9 @@ export function useWalkLoop({
       // 目印は反転させず、プレイヤーと同じ位置に重ねる(上への持ち上げは CSS 側)
       const locator = locatorRef.current
       if (locator !== null) locator.style.transform = shift
+      // 考え事の吹き出しの土台も反転させず、プレイヤーと同じ位置へ毎フレーム追従させる
+      const hint = hintRef.current
+      if (hint !== null) hint.style.transform = shift
       if (spriteKeyRef.current === key) return
       spriteKeyRef.current = key
       player.dataset.sprite = key
@@ -148,6 +154,7 @@ export function useWalkLoop({
       stateRef,
       worldRef,
       locatorRef,
+      hintRef,
       loadingRef,
     ]
   )
