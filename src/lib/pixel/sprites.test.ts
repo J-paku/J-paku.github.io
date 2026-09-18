@@ -21,7 +21,7 @@ describe('SPRITE_ARTS', () => {
   it('全素材をデータURIのシートへ変換する', () => {
     const sheet = buildSprites()
 
-    expect(sheet.uri.startsWith('data:image/svg+xml,')).toBe(true)
+    expect(sheet.uri.startsWith('data:image/png;base64,')).toBe(true)
     expect(sheet.count).toBe(Object.keys(SPRITE_ARTS).length)
   })
 

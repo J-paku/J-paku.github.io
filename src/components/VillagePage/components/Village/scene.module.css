@@ -41,7 +41,7 @@
   will-change: transform;
 }
 /* シートは横1列なので、--i 番目だけを背景位置で見せる。
-   background-image(400KB 超の data URI)は Village が <style> の規則 1 本で当てる。
+   background-image(data URI)は Village が <style> の規則 1 本で当てる。
    カスタムプロパティ経由にすると要素ごとに URI を再解析し、町の 684 要素で約 1 秒止まる(実測) */
 .sprite {
   position: absolute;
