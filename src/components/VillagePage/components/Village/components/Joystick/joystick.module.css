@@ -30,3 +30,17 @@
     transition: transform 80ms;
   }
 }
+
+/* 縦持ちタッチは親指ゾーンに置くぶん大きく取れる。GBA の十字キーに近い操作感を優先する。
+   倒せる距離(MAX_RADIUS)は index.tsx が実測した base の幅から比率で導くので、ここでは寸法だけ変える */
+@media (pointer: coarse) and (orientation: portrait) {
+  .base {
+    width: 120px;
+    height: 120px;
+  }
+
+  .knob {
+    width: 52px;
+    height: 52px;
+  }
+}
