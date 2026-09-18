@@ -1,5 +1,5 @@
 // 作品(ko) — チーム標準のAI開発基盤。jaと同じ7節・同じkeyを保つ
-import type { Work } from '@/types/content'
+import type { Work } from '@content/types/content'
 
 export const aiHarness: Work = {
   slug: 'ai-harness',

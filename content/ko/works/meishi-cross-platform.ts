@@ -1,5 +1,5 @@
 // 作品(ko) — 名刺登録アプリ(名刺管理のクロスプラットフォーム化)。公開済み。ストーリー本文(story)を保持
-import type { Work } from '@/types/content'
+import type { Work } from '@content/types/content'
 
 export const meishiCrossPlatform: Work = {
   slug: 'meishi-cross-platform',
@@ -59,7 +59,10 @@ export const meishiCrossPlatform: Work = {
         body: '주소는 Yahoo!지오코더로 위도경도로 변환해, 지금 있는 곳에서 거래처까지의 거리를 표시. 부서별로 나뉘어 있던 거래처 마스터는 회사 공통 새 마스터로 통합하고, 기존 참조는 명칭 정규화로 이었다.',
         chips: [
           { name: 'Yahoo!지오코더', note: '주소→위도경도 변환과 현재 위치 기준 거리 산출' },
-          { name: '데이터 설계', note: '부서별 마스터를 공통 마스터로 통합. 기존 참조는 명칭 정규화로 접속' },
+          {
+            name: '데이터 설계',
+            note: '부서별 마스터를 공통 마스터로 통합. 기존 참조는 명칭 정규화로 접속',
+          },
         ],
         image: '/works/meishi/scene4-nearby.svg',
       },

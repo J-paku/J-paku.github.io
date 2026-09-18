@@ -1,5 +1,5 @@
 // 現在(ja) — 今つくっているもの。wipカードとセットでのみ成立する
-import type { NowEntry } from '@/types/content'
+import type { NowEntry } from '@content/types/content'
 
 export const now: NowEntry[] = [
   {

@@ -1,5 +1,5 @@
 // スキル(ko) — jaと同じカテゴリ構成・同じevidence slugを保つ
-import type { SkillCategory } from '@/types/content'
+import type { SkillCategory } from '@content/types/content'
 
 export const skills: SkillCategory[] = [
   {
@@ -31,7 +31,11 @@ export const skills: SkillCategory[] = [
         note: '버전 기반 낙관적 잠금, touched-id 단위 undo 충돌 검증',
       },
       { name: 'SWR(증분 동기·재검증 설계)', evidence: ['seatmap-demo'] },
-      { name: 'IndexedDB(오프라인 영속화)', evidence: [], note: '사내 앱에서 스키마 v10까지 운용. 공개 작품 없음' },
+      {
+        name: 'IndexedDB(오프라인 영속화)',
+        evidence: [],
+        note: '사내 앱에서 스키마 v10까지 운용. 공개 작품 없음',
+      },
     ],
   },
   {

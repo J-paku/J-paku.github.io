@@ -1,5 +1,5 @@
 // 作品(ja) — 座席マップデモ。社内ツールを業務データ抜きで再構成した公開デモ
-import type { Work } from '@/types/content'
+import type { Work } from '@content/types/content'
 
 export const seatmapDemo: Work = {
   slug: 'seatmap-demo',
