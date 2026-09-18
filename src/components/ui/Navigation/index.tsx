@@ -24,6 +24,8 @@ function Navigation({ locale, current, switchLabel, ui, pathname }: NavigationPr
       <Link
         className={`${styles.switch}${current === 'village' ? ` ${styles.exit}` : ''}`}
         href={switchHref}
+        // 村の 5 か所を見終えた時、use-village-overlay がここへ焦点を移し点滅させる目印
+        data-village-exit={current === 'village' ? '' : undefined}
       >
         {switchLabel}
         {current === 'village' && <span aria-hidden='true'>→</span>}

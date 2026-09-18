@@ -21,18 +21,19 @@ export const village: VillageText = {
   shortcuts: '作品へ直接移動',
   toList: '一覧で見る',
   toVillage: 'マップで見る',
+  allSeen: '5か所すべて見ました。「{list}」から作品をもう一度たどれます。',
   buttonA: '決定',
   buttonB: 'キャンセル',
   joystick: '移動スティック',
   stops: {
     home: {
       place: 'PC',
-      arrive: '机の PC がついています。開いてみますか?',
-      talk: 'PC を開く',
+      arrive: '机のPCがついています。開いてみますか?',
+      talk: 'PCを開く',
       title: 'Frontend / Product Engineer — J-Paku',
-      claim: '会社の業務システムを、Web とアプリの両方で開発しています。',
+      claim: '会社の業務システムを、Webとアプリの両方で開発しています。',
       proof:
-        '設計から実装、リリース後の運用まで一貫して担当しています。iOS 連携や、モバイルならではの操作性も含めて設計・実装しています。',
+        '設計から実装、リリース後の運用まで一貫して担当しています。iOS連携や、モバイルならではの操作性も含めて設計・実装しています。',
       hook: 'まずは、「名刺工房」を見てみてください。',
       next: '名刺工房へ',
       detail:

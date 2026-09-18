@@ -100,6 +100,7 @@ export type VillageText = {
   shortcuts: string
   toList: string
   toVillage: string
+  allSeen: string // 5 か所すべて話した後の案内。{list} は toList に置換
   buttonA: string // A ボタンの読み上げ名(決定)
   buttonB: string // B ボタンの読み上げ名(キャンセル)
   joystick: string // 仮想スティックの読み上げ名(タッチ端末)

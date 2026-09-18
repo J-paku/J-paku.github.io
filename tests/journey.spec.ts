@@ -98,6 +98,8 @@ for (const { prefix, text, settings } of JOURNEYS) {
   const home = text.stops.home
   const meishi = text.stops.meishi
   const lab = text.stops.lab
+  const robot = text.stops.robot
+  const mailbox = text.stops.mailbox
 
   test(`自分の部屋の会話から次の目的地を案内する (${label})`, async ({ page }) => {
     await openVillage(page, prefix)
@@ -282,6 +284,37 @@ for (const { prefix, text, settings } of JOURNEYS) {
     await page.waitForTimeout(3_000)
     await expect(dialog).toHaveCount(0)
     expect((await readCell(page))?.worldId).toBe('room')
+  })
+
+  test(`5 か所すべて話すと案内が変わり一覧のボタンへ焦点が移る (${label})`, async ({ page }) => {
+    await openVillage(page, prefix)
+    const dialog = page.getByRole('dialog')
+    await page.keyboard.press('e')
+    await expect(dialog.getByRole('heading', { name: home.title })).toBeVisible()
+    await dialog.getByRole('button', { name: home.next }).click()
+    await expect(dialog.getByRole('heading', { name: meishi.title })).toBeVisible({
+      timeout: 10_000,
+    })
+    await dialog.getByRole('button', { name: meishi.next }).click()
+    await expect(dialog.getByRole('heading', { name: lab.title })).toBeVisible({
+      timeout: 10_000,
+    })
+    await dialog.getByRole('button', { name: lab.next }).click()
+    await expect(dialog.getByRole('heading', { name: robot.title })).toBeVisible({
+      timeout: 10_000,
+    })
+    await dialog.getByRole('button', { name: robot.next }).click()
+    await expect(dialog.getByRole('heading', { name: mailbox.title })).toBeVisible({
+      timeout: 10_000,
+    })
+    await page.keyboard.press('Escape')
+    await expect(dialog).toHaveCount(0)
+    await expect(page.getByRole('status')).toContainText(
+      text.allSeen.replace('{list}', text.toList)
+    )
+    const exit = page.locator('[data-village-exit]')
+    await expect(exit).toBeFocused()
+    await expect(exit).toHaveAttribute('data-bounce', '')
   })
 
   test.describe(`A/B ボタン (${label})`, () => {

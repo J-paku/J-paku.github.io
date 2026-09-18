@@ -1,10 +1,10 @@
 // 会話モーダルと地図の開閉を持つ。開いている間は移動入力を止め、閉じる時に次の目的地や高速移動を立てる
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Dispatch, RefObject, SetStateAction } from 'react'
 import type { Cell, Direction, Spot, VillageText, World, WorldSet } from '@content/types/world'
 import type { MoveState } from '@/lib/village/movement'
 import { findPath } from '@/lib/village/path'
-import { nextSpot, type SpotRef } from '@/lib/village/spot'
+import { allSpots, nextSpot, type SpotRef } from '@/lib/village/spot'
 import { routeToWarp } from '@/lib/village/warp'
 import { writeVisited } from '@/lib/preferences'
 import type { VillageActions } from './use-village-input'
@@ -79,6 +79,10 @@ export function useVillageOverlay({
   const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // 一言を出した時点のマス。use-village がプレイヤーの現在地と比べて動いたかを判定する
   const hintCellRef = useRef<Cell | null>(null)
+  // 全ワールド通しの会話地点数。visitedRef の大きさと比べて「5 か所すべて話した」を判定する
+  const totalSpots = useMemo(() => allSpots(worldSet).length, [worldSet])
+  // 「5 か所すべて話した」の演出は一度だけ出す。再訪の度に一覧へ焦点を奪わない
+  const celebratedRef = useRef(false)
 
   // タイマー・一言・出した位置をまとめて消す
   const clearHint = useCallback(() => {
@@ -140,9 +144,22 @@ export function useVillageOverlay({
   ])
 
   const closeOverlay = useCallback(() => {
+    const wasTalk = mode === 'talk'
     lockedRef.current = false
     setMode('walk')
-  }, [lockedRef])
+    // 5 か所目の会話を閉じた瞬間だけ、一覧への案内に差し替えて焦点を移す
+    if (wasTalk && !celebratedRef.current && visitedRef.current.size === totalSpots) {
+      celebratedRef.current = true
+      setSpeech(text.allSeen.replace('{list}', text.toList))
+      // StopModal のアンマウント処理(返却先フォーカス)の後に上書きするため、次フレームまで待つ
+      window.requestAnimationFrame(() => {
+        const exit = document.querySelector<HTMLElement>('[data-village-exit]')
+        if (exit === null) return
+        exit.dataset.bounce = ''
+        exit.focus()
+      })
+    }
+  }, [lockedRef, mode, visitedRef, totalSpots, setSpeech, text])
 
   // M は開閉の切り替え。会話中は無視
   const openMap = useCallback(() => {
