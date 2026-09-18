@@ -1,5 +1,5 @@
 // 現在(ko) — jaと同じ件数・同じ日付を保つ
-import type { NowEntry } from '@/types/content'
+import type { NowEntry } from '@content/types/content'
 
 export const now: NowEntry[] = [
   {

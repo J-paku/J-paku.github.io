@@ -1,0 +1,40 @@
+/* 右下の固定リンク。変形するマップ DOM の外に置き、safe-area を避ける */
+.switch {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 50;
+  padding: 10px 16px;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: var(--ground);
+  color: var(--ink);
+  font: 600 14px/1 var(--f-label);
+  text-decoration: none;
+}
+.switch:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* 村から一覧への出口だけ色で強調する。位置を変えず、点滅や拡大は行わない */
+.exit {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  box-sizing: border-box;
+  background: #f3d784;
+  border-color: #f3d784;
+  color: #24251f;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 24%);
+}
+.exit:hover {
+  background: #ffe8a3;
+  border-color: #ffe8a3;
+}
+.exit:focus-visible {
+  outline-color: #f3d784;
+  outline-offset: 4px;
+}

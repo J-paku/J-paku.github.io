@@ -1,0 +1,248 @@
+/* 村の枠の中に重ねる。下の帯(会話窓・ミニマップ)は覆わず、その上だけを暗くする。
+   会話窓(z 3)・ミニマップ(z 4)より下に置き、人物・目印(world 層)より上に出す */
+.overlay {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  bottom: max(76px, calc(var(--minimap-h, 0px) + 16px));
+  background: rgba(10, 9, 8, 0.55);
+}
+
+/* 話しかけた物の位置から広がる。原点は枠内の px なので枠いっぱいの箱に置く */
+.pop {
+  display: flex;
+  position: absolute;
+  padding: 8px;
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+  transform-origin: var(--ax, 50%) var(--ay, 50%);
+  animation: pop 180ms ease-out;
+}
+
+/* 枠と自前のスクロール棒をまとめる箱。高さは中身なりで、枠の帯より上に収まる分だけ */
+.box {
+  display: flex;
+  position: relative;
+  width: min(100%, 480px);
+  max-height: 100%;
+  flex-direction: column;
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pop {
+    animation: none;
+  }
+}
+
+/* 狭い画面では文字と余白を詰め、同じ高さでより多く読めるようにする */
+@media (max-width: 520px) {
+  .overlay {
+    bottom: max(48px, calc(var(--minimap-h, 0px) + 12px));
+  }
+  .pop {
+    padding: 4px;
+  }
+  .panel {
+    padding: 12px 22px 0 14px;
+    font: 400 13px/1.55 var(--f-body);
+  }
+  .place {
+    font-size: 11px;
+  }
+  .title {
+    margin: 2px 0 10px;
+    font-size: 18px;
+  }
+  .rail {
+    top: 6px;
+    right: 6px;
+    bottom: 6px;
+    width: 7px;
+  }
+  .actions {
+    margin: 12px -14px 0;
+    padding: 8px 14px 12px;
+  }
+  .actions > button,
+  .actions > a {
+    min-height: 36px;
+    padding: 5px 10px;
+    font-size: 13px;
+  }
+}
+
+.panel {
+  min-height: 0;
+  flex: 1 1 auto;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  /* OS のスクロールバーは隠し、右端に自前の棒(.rail)を描く。右の余白はその棒の分 */
+  scrollbar-width: none;
+  /* 下の余白は貼り付けた操作ボタン側が持つ(sticky の基準が内容箱なので、ここに残すと隙間から本文が覗く) */
+  padding: 18px 28px 0 20px;
+  border: 3px solid #181818;
+  border-radius: 0;
+  box-shadow:
+    inset 0 0 0 2px #fff,
+    inset 0 0 0 3px #181818;
+  background: #fff;
+  color: #181818;
+  font: 400 15px/1.6 var(--f-body);
+}
+
+.panel::-webkit-scrollbar {
+  display: none;
+}
+
+/* 自前のスクロール棒。枠線の内側、右端に立てる。つまみの位置と長さは JS が割合で入れる */
+.rail {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  bottom: 8px;
+  width: 8px;
+  box-sizing: border-box;
+  border: 2px solid #181818;
+  background: #fff;
+  pointer-events: none;
+}
+
+.thumb {
+  position: absolute;
+  top: var(--thumb-top, 0%);
+  right: 0;
+  left: 0;
+  height: var(--thumb-size, 100%);
+  background: #181818;
+}
+
+.place {
+  display: block;
+  padding: 2px 0;
+  font: 500 12px/1.4 var(--f-label);
+}
+
+.title {
+  margin: 4px 0 14px;
+  font: 600 22px/1.3 var(--f-label);
+}
+
+.title:focus {
+  outline: none;
+}
+
+.claim {
+  font-weight: 700;
+}
+
+.link {
+  display: inline-block;
+  color: #181818;
+  font-weight: 700;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+/* 枠の中では本文が縦に収まらないので、操作ボタンはパネル下端に貼り付けて常に見せる */
+.actions {
+  display: flex;
+  position: sticky;
+  bottom: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 18px -20px 0;
+  padding: 10px 20px 18px;
+  background: #fff;
+}
+
+.actions > button,
+.actions > a {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 7px 12px;
+  border: 3px solid #181818;
+  border-radius: 0;
+  box-shadow:
+    inset 0 0 0 2px #fff,
+    inset 0 0 0 3px #181818;
+  background: #fff;
+  color: #181818;
+  font: 500 14px/1.4 var(--f-label);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.actions > button:focus-visible,
+.actions > a:focus-visible,
+.link:focus-visible {
+  outline: 2px solid #181818;
+  outline-offset: 2px;
+}
+
+/* 縦持ちの端末では枠が画面の半分にも満たず、枠内の箱では文字が小さく読みにくい。
+   枠を離れて画面全体に広げ、文字と余白を PC と同じ大きさに戻す。
+   上の 520px 向けの詰めより後に置き、同じ指定子で上書きする */
+@media (pointer: coarse) and (orientation: portrait) {
+  .overlay {
+    position: fixed;
+    /* 歯車(100)・四隅の導線(50)より上に出す */
+    z-index: 110;
+    inset: 0;
+    bottom: 0;
+    background: rgba(10, 9, 8, 0.7);
+  }
+  .pop {
+    padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+      max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+    /* 原点は枠内 px なので画面全体では合わない。中央から開く */
+    transform-origin: 50% 50%;
+  }
+  .box {
+    width: min(100%, 520px);
+  }
+  .panel {
+    padding: 18px 28px 0 20px;
+    font-size: 16px;
+  }
+  .place {
+    font-size: 12px;
+  }
+  .title {
+    margin: 4px 0 14px;
+    font-size: 22px;
+  }
+  .rail {
+    top: 8px;
+    right: 8px;
+    bottom: 8px;
+    width: 8px;
+  }
+  .actions {
+    margin: 18px -20px 0;
+    padding: 10px 20px 18px;
+  }
+  .actions > button,
+  .actions > a {
+    min-height: 44px;
+    padding: 7px 14px;
+    font-size: 15px;
+  }
+}

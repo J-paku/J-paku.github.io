@@ -1,0 +1,43 @@
+/* ブートローダーの見た目。舞台と同じ黒地に薄い色のロゴ。中央 → 見出し位置への移動は
+   Boot/index.tsx の script が transform を書き、ここは遷移時間と原点だけ持つ */
+#boot {
+  position: fixed;
+  inset: 0;
+  /* Navigation(50)・モーダル(20)より上。dialog(top-layer)は起動中に開かないので対象外 */
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  background: #000;
+  color: #edeae4;
+}
+/* 移動が始まったら地色を抜き、村が下から現れる */
+#boot[data-moving] {
+  background: transparent;
+  transition: background var(--motion-slow) var(--ease-reveal) 150ms;
+}
+#boot svg {
+  width: clamp(180px, 40vw, 320px);
+  height: auto;
+  /* script は左上基準で translate + scale を書く */
+  transform-origin: top left;
+  will-change: transform;
+  animation: boot-in 200ms ease-out both;
+  transition: transform 450ms var(--ease-reveal);
+}
+@keyframes boot-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #boot svg {
+    animation: none;
+    transition: none;
+  }
+  #boot[data-moving] {
+    transition: none;
+  }
+}

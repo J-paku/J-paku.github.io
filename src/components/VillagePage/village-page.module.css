@@ -1,0 +1,81 @@
+/* 村ページ。舞台(黒)を画面いっぱいに敷き、枠の外は YouTube のレターボックスと同じ黒。
+   舞台の上に載る導線(Navigation・十字キー・訪問数)はテーマに関わらず黒地用の色にするため、
+   色トークンをここで上書きする(他ページのテーマには影響しない) */
+.stage {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #000;
+  --ground: #000;
+  --surface: #171613;
+  --ink: #edeae4;
+  --ink-secondary: #cfcbc3;
+  --ink-mid: #959087;
+  color: var(--ink);
+  /* 画面全体が遊び場。台詞や訪問数を選択・ドラッグできるとゲームの見た目が壊れる */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+/* 絵はブラウザ既定のドラッグ(画像の持ち出し)を止める */
+.stage img,
+.stage svg {
+  user-drag: none;
+  -webkit-user-drag: none;
+}
+/* 見出しの箱は配置に関与しない。ロゴだけ舞台の左上へ固定する */
+.intro {
+  display: contents;
+}
+.title {
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top));
+  left: max(16px, env(safe-area-inset-left));
+  z-index: 1;
+  margin: 0;
+  line-height: 0;
+  color: var(--ink);
+}
+/* ロゴは高さで決め、幅は viewBox の比率に従う。ブートの script はこの箱の実測へ飛ばす */
+.title svg {
+  display: block;
+  height: 22px;
+  width: auto;
+}
+/* ブート中は見出しのロゴを隠し、ブートのロゴが着地した瞬間に入れ替わる。
+   script で style を書くと hydration 差分の警告になるため、#boot の有無で CSS が決める */
+.stage:has(:global(#boot)) .title svg {
+  visibility: hidden;
+}
+/* 紹介文・約束は読み上げ・検索・JS 無しのために残し、視覚的には隠す */
+.hidden {
+  position: absolute;
+  left: -9999px;
+}
+/* 作品ショートカット。視覚的には畳み、キーボードフォーカスで舞台の上に現れる */
+.shortcuts {
+  position: absolute;
+  left: -9999px;
+}
+.shortcuts:focus-within {
+  position: fixed;
+  top: 44px;
+  left: max(16px, env(safe-area-inset-left));
+  z-index: 60;
+  max-width: 640px;
+  padding: 8px 12px;
+  background: var(--surface);
+}
+.skip {
+  position: absolute;
+  left: -9999px;
+}
+.skip:focus {
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top));
+  left: max(16px, env(safe-area-inset-left));
+  z-index: 60;
+  padding: 8px 12px;
+  background: var(--surface);
+}

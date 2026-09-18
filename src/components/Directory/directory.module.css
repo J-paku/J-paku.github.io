@@ -1,0 +1,81 @@
+/*
+ * 一覧ページの骨格だけを持つ(v1 の home.module.css を継承)。左列の sticky・右列の余白は
+ * 各コンポーネント側のCSSが持ち、ここからは子孫結合子で中身に触らない。
+ * (過去にこのファイルの `.featuredList li` が カード内部の技術タグまで巻き込んだ事故がある)
+ *
+ * 数値はモノクロ版モックアップの main そのまま(400px 1fr / min-height 100vh)。
+ * 全幅で組み、列の左右余白は各列(ProfileColumn / 作品一覧)が自分で持つ。
+ */
+.layout {
+  display: grid;
+  grid-template-columns: 400px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+/*
+ * 右列の器。作品一覧と担当業務詳細を縦に積むだけで、余白・書体は各ブロックが持つ。
+ * grid の列は minmax(0, 1fr) だが、器自身も min-width: auto のままだと中身の最小幅で
+ * 押し広げられるため 0 を明示する
+ */
+.panels {
+  min-width: 0;
+}
+
+/* 作品一覧の器。余白は v1 の works-section.module.css から必要分だけ引き継ぐ */
+.works {
+  padding: 60px 80px;
+  min-width: 0;
+}
+
+/* ヘッダーバー。索引文言のみ。下に全幅のヘアライン */
+.worksHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: 72px;
+  padding-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--rule);
+}
+
+/* 索引文言。大見出しをやめ、モノのラベルとして置く(ページの h1 は左列の名前が担う) */
+.worksTitle {
+  margin: 0;
+  /* 『作品一覧』は全てCJKなので --f-mono では字送りだけ残って書体が割れる */
+  font-family: var(--f-label);
+  font-size: 0.7rem;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+/* カードの並び。.worksGrid 自身の grid プロパティに閉じ、子孫結合子でカード内部へ触らない */
+.worksGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 120px;
+}
+
+/* モックアップと同じ 1024px で1列に畳む */
+@media (max-width: 1024px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /*
+   * 1列に畳まれる幅。親(.layout)は横 padding を持たない約束なので、ここでも横余白を0にしない。
+   * 横 40px は上に積まれる左列(ProfileColumn の padding 60px 40px)と揃えた値
+   */
+  .works {
+    padding: 48px 40px 64px;
+  }
+
+  .worksHeader {
+    margin-bottom: 56px;
+  }
+
+  .worksGrid {
+    gap: 72px;
+  }
+}

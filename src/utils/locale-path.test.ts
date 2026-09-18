@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { Locale } from '@/types/content'
-import { DEFAULT_LOCALE, parseLocale, stripLocale, withLocale } from './locale-path'
+import type { Locale } from '@content/types/content'
+import { DEFAULT_LOCALE, parseLocale, stripLocale, toHref, withLocale } from './locale-path'
 
 // 仕様書 01-shell.md の表 6行 + 追加境界値
 // タプル: [入力, parseLocale期待値, stripLocale期待値, withLocale(・,'ko')期待値]
@@ -52,5 +52,17 @@ describe('locale-path', () => {
     expect(parseLocale('/KO')).toBe('ja')
     expect(stripLocale('/KO')).toBe('/KO')
     expect(withLocale('/KO', 'ko')).toBe('/ko/KO')
+  })
+})
+
+describe('toHref', () => {
+  it('末尾スラッシュ付きの locale 付与パスを返す', () => {
+    expect(toHref('/list', 'ja')).toBe('/list/')
+    expect(toHref('/list', 'ko')).toBe('/ko/list/')
+    expect(toHref('/works/meishi-cross-platform', 'ko')).toBe('/ko/works/meishi-cross-platform/')
+  })
+  it('ルートは二重スラッシュにしない', () => {
+    expect(toHref('/', 'ja')).toBe('/')
+    expect(toHref('/', 'ko')).toBe('/ko/')
   })
 })

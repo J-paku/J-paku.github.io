@@ -1,5 +1,5 @@
 // プロフィール(ko) — jaと同じ型・同じキー構成を満たす
-import type { Profile } from '@/types/content'
+import type { Profile } from '@content/types/content'
 
 export const profile: Profile = {
   name: 'J-Paku',
@@ -28,6 +28,7 @@ export const profile: Profile = {
         '회사에 전례가 없던 Swift/iOS를 도입하고 Apple Enterprise 프로그램 개설',
         '팀 표준 AI 개발 기반을 자작해 배포·정착까지 담당. AI에 맡긴 작업의 87.6%가 사람 손질 없이 완료된다',
         '설계 규약을 문서화하고 hook으로 기계 강제하는 운용으로 전환',
+        '손글씨 신청서를 로컬 LLM(Gemma 4)으로 읽는 구조를 구축 중. 개인정보를 사외로 보내지 않고, 항목별 잘라내기와 인명 사전 대조로 오독을 「요확인」으로 떨어뜨린다',
       ],
       detail: {
         overview: {
@@ -60,7 +61,8 @@ export const profile: Profile = {
           },
           {
             label: '통신량',
-            value: '납품 화면이 받던 API 응답이 220KB → 1.2KB. 서버 부하와 앱 반응 시간이 동시에 내려갔다',
+            value:
+              '납품 화면이 받던 API 응답이 220KB → 1.2KB. 서버 부하와 앱 반응 시간이 동시에 내려갔다',
           },
           {
             label: '인쇄 속도',
@@ -68,7 +70,8 @@ export const profile: Profile = {
           },
           {
             label: '장비',
-            value: 'Windows 태블릿과 세트로 쓰던 서멀 프린터째로 불필요해졌다. 180g BLE 프린터 1대로 현장이 돌아간다',
+            value:
+              'Windows 태블릿과 세트로 쓰던 서멀 프린터째로 불필요해졌다. 180g BLE 프린터 1대로 현장이 돌아간다',
           },
           {
             label: '처음',
@@ -104,6 +107,18 @@ export const profile: Profile = {
                 { label: '카메라', value: 'AVCaptureSession / Vision(사각형 검출·QR)' },
                 { label: '인쇄', value: 'SII SDK(Bluetooth 감열)' },
                 { label: '배포', value: 'Xcode Archive → In-House .ipa → MDM(Microsoft Intune)' },
+              ],
+            },
+            {
+              title: '로컬 LLM',
+              rows: [
+                { label: '모델', value: 'Gemma 4(mlx-vlm·Mac에서 실행)' },
+                {
+                  label: '전처리',
+                  value: 'poppler / Pillow / NumPy(위치 보정·항목 잘라내기·공란 판정·○ 검출)',
+                },
+                { label: '대조', value: '인명 사전 / 우편번호 데이터' },
+                { label: '학습', value: 'LoRA 추가 학습(검증 중)' },
               ],
             },
           ],
@@ -166,6 +181,12 @@ export const profile: Profile = {
               tech: ['Recharts', 'JSONL'],
               roles: ['design', 'build', 'release'],
             },
+            {
+              date: '2026.09',
+              name: '손글씨 신청서 AI 판독',
+              tech: ['Gemma 4', 'mlx-vlm', 'Python'],
+              roles: ['design', 'build'],
+            },
           ],
         },
         asides: {
@@ -187,6 +208,10 @@ export const profile: Profile = {
               title: '웹개발팀 리더',
               body: '2025.10부터. 팀원 4명 + 테스터 1명으로 웹과 iOS 양쪽을 본다.',
             },
+            {
+              title: '손글씨 신청서를 로컬 LLM으로 읽기',
+              body: '개인정보를 사외로 보낼 수 없다는 전제에서, Mac 위의 Gemma 4에 신청서를 읽히는 구조를 구축 중. A4를 통째로 주지 않고 항목별로 잘라내며, 공란은 AI에 넘기지 않는다. 답은 인명 사전·우편번호 데이터와 대조해 ok / 요확인 / 공란 셋으로 나누고, 사람은 「요확인」만 본다. 확정한 답을 학습 재료로 쌓고, 추가 학습은 미학습 신청서로 비교한 뒤 교체하는 운용까지 설계 완료.',
+            },
           ],
         },
       },
@@ -197,7 +222,15 @@ export const profile: Profile = {
       // ※입사·퇴사 월은 확인 필요
       company: '수탁개발 회사 재직(파견처 2곳)',
       period: '2022.04 - 2024.12',
-      stack: ['Nuxt.js', 'Vue.js', 'Delphi', 'Oracle', 'PostgreSQL', 'SharePoint', 'Power Automate'],
+      stack: [
+        'Nuxt.js',
+        'Vue.js',
+        'Delphi',
+        'Oracle',
+        'PostgreSQL',
+        'SharePoint',
+        'Power Automate',
+      ],
       role: '프론트엔드 / 사내 정보기반',
       assignments: [
         { period: '2023.10 - 2024.12', label: '파견처: 대형 엘리베이터 제조사 정보시스템 부문' },
@@ -223,7 +256,8 @@ export const profile: Profile = {
           },
           {
             label: '파견처',
-            value: '대형 엘리베이터 제조사(2023.10 - 2024.12)/ 대형 물류 시스템 제조사(2022.04 - 2023.09)',
+            value:
+              '대형 엘리베이터 제조사(2023.10 - 2024.12)/ 대형 물류 시스템 제조사(2022.04 - 2023.09)',
           },
         ],
         assignments: [
@@ -247,7 +281,8 @@ export const profile: Profile = {
               },
               {
                 label: '이관',
-                value: 'Oracle → PostgreSQL. SQL 방언 차이를 흡수하며 데이터 등가성을 검증해 담보했다',
+                value:
+                  'Oracle → PostgreSQL. SQL 방언 차이를 흡수하며 데이터 등가성을 검증해 담보했다',
               },
               {
                 label: '전제',
@@ -255,7 +290,8 @@ export const profile: Profile = {
               },
               {
                 label: '회귀',
-                value: '사양서가 없고 동작만이 정답이었기에, 수정이 다른 기능의 회귀를 낳기 쉬웠다. 고치기 전에 검증 수단부터 마련하는 진행 방식은 이 환경에서 몸에 붙었다.',
+                value:
+                  '사양서가 없고 동작만이 정답이었기에, 수정이 다른 기능의 회귀를 낳기 쉬웠다. 고치기 전에 검증 수단부터 마련하는 진행 방식은 이 환경에서 몸에 붙었다.',
               },
               {
                 label: '비고',

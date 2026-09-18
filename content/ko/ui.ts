@@ -1,4 +1,4 @@
-import type { UiStrings } from '@/types/content'
+import type { UiStrings } from '@content/types/content'
 
 // Header・SettingsMenu 등이 소비하는 UI 문자열(한국어)
 export const ui: UiStrings = {

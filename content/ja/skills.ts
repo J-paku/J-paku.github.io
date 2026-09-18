@@ -1,5 +1,5 @@
 // スキル(ja) — 列挙ではなく、各項目に根拠となる作品slugを紐づける
-import type { SkillCategory } from '@/types/content'
+import type { SkillCategory } from '@content/types/content'
 
 export const skills: SkillCategory[] = [
   {
@@ -31,7 +31,11 @@ export const skills: SkillCategory[] = [
         note: 'バージョンベースの楽観的ロック、touched-id単位のundo衝突検証',
       },
       { name: 'SWR(増分同期・再検証設計)', evidence: ['seatmap-demo'] },
-      { name: 'IndexedDB(オフライン永続化)', evidence: [], note: '社内アプリでスキーマv10まで運用。公開作品なし' },
+      {
+        name: 'IndexedDB(オフライン永続化)',
+        evidence: [],
+        note: '社内アプリでスキーマv10まで運用。公開作品なし',
+      },
     ],
   },
   {
