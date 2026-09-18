@@ -11,6 +11,8 @@
 .panel {
   position: relative;
   width: min(100%, 480px);
+  max-width: 100%;
+  min-width: 0;
   max-height: calc(100vh - 32px);
   box-sizing: border-box;
   padding: 18px 20px 24px;
@@ -49,16 +51,28 @@
 .mapViewport {
   max-width: 100%;
   max-height: calc(100vh - 128px);
-  overflow: auto;
+  overflow: hidden;
 }
 
+/* 地図は横にも縦にも絶対にスクロールさせない。SVG (= mapCanvas) を、幅制約と高さ制約の
+   両方を同時に満たす最大サイズまで縮める。100vh から引く 168px の内訳は
+   overlay padding(32) + panel border(6) + panel padding(42) + title 見出し(32+14=46)
+   + mapCanvas の上下 margin(40) = 168px(mapViewport の残り高さ 100vh-128px から
+   mapCanvas の margin 40px をさらに引いたもの)。
+   幅の候補は「100%(= mapViewport の残り幅)」、高さの候補は「(100vh-168px) を
+   マスの縦横比(--map-w / --map-h)で幅に換算した値」。小さい方を採用することで、
+   幅が先に詰まる縦長画面でも、高さが先に詰まる横長の低い画面でも必ず両方の上限内に収まる */
 .mapCanvas {
   position: relative;
+  width: min(100%, calc((100vh - 168px) * var(--map-w) / var(--map-h)));
+  aspect-ratio: var(--map-w) / var(--map-h);
   margin: 20px;
 }
 
 .mapCanvas > svg {
   display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .spot {
@@ -108,6 +122,14 @@
   bottom: calc(100% + 2px);
 }
 
+/* 右端に近い地点(x が幅の 66% 以上)はラベルが右へ突き出すので、右揃えへ切り替える */
+.spot[data-edge='right'] .spotLabel,
+.spot[data-edge='right'] .spotLabelAbove {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
 /* 帯(スティック・A/B)は覆わない。--band は帯の上端までの距離なので、A は次へ、
    B は閉じるとして使えるように帯の上で止まる */
 @media (pointer: coarse) and (orientation: portrait) {
@@ -115,6 +137,13 @@
     bottom: var(--band, 0px);
   }
   .panel {
-    max-height: calc(100vh - var(--band, 0px) - 32px);
+    max-height: calc(100vh - var(--band, 0px) - 128px);
+    overflow: hidden;
+  }
+  .mapViewport {
+    overflow: visible;
+  }
+  .mapCanvas {
+    width: min(100%, calc((100vh - var(--band, 0px) - 168px) * var(--map-w) / var(--map-h)));
   }
 }

@@ -59,10 +59,12 @@ function Village({
     placeNames,
     talkAt,
     talkText,
-    talkAnchor,
     talkLabel,
+    hintAt,
+    hintText,
     mode,
     setHeld,
+    scrollHeldRef,
     onKeyDown,
     onKeyUp,
     onBlur,
@@ -158,6 +160,9 @@ function Village({
                 onAction={openTalk}
               />
             ) : null}
+            {hintAt !== null && hintText !== null ? (
+              <TalkBubble text={hintText} lang={lang} at={hintAt} kind='thought' />
+            ) : null}
           </div>
           <SpeechBox text={speech} lang={lang} />
           {mode === 'talk' && activeSpot !== null ? (
@@ -169,7 +174,7 @@ function Village({
               closeLabel={text.close}
               hasNext={nextSpot(worldSet, activeSpot) !== null}
               listHref={listHref}
-              anchor={talkAnchor}
+              scrollHeldRef={scrollHeldRef}
               onNext={goNext}
               onClose={closeOverlay}
               returnTo={frameRef}
@@ -193,7 +198,6 @@ function Village({
           </div>
           <ActionButtons
             mode={mode}
-            canTalk={activeSpot !== null}
             hasNext={activeSpot !== null && nextSpot(worldSet, activeSpot) !== null}
             labels={{ a: text.buttonA, b: text.buttonB }}
             onTalk={openTalk}

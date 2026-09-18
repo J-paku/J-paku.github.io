@@ -34,8 +34,16 @@ type SpotPosition = CSSProperties & {
   '--spot-y': string
 }
 
+// mapCanvas の width/aspect-ratio を CSS の calc() から計算するためのマスの縦横比
+type MapCanvasStyle = CSSProperties & {
+  '--map-w': string
+  '--map-h': string
+}
+
 const FOCUSABLE_SELECTOR = 'button:not([disabled]), a[href]'
 const SCALE = 16
+// ラベルが右へ突き出す地点(枠の右端に近い)はラベルを右揃えへ切り替える境界(幅に対する割合)
+const RIGHT_EDGE_RATIO = 0.66
 
 export function WorldMap({
   world,
@@ -70,6 +78,13 @@ export function WorldMap({
       return
     }
 
+    // M は開閉の切り替え。地図の中でも閉じられる
+    if (event.code === 'KeyM') {
+      event.preventDefault()
+      onClose()
+      return
+    }
+
     if (event.key !== 'Tab') return
 
     const focusable = panelRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
@@ -85,6 +100,11 @@ export function WorldMap({
       event.preventDefault()
       first.focus()
     }
+  }
+
+  const mapCanvasStyle: MapCanvasStyle = {
+    '--map-w': `${world.width}`,
+    '--map-h': `${world.height}`,
   }
 
   return (
@@ -103,10 +123,7 @@ export function WorldMap({
           {closeLabel}
         </button>
         <div className={styles.mapViewport}>
-          <div
-            className={styles.mapCanvas}
-            style={{ width: world.width * SCALE, height: world.height * SCALE }}
-          >
+          <div className={styles.mapCanvas} style={mapCanvasStyle}>
             <MapSvg
               world={world}
               scale={SCALE}
@@ -117,10 +134,14 @@ export function WorldMap({
             />
             {world.spots.map((spot, index) => {
               const placeName = placeNames[spot.id]
+              // SVG が流動的に伸縮しても揃うよう、px ではなく mapCanvas に対する割合で置く
               const position: SpotPosition = {
-                '--spot-x': `${spot.cell.x * SCALE + SCALE / 2}px`,
-                '--spot-y': `${spot.cell.y * SCALE + SCALE / 2}px`,
+                '--spot-x': `${((spot.cell.x + 0.5) / world.width) * 100}%`,
+                '--spot-y': `${((spot.cell.y + 0.5) / world.height) * 100}%`,
               }
+              // 右端に近い地点はラベルが枠外へ突き出すので、右揃えに切り替える印を付ける
+              const edge =
+                (spot.cell.x + 0.5) / world.width > RIGHT_EDGE_RATIO ? 'right' : undefined
 
               return (
                 <button
@@ -129,6 +150,7 @@ export function WorldMap({
                   type='button'
                   className={styles.spot}
                   style={position}
+                  data-edge={edge}
                   aria-label={fastTravelLabel.replace('{place}', placeName)}
                   onClick={() => onTravel(spot.id)}
                 >
