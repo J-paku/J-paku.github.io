@@ -24,7 +24,7 @@ if (baseUrl === undefined) {
   process.exit(1)
 }
 
-// 経路はラウタが持つ2件だけ。消えた経路を残すと #root が生成されず検査が途中で止まる(03-pitfalls.md #11)
+// 既定は村の2経路。消えた経路を残すと 404 ページを測ることになるので、応答コードで落とす(03-pitfalls.md #11)
 const DEFAULT_PATHS = ['/', '/ko']
 const targetPaths = argPaths.length > 0 ? argPaths : DEFAULT_PATHS
 
@@ -309,11 +309,17 @@ async function main() {
         const context = await browser.newContext({ viewport: { width, height: 900 } })
         const page = await context.newPage()
         const url = new URL(targetPath, baseUrl).toString()
-        await page.goto(url, { waitUntil: 'networkidle' })
-        await page.waitForFunction(() => {
-          const root = document.querySelector('#root')
-          return root !== null && root.childElementCount > 0
-        })
+        const response = await page.goto(url, { waitUntil: 'networkidle' })
+        // 消えた経路を検査対象に残すと 404 ページを測って通ってしまう(03-pitfalls.md #11)。
+        // 静的配信は存在しない経路に 404 を返すので、応答コードで先に落とす
+        if (response === null || !response.ok()) {
+          throw new Error(
+            `${targetPath}: HTTP ${response?.status() ?? '(応答なし)'} — 経路が存在しない`
+          )
+        }
+        // 静的エクスポートは本文が HTML に入っているのでマウント待ちは不要。
+        // 村ページだけはブートの覆い(#boot)が外れるまで待つ
+        await page.waitForFunction(() => document.querySelector('#boot') === null)
         // 配信CSSの書体が載り切るまで待つ。載る前に測ると代替書体の幅で測ってしまう
         await page.evaluate(() => document.fonts.ready)
 
