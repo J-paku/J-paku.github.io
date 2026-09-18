@@ -51,10 +51,18 @@ export function TalkBubble({
       bubble.style.setProperty('--shift', `${shift}px`)
     }
 
-    clamp()
+    // 初回は土台(アンカー)がまだ transform: translate(0,0) のままなので、rAF を2回挟んで
+    // rAF側が実座標を書き込んだ後に測る(でないと世界の原点を基準に --shift を計算してしまう)
+    let raf1 = 0
+    let raf2 = 0
+    raf1 = window.requestAnimationFrame(() => {
+      raf2 = window.requestAnimationFrame(clamp)
+    })
     const settle = window.setTimeout(clamp, SETTLE_DELAY)
     window.addEventListener('resize', clamp)
     return () => {
+      window.cancelAnimationFrame(raf1)
+      window.cancelAnimationFrame(raf2)
       window.clearTimeout(settle)
       window.removeEventListener('resize', clamp)
     }

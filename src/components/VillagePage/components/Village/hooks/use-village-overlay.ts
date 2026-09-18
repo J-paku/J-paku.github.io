@@ -44,11 +44,8 @@ type UseVillageOverlay = {
   closeOverlay: () => void
   goNext: () => void
   travel: (spotId: string) => void
-  // 話せる相手がいない所で話しかけた時の一言。無ければ null(位置は use-village が生きた playerCell から作る)
+  // 話せる相手がいない所で話しかけた時の一言。無ければ null
   hintText: string | null
-  // 一言を出した時点のマス。use-village が playerCell と比べて動いたら clearHint を呼ぶ
-  hintCellRef: RefObject<Cell | null>
-  clearHint: () => void
 }
 
 export function useVillageOverlay({
@@ -77,20 +74,17 @@ export function useVillageOverlay({
   const [hintText, setHintText] = useState<string | null>(null)
   // 一言を消すタイマー。新しい一言が入ったら前の分を捨てる
   const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // 一言を出した時点のマス。use-village がプレイヤーの現在地と比べて動いたかを判定する
-  const hintCellRef = useRef<Cell | null>(null)
   // 全ワールド通しの会話地点数。visitedRef の大きさと比べて「5 か所すべて話した」を判定する
   const totalSpots = useMemo(() => allSpots(worldSet).length, [worldSet])
   // 「5 か所すべて話した」の演出は一度だけ出す。再訪の度に一覧へ焦点を奪わない
   const celebratedRef = useRef(false)
 
-  // タイマー・一言・出した位置をまとめて消す
+  // タイマーと一言をまとめて消す
   const clearHint = useCallback(() => {
     if (hintTimerRef.current !== null) {
       clearTimeout(hintTimerRef.current)
       hintTimerRef.current = null
     }
-    hintCellRef.current = null
     setHintText(null)
   }, [])
 
@@ -114,7 +108,6 @@ export function useVillageOverlay({
     if (spot === null) {
       // 話せる相手がいない所で話しかけた時は、プレイヤーの頭上に一言だけ出す
       clearHint()
-      hintCellRef.current = stateRef.current.cell
       setHintText(text.noTarget)
       hintTimerRef.current = setTimeout(() => clearHint(), HINT_DURATION)
       return
@@ -138,7 +131,6 @@ export function useVillageOverlay({
     pendingRouteRef,
     visitedRef,
     setVisited,
-    stateRef,
     text,
     clearHint,
   ])
@@ -277,7 +269,5 @@ export function useVillageOverlay({
     goNext,
     travel,
     hintText,
-    hintCellRef,
-    clearHint,
   }
 }
