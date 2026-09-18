@@ -28,6 +28,7 @@ export const profile: Profile = {
         '会社として前例のなかったSwift/iOSを導入し、Apple Enterpriseプログラムを開設',
         'チーム標準のAI開発基盤を自作し、配布・定着まで担当。AIに任せた作業の87.6%が人の手直しなしで完了する',
         '設計規約を文書化し、hookで機械的に強制する運用へ切り替え',
+        '手書き申込書をローカルLLM(Gemma 4)で読み取る仕組みを構築中。個人情報を社外へ出さず、欄ごとの切り出しと人名辞書の照合で読み違いを「要確認」に落とす',
       ],
       detail: {
         overview: {
@@ -114,6 +115,18 @@ export const profile: Profile = {
                 { label: '配布', value: 'Xcode Archive → In-House .ipa → MDM(Microsoft Intune)' },
               ],
             },
+            {
+              title: 'ローカルLLM',
+              rows: [
+                { label: 'モデル', value: 'Gemma 4(mlx-vlm・Mac上で実行)' },
+                {
+                  label: '前処理',
+                  value: 'poppler / Pillow / NumPy(位置合わせ・欄切り出し・空欄判定・○検出)',
+                },
+                { label: '照合', value: '人名辞書 / 郵便番号データ' },
+                { label: '学習', value: 'LoRA追加学習(検証中)' },
+              ],
+            },
           ],
         },
         features: {
@@ -174,6 +187,12 @@ export const profile: Profile = {
               tech: ['Recharts', 'JSONL'],
               roles: ['design', 'build', 'release'],
             },
+            {
+              date: '2026.09',
+              name: '手書き申込書のAI読み取り',
+              tech: ['Gemma 4', 'mlx-vlm', 'Python'],
+              roles: ['design', 'build'],
+            },
           ],
         },
         asides: {
@@ -194,6 +213,10 @@ export const profile: Profile = {
             {
               title: 'Web開発チームリーダー',
               body: '2025.10から。メンバー4名 + テスター1名で、WebとiOSの両方を見る。',
+            },
+            {
+              title: '手書き申込書をローカルLLMで読む',
+              body: '個人情報を社外へ出せない前提で、Mac上のGemma 4に申込書を読ませる仕組みを構築中。A4を丸ごと渡さず欄ごとに切り出し、空欄はAIに渡さない。答えは人名辞書・郵便番号データと照らして ok / 要確認 / 空欄 の3つに分け、人は「要確認」だけ見る。確定した答えを学習材料として貯め、追加学習は未学習の申込書で比べてから切り替える運用まで設計済み。',
             },
           ],
         },
