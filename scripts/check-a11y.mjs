@@ -61,12 +61,15 @@ async function auditPath(browser, targetPath) {
   await page.emulateMedia({ reducedMotion: 'reduce' })
 
   const url = new URL(targetPath, baseUrl).toString()
-  await page.goto(url, { waitUntil: 'networkidle' })
-  // React のマウント完了を実測して待つ(固定スリープではなく #root の中身が入るまで待機)
-  await page.waitForFunction(() => {
-    const root = document.querySelector('#root')
-    return root !== null && root.childElementCount > 0
-  })
+  const response = await page.goto(url, { waitUntil: 'networkidle' })
+  // 消えた経路を検査対象に残すと 404 ページを検査して通ってしまう(03-pitfalls.md #11)。
+  // 静的配信は存在しない経路に 404 を返すので、応答コードで先に落とす
+  if (response === null || !response.ok()) {
+    throw new Error(`${targetPath}: HTTP ${response?.status() ?? '(応答なし)'} — 経路が存在しない`)
+  }
+  // 静的エクスポートは本文が HTML に入っているのでマウント待ちは不要。
+  // 村ページだけはブートの覆い(#boot)が外れるまで待つ。覆いの下を検査すると隠れた状態を測ることになる
+  await page.waitForFunction(() => document.querySelector('#boot') === null)
 
   await page.addScriptTag({ content: axeSource })
 
