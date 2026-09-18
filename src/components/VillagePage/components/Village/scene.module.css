@@ -23,7 +23,8 @@
   max-width: 100%;
   overflow: hidden;
   outline: none;
-  touch-action: manipulation;
+  /* 押しっぱなしで指を動かすと歩く先が変わるので、枠の上ではブラウザのスクロールに渡さない */
+  touch-action: none;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
