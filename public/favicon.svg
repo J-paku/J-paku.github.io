@@ -1,11 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="6" fill="#17222b" />
-  <path
-    d="M20 6 V20 C20 24 17 26 13 26"
-    fill="none"
-    stroke="#ebeeec"
-    stroke-width="6"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-  />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-24.5 11.3 190.4 190.4">
+  <!-- サイトロゴ(src/components/ui/Logo/index.tsx)のマーク部分だけを切り出したファビコン。
+       角丸四角の枠 + 2x2 の座席ブロック + 下線を、地(--ground)の上に文字色(--ink)で描く -->
+  <rect x="-24.5" y="11.3" width="190.4" height="190.4" rx="34" fill="#eae7e2" />
+  <rect x="-9.3" y="26.5" width="160" height="160" rx="40" fill="none" stroke="#1a1a18" stroke-width="10" />
+  <g fill="#1a1a18">
+    <rect x="18" y="58" width="44" height="32" rx="10" />
+    <rect x="78" y="58" width="44" height="32" rx="10" />
+    <rect x="18" y="122" width="44" height="32" rx="10" />
+    <rect x="78" y="122" width="44" height="32" rx="10" />
+  </g>
+  <rect x="18" y="102" width="104" height="8" rx="4" fill="#1a1a18" opacity="0.4" />
 </svg>
