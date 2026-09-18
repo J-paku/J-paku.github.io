@@ -87,7 +87,7 @@ const readVisited = (page: Page) =>
     return JSON.parse(raw) as string[]
   }, VISITED_KEY)
 
-// 現在の部屋は下端の2マスマットから外へ出る
+// 現在の部屋は下端の1マスマットから外へ出る
 const leaveRoom = async (page: Page) => {
   await walk(page, 'ArrowDown', 3)
 }
@@ -252,15 +252,5 @@ for (const { prefix, text, settings } of JOURNEYS) {
     await check()
     await walk(page, 'ArrowRight', 2)
     await expect(page.locator('[data-village-bubble]')).toHaveCount(0)
-  })
-
-  test(`家の広い入口は右側からも入れる (${label})`, async ({ page }) => {
-    await openVillage(page, prefix)
-    await leaveRoom(page)
-    await walk(page, 'ArrowRight', 1)
-    await walk(page, 'ArrowUp', 1)
-    expect(await readCell(page)).toEqual({ worldId: 'room', cell: { x: 5, y: 6 } })
-    await walk(page, 'ArrowDown', 1)
-    expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 14, y: 12 } })
   })
 }
