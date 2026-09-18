@@ -16,7 +16,7 @@ import { chromium } from 'playwright'
 
 const argv = process.argv.slice(2)
 const isVerbose = argv.includes('--verbose')
-const positional = argv.filter((arg) => !arg.startsWith('--'))
+const positional = argv.filter(arg => !arg.startsWith('--'))
 const [baseUrl, ...argPaths] = positional
 
 if (baseUrl === undefined) {
@@ -36,7 +36,7 @@ const WIDTHS = [320, 360, 375, 390, 414, 430]
 function countFontsForLang(lang) {
   try {
     const output = execSync(`fc-list :lang=${lang}`, { encoding: 'utf-8' })
-    return output.split('\n').filter((line) => line.trim() !== '').length
+    return output.split('\n').filter(line => line.trim() !== '').length
   } catch {
     return 0
   }
@@ -48,7 +48,7 @@ const koFontCount = countFontsForLang('ko')
 if (jaFontCount === 0 || koFontCount === 0) {
   console.error(
     `check-ja-linebreak: CJKフォントが見つからない(ja=${jaFontCount}件, ko=${koFontCount}件)。` +
-      '幅測定が偽ってPASSになるため中止する(03-pitfalls.md #5)',
+      '幅測定が偽ってPASSになるため中止する(03-pitfalls.md #5)'
   )
   process.exit(1)
 }
@@ -72,7 +72,7 @@ async function measurePage(page) {
 
     // 直下のテキストノードだけを対象にする。子要素(バッジ等)は別の行箱なのでここでは測らない。
     // 子要素と <wbr> の位置は「切れてよい場所」として記録する
-    const collect = (element) => {
+    const collect = element => {
       const chars = []
       const allowedBreaks = new Set()
       for (const node of element.childNodes) {
@@ -102,7 +102,7 @@ async function measurePage(page) {
       if (style.display === 'none' || style.visibility === 'hidden') continue
 
       const { chars, allowedBreaks } = collect(element)
-      const visible = chars.filter((entry) => !/\s/.test(entry.char))
+      const visible = chars.filter(entry => !/\s/.test(entry.char))
       if (visible.length < 4) continue
 
       // 1文字ずつ矩形を取り、top が変わったところが改行位置
@@ -135,18 +135,24 @@ async function measurePage(page) {
       // UAX #14 が定める改行機会はそのまま残る。そこで切れるのは日本語として自然なので、
       // 前後の両方が文字(かな・漢字・ラテン・数字)である切れ目だけを違反とする。
       // ここを「<wbr> 以外は全部違反」にすると、正常な組版まで NG になって検査が使えなくなる
-      const isLetter = (char) => char !== undefined && /[\p{L}\p{N}]/u.test(char)
+      const isLetter = char => char !== undefined && /[\p{L}\p{N}]/u.test(char)
 
       // 切れ目を含む文節の綴りを取り出す。境界は allowedBreaks(=<wbr>・要素・空白)
       const boundaries = [0, ...[...allowedBreaks].sort((a, b) => a - b), chars.length]
-      const chunkAround = (position) => {
+      const chunkAround = position => {
         let start = 0
         let end = chars.length
         for (const boundary of boundaries) {
           if (boundary <= position) start = boundary
-          if (boundary > position) { end = boundary; break }
+          if (boundary > position) {
+            end = boundary
+            break
+          }
         }
-        return chars.slice(start, end).map((entry) => entry.char).join('')
+        return chars
+          .slice(start, end)
+          .map(entry => entry.char)
+          .join('')
       }
 
       // word-break: normal は「狭い幅では文節組版だと行末が凸凹になる」ため意図的に離脱した
@@ -163,7 +169,8 @@ async function measurePage(page) {
           parseFloat(elementStyle.paddingLeft) -
           parseFloat(elementStyle.paddingRight)
         const ruler = document.createElement('span')
-        ruler.style.cssText = 'position:absolute;white-space:pre;visibility:hidden;top:-9999px;left:-9999px'
+        ruler.style.cssText =
+          'position:absolute;white-space:pre;visibility:hidden;top:-9999px;left:-9999px'
         // font 一括指定は line-height などが絡むと空文字になることがあり、
         // その場合ルーラーが既定書体(16px)で測ってしまい文節幅を大幅に過小評価する(実測)。
         // 個別プロパティで写す
@@ -180,7 +187,7 @@ async function measurePage(page) {
           ruler.style[property] = elementStyle[property]
         }
         document.body.appendChild(ruler)
-        const widthOf = (text) => {
+        const widthOf = text => {
           ruler.textContent = text
           return ruler.getBoundingClientRect().width
         }
@@ -195,7 +202,9 @@ async function measurePage(page) {
           const chunk = chunkAround(startIndex - 1)
           const label = `…${lines[index - 1].text.slice(-4)} / ${lines[index].text.slice(0, 4)}…`
           if (widthOf(chunk) > contentWidth) {
-            forcedBreaks.push(`${label} (語幅${Math.round(widthOf(chunk))}px > 枠${Math.round(contentWidth)}px)`)
+            forcedBreaks.push(
+              `${label} (語幅${Math.round(widthOf(chunk))}px > 枠${Math.round(contentWidth)}px)`
+            )
           } else {
             badBreaks.push(label)
           }
@@ -220,7 +229,7 @@ async function measurePage(page) {
 
       results.push({
         selector,
-        lines: lines.map((line) => line.text),
+        lines: lines.map(line => line.text),
         badBreaks,
         kinsokuStart,
         kinsokuEnd,
@@ -256,7 +265,9 @@ async function main() {
     for (const [property, expected] of Object.entries(EXPECTED_STYLE)) {
       if (style[property] !== expected) {
         failures += 1
-        console.error(`[NG] ${label}: body の ${property} が "${style[property]}"、期待は "${expected}"`)
+        console.error(
+          `[NG] ${label}: body の ${property} が "${style[property]}"、期待は "${expected}"`
+        )
       }
     }
 
@@ -312,7 +323,9 @@ async function main() {
         // 左列の経歴トリガーを1つずつ開き、その都度計測する。経歴どうしは排他
         // (1つ開くと前の状態は消える)なので、開いてから毎回そのまま計測すればよい。
         // トリガーが無い経路(作品ストーリーページ等)はループが空になり、従来どおり初期状態のみになる
-        const careerTriggers = await page.$$('button[aria-controls="panel-career"]:not([role="tab"])')
+        const careerTriggers = await page.$$(
+          'button[aria-controls="panel-career"]:not([role="tab"])'
+        )
         for (const [index, trigger] of careerTriggers.entries()) {
           await trigger.click()
           await page.waitForFunction(() => {
@@ -331,7 +344,7 @@ async function main() {
 
   console.log(
     `check-ja-linebreak: ${targetPaths.length}経路 × ${WIDTHS.length}幅、` +
-      `延べ${measuredElements}要素を測定。不可避の語中改行 ${forcedCount}件 / 孤立行 ${orphanCount}件`,
+      `延べ${measuredElements}要素を測定。不可避の語中改行 ${forcedCount}件 / 孤立行 ${orphanCount}件`
   )
 
   if (failures > 0) {
@@ -341,7 +354,7 @@ async function main() {
   console.log('check-ja-linebreak: 文節途中の改行・禁則違反ともに 0件')
 }
 
-main().catch((error) => {
+main().catch(error => {
   console.error(error)
   process.exit(1)
 })
