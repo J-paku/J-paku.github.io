@@ -1,0 +1,3 @@
+/* トークンと基底スタイルは v1 のファイルをそのまま束ねる。マップ用の色は Task 6 で追加する */
+@import '../styles/tokens.css';
+@import '../styles/global.css';
