@@ -28,6 +28,7 @@ export const profile: Profile = {
         '회사에 전례가 없던 Swift/iOS를 도입하고 Apple Enterprise 프로그램 개설',
         '팀 표준 AI 개발 기반을 자작해 배포·정착까지 담당. AI에 맡긴 작업의 87.6%가 사람 손질 없이 완료된다',
         '설계 규약을 문서화하고 hook으로 기계 강제하는 운용으로 전환',
+        '손글씨 신청서를 로컬 LLM(Gemma 4)으로 읽는 구조를 구축 중. 개인정보를 사외로 보내지 않고, 항목별 잘라내기와 인명 사전 대조로 오독을 「요확인」으로 떨어뜨린다',
       ],
       detail: {
         overview: {
@@ -108,6 +109,18 @@ export const profile: Profile = {
                 { label: '배포', value: 'Xcode Archive → In-House .ipa → MDM(Microsoft Intune)' },
               ],
             },
+            {
+              title: '로컬 LLM',
+              rows: [
+                { label: '모델', value: 'Gemma 4(mlx-vlm·Mac에서 실행)' },
+                {
+                  label: '전처리',
+                  value: 'poppler / Pillow / NumPy(위치 보정·항목 잘라내기·공란 판정·○ 검출)',
+                },
+                { label: '대조', value: '인명 사전 / 우편번호 데이터' },
+                { label: '학습', value: 'LoRA 추가 학습(검증 중)' },
+              ],
+            },
           ],
         },
         features: {
@@ -168,6 +181,12 @@ export const profile: Profile = {
               tech: ['Recharts', 'JSONL'],
               roles: ['design', 'build', 'release'],
             },
+            {
+              date: '2026.09',
+              name: '손글씨 신청서 AI 판독',
+              tech: ['Gemma 4', 'mlx-vlm', 'Python'],
+              roles: ['design', 'build'],
+            },
           ],
         },
         asides: {
@@ -188,6 +207,10 @@ export const profile: Profile = {
             {
               title: '웹개발팀 리더',
               body: '2025.10부터. 팀원 4명 + 테스터 1명으로 웹과 iOS 양쪽을 본다.',
+            },
+            {
+              title: '손글씨 신청서를 로컬 LLM으로 읽기',
+              body: '개인정보를 사외로 보낼 수 없다는 전제에서, Mac 위의 Gemma 4에 신청서를 읽히는 구조를 구축 중. A4를 통째로 주지 않고 항목별로 잘라내며, 공란은 AI에 넘기지 않는다. 답은 인명 사전·우편번호 데이터와 대조해 ok / 요확인 / 공란 셋으로 나누고, 사람은 「요확인」만 본다. 확정한 답을 학습 재료로 쌓고, 추가 학습은 미학습 신청서로 비교한 뒤 교체하는 운용까지 설계 완료.',
             },
           ],
         },
