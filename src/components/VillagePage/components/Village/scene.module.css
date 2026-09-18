@@ -1,0 +1,182 @@
+/* マップはスプライトシート1枚を --i 番目で切り出したマスを絶対配置で敷く */
+/* マス寸法はここで決め、マップ枠・スプライト・会話窓がすべて参照する */
+.root {
+  /* JS 前・JS 無しの既定値。useStageScale が舞台の実測で整数 px に上書きする。
+     小数だと隣り合うスプライトの継ぎ目に 1px の隙間が出る(iPhone 実測)ので round(down) */
+  --cell: clamp(16px, round(down, calc((100vw - 32px) / var(--cols)), 1px), 64px);
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+/* 枠と操作帯の箱。横持ちの操作帯(absolute)はこの箱を基準に枠の上辺へ重なる */
+.screen {
+  position: relative;
+  width: calc(var(--cell) * var(--cols));
+  max-width: 100%;
+}
+/* 表示枠(--cols × --rows = 10×9)。カメラで動く .world をここで切り取る */
+.frame {
+  position: relative;
+  width: calc(var(--cell) * var(--cols));
+  height: calc(var(--cell) * var(--rows));
+  max-width: 100%;
+  overflow: hidden;
+  outline: none;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+/* 枠が舞台の端まで来ても見えるよう、フォーカス輪は内側に描く */
+.frame:focus-visible {
+  box-shadow: inset 0 0 0 3px var(--ink);
+}
+/* ワールド全体を持つ層。幅・高さと初期位置はワールドの大きさから JSX が直接入れる */
+.world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform;
+}
+/* シートは横1列なので、--i 番目だけを背景位置で見せる。
+   background-image(400KB 超の data URI)は Village が <style> の規則 1 本で当てる。
+   カスタムプロパティ経由にすると要素ごとに URI を再解析し、町の 684 要素で約 1 秒止まる(実測) */
+.sprite {
+  position: absolute;
+  width: var(--cell);
+  height: var(--cell);
+  background-position: calc(var(--cell) * var(--i) * -1) 0;
+  background-repeat: no-repeat;
+  background-size: calc(var(--cell) * var(--count)) var(--cell);
+  image-rendering: pixelated;
+}
+.marker {
+  z-index: 1;
+}
+/* 明るい輪郭を常に付け、草や屋根の上でも人物が沈まないようにする */
+.player {
+  top: 0;
+  left: 0;
+  z-index: 2;
+  transform-origin: center;
+  will-change: transform;
+  filter: drop-shadow(1px 0 0 #fff) drop-shadow(-1px 0 0 #fff) drop-shadow(0 1px 0 #fff)
+    drop-shadow(0 -1px 0 #fff);
+}
+/* ワープ後の読み込み中の覆い。枠全体を黒で覆い、中央で点 3 つが順に点滅する。
+   data-show は useWalkLoop が DOM 直接で付け外しする(React は描画中で state を使えない) */
+.loading {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--cell) / 4);
+  background: #000;
+  pointer-events: none;
+}
+.loading[data-show] {
+  display: flex;
+}
+.loading > span {
+  width: calc(var(--cell) / 4);
+  height: calc(var(--cell) / 4);
+  background: #f8f8f8;
+  animation: loading-blink 0.9s steps(1) infinite;
+}
+.loading > span:nth-child(2) {
+  animation-delay: 0.3s;
+}
+.loading > span:nth-child(3) {
+  animation-delay: 0.6s;
+}
+@keyframes loading-blink {
+  0%,
+  33% {
+    opacity: 1;
+  }
+  34%,
+  100% {
+    opacity: 0.25;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loading > span {
+    animation: none;
+  }
+}
+/* 目印。プレイヤーと同じ位置へ JS が transform を書き、CSS で 1 マス弱だけ持ち上げる */
+.locator {
+  position: absolute;
+  top: calc(var(--cell) * -0.75);
+  left: 0;
+  z-index: 2;
+  width: var(--cell);
+  height: var(--cell);
+  pointer-events: none;
+  will-change: transform;
+}
+.locatorSprite {
+  top: 0;
+  left: 0;
+}
+/* 跳ねるのは目印だけ。動きを控える設定では静止させる */
+@media (prefers-reduced-motion: no-preference) {
+  .locatorSprite {
+    animation: locator-bob 0.6s infinite;
+  }
+}
+@keyframes locator-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+/* 操作帯。PC(マウス)は非表示、縦持ちは枠の下の黒帯、横持ちは枠の上辺に重ねる。
+   左に十字キー・右にスティックを置く。
+   帯の高さは --cell に依存させない(useStageScale が帯の高さを差し引くため、循環すると振動する) */
+.controls {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+@media (pointer: coarse) and (orientation: portrait) {
+  .controls {
+    display: flex;
+    padding: 12px 8px max(12px, env(safe-area-inset-bottom));
+  }
+}
+/* 横持ちは枠の上辺に重ねる。右下はミニマップ、下辺は会話窓が使うため、空いている上辺を取る。
+   帯の空き部分でタップ移動を妨げないよう、当たり判定は十字キーとスティックだけに戻す */
+@media (pointer: coarse) and (orientation: landscape) {
+  .controls {
+    display: flex;
+    position: absolute;
+    top: max(8px, env(safe-area-inset-top));
+    right: max(8px, env(safe-area-inset-right));
+    left: max(8px, env(safe-area-inset-left));
+    z-index: 3;
+    opacity: 0.85;
+    pointer-events: none;
+  }
+  .controls > * {
+    pointer-events: auto;
+  }
+}
+/* スティックはタッチ専用。物理ポインタではキーと十字キーで足りる */
+.joystick {
+  display: flex;
+  flex: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .joystick {
+    display: none;
+  }
+}

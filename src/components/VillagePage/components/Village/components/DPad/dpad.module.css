@@ -1,0 +1,50 @@
+.dpad {
+  display: grid;
+  grid-template-columns: repeat(3, 44px);
+  grid-template-rows: repeat(2, 44px);
+  justify-content: center;
+}
+
+.button {
+  display: grid;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  place-items: center;
+  border: 2px solid var(--ink);
+  background: var(--ground);
+  color: var(--ink);
+  font: 500 16px/1 var(--f-label);
+  touch-action: none;
+  /* iOS: 長押しで文字選択・コールアウトが出ると pointercancel が飛び、押しっぱなしが切れる */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+
+.button:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.up {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.left {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.down {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.right {
+  grid-column: 3;
+  grid-row: 2;
+}
