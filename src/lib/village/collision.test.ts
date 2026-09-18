@@ -10,7 +10,7 @@ const world: World = {
   start: { x: 0, y: 3 },
   startFacing: 'up',
   tiles: [
-    ['grass', 'grass', 'grass', 'water', 'tree-tl'],
+    ['grass', 'grass', 'grass', 'water', 'tree'],
     ['grass', 'grass', 'grass', 'grass', 'flower'],
     ['grass', 'grass', 'grass', 'grass', 'fence'],
     ['path', 'path', 'plaza', 'plaza', 'grass-alt'],
@@ -68,7 +68,7 @@ describe('isWalkable', () => {
     expect(isWalkable(room, { x: 7, y: 4 })).toBe(true)
     expect(isWalkable(room, { x: 0, y: 0 })).toBe(false)
   })
-  it('water / tree-tl / fence は不可', () => {
+  it('water / tree / fence は不可', () => {
     expect(isWalkable(world, { x: 3, y: 0 })).toBe(false)
     expect(isWalkable(world, { x: 4, y: 0 })).toBe(false)
     expect(isWalkable(world, { x: 4, y: 2 })).toBe(false)

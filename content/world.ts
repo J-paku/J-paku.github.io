@@ -1,13 +1,13 @@
 // 村 = 屋内(自分の部屋)+ 屋外(町)の 2 ワールド。座標は左上原点の整数マス、tiles[y][x]。
 // 構造物は tiles の上に重ねて描くので、その下の tiles は地面(grass / floor)にしておく。
-// 部屋の下端のマット(2 マス)に乗ると町の自宅前へ、町の自宅の扉は部屋のマット手前へと双方向に行き来できる。自宅は町の中央
+// 部屋の下端のマット(1 マス)に乗ると町の自宅前へ、町の自宅の扉は部屋のマット手前へと双方向に行き来できる。自宅は町の中央
 import type { Tile, World, WorldSet } from '@content/types/world'
 
 const N = 'wall' as const
 const L = 'floor' as const
 const M = 'mat' as const
 
-// 自分の部屋(10×8)。上 2 行は壁。下端 (4,7)(5,7) のマットが出口。PC 机の前 (4,4) が「自宅」地点
+// 自分の部屋(10×8)。上 2 行は壁。下端 (4,7) のマットが出口。PC 机の前 (4,4) が「自宅」地点
 export const room: World = {
   id: 'room',
   kind: 'interior',
@@ -23,7 +23,7 @@ export const room: World = {
     [L, L, L, L, L, L, L, L, L, L],
     [L, L, L, L, L, L, L, L, L, L],
     [L, L, L, L, L, L, L, L, L, L],
-    [L, L, L, L, M, M, L, L, L, L],
+    [L, L, L, L, M, L, L, L, L, L],
   ],
   structures: [
     { id: 'desk', kind: 'desk', cell: { x: 3, y: 2 } },
@@ -31,23 +31,18 @@ export const room: World = {
     { id: 'table', kind: 'table', cell: { x: 6, y: 5 } },
   ],
   spots: [{ id: 'home', structureId: 'desk', cell: { x: 4, y: 4 }, facing: 'up', order: 1 }],
-  // マットは 2 マスともワープ。どちらに乗っても町の自宅前へ出る
+  // マットは 1 マス。乗ると町の自宅前へ出る
   warps: [
     {
-      id: 'exit-l',
+      id: 'exit',
       cell: { x: 4, y: 7 },
-      target: { worldId: 'town', cell: { x: 14, y: 12 }, facing: 'down' },
-    },
-    {
-      id: 'exit-r',
-      cell: { x: 5, y: 7 },
       target: { worldId: 'town', cell: { x: 14, y: 12 }, facing: 'down' },
     },
   ],
 }
 
 // 町の地面は1文字=2×2マスのブロックで書く。15×10ブロックがそのまま30×20マスになる
-const T = 'T' as const // 木1本(tree-tl/tr/bl/br の4分割)
+const T = 'T' as const // 木の壁(1マス=1本の木を4個並べる)
 const G = 'G' as const // 草4マス
 const g = 'g' as const // 草の市松(grass と grass-alt を交互に)
 const P = 'P' as const // 道4マス
@@ -58,7 +53,7 @@ type Block = typeof T | typeof G | typeof g | typeof P | typeof W | typeof S | t
 
 // ブロック 1 つ分の 2×2パターン。並びは [左上, 右上, 左下, 右下]
 const BLOCK_TILES: Record<Block, readonly [Tile, Tile, Tile, Tile]> = {
-  T: ['tree-tl', 'tree-tr', 'tree-bl', 'tree-br'],
+  T: ['tree', 'tree', 'tree', 'tree'],
   G: ['grass', 'grass', 'grass', 'grass'],
   g: ['grass', 'grass-alt', 'grass-alt', 'grass'],
   P: ['path', 'path', 'path', 'path'],
@@ -103,31 +98,28 @@ export const town: World = {
       id: 'home',
       kind: 'house',
       roof: 'red',
-      area: { x: 12, y: 8, w: 6, h: 4 },
-      solid: { x: 12, y: 10, w: 6, h: 2 },
+      area: { x: 13, y: 9, w: 4, h: 3 },
+      solid: { x: 13, y: 11, w: 4, h: 1 },
       doorX: 14,
-      doorWidth: 2,
     },
     {
       id: 'meishi',
       kind: 'house',
       roof: 'red',
-      area: { x: 4, y: 2, w: 6, h: 4 },
-      solid: { x: 4, y: 4, w: 6, h: 2 },
+      area: { x: 4, y: 3, w: 4, h: 3 },
+      solid: { x: 4, y: 5, w: 4, h: 1 },
       doorX: 6,
-      doorWidth: 2,
     },
     {
       id: 'lab',
       kind: 'house',
       roof: 'blue',
-      area: { x: 20, y: 2, w: 8, h: 4 },
-      solid: { x: 20, y: 4, w: 8, h: 2 },
+      area: { x: 21, y: 3, w: 5, h: 3 },
+      solid: { x: 21, y: 5, w: 5, h: 1 },
       doorX: 23,
-      doorWidth: 2,
     },
-    { id: 'bench', kind: 'bench', cell: { x: 6, y: 15 }, scale: 2 },
-    { id: 'fountain', kind: 'fountain', cell: { x: 24, y: 16 }, scale: 2 },
+    { id: 'bench', kind: 'bench', cell: { x: 7, y: 15 } },
+    { id: 'fountain', kind: 'fountain', cell: { x: 24, y: 16 } },
   ],
   spots: [
     { id: 'meishi', structureId: 'meishi', cell: { x: 6, y: 6 }, facing: 'up', order: 2 },
@@ -140,11 +132,6 @@ export const town: World = {
       id: 'home',
       cell: { x: 14, y: 11 },
       target: { worldId: 'room', cell: { x: 4, y: 6 }, facing: 'up' },
-    },
-    {
-      id: 'home-right',
-      cell: { x: 15, y: 11 },
-      target: { worldId: 'room', cell: { x: 5, y: 6 }, facing: 'up' },
     },
   ],
 }

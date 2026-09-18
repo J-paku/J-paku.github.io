@@ -4,7 +4,7 @@
 export type Direction = 'up' | 'down' | 'left' | 'right'
 export type Cell = { x: number; y: number }
 export type Rect = { x: number; y: number; w: number; h: number }
-// 屋外: 通行可 grass / grass-alt / path / plaza / flower、不可 water / tree-*(2×2の木を4分割) / fence
+// 屋外: 通行可 grass / grass-alt / path / plaza / flower、不可 water / tree(1マス) / fence
 // 屋内: 通行可 floor / mat、不可 wall / doorway(doorway は壁の扉。ぶつかるとワープ)
 export type Tile =
   | 'grass'
@@ -13,10 +13,7 @@ export type Tile =
   | 'water'
   | 'plaza'
   | 'flower'
-  | 'tree-tl'
-  | 'tree-tr'
-  | 'tree-bl'
-  | 'tree-br'
+  | 'tree'
   | 'fence'
   | 'floor'
   | 'wall'

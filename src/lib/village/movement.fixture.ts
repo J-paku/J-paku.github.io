@@ -11,7 +11,7 @@ export const world: World = {
   tiles: [
     ['grass', 'grass', 'grass'],
     ['grass', 'grass', 'water'],
-    ['grass', 'tree-tl', 'grass'],
+    ['grass', 'tree', 'grass'],
   ],
   structures: [],
   spots: [],
