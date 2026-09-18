@@ -254,4 +254,87 @@ for (const { prefix, text, settings } of JOURNEYS) {
     await walk(page, 'ArrowRight', 2)
     await expect(page.locator('[data-village-bubble]')).toHaveCount(0)
   })
+
+  test(`次へボタンで名刺工房まで自動で歩き、着いたら会話が開く (${label})`, async ({ page }) => {
+    await openVillage(page, prefix)
+    await page.keyboard.press('e')
+    const dialog = page.getByRole('dialog')
+    await expect(dialog.getByRole('heading', { name: home.title })).toBeVisible()
+    await dialog.getByRole('button', { name: home.next }).click()
+    // 部屋の中 3 マス + 扉 + 町 14 マスを 128ms/マスで自動歩行してから会話窓が開く
+    await expect(dialog.getByRole('heading', { name: meishi.title })).toBeVisible({
+      timeout: 10_000,
+    })
+    expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 6, y: 6 } })
+  })
+
+  test(`途中で歩くと自動の会話は開かない (${label})`, async ({ page }) => {
+    await openVillage(page, prefix)
+    await page.keyboard.press('e')
+    const dialog = page.getByRole('dialog')
+    await expect(dialog.getByRole('heading', { name: home.title })).toBeVisible()
+    await dialog.getByRole('button', { name: home.next }).click()
+    // 部屋の中(3 マス分の途中)で割り込む
+    await page.waitForTimeout(150)
+    await page.keyboard.down('ArrowRight')
+    await page.waitForTimeout(150)
+    await page.keyboard.up('ArrowRight')
+    await page.waitForTimeout(3_000)
+    await expect(dialog).toHaveCount(0)
+    expect((await readCell(page))?.worldId).toBe('room')
+  })
+
+  test.describe(`A/B ボタン (${label})`, () => {
+    test.use({ viewport: { width: 390, height: 664 }, isMobile: true, hasTouch: true })
+
+    test(`A で会話を開き、B で閉じ、次へで名刺工房まで進む`, async ({ page }) => {
+      await openVillage(page, prefix)
+      const dialog = page.getByRole('dialog')
+      await page.getByRole('button', { name: text.buttonA }).tap()
+      await expect(dialog.getByRole('heading', { name: home.title })).toBeVisible()
+      await page.getByRole('button', { name: text.buttonB }).tap()
+      await expect(dialog).toHaveCount(0)
+      await page.getByRole('button', { name: text.buttonA }).tap()
+      await expect(dialog.getByRole('heading', { name: home.title })).toBeVisible()
+      // モーダルが開いている間の A は次へボタンと同じ
+      await page.getByRole('button', { name: text.buttonA }).tap()
+      await expect(dialog.getByRole('heading', { name: meishi.title })).toBeVisible({
+        timeout: 10_000,
+      })
+      await page.getByRole('button', { name: text.buttonB }).tap()
+      await expect(dialog).toHaveCount(0)
+    })
+  })
+
+  test(`押しっぱなしで指を動かすと歩く先が変わる (${label})`, async ({ page }) => {
+    await openVillage(page, prefix)
+    const frame = await page.locator('[data-village]').boundingBox()
+    if (frame === null) throw new Error('[data-village] が描かれていない')
+    const cell = frame.width / 10
+    // 部屋 10×8 は枠(10×9)に収まる。カメラ原点は人物(4,4)の画面位置から逆算する
+    const player = await page.locator('[data-village-player]').boundingBox()
+    if (player === null) throw new Error('[data-village-player] が描かれていない')
+    const originX = 4 - (player.x - frame.x) / cell
+    const originY = 4 - (player.y - frame.y) / cell
+    const at = (x: number, y: number) => ({
+      x: frame.x + (x - originX + 0.5) * cell,
+      y: frame.y + (y - originY + 0.5) * cell,
+    })
+    // 押したまま動かす → 動かした先(最後にポインタがあったマス)へ着く
+    const a = at(8, 4)
+    await page.mouse.move(a.x, a.y)
+    await page.mouse.down()
+    await page.waitForTimeout(700)
+    const b = at(8, 6)
+    await page.mouse.move(b.x, b.y, { steps: 3 })
+    await page.waitForTimeout(1_500)
+    await page.mouse.up()
+    await page.waitForTimeout(400)
+    expect(await readCell(page)).toEqual({ worldId: 'room', cell: { x: 8, y: 6 } })
+    // 短いタップは今まで通り歩く
+    const c = at(4, 4)
+    await page.mouse.click(c.x, c.y)
+    await page.waitForTimeout(2_500)
+    expect(await readCell(page)).toEqual({ worldId: 'room', cell: { x: 4, y: 4 } })
+  })
 }
