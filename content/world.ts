@@ -118,14 +118,14 @@ export const town: World = {
       solid: { x: 21, y: 5, w: 5, h: 1 },
       doorX: 23,
     },
-    { id: 'bench', kind: 'bench', cell: { x: 7, y: 15 } },
-    { id: 'fountain', kind: 'fountain', cell: { x: 24, y: 16 } },
+    { id: 'robot', kind: 'robot', cell: { x: 8, y: 15 } },
+    { id: 'mailbox', kind: 'mailbox', cell: { x: 24, y: 16 } },
   ],
   spots: [
     { id: 'meishi', structureId: 'meishi', cell: { x: 6, y: 6 }, facing: 'up', order: 2 },
     { id: 'lab', structureId: 'lab', cell: { x: 23, y: 6 }, facing: 'up', order: 3 },
-    { id: 'bench', structureId: 'bench', cell: { x: 8, y: 14 }, facing: 'down', order: 4 },
-    { id: 'plaza', structureId: 'fountain', cell: { x: 24, y: 15 }, facing: 'down', order: 5 },
+    { id: 'robot', structureId: 'robot', cell: { x: 8, y: 14 }, facing: 'down', order: 4 },
+    { id: 'mailbox', structureId: 'mailbox', cell: { x: 24, y: 15 }, facing: 'down', order: 5 },
   ],
   warps: [
     {

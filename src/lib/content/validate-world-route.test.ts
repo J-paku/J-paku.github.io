@@ -43,7 +43,7 @@ describe('validateWorldSet (順番・到達・ワープ)', () => {
       height: 4,
       start: { x: 0, y: 0 },
       tiles: [rowOf(true), rowOf(true), rowOf(false), rowOf(false)],
-      structures: [{ id: 'b1', kind: 'bench', cell: { x: 18, y: 3 } }],
+      structures: [{ id: 'b1', kind: 'robot', cell: { x: 18, y: 3 } }],
       spots: [{ id: 's1', structureId: 'b1', cell: { x: 19, y: 0 }, facing: 'down', order: 1 }],
     })
     expect(

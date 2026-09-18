@@ -39,8 +39,8 @@ const town: World = {
     ['path', 'path', 'path'],
   ],
   structures: [
-    { id: 'f', kind: 'fountain', cell: { x: 1, y: 0 } },
-    { id: 'b', kind: 'bench', cell: { x: 0, y: 2 } },
+    { id: 'f', kind: 'mailbox', cell: { x: 1, y: 0 } },
+    { id: 'b', kind: 'robot', cell: { x: 0, y: 2 } },
   ],
   // 定義の並びを order と逆にして、並べ替えが効いているか見る
   spots: [
@@ -99,17 +99,17 @@ describe('spotAt (全方向)', () => {
     start: { x: 4, y: 2 },
     startFacing: 'down',
     tiles: Array.from({ length: 8 }, () => Array(10).fill('grass')),
-    structures: [{ id: 'b', kind: 'bench', cell: { x: 3, y: 3 }, scale: 2 }],
-    spots: [{ id: 'bench', structureId: 'b', cell: { x: 4, y: 2 }, facing: 'down', order: 1 }],
+    structures: [{ id: 't', kind: 'table', cell: { x: 3, y: 3 } }],
+    spots: [{ id: 'table', structureId: 't', cell: { x: 4, y: 2 }, facing: 'down', order: 1 }],
     warps: [],
   }
   it.each([
     { x: 3, y: 2 },
-    { x: 5, y: 5 },
+    { x: 4, y: 5 },
     { x: 2, y: 3 },
-    { x: 7, y: 4 },
+    { x: 5, y: 4 },
   ])('四辺の通路から話せる: %o', cell => {
-    expect(spotAt(field, cell)?.id).toBe('bench')
+    expect(spotAt(field, cell)?.id).toBe('table')
   })
   it.each([
     { x: 2, y: 2 },

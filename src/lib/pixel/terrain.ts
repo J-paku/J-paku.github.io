@@ -14,7 +14,7 @@ const grassPart: PixelArt = [
   'gggggggg',
 ]
 
-// 石畳は8×8の石1個。1マスには compose で2×2=4個並べ、敷石らしく見せる
+// 石畳は8×8の石1個。上下左右反転して16×16の1個の敷石に組み立てる
 const pathPart: PixelArt = [
   'PPPPPPPP',
   'Pppppppp',
@@ -241,7 +241,7 @@ export const terrainArt: Record<Tile, PixelArt> = {
     mirrorX(grassPart),
     mirrorY(mirrorX(grassPart))
   ),
-  path: compose(pathPart, pathPart, pathPart, pathPart),
+  path: compose(pathPart, mirrorX(pathPart), mirrorY(pathPart), mirrorY(mirrorX(pathPart))),
   water: compose(waterTopLeft, waterTopRight, waterBottomLeft, waterBottomRight),
   plaza: compose(plazaTopLeft, plazaTopRight, plazaBottomLeft, plazaBottomRight),
   flower: compose(

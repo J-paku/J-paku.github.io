@@ -95,9 +95,9 @@ describe('validateWorldSet', () => {
     })
     expect(validateWorldSet(set)).toContain('ワールド "town": 家 "h1" の扉 x=9 が area の範囲外')
   })
-  it('ベンチ・噴水がマップ外なら報告する', () => {
+  it('ロボット・ポストがマップ外なら報告する', () => {
     const set = townSet({
-      structures: [...tinyTown().structures, { id: 'b1', kind: 'bench', cell: { x: 4, y: 3 } }],
+      structures: [...tinyTown().structures, { id: 'b1', kind: 'robot', cell: { x: 5, y: 3 } }],
     })
     expect(validateWorldSet(set)).toContain('ワールド "town": 構造物 "b1" がマップ外にある')
   })

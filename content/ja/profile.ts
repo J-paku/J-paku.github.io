@@ -3,7 +3,7 @@ import type { Profile } from '@content/types/content'
 
 export const profile: Profile = {
   name: 'J-Paku',
-  role: 'フロントエンド',
+  role: 'フロントエンド / プロダクトエンジニア',
   scope: ['Web', 'iOS', '業務アプリ基盤', 'DB'],
   headline: '業務システムのUIを、モバイルの操作感まで設計し運用まで持つ',
   location: '大阪',

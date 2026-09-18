@@ -22,11 +22,8 @@ type StructureKey =
   | 'door'
   | 'entrance-l'
   | 'entrance-r'
-  | `bench-large-${0 | 1 | 2 | 3 | 4 | 5 | 6 | 7}`
-  | `fountain-large-${0 | 1 | 2 | 3}`
-  | 'fountain'
-  | 'bench-l'
-  | 'bench-r'
+  | 'robot'
+  | 'mailbox'
   | 'marker'
   | 'desk-tl'
   | 'desk-tm'
@@ -246,70 +243,44 @@ const doorBottomRight: PixelArt = [
   'dDddxxxx',
 ]
 
-const fountainTopLeft: PixelArt = [
-  '........',
-  '........',
-  '......ss',
-  '....ssss',
-  '...sswww',
-  '..sswwvv',
-  '..swwvvv',
-  '.Sswwvvv',
+// AI 作業台の相棒ロボット(1マス16×16)。丸みのあるボックス頭に目玉2つ、頭上にアンテナ、短い胴体
+const robot: PixelArt = [
+  '.......mm.......',
+  '.......xx.......',
+  '.....xxxxxx.....',
+  '....xSSSSSSx....',
+  '....xssssssx....',
+  '....xssssssx....',
+  '....xsnxxnsx....',
+  '....xssssssx....',
+  '....xSSSSSSx....',
+  '....xxxxxxxx....',
+  '...xSSSSSSSSx...',
+  '...xssssssssx...',
+  '...xssssssssx...',
+  '...xSSSSSSSSx...',
+  '....xx....xx....',
+  '................',
 ]
 
-const fountainBottomLeft: PixelArt = [
-  '.Sswwvvv',
-  '.Ssswwww',
-  '..SSssss',
-  '...SSSSS',
-  '........',
-  '........',
-  '........',
-  '........',
-]
-
-const benchOuterTop: PixelArt = [
-  '........',
-  '........',
-  '........',
-  '........',
-  'xxxxxxxx',
-  'xkkkkkkk',
-  'xddddddd',
-  'xxxxxxxx',
-]
-
-const benchInnerTop: PixelArt = [
-  '........',
-  '........',
-  '........',
-  '........',
-  'xxxxxxxx',
-  'kkkkkkkk',
-  'dddddddd',
-  'xxxxxxxx',
-]
-
-const benchOuterBottom: PixelArt = [
-  '..xx....',
-  '..xk....',
-  '..xk....',
-  '..xk....',
-  '..xx....',
-  '........',
-  '........',
-  '........',
-]
-
-const benchInnerBottom: PixelArt = [
-  '........',
-  '........',
-  '........',
-  '........',
-  '........',
-  '........',
-  '........',
-  '........',
+// 郵便ポスト(1マス16×16)。赤い箱に投函口、支柱の脇に小さな旗
+const mailbox: PixelArt = [
+  '................',
+  '.....xxxxxx.....',
+  '....xrrrrrrx....',
+  '....xrUUUUrxm...',
+  '....xrrrrrrx....',
+  '....xrrDDrrx....',
+  '....xrrrrrrx....',
+  '....xrrrrrrx....',
+  '....xRRRRRRx....',
+  '....xxxxxxxx....',
+  '.......kk.......',
+  '.......kk.......',
+  '.......kk.......',
+  '.......kk.......',
+  '......kkkk......',
+  '................',
 ]
 
 const markerTopLeft: PixelArt = [
@@ -599,7 +570,6 @@ const wallRight = compose(
   wallBottomLeft,
   withRightOutline(wallBottomRight)
 )
-const benchLeft = compose(benchOuterTop, benchInnerTop, benchOuterBottom, benchInnerBottom)
 const tableTopLeft = compose(
   tableTopOuterTop,
   tableTopInnerTop,
@@ -613,20 +583,6 @@ const tableBottomLeft = compose(
   tableBottomInnerBottom
 )
 
-// 2倍の家具も16ドットタイルへ分割する。描画寸法とcollisionのscaleを揃える
-const largeTiles = (arts: PixelArt[]): PixelArt[] => {
-  const joined = arts[0].map((_, y) => arts.map(art => art[y]).join(''))
-  const enlarged = joined.flatMap(row => {
-    const wide = [...row].map(ch => ch + ch).join('')
-    return [wide, wide]
-  })
-  const cols = arts.length * 2
-  return Array.from({ length: cols * 2 }, (_, i) =>
-    enlarged
-      .slice(Math.floor(i / cols) * 16, Math.floor(i / cols) * 16 + 16)
-      .map(row => row.slice((i % cols) * 16, (i % cols) * 16 + 16))
-  )
-}
 // 2マス幅の入口は観音開きの扉。左マスは左枠+左の扉板で、右端の1列が中央の合わせ目。右マスは左右反転
 const entranceLeft: PixelArt = [
   'hhhhhhhhhhhhhhhh',
@@ -646,15 +602,6 @@ const entranceLeft: PixelArt = [
   'HHxddDdddDdddDdD',
   'xxxddDdddDdddDdD',
 ]
-const largeBench = largeTiles([benchLeft, mirrorX(benchLeft)])
-const largeFountain = largeTiles([
-  compose(
-    fountainTopLeft,
-    mirrorX(fountainTopLeft),
-    fountainBottomLeft,
-    mirrorX(fountainBottomLeft)
-  ),
-])
 
 export const structureArt: Record<StructureKey, PixelArt> = {
   'roof-red-l': roofRedLeft,
@@ -676,26 +623,8 @@ export const structureArt: Record<StructureKey, PixelArt> = {
   door: compose(doorTopLeft, doorTopRight, doorBottomLeft, doorBottomRight),
   'entrance-l': entranceLeft,
   'entrance-r': mirrorX(entranceLeft),
-  'bench-large-0': largeBench[0],
-  'bench-large-1': largeBench[1],
-  'bench-large-2': largeBench[2],
-  'bench-large-3': largeBench[3],
-  'bench-large-4': largeBench[4],
-  'bench-large-5': largeBench[5],
-  'bench-large-6': largeBench[6],
-  'bench-large-7': largeBench[7],
-  'fountain-large-0': largeFountain[0],
-  'fountain-large-1': largeFountain[1],
-  'fountain-large-2': largeFountain[2],
-  'fountain-large-3': largeFountain[3],
-  fountain: compose(
-    fountainTopLeft,
-    mirrorX(fountainTopLeft),
-    fountainBottomLeft,
-    mirrorX(fountainBottomLeft)
-  ),
-  'bench-l': benchLeft,
-  'bench-r': mirrorX(benchLeft),
+  robot,
+  mailbox,
   marker: compose(
     markerTopLeft,
     mirrorX(markerTopLeft),
