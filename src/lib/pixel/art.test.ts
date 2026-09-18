@@ -1,4 +1,4 @@
-// ドット絵エンジン(mirror・compose・recolor・validateArt・toSvgRects・buildSheet)のテスト
+// ドット絵エンジン(mirror・compose・recolor・validateArt・parseHexColor・rasterize・buildSheet)のテスト
 import type { PixelArt } from './art'
 import {
   PART,
@@ -7,18 +7,18 @@ import {
   compose,
   mirrorX,
   mirrorY,
+  parseHexColor,
+  rasterize,
   recolor,
-  toSvgRects,
   validateArt,
 } from './art'
+import { bytesOfDataUri, decodePng, pixelAt } from './png.test-helper'
 
 const palette = { a: '#111111', b: '#222222', c: '#333333', d: '#444444' }
 // 指定文字だけで埋めた8×8部品
 const part = (ch: string): PixelArt => Array.from({ length: PART }, () => ch.repeat(PART))
 // 指定文字だけで埋めた16×16アート
 const tile = (ch: string): PixelArt => Array.from({ length: TILE }, () => ch.repeat(TILE))
-// 文字列中の<rect>の数
-const countRects = (svg: string): number => svg.split('<rect').length - 1
 
 describe('mirrorX', () => {
   it('各行の文字順を逆にする', () => {
@@ -89,33 +89,49 @@ describe('validateArt', () => {
   })
 })
 
-describe('toSvgRects', () => {
-  it('同色の横連続を1つの<rect>にまとめる', () => {
-    expect(countRects(toSvgRects(['aabb'], palette, 0, 0))).toBe(2)
-    expect(toSvgRects(['aabb'], palette, 0, 0)).toContain('width="2"')
+describe('parseHexColor', () => {
+  it('#rrggbb を不透明の RGBA にする', () => {
+    expect(parseHexColor('#15161b')).toEqual([0x15, 0x16, 0x1b, 255])
   })
-  it('透明文字は出力せず、連続も分断する', () => {
-    // aa . bb → 2枚。a.a → 2枚
-    expect(countRects(toSvgRects(['aa.bb'], palette, 0, 0))).toBe(2)
-    expect(countRects(toSvgRects(['a.a'], palette, 0, 0))).toBe(2)
-    expect(countRects(toSvgRects(['....'], palette, 0, 0))).toBe(0)
+  it('#rgb と #rrggbbaa も読む', () => {
+    expect(parseHexColor('#f00')).toEqual([255, 0, 0, 255])
+    expect(parseHexColor('#00ff0080')).toEqual([0, 255, 0, 0x80])
   })
-  it('dx・dyだけ座標をずらす', () => {
-    const svg = toSvgRects(['.aa'], palette, 16, 3)
-    expect(svg).toContain('x="17"')
-    expect(svg).toContain('y="3"')
-    expect(svg).toContain('height="1"')
-    expect(svg).toContain(`fill="${palette.a}"`)
+  it('16進表記でなければ例外を投げる', () => {
+    expect(() => parseHexColor('red')).toThrow()
+    expect(() => parseHexColor('#12345')).toThrow()
   })
-  it('行ごとに<rect>を出す', () => {
-    expect(countRects(toSvgRects(['aa', 'bb', 'ab'], palette, 0, 0))).toBe(4)
+})
+
+describe('rasterize', () => {
+  it('アートを横一列に並べ、幅は枚数×size になる', () => {
+    const image = rasterize(
+      [
+        ['aa', 'bb'],
+        ['cc', 'dd'],
+      ],
+      palette,
+      2
+    )
+    expect(image.width).toBe(4)
+    expect(image.height).toBe(2)
+    expect(pixelAt(image, 0, 0)).toEqual([0x11, 0x11, 0x11, 255])
+    expect(pixelAt(image, 1, 1)).toEqual([0x22, 0x22, 0x22, 255])
+    expect(pixelAt(image, 2, 0)).toEqual([0x33, 0x33, 0x33, 255])
+    expect(pixelAt(image, 3, 1)).toEqual([0x44, 0x44, 0x44, 255])
+  })
+  it('透明文字は (0,0,0,0) のまま残す', () => {
+    const image = rasterize([['a.', '.a']], palette, 2)
+    expect(pixelAt(image, 1, 0)).toEqual([0, 0, 0, 0])
+    expect(pixelAt(image, 0, 1)).toEqual([0, 0, 0, 0])
+    expect(pixelAt(image, 0, 0)).toEqual([0x11, 0x11, 0x11, 255])
   })
 })
 
 describe('buildSheet', () => {
-  it('data URIのプレフィックス・枚数・タイルサイズを返す', () => {
+  it('PNG の data URI・枚数・タイルサイズを返す', () => {
     const sheet = buildSheet({ grass: tile('a'), path: tile('b') }, palette)
-    expect(sheet.uri.startsWith('data:image/svg+xml,')).toBe(true)
+    expect(sheet.uri.startsWith('data:image/png;base64,')).toBe(true)
     expect(sheet.count).toBe(2)
     expect(sheet.tile).toBe(TILE)
   })
@@ -123,13 +139,15 @@ describe('buildSheet', () => {
     const sheet = buildSheet({ grass: tile('a'), path: tile('b'), water: tile('c') }, palette)
     expect(sheet.index).toEqual({ grass: 0, path: 1, water: 2 })
   })
-  it('SVGの幅はcount×16で、shape-renderingを持つ', () => {
+  it('PNG の幅は count×16・高さは 16 で、各タイルの色がパレットと一致する', () => {
     const sheet = buildSheet({ grass: tile('a'), path: tile('b') }, palette)
-    const svg = decodeURIComponent(sheet.uri.replace('data:image/svg+xml,', ''))
-    expect(svg).toContain('width="32"')
-    expect(svg).toContain('viewBox="0 0 32 16"')
-    expect(svg).toContain('shape-rendering="crispEdges"')
-    expect(countRects(svg)).toBe(TILE * 2)
+    const image = decodePng(bytesOfDataUri(sheet.uri))
+    expect(image.width).toBe(TILE * 2)
+    expect(image.height).toBe(TILE)
+    expect(pixelAt(image, 0, 0)).toEqual([0x11, 0x11, 0x11, 255])
+    expect(pixelAt(image, TILE - 1, TILE - 1)).toEqual([0x11, 0x11, 0x11, 255])
+    expect(pixelAt(image, TILE, 0)).toEqual([0x22, 0x22, 0x22, 255])
+    expect(pixelAt(image, TILE * 2 - 1, TILE - 1)).toEqual([0x22, 0x22, 0x22, 255])
   })
   it('不正なアートがあればキー名を含む例外を投げる', () => {
     expect(() => buildSheet({ grass: tile('a'), bad: ['aa'] }, palette)).toThrow(/bad/)
