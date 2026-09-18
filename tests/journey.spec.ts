@@ -44,6 +44,20 @@ const openVillage = async (page: Page, prefix: string) => {
   await focusVillage(page)
 }
 
+// 到着で新しい文言が出ると、Google Fonts の未取得サブセットがその場で読み込まれ、届いた瞬間に
+// 舞台全体が再描画されて主スレッドが数百 ms 止まる(実測: ja の町到着で 244ms)。その間に押した
+// キーは down/up が同じ隙間に落ちて旋回すら起きないので、読み込み中の書体が届いてその再描画が
+// 終わる(rAF 2 回 = 次フレームの描画完了後)まで待ってから次の入力へ進む
+const settleRender = (page: Page) =>
+  page.evaluate(() =>
+    document.fonts.ready.then(
+      () =>
+        new Promise<void>(resolve => {
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+        })
+    )
+  )
+
 // 方向キーを 1 マス分だけ押し、到着まで待ってから次の 1 マスへ進む
 const walk = async (page: Page, key: string, cells: number) => {
   for (let i = 0; i < cells; i += 1) {
@@ -51,6 +65,7 @@ const walk = async (page: Page, key: string, cells: number) => {
     await page.waitForTimeout(HOLD_MS)
     await page.keyboard.up(key)
     await page.waitForTimeout(SETTLE_MS)
+    await settleRender(page)
   }
 }
 
