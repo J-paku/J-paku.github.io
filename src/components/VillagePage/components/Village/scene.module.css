@@ -139,7 +139,7 @@
   }
 }
 /* 操作帯。PC(マウス)は非表示、縦持ちは枠の下の黒帯、横持ちは枠の上辺に重ねる。
-   左に十字キー・右にスティックを置く。
+   左にスティック・右に A/B ボタンを置く。
    帯の高さは --cell に依存させない(useStageScale が帯の高さを差し引くため、循環すると振動する) */
 .controls {
   display: none;
@@ -154,7 +154,7 @@
   }
 }
 /* 横持ちは枠の上辺に重ねる。右下はミニマップ、下辺は会話窓が使うため、空いている上辺を取る。
-   帯の空き部分でタップ移動を妨げないよう、当たり判定は十字キーとスティックだけに戻す */
+   帯の空き部分でタップ移動を妨げないよう、当たり判定はスティックと A/B ボタンだけに戻す */
 @media (pointer: coarse) and (orientation: landscape) {
   .controls {
     display: flex;
@@ -162,6 +162,8 @@
     top: max(8px, env(safe-area-inset-top));
     right: max(8px, env(safe-area-inset-right));
     left: max(8px, env(safe-area-inset-left));
+    /* 横持ちでは帯が枠の右上に重なり、地図(z 20)の「閉じる」ボタンと同じ場所になるので、
+       地図の間は帯を下に置く(B で閉じるのは縦持ちだけ。横持ちは地図のボタンで閉じる) */
     z-index: 3;
     opacity: 0.85;
     pointer-events: none;
@@ -170,7 +172,7 @@
     pointer-events: auto;
   }
 }
-/* スティックはタッチ専用。物理ポインタではキーと十字キーで足りる */
+/* スティックはタッチ専用。物理ポインタではキーで足りる */
 .joystick {
   display: flex;
   flex: none;

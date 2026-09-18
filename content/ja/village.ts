@@ -20,7 +20,8 @@ export const village: VillageText = {
   shortcuts: '作品へ直接移動',
   toList: '一覧で見る',
   toVillage: 'マップで見る',
-  dpad: { up: '上へ', down: '下へ', left: '左へ', right: '右へ' },
+  buttonA: '決定',
+  buttonB: 'キャンセル',
   joystick: '移動スティック',
   stops: {
     home: {

@@ -99,7 +99,8 @@ export type VillageText = {
   shortcuts: string
   toList: string
   toVillage: string
-  dpad: Record<Direction, string> // 方向ボタンの読み上げ名
+  buttonA: string // A ボタンの読み上げ名(決定)
+  buttonB: string // B ボタンの読み上げ名(キャンセル)
   joystick: string // 仮想スティックの読み上げ名(タッチ端末)
   stops: Record<string, StopText> // spot.id → 文言
 }

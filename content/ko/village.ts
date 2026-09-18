@@ -20,7 +20,8 @@ export const village: VillageText = {
   shortcuts: '작품으로 바로 가기',
   toList: '웹으로 보기',
   toVillage: '마을로 보기',
-  dpad: { up: '위로', down: '아래로', left: '왼쪽으로', right: '오른쪽으로' },
+  buttonA: '선택',
+  buttonB: '취소',
   joystick: '이동 스틱',
   stops: {
     home: {

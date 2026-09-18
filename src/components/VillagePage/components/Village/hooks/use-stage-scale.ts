@@ -1,5 +1,7 @@
 // 舞台(黒地)に収まる整数マス寸法を実測から決める。計算は純粋関数に分け、
-// フックは ResizeObserver の結果を --cell へ書くだけ。React state は使わず再レンダーを起こさない
+// フックは ResizeObserver の結果を --cell へ書くだけ。React state は使わず再レンダーを起こさない。
+// 帯が画面下端に接していないので、--band には高さではなく帯の上端までの距離を書き、
+// 重ね表示(会話窓・地図)が帯を覆わないようにする
 import { useEffect } from 'react'
 import type { RefObject } from 'react'
 
@@ -91,25 +93,35 @@ export type StageScaleOptions = {
   rows: number
 }
 
-// 帯が通常フローにいる(縦持ち)ときだけ高さを差し引く。absolute / display:none は 0
-const bandHeight = (band: HTMLDivElement | null): number => {
+// 帯が通常フローにいる(縦持ち)ときだけ高さを差し引く。absolute / display:none は 0。
+// computeCell に渡す高さはこちらを使う
+export const bandHeight = (band: HTMLDivElement | null): number => {
   if (band === null) return 0
   return getComputedStyle(band).position === 'static' ? band.offsetHeight : 0
 }
+
+// 帯が画面下端に接しているとは限らない(下に CTA 領域などが残る場合がある)ので、
+// --band には「高さ」ではなく「舞台の下端から帯の上端までの距離」を書く。
+// これを重ね表示側が bottom に使えば、帯の上端でちょうど止まる
+export const bandGap = (rootBottom: number, bandTop: number): number =>
+  Math.max(0, rootBottom - bandTop)
 
 export function useStageScale({ root, band, cols, rows }: StageScaleOptions): void {
   useEffect(() => {
     const rootEl = root.current
     if (rootEl === null) return
     const apply = () => {
-      const cell = computeCell(
-        rootEl.clientWidth,
-        rootEl.clientHeight,
-        bandHeight(band.current),
-        cols,
-        rows
-      )
+      const bandEl = band.current
+      const bandH = bandHeight(bandEl)
+      const cell = computeCell(rootEl.clientWidth, rootEl.clientHeight, bandH, cols, rows)
+      // 帯が静的配置(縦持ち)のときだけ、実測した上端までの距離を --band に書く。
+      // absolute / display:none のときは帯が枠に重なっているだけなので 0
+      const gap =
+        bandEl !== null && getComputedStyle(bandEl).position === 'static'
+          ? bandGap(rootEl.getBoundingClientRect().bottom, bandEl.getBoundingClientRect().top)
+          : 0
       rootEl.style.setProperty('--cell', `${cell}px`)
+      rootEl.style.setProperty('--band', `${gap}px`)
     }
     apply()
     const observer = new ResizeObserver(apply)

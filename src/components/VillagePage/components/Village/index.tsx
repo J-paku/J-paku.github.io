@@ -5,7 +5,7 @@ import type { Locale } from '@content/types/content'
 import type { VillageText, WorldSet } from '@content/types/world'
 import type { Sheet } from '@/lib/pixel/art'
 import { nextSpot } from '@/lib/village/spot'
-import DPad from './components/DPad'
+import ActionButtons from './components/ActionButtons'
 import Joystick from './components/Joystick'
 import Minimap from './components/Minimap'
 import SpeechBox from './components/SpeechBox'
@@ -181,10 +181,18 @@ function Village({
           ) : null}
         </div>
         <div ref={controlsRef} className={styles.controls} data-village-controls>
-          <DPad labels={text.dpad} onHold={setHeld} />
           <div className={styles.joystick}>
             <Joystick label={text.joystick} onHold={setHeld} />
           </div>
+          <ActionButtons
+            mode={mode}
+            canTalk={activeSpot !== null}
+            hasNext={activeSpot !== null && nextSpot(worldSet, activeSpot) !== null}
+            labels={{ a: text.buttonA, b: text.buttonB }}
+            onTalk={openTalk}
+            onNext={goNext}
+            onClose={closeOverlay}
+          />
         </div>
       </div>
       {mode === 'map' && outdoors ? (
