@@ -48,6 +48,8 @@ export type VillageInputOptions = {
 type UseVillageInput = {
   heldRef: RefObject<Direction | null>
   setHeld: (direction: Direction | null) => void
+  // 会話窓が開いている間(locked)の上下入力。移動には使わず、StopModal が本文スクロールに読む
+  scrollHeldRef: RefObject<Direction | null>
   tapped: Cell | null
   consumeTap: () => void
   onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void
@@ -71,6 +73,7 @@ type UseVillageInput = {
 
 export function useVillageInput({ actions, locked }: VillageInputOptions): UseVillageInput {
   const heldRef = useRef<Direction | null>(null)
+  const scrollHeldRef = useRef<Direction | null>(null)
   const [tapped, setTapped] = useState<Cell | null>(null)
   // 押されている間のポインタ下のマス。use-walk-loop が毎フレーム読んで経路を作り直す
   const pointerTargetRef = useRef<Cell | null>(null)
@@ -80,7 +83,17 @@ export function useVillageInput({ actions, locked }: VillageInputOptions): UseVi
   // 十字キーはキー押下と同じ経路に流す
   const setHeld = useCallback(
     (direction: Direction | null) => {
-      if (locked.current && direction !== null) return
+      if (locked.current) {
+        if (direction === null) {
+          heldRef.current = null
+          scrollHeldRef.current = null
+          return
+        }
+        // 会話窓が開いている間の上下入力は本文のスクロールに回す
+        if (direction === 'up' || direction === 'down') scrollHeldRef.current = direction
+        return
+      }
+      scrollHeldRef.current = null
       heldRef.current = direction
     },
     [locked]
@@ -93,8 +106,20 @@ export function useVillageInput({ actions, locked }: VillageInputOptions): UseVi
         actions.current.onEscape()
         return
       }
+      // M は地図の開閉。開いている間も受け付ける(onMap 側が開いていれば閉じる・会話中は無視する)
+      if (event.code === 'KeyM') {
+        event.preventDefault()
+        actions.current.onMap()
+        return
+      }
       if (locked.current) {
         heldRef.current = null
+        const scrollDirection = CODE_TO_DIRECTION[event.code]
+        // 会話窓が開いている間の上下入力は本文のスクロールに回す
+        if (scrollDirection === 'up' || scrollDirection === 'down') {
+          event.preventDefault()
+          scrollHeldRef.current = scrollDirection
+        }
         return
       }
       const direction = CODE_TO_DIRECTION[event.code]
@@ -106,11 +131,6 @@ export function useVillageInput({ actions, locked }: VillageInputOptions): UseVi
       if (TALK_CODES.includes(event.code)) {
         event.preventDefault()
         actions.current.onTalk()
-        return
-      }
-      if (event.code === 'KeyM') {
-        event.preventDefault()
-        actions.current.onMap()
       }
     },
     [actions, locked]
@@ -118,13 +138,15 @@ export function useVillageInput({ actions, locked }: VillageInputOptions): UseVi
 
   const onKeyUp = useCallback((event: KeyboardEvent<HTMLDivElement>) => {
     const direction = CODE_TO_DIRECTION[event.code]
-    if (direction === undefined || heldRef.current !== direction) return
-    heldRef.current = null
+    if (direction === undefined) return
+    if (heldRef.current === direction) heldRef.current = null
+    if (scrollHeldRef.current === direction) scrollHeldRef.current = null
   }, [])
 
   // フォーカスを失ったら押しっぱなし状態を捨てる(キーを押したまま別要素へ移った場合)
   const onBlur = useCallback(() => {
     heldRef.current = null
+    scrollHeldRef.current = null
     pointerTargetRef.current = null
     activePointerIdRef.current = null
   }, [])
@@ -170,6 +192,7 @@ export function useVillageInput({ actions, locked }: VillageInputOptions): UseVi
     const onHidden = () => {
       if (document.visibilityState !== 'hidden') return
       heldRef.current = null
+      scrollHeldRef.current = null
       pointerTargetRef.current = null
       activePointerIdRef.current = null
     }
@@ -180,6 +203,7 @@ export function useVillageInput({ actions, locked }: VillageInputOptions): UseVi
   return {
     heldRef,
     setHeld,
+    scrollHeldRef,
     tapped,
     consumeTap,
     onKeyDown,

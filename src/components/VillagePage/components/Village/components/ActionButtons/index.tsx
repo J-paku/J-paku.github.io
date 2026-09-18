@@ -7,8 +7,6 @@ import styles from './action-buttons.module.css'
 
 export type ActionButtonsProps = {
   mode: 'walk' | 'talk' | 'map'
-  // 話しかけられる地点がプレイヤーの下にあるか
-  canTalk: boolean
   hasNext: boolean
   labels: { a: string; b: string }
   onTalk: () => void
@@ -21,7 +19,6 @@ const preventFocusSteal = (event: PointerEvent<HTMLButtonElement>) => event.prev
 
 export function ActionButtons({
   mode,
-  canTalk,
   hasNext,
   labels,
   onTalk,
@@ -29,7 +26,8 @@ export function ActionButtons({
   onClose,
 }: ActionButtonsProps) {
   const handleA = () => {
-    if (mode === 'walk' && canTalk) {
+    // 話せる相手がいない時は onTalk 自身が「考え事」の一言を出す(openTalk が処理)
+    if (mode === 'walk') {
       onTalk()
       return
     }

@@ -1,6 +1,6 @@
 // 村の組み立て。ワールド・案内・移動ループ・重ね表示の各フックを順に繋ぎ、描画に要る値だけを返す。
 // フックを呼ぶ順(寸法→入力→復元→rAF→重ね表示)がそのまま effect の走る順になるので、並べ替えない
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import type { RefObject } from 'react'
 import type { Cell, Spot, VillageText, World, WorldSet } from '@content/types/world'
 import type { Sheet } from '@/lib/pixel/art'
@@ -49,11 +49,14 @@ type UseVillage = {
   // 吹き出しは world 層に置くのでカメラを引かない
   talkAt: { x: number; y: number } | null
   talkText: string | null
-  // 話しかけた物の枠内位置(マス単位・中心)。モーダルはここから開く
-  talkAnchor: { x: number; y: number } | null
   talkLabel: string | undefined
+  // 話せる相手がいない時の考え事の吹き出し。2.5 秒で消える
+  hintAt: { x: number; y: number } | null
+  hintText: string | null
   mode: 'walk' | 'talk' | 'map'
   setHeld: VillageInput['setHeld']
+  // 会話窓が開いている間の上下入力。StopModal が本文スクロールに読む
+  scrollHeldRef: VillageInput['scrollHeldRef']
   onKeyDown: VillageInput['onKeyDown']
   onKeyUp: VillageInput['onKeyUp']
   onBlur: VillageInput['onBlur']
@@ -105,6 +108,7 @@ export function useVillage({ worldSet, text, sprites }: VillageOptions): UseVill
   const {
     heldRef,
     setHeld,
+    scrollHeldRef,
     tapped,
     consumeTap,
     onKeyDown,
@@ -169,7 +173,17 @@ export function useVillage({ worldSet, text, sprites }: VillageOptions): UseVill
     pointerTargetRef,
   })
 
-  const { mode, openTalk, openMap, closeOverlay, goNext, travel } = useVillageOverlay({
+  const {
+    mode,
+    openTalk,
+    openMap,
+    closeOverlay,
+    goNext,
+    travel,
+    hintText,
+    hintCellRef,
+    clearHint,
+  } = useVillageOverlay({
     worldSet,
     text,
     world,
@@ -192,6 +206,14 @@ export function useVillage({ worldSet, text, sprites }: VillageOptions): UseVill
     heldRef,
   })
 
+  // 一言を出した後にプレイヤーが動いたら消す。出した直後は同じマスなので発火しない
+  useEffect(() => {
+    const raisedAt = hintCellRef.current
+    if (raisedAt === null) return
+    if (raisedAt.x === playerCell.x && raisedAt.y === playerCell.y) return
+    clearHint()
+  }, [playerCell, hintCellRef, clearHint])
+
   const placeNames = useMemo<Record<string, string>>(
     () => Object.fromEntries(world.spots.map(s => [s.id, text.stops[s.id].place])),
     [world, text]
@@ -206,15 +228,9 @@ export function useVillage({ worldSet, text, sprites }: VillageOptions): UseVill
         ? { x: activeSpot.cell.x + 0.5, y: activeSpot.cell.y }
         : { x: target.x + target.w / 2, y: target.y }
   const talkText = activeSpot === null ? null : arriveSpeech(text, activeSpot.id)
-  // モーダルは物の中央から開く。会話中はカメラが止まるので、開いた時点の原点で枠内位置に直してよい
-  const talkAnchor =
-    target === null
-      ? null
-      : {
-          x: target.x + target.w / 2 - camRef.current.x,
-          y: target.y + target.h / 2 - camRef.current.y,
-        }
   const talkLabel = activeSpot === null ? undefined : (text.stops[activeSpot.id].talk ?? text.talk)
+  // 一言はプレイヤーの頭上に出す。生きた playerCell から作るので、到着のたびに正しい位置へ再アンカーする
+  const hintAt = hintText === null ? null : { x: playerCell.x + 0.5, y: playerCell.y }
 
   return {
     rootRef,
@@ -236,10 +252,12 @@ export function useVillage({ worldSet, text, sprites }: VillageOptions): UseVill
     placeNames,
     talkAt,
     talkText,
-    talkAnchor,
     talkLabel,
+    hintAt,
+    hintText,
     mode,
     setHeld,
+    scrollHeldRef,
     onKeyDown,
     onKeyUp,
     onBlur,

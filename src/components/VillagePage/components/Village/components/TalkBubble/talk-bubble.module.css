@@ -19,15 +19,22 @@
   background: #fff;
   color: #181818;
   font: 500 13px/1.4 var(--f-label);
-  transform: translate(-50%, -100%);
+  /* --shift は枠をはみ出した分だけ TalkBubble が横に押し戻す量(px) */
+  transform: translate(calc(-50% + var(--shift, 0px)), -100%);
 }
 
-/* 尾。黒の三角の上に白の三角を重ねて枠線だけ残す */
+/* thought(考え中)は点線枠にして、話しかけ相手が居ないことを吹き出しの形でも示す */
+.bubble[data-village-bubble-kind='thought'] {
+  border-style: dotted;
+  border-radius: 16px;
+}
+
+/* 尾。黒の三角の上に白の三角を重ねて枠線だけ残す。--shift の逆を足して、はみ出す前の位置を指し続ける */
 .bubble::before,
 .bubble::after {
   content: '';
   position: absolute;
-  left: 50%;
+  left: calc(50% - var(--shift, 0px));
   border: 8px solid transparent;
   transform: translateX(-50%);
 }
@@ -40,6 +47,30 @@
 .bubble::after {
   bottom: -14px;
   border-top-color: #fff;
+}
+
+/* thought は尾の代わりに、吹き出しから離れていく丸い点を2つ並べる */
+.bubble[data-village-bubble-kind='thought']::before,
+.bubble[data-village-bubble-kind='thought']::after {
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow:
+    inset 0 0 0 2px #fff,
+    inset 0 0 0 3px #181818;
+}
+
+.bubble[data-village-bubble-kind='thought']::before {
+  bottom: -14px;
+  width: 8px;
+  height: 8px;
+}
+
+.bubble[data-village-bubble-kind='thought']::after {
+  bottom: -22px;
+  left: calc(50% - var(--shift, 0px) - 8px);
+  width: 5px;
+  height: 5px;
 }
 
 .text {
