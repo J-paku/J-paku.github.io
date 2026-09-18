@@ -22,6 +22,8 @@ type UseVillageWorld = {
   pendingFastRef: RefObject<boolean>
   // 別ワールドの地点へ向かう途中。扉を出た所で目的地と案内を立て直すまで持つ
   pendingGoalRef: RefObject<SpotRef | null>
+  // 次へボタンで出発した時だけ true。到着で会話窓を自動で開く
+  autoTalkRef: RefObject<boolean>
   destination: Cell | null
   setDestination: Dispatch<SetStateAction<Cell | null>>
   playerCell: Cell
@@ -43,6 +45,7 @@ export function useVillageWorld(worldSet: WorldSet): UseVillageWorld {
   const pendingRouteRef = useRef<Cell[] | null>(null)
   const pendingFastRef = useRef(false)
   const pendingGoalRef = useRef<SpotRef | null>(null)
+  const autoTalkRef = useRef(false)
 
   const [destination, setDestination] = useState<Cell | null>(null)
   const [playerCell, setPlayerCell] = useState<Cell>(startWorld.start)
@@ -70,6 +73,7 @@ export function useVillageWorld(worldSet: WorldSet): UseVillageWorld {
     pendingRouteRef,
     pendingFastRef,
     pendingGoalRef,
+    autoTalkRef,
     destination,
     setDestination,
     playerCell,
