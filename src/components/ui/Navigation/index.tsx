@@ -1,4 +1,5 @@
-// 画面の四隅に固定する導線。右下=一覧⇄マップ、右上=設定メニュー(言語・テーマ)。文言は content から受け取る
+// 画面の四隅に固定する導線。右下=マップへ戻る、右上=設定メニュー(言語・テーマ)。文言は content から受け取る。
+// 村から一覧への出口は VillagePage の ExitLink が担うので、村では切替リンクを描かない
 import Link from 'next/link'
 import type { Locale, UiStrings } from '@content/types/content'
 import { toHref } from '@/utils/locale-path'
@@ -7,29 +8,23 @@ import styles from './navigation.module.css'
 
 type NavigationProps = {
   locale: Locale
-  current: 'village' | 'list' | 'story'
-  // 右下リンクの文言(current に応じて呼び出し側が toList / toVillage を渡す)
-  switchLabel: string
+  // 右下「マップで見る」の文言。村では渡さない(出口は ExitLink が担う)
+  switchLabel?: string
   // 設定メニュー(言語・テーマ)の文言
   ui: UiStrings
   // 言語切替先で同じ内容を指すパス(locale 接頭辞なし)
   pathname: string
 }
 
-function Navigation({ locale, current, switchLabel, ui, pathname }: NavigationProps) {
-  const switchHref = current === 'village' ? toHref('/list', locale) : toHref('/', locale)
+function Navigation({ locale, switchLabel, ui, pathname }: NavigationProps) {
   return (
     <>
       <SettingsMenu locale={locale} pathname={pathname} ui={ui} />
-      <Link
-        className={`${styles.switch}${current === 'village' ? ` ${styles.exit}` : ''}`}
-        href={switchHref}
-        // 村の 5 か所を見終えた時、use-village-overlay がここへ焦点を移し点滅させる目印
-        data-village-exit={current === 'village' ? '' : undefined}
-      >
-        {switchLabel}
-        {current === 'village' && <span aria-hidden='true'>→</span>}
-      </Link>
+      {switchLabel !== undefined ? (
+        <Link className={styles.switch} href={toHref('/', locale)}>
+          {switchLabel}
+        </Link>
+      ) : null}
     </>
   )
 }

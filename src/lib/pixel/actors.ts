@@ -1,9 +1,10 @@
-// 主人公: 深緑のキャップにゴーグル、茶髪、緑のジャケットと斜め掛けの革ストラップ
-// 16×16 に頭(0〜7行: キャップ・ゴーグル・つば・顔)と体(8〜15行: ジャケット・ズボン・ブーツ)を収める
-// 歩行コマは全体が一段下がるので、頭は1〜8行・体は9〜15行になる
+// 主人公: 深緑のキャップにゴーグル、茶髪、緑のジャケットと斜め掛けの革ストラップ(参照画像を 15×20 で写した二頭身)
+// タイルは幅 16・高さ 24。足元をマスの下辺に揃え、頭はマスの上へ半マス(8 行)はみ出す。
+// 静止コマは 4〜23 行、歩行コマは全体が一段下がって 5〜23 行に収まり、最下行だけ脚を振る
 // 輪郭は x(#181818)で描き、白い縁取りは scene.module.css の drop-shadow が付ける
-import { mirrorX } from './art'
 import type { PixelArt } from './art'
+
+export const PLAYER_HEIGHT = 24
 
 type PlayerFrames = {
   up: [PixelArt, PixelArt, PixelArt]
@@ -11,130 +12,117 @@ type PlayerFrames = {
   right: [PixelArt, PixelArt]
 }
 
-// 正面。つばの下に目が二つ、胸に生成りのインナーと左肩からの革ストラップ
-const downStand: PixelArt = [
-  '....xxxxxxxx....',
-  '...xqqqqqqqqx...',
-  '..xqqqqqqqqqqx..',
-  '..xjLLjjjjLLjx..',
-  '..xjLLjjjjLLjx..',
-  '.xQQQQQQQQQQQQx.',
-  '..xAKxKKKKxKAx..',
-  '...xAKKKKKKAx...',
-  '...xMMMMMMMMx...',
-  '..xNMBMYYMMMNx..',
-  '..xNMMBYYMMMNx..',
-  '..xNMMMBMMMMNx..',
-  '..xKMMMMBMMMKx..',
-  '...xzzzzzzzzx...',
-  '...xzzzxxzzzx...',
-  '..xzzzzxxzzzzx..',
+// 描画の空行。頭上の余白に使う
+const BLANK = '................'
+
+// 正面。キャップの上にゴーグル、つばの下に前髪と目、頬は桃色。胸に生成りのインナーと左肩からの革ストラップ
+const downBody: PixelArt = [
+  '.....xxxxx......',
+  '...xxQqqqQxx....',
+  '..xQqqqqqqqQx...',
+  '.xQqZZZqZZZqQx..',
+  '.xQxILJxJILxQx..',
+  '.xxjLLJxJLLjxx..',
+  'xQjxJJxQxJJxjQx.',
+  'xxxQxxqqqxxQxxx.',
+  '.xZxxxxxxxxxZx..',
+  'xAxxAKxAZKAxxAx.',
+  'xxKxKxKAKxKxKxx.',
+  '.xxKKxKKKxKKxx..',
+  '..xxVKKKKKVxx...',
+  '..xqxBxqxxqqx...',
+  '.xQKxxBxYxMKQx..',
+  '.xKqxqxBxBxqKx..',
+  '.xVxxqYxBxBxVx..',
+  '..xxzxzzxxBxx...',
+]
+const downFeet: PixelArt = ['...xAAxxzzZx....', '....xx..xxx.....']
+
+// 背面。ゴーグルのバンドがキャップの後ろを太く回り、その下に短い茶髪。ストラップは背中を斜めに渡り腰の鞄へ
+const upBody: PixelArt = [
+  '.....xxxxx......',
+  '...xxqqqqqxx....',
+  '..xqqqqqqqqqx...',
+  '.xqqqqqqqqqqqx..',
+  '.xQjjjjjjjjjQx..',
+  '.xjjjjjjjjjjjx..',
+  'xQqqqqqqqqqqqQx.',
+  'xQQqqqqqqqqqQQx.',
+  '.xxQQQQQQQQQxx..',
+  '.xAAAAAAAAAAAx..',
+  '.xZAAAAAAAAAZx..',
+  '..xZAAAAAAAZx...',
+  '..xxxAAAAAxxx...',
+  '..xqxBMMMMxqx...',
+  '.xqMxMBMMMMMqx..',
+  '.xKqxMMBMMMqKx..',
+  '.xKxxMMMBMMxKx..',
+  '..xxQQQQBBQxx...',
+]
+const upFeet: PixelArt = ['...xAAxxxAAx....', '...xxx...xxx....']
+
+// 右向き。つばとゴーグルのレンズは進行方向側だけ見え、後頭部に茶髪が残る。腰の鞄は背中側。
+// 左向きは scaleX(-1) で作るので、絵は 1〜13 列に収めて反転してもずれないようにする
+const rightBody: PixelArt = [
+  '.....xxxxx......',
+  '...xxqqqqqxx....',
+  '..xqqqqqqqqqx...',
+  '..xqqqqqqxIIx...',
+  '.xqjjjjjjxLIJx..',
+  '.xqjjjjjjjjJx...',
+  '.xQqqqqqqqqQx...',
+  '..xxQQQQQQxxx...',
+  '..xAAAAAxKKKx...',
+  '.xAAAAAAxKxKKx..',
+  '.xAAAAAAxKKKKx..',
+  '..xAAAAAxKVKx...',
+  '...xxxxxxKKxx...',
+  '.....xMMMMx.....',
+  '....xBMMMMMx....',
+  '....xBxMMMMx....',
+  '....xBxYMMMx....',
+  '....xKxMMMMx....',
+]
+const rightFeet: PixelArt = ['.....xQQQQx.....', '....xAAxAAx.....']
+
+// 静止: 頭上 4 行の余白 + 体 18 行 + 足 2 行
+const stand = (body: PixelArt, feet: PixelArt): PixelArt => [
+  BLANK,
+  BLANK,
+  BLANK,
+  BLANK,
+  ...body,
+  ...feet,
 ]
 
-// 正面の歩行。全体を一段下げて体を上下させ、脚を前後に振る
-const downWalk: PixelArt = [
-  '................',
-  '....xxxxxxxx....',
-  '...xqqqqqqqqx...',
-  '..xqqqqqqqqqqx..',
-  '..xjLLjjjjLLjx..',
-  '..xjLLjjjjLLjx..',
-  '.xQQQQQQQQQQQQx.',
-  '..xAKxKKKKxKAx..',
-  '...xAKKKKKKAx...',
-  '...xMMMMMMMMx...',
-  '..xNMBMYYMMMNx..',
-  '..xNMMBYYMMMNx..',
-  '..xKMMMBMMMMKx..',
-  '...xzzzzzzzzx...',
-  '...xzzzxxzzx....',
-  '..xzzzx..xzx....',
+// 歩行: 全体を一段下げ、足は 1 行に縮めて片脚を後ろへ引く(細く描く)
+const walk = (body: PixelArt, feet: string): PixelArt => [
+  BLANK,
+  BLANK,
+  BLANK,
+  BLANK,
+  BLANK,
+  ...body,
+  feet,
 ]
 
-// 背面。ゴーグルのバンドがキャップの後ろを回り、襟足の茶髪が見える
-const upStand: PixelArt = [
-  '....xxxxxxxx....',
-  '...xqqqqqqqqx...',
-  '..xqqqqqqqqqqx..',
-  '..xjjjjjjjjjjx..',
-  '..xjjjjjjjjjjx..',
-  '.xQQQQQQQQQQQQx.',
-  '..xAAAAAAAAAAx..',
-  '...xAAAAAAAAx...',
-  '...xMMMMMMMMx...',
-  '..xNMMMMMMBMNx..',
-  '..xNMMMMMBMMNx..',
-  '..xNMMMMBMMMNx..',
-  '..xKMMMBMMMMKx..',
-  '...xzzzzzzzzx...',
-  '...xzzzxxzzzx...',
-  '..xzzzzxxzzzzx..',
+// 絵は 0〜14 列に描いているので、軸足の交代はその 15 列だけを反転する(16 列目は空のまま)
+const mirrorArt = (row: string): string => [...row.slice(0, 15)].reverse().join('') + row.slice(15)
+const alternateFoot = (art: PixelArt): PixelArt => [
+  ...art.slice(0, -1),
+  mirrorArt(art[art.length - 1]),
 ]
 
-// 背面の歩行。正面と同じく一段下げ、ストラップは背中側なので逆向きに掛かる
-const upWalk: PixelArt = [
-  '................',
-  '....xxxxxxxx....',
-  '...xqqqqqqqqx...',
-  '..xqqqqqqqqqqx..',
-  '..xjjjjjjjjjjx..',
-  '..xjjjjjjjjjjx..',
-  '.xQQQQQQQQQQQQx.',
-  '..xAAAAAAAAAAx..',
-  '...xAAAAAAAAx...',
-  '...xMMMMMMMMx...',
-  '..xNMMMMMMBMNx..',
-  '..xNMMMMMBMMNx..',
-  '..xKMMMMBMMMKx..',
-  '...xzzzzzzzzx...',
-  '...xzzzxxzzx....',
-  '..xzzzx..xzx....',
-]
-
-// 右向き。ゴーグルのレンズは進行方向側だけ見え、後頭部に茶髪が残る
-const rightStand: PixelArt = [
-  '....xxxxxxxx....',
-  '...xqqqqqqqqx...',
-  '..xqqqqqqqqqqx..',
-  '..xjjjjjjjLLjx..',
-  '..xjjjjjjjLLjx..',
-  '..xQQQQQQQQQQQx.',
-  '..xAAAKKKxKx....',
-  '...xAKKKKKx.....',
-  '....xMMMMMMx....',
-  '...xMMMBMMYx....',
-  '...xMMBMMNMx....',
-  '...xMBMMNKKx....',
-  '...xBMMMMMx.....',
-  '....xzzzzx......',
-  '....xzzzzx......',
-  '...xzzzzzx......',
-]
-
-// 右向きの歩行。前脚を進行方向へ出し、後脚を残す
-const rightWalk: PixelArt = [
-  '................',
-  '....xxxxxxxx....',
-  '...xqqqqqqqqx...',
-  '..xqqqqqqqqqqx..',
-  '..xjjjjjjjLLjx..',
-  '..xjjjjjjjLLjx..',
-  '..xQQQQQQQQQQQx.',
-  '..xAAAKKKxKx....',
-  '...xAKKKKKx.....',
-  '....xMMMMMMx....',
-  '...xMMMBMMYx....',
-  '...xMMBMMNMx....',
-  '...xMBMMNKKx....',
-  '...xBMMMMMx.....',
-  '...xzzxzzx......',
-  '..xzzx.xzzzx....',
-]
-
-// 頭と胴は固定し、ブーツと脚の行だけを反転して軸足を交代する
-const alternateFoot = (art: PixelArt): PixelArt => [...art.slice(0, 14), ...mirrorX(art.slice(14))]
 export const playerArt: PlayerFrames = {
-  up: [upStand, upWalk, alternateFoot(upWalk)],
-  down: [downStand, downWalk, alternateFoot(downWalk)],
-  right: [rightStand, rightWalk],
+  up: [
+    stand(upBody, upFeet),
+    walk(upBody, '...xAAx..xZx....'),
+    alternateFoot(walk(upBody, '...xAAx..xZx....')),
+  ],
+  down: [
+    stand(downBody, downFeet),
+    walk(downBody, '...xAAx..xZx....'),
+    alternateFoot(walk(downBody, '...xAAx..xZx....')),
+  ],
+  right: [stand(rightBody, rightFeet), walk(rightBody, '...xAAx..xAAx...')],
 }

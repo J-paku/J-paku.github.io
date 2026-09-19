@@ -56,11 +56,14 @@
 .marker {
   z-index: 1;
 }
-/* 明るい輪郭を常に付け、草や屋根の上でも人物が沈まないようにする */
+/* 明るい輪郭を常に付け、草や屋根の上でも人物が沈まないようにする。
+   主人公のシートは 16×24(縦 1.5 マス)。足元をマスの下辺に揃え、頭は半マス上へはみ出す */
 .player {
-  top: 0;
+  top: calc(var(--cell) * -0.5);
   left: 0;
   z-index: 2;
+  height: calc(var(--cell) * 1.5);
+  background-size: calc(var(--cell) * var(--player-count)) calc(var(--cell) * 1.5);
   transform-origin: center;
   will-change: transform;
   filter: drop-shadow(1px 0 0 #fff) drop-shadow(-1px 0 0 #fff) drop-shadow(0 1px 0 #fff)
@@ -109,10 +112,10 @@
     animation: none;
   }
 }
-/* 目印。プレイヤーと同じ位置へ JS が transform を書き、CSS で 1 マス弱だけ持ち上げる */
+/* 目印。プレイヤーと同じ位置へ JS が transform を書き、CSS で頭(半マス上)のさらに上へ持ち上げる */
 .locator {
   position: absolute;
-  top: calc(var(--cell) * -0.75);
+  top: calc(var(--cell) * -1.25);
   left: 0;
   z-index: 2;
   width: var(--cell);
@@ -150,6 +153,16 @@
     transform: translateY(-3px);
   }
 }
+/* 一覧への出口の箱。縦持ちタッチだけ枠のすぐ下に横長で並べ、それ以外は箱を作らず中のリンクが fixed で四隅へ行く */
+.exitSlot {
+  display: contents;
+}
+@media (pointer: coarse) and (orientation: portrait) {
+  .exitSlot {
+    display: block;
+    padding: 12px 8px 0;
+  }
+}
 /* 操作帯。PC(マウス)は非表示、縦持ちは枠の下の黒帯、横持ちは枠の上辺に重ねる。
    左にスティック・右に A/B ボタンを置く。
    帯の高さは --cell に依存させない(useStageScale が帯の高さを差し引くため、循環すると振動する) */
@@ -174,8 +187,12 @@
     flex-direction: column;
     height: 100%;
   }
+  /* 枠と出口をひと組にして余った領域の中央へ。出口の下の auto が帯との間を空ける */
   .frame {
-    margin: auto 0;
+    margin: auto 0 0;
+  }
+  .exitSlot {
+    margin: 0 0 auto;
   }
 }
 /* 横持ちは枠の上辺に重ねる。右下はミニマップ、下辺は会話窓が使うため、空いている上辺を取る。

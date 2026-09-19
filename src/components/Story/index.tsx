@@ -56,7 +56,6 @@ function Story({ locale, work }: StoryProps) {
       </section>
       <Navigation
         locale={locale}
-        current='story'
         switchLabel={text.toVillage}
         ui={ui}
         pathname={`/works/${work.slug}`}

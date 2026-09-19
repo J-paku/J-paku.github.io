@@ -8,7 +8,14 @@ import type { RgbaImage } from './png'
 
 export type Palette = Record<string, string> // 1文字→CSS色。'.'は透明(登録不要)
 export type PixelArt = readonly string[] // 行の配列。全行同じ長さ
-export type Sheet = { uri: string; index: Record<string, number>; count: number; tile: number }
+// tile は 1 枚の幅、height は高さ(px)。地形・建物は正方形、主人公は縦長(頭がマスの上へはみ出す)
+export type Sheet = {
+  uri: string
+  index: Record<string, number>
+  count: number
+  tile: number
+  height: number
+}
 
 export const PART = 8
 export const TILE = 16
@@ -39,14 +46,19 @@ export const compose = (tl: PixelArt, tr: PixelArt, bl: PixelArt, br: PixelArt):
 export const recolor = (art: PixelArt, map: Record<string, string>): PixelArt =>
   art.map(row => [...row].map(ch => map[ch] ?? ch).join(''))
 
-// 行数・行長がsizeと一致し、'.'以外の全文字がパレットにあることを確かめる。問題は文字列で返す
-export const validateArt = (art: PixelArt, palette: Palette, size: number): string[] => {
+// 行数が height・行長が width と一致し、'.'以外の全文字がパレットにあることを確かめる。問題は文字列で返す
+export const validateArt = (
+  art: PixelArt,
+  palette: Palette,
+  width: number,
+  height: number = width
+): string[] => {
   const issues: string[] = []
-  if (art.length !== size) issues.push(`行数が${size}ではありません(${art.length})`)
+  if (art.length !== height) issues.push(`行数が${height}ではありません(${art.length})`)
   // 同じ未定義文字を何度も報告しない
   const reported = new Set<string>()
   art.forEach((row, y) => {
-    if (row.length !== size) issues.push(`${y}行目の長さが${size}ではありません(${row.length})`)
+    if (row.length !== width) issues.push(`${y}行目の長さが${width}ではありません(${row.length})`)
     Array.from(row).forEach(ch => {
       if (ch === EMPTY || palette[ch] !== undefined || reported.has(ch)) return
       reported.add(ch)
@@ -67,10 +79,15 @@ export const parseHexColor = (css: string): [number, number, number, number] => 
   return [(value >>> 24) & 0xff, (value >>> 16) & 0xff, (value >>> 8) & 0xff, value & 0xff]
 }
 
-// アートを横一列に並べて RGBA へ落とす。'.' は透明(0,0,0,0)。全アートは同じ size 四方であること
-export const rasterize = (arts: readonly PixelArt[], palette: Palette, size: number): RgbaImage => {
+// アートを横一列に並べて RGBA へ落とす。'.' は透明(0,0,0,0)。全アートは同じ幅・高さであること
+export const rasterize = (
+  arts: readonly PixelArt[],
+  palette: Palette,
+  size: number,
+  height: number = size
+): RgbaImage => {
   const width = arts.length * size
-  const data = new Uint8Array(width * size * 4)
+  const data = new Uint8Array(width * height * 4)
   arts.forEach((art, i) => {
     art.forEach((row, y) => {
       Array.from(row).forEach((ch, x) => {
@@ -81,15 +98,20 @@ export const rasterize = (arts: readonly PixelArt[], palette: Palette, size: num
       })
     })
   })
-  return { width, height: size, data }
+  return { width, height, data }
 }
 
-// 全アートを横一列に並べた1枚のPNG(data URI)。index[key]=何枚目か
-export const buildSheet = (arts: Record<string, PixelArt>, palette: Palette): Sheet => {
+// 全アートを横一列に並べた1枚のPNG(data URI)。index[key]=何枚目か。
+// height を渡すと縦長のタイル(幅は TILE のまま)になる
+export const buildSheet = (
+  arts: Record<string, PixelArt>,
+  palette: Palette,
+  height: number = TILE
+): Sheet => {
   const keys = Object.keys(arts)
   const index: Record<string, number> = {}
   keys.forEach((key, i) => {
-    const issues = validateArt(arts[key], palette, TILE)
+    const issues = validateArt(arts[key], palette, TILE, height)
     if (issues.length > 0) throw new Error(`${key}: ${issues.join('\n')}`)
     index[key] = i
   })
@@ -98,11 +120,13 @@ export const buildSheet = (arts: Record<string, PixelArt>, palette: Palette): Sh
       rasterize(
         keys.map(key => arts[key]),
         palette,
-        TILE
+        TILE,
+        height
       )
     ),
     index,
     count: keys.length,
     tile: TILE,
+    height,
   }
 }

@@ -152,4 +152,14 @@ describe('buildSheet', () => {
   it('不正なアートがあればキー名を含む例外を投げる', () => {
     expect(() => buildSheet({ grass: tile('a'), bad: ['aa'] }, palette)).toThrow(/bad/)
   })
+  it('height を渡すと幅 16 のまま縦長のタイルになる', () => {
+    const tall = Array.from({ length: 24 }, () => 'a'.repeat(TILE))
+    const sheet = buildSheet({ hero: tall, other: tall }, palette, 24)
+    const image = decodePng(bytesOfDataUri(sheet.uri))
+    expect(sheet.height).toBe(24)
+    expect(image.width).toBe(TILE * 2)
+    expect(image.height).toBe(24)
+    expect(pixelAt(image, TILE - 1, 23)).toEqual([0x11, 0x11, 0x11, 255])
+    expect(() => buildSheet({ short: tile('a') }, palette, 24)).toThrow(/24/)
+  })
 })

@@ -19,7 +19,7 @@ export const village: VillageText = {
   visitedOf: '{n} / {total} 訪問',
   skipVillage: 'マップを飛ばして作品一覧へ',
   shortcuts: '作品へ直接移動',
-  toList: '一覧で見る',
+  toList: '作品一覧へ',
   toVillage: 'マップで見る',
   allSeen: '5か所すべて見ました。「{list}」から作品をもう一度たどれます。',
   buttonA: '決定',

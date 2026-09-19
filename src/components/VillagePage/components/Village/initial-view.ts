@@ -12,6 +12,7 @@ type RootStyle = CSSProperties & {
   '--cols': number
   '--rows': number
   '--count': number
+  '--player-count': number
 }
 type FrameStyle = CSSProperties & { '--minimap-w': string; '--minimap-h': string }
 
@@ -30,12 +31,18 @@ export type InitialView = {
   locatorSpriteStyle: SpriteStyle
 }
 
-export const initialView = (world: World, sprites: Sheet, reduceMotion: boolean): InitialView => {
+export const initialView = (
+  world: World,
+  sprites: Sheet,
+  playerSprites: Sheet,
+  reduceMotion: boolean
+): InitialView => {
   const outdoors = world.kind === 'exterior'
   const rootStyle: RootStyle = {
     '--cols': VIEW_COLS,
     '--rows': VIEW_ROWS,
     '--count': sprites.count,
+    '--player-count': playerSprites.count,
   }
   const frameStyle: FrameStyle = {
     '--minimap-w': outdoors ? `${world.width * MINIMAP_SCALE + MINIMAP_CHROME}px` : '0px',
@@ -45,7 +52,7 @@ export const initialView = (world: World, sprites: Sheet, reduceMotion: boolean)
   const startShift = `translate(calc(var(--cell) * ${world.start.x}), calc(var(--cell) * ${world.start.y}))`
   const playerStyle: SpriteStyle = {
     transform: `${startShift}${startPose.flip ? ' scaleX(-1)' : ''}`,
-    '--i': spriteIndex(sprites, startPose.key),
+    '--i': spriteIndex(playerSprites, startPose.key),
   }
   const locatorStyle: CSSProperties = { transform: startShift }
   const startCam = cameraOffset(world, world.start)

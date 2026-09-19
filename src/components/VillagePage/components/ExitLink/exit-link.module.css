@@ -1,0 +1,63 @@
+/* 右下の固定リンク。変形するマップ DOM の外に見えるよう fixed で置き、safe-area を避ける。
+   色は舞台(黒)の上で目立つ黄色。位置を変えず、点滅や拡大は行わない */
+.exit {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 50;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 10px 16px;
+  border: 2px solid #f3d784;
+  border-radius: 999px;
+  background: #f3d784;
+  color: #24251f;
+  font: 700 14px/1 var(--f-label);
+  text-decoration: none;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 24%);
+}
+.exit:hover {
+  background: #ffe8a3;
+  border-color: #ffe8a3;
+}
+.exit:focus-visible {
+  outline: 3px solid #f3d784;
+  outline-offset: 4px;
+}
+
+/* 5 か所すべて話し終えた合図。use-village-overlay が data-bounce を立てた時だけ、
+   ページが変わるまで小さく跳ね続けて一覧への注目を促す */
+.exit[data-bounce] {
+  animation: exit-bounce 1.1s ease-in-out infinite;
+}
+@keyframes exit-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .exit[data-bounce] {
+    animation: none;
+  }
+}
+
+/* 縦持ちタッチは画面最下端が操作帯(親指ゾーン)なので、枠のすぐ下に横いっぱいの帯状で置く。
+   fixed をやめて Village の exitSlot の流れに入る */
+@media (pointer: coarse) and (orientation: portrait) {
+  .exit {
+    position: static;
+    display: flex;
+    width: 100%;
+    min-height: 48px;
+    border-radius: 12px;
+    font-size: 15px;
+  }
+}

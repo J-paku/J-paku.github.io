@@ -1,6 +1,7 @@
 // 村の描画。'use client'は村の入口であるこのファイル(と子の島)に置く。
 // 状態と手は useVillage が組み立て、ここは受け取った値を枠・操作帯・重ね表示へ流し込むだけ
 'use client'
+import type { ReactNode } from 'react'
 import type { Locale } from '@content/types/content'
 import type { VillageText, WorldSet } from '@content/types/world'
 import type { Sheet } from '@/lib/pixel/art'
@@ -24,6 +25,10 @@ type VillageProps = {
   worldSet: WorldSet
   text: VillageText
   sprites: Sheet
+  // 主人公だけ 16×24 の別シート(頭がマスの上へ半マスはみ出す)
+  playerSprites: Sheet
+  // 一覧への出口リンク。縦持ちタッチでは枠のすぐ下に横長で置くので Village の中で描く
+  exit: ReactNode
   // spot.id → 解決済みリンク。null はリンク無し
   stopHrefs: Record<string, string | null>
   stopExternal: Record<string, boolean>
@@ -35,6 +40,8 @@ function Village({
   worldSet,
   text,
   sprites,
+  playerSprites,
+  exit,
   stopHrefs,
   stopExternal,
   listHref,
@@ -44,6 +51,7 @@ function Village({
     frameRef,
     worldLayerRef,
     controlsRef,
+    exitRef,
     playerRef,
     locatorRef,
     hintRef,
@@ -76,7 +84,7 @@ function Village({
     closeOverlay,
     goNext,
     travel,
-  } = useVillage({ worldSet, text, sprites })
+  } = useVillage({ worldSet, text, playerSprites })
 
   const {
     outdoors,
@@ -87,12 +95,12 @@ function Village({
     playerStyle,
     locatorStyle,
     locatorSpriteStyle,
-  } = initialView(world, sprites, reduceMotion)
+  } = initialView(world, sprites, playerSprites, reduceMotion)
 
   return (
     <div ref={rootRef} className={styles.root} style={rootStyle}>
       {/* シートの data URI はこの規則 1 本で解析させる(要素ごとの var() 展開を避ける) */}
-      <style>{`.${styles.sprite}{background-image:url('${sprites.uri}')}`}</style>
+      <style>{`.${styles.sprite}{background-image:url('${sprites.uri}')}.${styles.player}{background-image:url('${playerSprites.uri}')}`}</style>
       {/* 枠と操作帯をまとめる。横持ちの操作帯はこの箱を基準に枠の上辺へ重ねる */}
       <div className={styles.screen}>
         <div
@@ -170,7 +178,8 @@ function Village({
                   transform: `translate(calc(var(--cell) * ${playerCell.x}), calc(var(--cell) * ${playerCell.y}))`,
                 }}
               >
-                <TalkBubble text={hintText} lang={lang} at={{ x: 0.5, y: 0 }} kind='thought' />
+                {/* 頭はマスの上へ半マスはみ出すので、吹き出しはその分だけ上に付ける */}
+                <TalkBubble text={hintText} lang={lang} at={{ x: 0.5, y: -0.5 }} kind='thought' />
               </div>
             ) : null}
           </div>
@@ -201,6 +210,10 @@ function Village({
               onOpen={openMap}
             />
           ) : null}
+        </div>
+        {/* 縦持ちタッチでは枠と帯の間に横長で並び、useStageScale がこの高さも差し引く。それ以外は箱を作らない */}
+        <div ref={exitRef} className={styles.exitSlot} data-village-exit-slot>
+          {exit}
         </div>
         <div ref={controlsRef} className={styles.controls} data-village-controls>
           <div className={styles.joystick}>
