@@ -2,11 +2,16 @@
 // 横持ち・タブレットは枠の左右に150px以上のガターが空けば左右のガターへ、空かなければ枠の左右上に重ねる。
 // useStageScale が --cell(と data-gutters)を実測で書いてから測る
 import { expect, test, type Page } from '@playwright/test'
+import {
+  CELL_MIN,
+  cellMax,
+  computeCell,
+} from '../src/components/VillagePage/components/Village/hooks/use-stage-scale'
 
 // ブート演出が消え、useStageScale が舞台の実測を --cell に書き込むまで待つ。
 // CSS の既定値だけでも近い寸法になるため、インライン変数の有無で JS 側の実行を確かめる
-const waitForStage = async (page: Page) => {
-  await page.goto('/')
+const waitForStage = async (page: Page, path = '/') => {
+  await page.goto(path)
   await page.waitForSelector('#boot', { state: 'detached', timeout: 5_000 })
   await page.waitForFunction(() => {
     const frame = document.querySelector('[data-village]')
@@ -37,14 +42,6 @@ const hasGuttersAttr = (page: Page) =>
     return root.hasAttribute('data-gutters')
   })
 
-// 期待マス寸法。useStageScale と同じ式(floor・下限 12・上限は視野 10 列で 64px)。
-// 舞台はワールドではなく視野で決まるので cols は常に 10・rows は常に 9
-const expectedCell = (w: number, h: number, band: number, cols: number, rows: number) =>
-  Math.min(
-    Math.floor((64 * 10) / cols),
-    Math.max(12, Math.min(Math.floor(w / cols), Math.floor((h - band) / rows)))
-  )
-
 const scrollOverflow = (page: Page) =>
   page.evaluate(() => (document.scrollingElement?.scrollHeight ?? 0) - window.innerHeight)
 
@@ -54,17 +51,27 @@ const box = async (page: Page, selector: string) => {
   return rect
 }
 
-test('PC: 一覧への出口は右下に固定される', async ({ page }) => {
-  await waitForStage(page)
-  const viewport = page.viewportSize()
-  if (viewport === null) throw new Error('viewport 未設定')
-  const exit = await box(page, '[data-village-exit]')
-  const frame = await box(page, '[data-village]')
-  expect(exit.x + exit.width).toBeLessThanOrEqual(viewport.width - 8)
-  expect(exit.y + exit.height).toBeLessThanOrEqual(viewport.height - 8)
-  expect(exit.y).toBeGreaterThan(frame.y + frame.height / 2)
-  expect(exit.width).toBeLessThan(frame.width / 2)
-})
+// 矩形どうしが重なっているか(接するだけは重なりに数えない)
+const boxesIntersect = (
+  a: { x: number; y: number; width: number; height: number },
+  b: { x: number; y: number; width: number; height: number }
+): boolean =>
+  a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y
+
+// ko も同じ舞台レイアウトになることの最小確認(ロケール別のレイアウト崩れが無いか)
+for (const path of ['/', '/ko/']) {
+  test(`PC: 一覧への出口は右下に固定される (${path})`, async ({ page }) => {
+    await waitForStage(page, path)
+    const viewport = page.viewportSize()
+    if (viewport === null) throw new Error('viewport 未設定')
+    const exit = await box(page, '[data-village-exit]')
+    const frame = await box(page, '[data-village]')
+    expect(exit.x + exit.width).toBeLessThanOrEqual(viewport.width - 8)
+    expect(exit.y + exit.height).toBeLessThanOrEqual(viewport.height - 8)
+    expect(exit.y).toBeGreaterThan(frame.y + frame.height / 2)
+    expect(exit.width).toBeLessThan(frame.width / 2)
+  })
+}
 
 test('PC: 枠は上限 64px の整数マスで舞台に収まり、スティックと A/B は出ない', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 })
@@ -72,7 +79,11 @@ test('PC: 枠は上限 64px の整数マスで舞台に収まり、スティッ�
   const frame = await box(page, '[data-village]')
   const { cols, rows, cell } = await stageVars(page)
   // PC の上限は視野(10×9 マス)で 64px = 640×576(原寸 160×144 の 4 倍)
-  expect(cell).toBe(expectedCell(1280, 720, 0, cols, rows))
+  expect(cell).toBe(computeCell(1280, 720, 0, cols, rows))
+  expect(cell).toBe(cellMax(cols))
+  // 上限そのものが変わったら気づけるよう、公式ではなく実数で留める
+  expect(cell).toBe(64)
+  expect(cell).toBeGreaterThanOrEqual(CELL_MIN)
   expect(frame.width).toBe(cell * cols)
   expect(frame.height).toBe(cell * rows)
   expect(frame.x).toBeGreaterThanOrEqual(0)
@@ -104,7 +115,7 @@ test.describe('縦持ちのスマートフォン', () => {
     const { cols, rows, cell } = await stageVars(page)
     // 幅基準: floor(390 / 列)。CSS 既定値ではなく JS の実測値であること(差し引くのは帯と出口の箱の実測)
     expect(cell).toBe(
-      expectedCell(viewport.width, viewport.height, band.height + exitSlot.height, cols, rows)
+      computeCell(viewport.width, viewport.height, band.height + exitSlot.height, cols, rows)
     )
     // 一覧への出口は枠のすぐ下に横いっぱい、帯より上
     expect(exit.y).toBeGreaterThanOrEqual(frame.y + frame.height)
@@ -164,6 +175,11 @@ const expectGutterLayout = async (page: Page, frame: { x: number; width: number 
   // 縦中央(親指の高さ)に寄る
   const center = viewport.height / 2
   expect(Math.abs(joystick.y + joystick.height / 2 - center)).toBeLessThanOrEqual(2)
+  // 一覧への出口はガター配置でも A・B の上に重ならず、画面の下端に収まる
+  const exit = await box(page, '[data-village-exit]')
+  expect(boxesIntersect(exit, a)).toBe(false)
+  expect(boxesIntersect(exit, b)).toBe(false)
+  expect(exit.y + exit.height).toBeLessThanOrEqual(viewport.height)
   expect(await scrollOverflow(page)).toBeLessThanOrEqual(0)
 }
 
@@ -182,7 +198,7 @@ test.describe('横持ちのスマートフォン', () => {
     const frame = await box(page, '[data-village]')
     const { cols, rows, cell } = await stageVars(page)
     // 横持ちは帯が無いので min(floor(w/列), floor(h/行), 64)
-    expect(cell).toBe(expectedCell(viewport.width, viewport.height, 0, cols, rows))
+    expect(cell).toBe(computeCell(viewport.width, viewport.height, 0, cols, rows))
     expect(frame.width).toBe(cell * cols)
     expect(frame.height).toBe(cell * rows)
     // 750×342・cell38の枠幅380なら片側185pxのガターが空き、ガター配置になる
@@ -205,7 +221,8 @@ test.describe('iPad横持ち', () => {
     const frame = await box(page, '[data-village]')
     const { cols, rows, cell } = await stageVars(page)
     // 1024×768はどちらの基準でも上限64pxで頭打ちになる
-    expect(cell).toBe(expectedCell(viewport.width, viewport.height, 0, cols, rows))
+    expect(cell).toBe(computeCell(viewport.width, viewport.height, 0, cols, rows))
+    expect(cell).toBe(cellMax(cols))
     expect(frame.width).toBe(cell * cols)
     expect(frame.height).toBe(cell * rows)
     // 枠幅640に対し片側192pxのガターが空き、ガター配置になる
