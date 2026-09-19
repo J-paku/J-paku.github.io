@@ -38,52 +38,53 @@ const downBody: PixelArt = [
 ]
 const downFeet: PixelArt = ['...xAAxxzzZx....', '....xx..xxx.....']
 
-// 背面。ゴーグルのバンドがキャップの後ろを太く回り、その下に短い茶髪。ストラップは背中を斜めに渡り腰の鞄へ
+// 背面(4方向参照の2体目を 16×24 格子で採取し、胴を 20 行に詰めた)。
+// キャップの後ろをゴーグルのバンドが太く回り、その下に短い茶髪。ストラップは左肩から右腰の鞄へ
 const upBody: PixelArt = [
-  '.....xxxxx......',
-  '...xxqqqqqxx....',
-  '..xqqqqqqqqqx...',
-  '.xqqqqqqqqqqqx..',
-  '.xQjjjjjjjjjQx..',
-  '.xjjjjjjjjjjjx..',
-  'xQqqqqqqqqqqqQx.',
-  'xQQqqqqqqqqqQQx.',
-  '.xxQQQQQQQQQxx..',
-  '.xAAAAAAAAAAAx..',
-  '.xZAAAAAAAAAZx..',
-  '..xZAAAAAAAZx...',
-  '..xxxAAAAAxxx...',
-  '..xqxBMMMMxqx...',
-  '.xqMxMBMMMMMqx..',
-  '.xKqxMMBMMMqKx..',
-  '.xKxxMMMBMMxKx..',
-  '..xxQQQQBBQxx...',
+  '....xxxxxxxx....',
+  '..xxqqqqqqqqxx..',
+  '.xqqqqqqqqqqqqx.',
+  '.xqqqqqqqqqqqqx.',
+  'xqqqqqqqqqqqqqqx',
+  'xQjjjjjjjjjjjjQx',
+  'xQjjjjjjjjjjjjQx',
+  '.xQqqqqqqqqqqQx.',
+  '.xZAAAAAAAAAAZx.',
+  '.xAAAAAAAAAAAAx.',
+  '..xAAAAAAAAAAx..',
+  '...xZAAAAAAZx...',
+  '....xxxxxxxx....',
+  '...xBjMMMMMMMx..',
+  '..xMxBjMMMMMMMx.',
+  '.xKxMMxBjMMMxKx.',
+  '.xKxMMMxBjBBxKx.',
+  '...xQQQxBBBBx...',
 ]
-const upFeet: PixelArt = ['...xAAxxxAAx....', '...xxx...xxx....']
+const upFeet: PixelArt = ['...xZZx..xZZx...', '...xAAx..xAAx...']
 
-// 右向き。つばとゴーグルのレンズは進行方向側だけ見え、後頭部に茶髪が残る。腰の鞄は背中側。
-// 左向きは scaleX(-1) で作るので、絵は 1〜13 列に収めて反転してもずれないようにする
+// 右向き(4方向参照の4体目)。ゴーグルのバンドが前のレンズから後頭部へ斜めに掛かり、顔は前側に一つ目。
+// 腰の鞄は背中側(左)。左向きは scaleX(-1) で作るので、絵は 1〜14 列に収めて反転してもずれないようにする
 const rightBody: PixelArt = [
-  '.....xxxxx......',
-  '...xxqqqqqxx....',
-  '..xqqqqqqqqqx...',
-  '..xqqqqqqxIIx...',
-  '.xqjjjjjjxLIJx..',
-  '.xqjjjjjjjjJx...',
-  '.xQqqqqqqqqQx...',
-  '..xxQQQQQQxxx...',
-  '..xAAAAAxKKKx...',
-  '.xAAAAAAxKxKKx..',
-  '.xAAAAAAxKKKKx..',
-  '..xAAAAAxKVKx...',
-  '...xxxxxxKKxx...',
-  '.....xMMMMx.....',
-  '....xBMMMMMx....',
-  '....xBxMMMMx....',
-  '....xBxYMMMx....',
-  '....xKxMMMMx....',
+  '......xxxxxx....',
+  '....xxqqqqqqx...',
+  '...xqqqqqxxZjjx.',
+  '..xMqqqxAjZIILx.',
+  '.xMMMMxAAjjILIx.',
+  '.xMMQxAZAZjLIIx.',
+  '.xZxxxxxxQQjjjx.',
+  '.xMMMMMqMMAAjjx.',
+  '.xMMMMMZjAAKKjx.',
+  '..xxxxxxjAKYxKx.',
+  '.xZAAAAjKjKYxKx.',
+  '..xAAAjKKKKYjYx.',
+  '....xAZxxKVVx...',
+  '.....xQQQQx.....',
+  '....xQMMMMQx....',
+  '...xAxJYYqQx....',
+  '...xBxJYYqQx....',
+  '...xBxJKKxjx....',
 ]
-const rightFeet: PixelArt = ['.....xQQQQx.....', '....xAAxAAx.....']
+const rightFeet: PixelArt = ['....xxxQQQx.....', '.....xjAAjx.....']
 
 // 静止: 頭上 4 行の余白 + 体 18 行 + 足 2 行
 const stand = (body: PixelArt, feet: PixelArt): PixelArt => [
@@ -124,5 +125,5 @@ export const playerArt: PlayerFrames = {
     walk(downBody, '...xAAx..xZx....'),
     alternateFoot(walk(downBody, '...xAAx..xZx....')),
   ],
-  right: [stand(rightBody, rightFeet), walk(rightBody, '...xAAx..xAAx...')],
+  right: [stand(rightBody, rightFeet), walk(rightBody, '....xAAx.xAAx...')],
 }
