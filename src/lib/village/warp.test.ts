@@ -83,4 +83,31 @@ describe('routeToWarp', () => {
     expect(routeToWarp(room, { x: 0, y: 0 }, 'nowhere')).toBeNull()
     expect(routeToWarp(town, { x: 0, y: 0 }, 'room')).toBeNull()
   })
+  it('同じ長さの経路が並ぶ時は、先に見つかった扉の経路を残す(同点では更新しない)', () => {
+    // 中央から見て左右対称に扉が並ぶ部屋。どちらへの経路も長さ1で同点になる
+    const twoDoors: World = {
+      id: 'two-doors',
+      kind: 'interior',
+      width: 3,
+      height: 1,
+      start: { x: 1, y: 0 },
+      startFacing: 'down',
+      tiles: [['mat', 'floor', 'mat']],
+      structures: [],
+      spots: [],
+      warps: [
+        {
+          id: 'left',
+          cell: { x: 0, y: 0 },
+          target: { worldId: 'town', cell: { x: 9, y: 7 }, facing: 'down' },
+        },
+        {
+          id: 'right',
+          cell: { x: 2, y: 0 },
+          target: { worldId: 'town', cell: { x: 9, y: 7 }, facing: 'down' },
+        },
+      ],
+    }
+    expect(routeToWarp(twoDoors, { x: 1, y: 0 }, 'town')).toEqual([{ x: 0, y: 0 }])
+  })
 })

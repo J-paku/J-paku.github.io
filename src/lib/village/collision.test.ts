@@ -77,6 +77,23 @@ describe('isWalkable', () => {
     expect(isWalkable(world, { x: -1, y: 0 })).toBe(false)
     expect(isWalkable(world, { x: 0, y: 4 })).toBe(false)
   })
+  it('右端の外(x === width)は不可、幅を超えた列がタイル的に通行可能でも弾く(境界のガード)', () => {
+    // tiles の行に width を超える余分な列を仕込み、範囲外ガードがタイル判定より先に効くか確認する
+    const edge: World = {
+      id: 'edge',
+      kind: 'exterior',
+      width: 3,
+      height: 1,
+      start: { x: 0, y: 0 },
+      startFacing: 'down',
+      tiles: [['grass', 'grass', 'grass', 'grass']],
+      structures: [],
+      spots: [],
+      warps: [],
+    }
+    expect(isWalkable(edge, { x: edge.width, y: 0 })).toBe(false)
+    expect(isWalkable(edge, { x: edge.width - 1, y: 0 })).toBe(true)
+  })
   it('家は area 全体が不可(屋根行にも立てない)', () => {
     expect(isWalkable(world, { x: 1, y: 1 })).toBe(false)
     expect(isWalkable(world, { x: 1, y: 0 })).toBe(false)

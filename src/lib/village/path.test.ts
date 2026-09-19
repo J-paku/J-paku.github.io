@@ -37,4 +37,26 @@ describe('findPath', () => {
   it('from === to は空配列', () => {
     expect(findPath(world, { x: 0, y: 2 }, { x: 0, y: 2 })).toEqual([])
   })
+  it('分岐があっても最短経路を返す(直線上の障害物を迂回する 6 マスが最短)', () => {
+    // 5×5 の開けた部屋。中央 1 マスだけ壁(water)にして、直線ルートと迂回ルートの分岐を作る
+    const room: World = {
+      id: 'room5',
+      kind: 'exterior',
+      width: 5,
+      height: 5,
+      start: { x: 0, y: 0 },
+      startFacing: 'down',
+      tiles: [
+        ['path', 'path', 'path', 'path', 'path'],
+        ['path', 'path', 'path', 'path', 'path'],
+        ['path', 'path', 'water', 'path', 'path'],
+        ['path', 'path', 'path', 'path', 'path'],
+        ['path', 'path', 'path', 'path', 'path'],
+      ],
+      structures: [],
+      spots: [],
+      warps: [],
+    }
+    expect(findPath(room, { x: 0, y: 2 }, { x: 4, y: 2 })).toHaveLength(6)
+  })
 })

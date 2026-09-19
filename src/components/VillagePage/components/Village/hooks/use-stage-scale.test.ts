@@ -12,9 +12,16 @@ import {
   bandGap,
   bandHeight,
   cameraOffset,
+  cellMax,
   computeCell,
   hasGutters,
 } from './use-stage-scale'
+
+describe('cellMax', () => {
+  it('列数が2倍(20列)になれば上限は半分(32px)になり、合計横幅64×10を保つ', () => {
+    expect(cellMax(20)).toBe(32)
+  })
+})
 
 describe('computeCell', () => {
   it('PCは上限64pxで止まる(1280×720)', () => {
@@ -36,6 +43,10 @@ describe('computeCell', () => {
   it('極端に小さい舞台でも下限12px(200×100)', () => {
     // 高さ 100/9=11 は下限を割るので 12 へ引き上げる
     expect(computeCell(200, 100, 0, VIEW_COLS, VIEW_ROWS)).toBe(CELL_MIN)
+  })
+  it('列数20の広い舞台でも上限は32pxで止まる(64×10と同じ合計横幅640px)', () => {
+    // 幅 1280/20=64・高さ 720/9=80 のどちらも上限 32px を超える
+    expect(computeCell(1280, 720, 0, 20, VIEW_ROWS)).toBe(32)
   })
 })
 

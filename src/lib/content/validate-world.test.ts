@@ -95,6 +95,16 @@ describe('validateWorldSet', () => {
     })
     expect(validateWorldSet(set)).toContain('ワールド "town": 家 "h1" の扉 x=9 が area の範囲外')
   })
+  it('扉が area の最も左・最も右の有効な列にあれば範囲外として報告しない', () => {
+    const house = tinyTown().structures[0]
+    if (house.kind !== 'house') throw new Error('fixture')
+    const leftmost = townSet({ structures: [{ ...house, doorX: house.area.x }] })
+    expect(validateWorldSet(leftmost).some(m => m.includes('扉'))).toBe(false)
+    const rightmost = townSet({
+      structures: [{ ...house, doorX: house.area.x + house.area.w - 1 }],
+    })
+    expect(validateWorldSet(rightmost).some(m => m.includes('扉'))).toBe(false)
+  })
   it('ロボット・ポストがマップ外なら報告する', () => {
     const set = townSet({
       structures: [...tinyTown().structures, { id: 'b1', kind: 'robot', cell: { x: 5, y: 3 } }],
