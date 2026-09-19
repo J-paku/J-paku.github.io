@@ -5,10 +5,12 @@
   left: calc(var(--cell) * var(--bx));
   z-index: 3;
   display: flex;
+  /* 「話を聞く」は文の下に置く。横に並べると幅が伸びて枠からはみ出す */
+  flex-direction: column;
+  align-items: stretch;
   width: max-content;
   max-width: calc(var(--cell) * 8);
-  align-items: center;
-  gap: 8px;
+  gap: 6px;
   box-sizing: border-box;
   padding: 6px 10px;
   border: 3px solid #181818;
@@ -80,6 +82,7 @@
 .action {
   flex: none;
   padding: 4px 8px;
+  text-align: center;
   border: 3px solid #181818;
   border-radius: 0;
   box-shadow:
