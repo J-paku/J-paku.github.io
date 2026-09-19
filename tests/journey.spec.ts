@@ -127,6 +127,22 @@ for (const { prefix, text, settings } of JOURNEYS) {
     await expect(page.getByRole('status')).toContainText(text.hint, { timeout: 3_000 })
   })
 
+  test(`話せる相手がいない所でEを押すと考え事の一言が出て人物に追従する (${label})`, async ({
+    page,
+  }) => {
+    await openVillage(page, prefix)
+    await leaveRoom(page)
+    // 自宅前 (14,12) から1マス離れ、話せる相手がいない通路へ出る
+    await walk(page, 'ArrowRight', 1)
+    expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 15, y: 12 } })
+    await page.keyboard.press('e')
+    const bubble = page.locator('[data-village-bubble][data-village-bubble-kind="thought"]')
+    await expect(bubble).toContainText(text.noTarget)
+    // 一言は2.5秒で消えるタイマー付きなので、消える前に1マス歩いて追従するか確認する
+    await walk(page, 'ArrowRight', 1)
+    await expect(bubble).toBeVisible()
+  })
+
   test(`町の自宅の扉から部屋へ戻る (${label})`, async ({ page }) => {
     await openVillage(page, prefix)
     await leaveRoom(page)
@@ -287,6 +303,8 @@ for (const { prefix, text, settings } of JOURNEYS) {
   })
 
   test(`5 か所すべて話すと案内が変わり一覧のボタンへ焦点が移る (${label})`, async ({ page }) => {
+    // 10s 待ちを4回連ねるので既定の30sを超える
+    test.setTimeout(60_000)
     await openVillage(page, prefix)
     const dialog = page.getByRole('dialog')
     await page.keyboard.press('e')
