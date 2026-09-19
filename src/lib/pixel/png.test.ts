@@ -49,6 +49,21 @@ describe('encodePng', () => {
     expect(pixelAt(image, 0, 1)).toEqual([0, 0, 255, 255])
     expect(pixelAt(image, 1, 1)).toEqual([0, 0, 0, 0])
   })
+  it('正方形でない画像(3×2)でも行の長さを幅から取り、復号すると元のピクセルへ戻る', () => {
+    // 3×2・6ピクセルをそれぞれ別の色にして行/列のずれを検出できるようにする
+    const wide = {
+      width: 3,
+      height: 2,
+      data: Uint8Array.from([
+        255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 255, 255, 0, 255, 0, 255, 255, 255, 255, 0,
+        255, 255,
+      ]),
+    }
+    const image = decodePng(encodePng(wide))
+    expect(image.width).toBe(3)
+    expect(image.height).toBe(2)
+    expect(pixelAt(image, 2, 1)).toEqual([255, 0, 255, 255])
+  })
   it('ピクセル列の長さが寸法と合わなければ例外を投げる', () => {
     expect(() => encodePng({ width: 2, height: 2, data: new Uint8Array(15) })).toThrow()
     expect(() => encodePng({ width: 0, height: 1, data: new Uint8Array(0) })).toThrow()

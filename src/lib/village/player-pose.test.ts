@@ -47,4 +47,18 @@ describe('playerPose', () => {
       flip: false,
     })
   })
+  it('progressが0.5ちょうどなら歩行コマを終え、0.49ならまだ歩行コマを使う', () => {
+    expect(
+      playerPose(
+        { ...state, facing: 'down', motion: { ...motion, progress: 0.5 }, stride: 0 },
+        false
+      )
+    ).toEqual({ key: 'player-down-0', flip: false })
+    expect(
+      playerPose(
+        { ...state, facing: 'down', motion: { ...motion, progress: 0.49 }, stride: 0 },
+        false
+      )
+    ).toEqual({ key: 'player-down-1', flip: false })
+  })
 })
