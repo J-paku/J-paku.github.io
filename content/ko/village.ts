@@ -6,6 +6,7 @@ export const village: VillageText = {
     '프론트엔드 / 프로덕트 엔지니어 J-Paku의 포트폴리오. 걸어서 다섯 곳을 돌면 제가 어떤 문제를 푸는지 알 수 있습니다.',
   promise: '1분 · 5곳 · 대표 작업 3개',
   hint: '방향키·WASD로 이동 · E로 대화 · M으로 지도',
+  hintTouch: '스틱으로 이동 · A로 대화 · 오른쪽 아래 지도를 탭하면 바로 이동',
   noTarget: '근처에 말 걸 곳이 없네. 문이나 건물을 찾아보자',
   arriveAt: '{place} 앞이에요. 이야기를 들어볼까요?',
   exitHint: '아래 매트를 밟으면 밖으로 나갈 수 있습니다.',
