@@ -145,4 +145,24 @@ describe('spotAt (全方向)', () => {
     expect(spotAt(house, { x: 1, y: 2 })).toBeNull()
     expect(spotAt(house, { x: 4, y: 0 })).toBeNull()
   })
+  it('入口の右端マスは話せるが、その1マス外は話せない(境界のガード)', () => {
+    const house: World = {
+      ...field,
+      structures: [
+        {
+          id: 'h',
+          kind: 'house',
+          roof: 'red',
+          area: { x: 2, y: 1, w: 6, h: 3 },
+          solid: { x: 2, y: 2, w: 6, h: 2 },
+          doorX: 4,
+          doorWidth: 2,
+        },
+      ],
+      spots: [{ id: 'house', structureId: 'h', cell: { x: 4, y: 4 }, facing: 'up', order: 1 }],
+    }
+    // 入口は x=4,5 の 2 マス。右端(5)は話せて、その次(6)は入口の外
+    expect(spotAt(house, { x: 5, y: 4 })?.id).toBe('house')
+    expect(spotAt(house, { x: 6, y: 4 })).toBeNull()
+  })
 })

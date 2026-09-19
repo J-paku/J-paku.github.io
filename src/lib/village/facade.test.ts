@@ -41,6 +41,9 @@ describe('facadeCells (house)', () => {
   it('doorX が area の外なら扉を置かない', () => {
     expect(row({ ...house, doorX: 9 }, 4)).toEqual(['wall-l', 'wall-m', 'wall-m', 'wall-r'])
   })
+  it('doorX が建物の左端の列と同じでも扉になる(左端そのものを扉の内側として扱う)', () => {
+    expect(row({ ...house, doorX: house.area.x }, 4)[0]).toBe('door')
+  })
   it('壁行が 3 段なら中段は l / m / r', () => {
     const tall: House = {
       ...house,
