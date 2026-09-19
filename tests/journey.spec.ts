@@ -325,6 +325,13 @@ for (const { prefix, text, settings } of JOURNEYS) {
       await leaveRoom(page)
       await expect(page.getByRole('status')).toContainText(text.hintTouch, { timeout: 3_000 })
       await expect(page.locator('[data-village]')).toHaveAttribute('aria-label', text.hintTouch)
+      // 案内文は窓の中で折り返し、右へはみ出さない(keep-all で <wbr> が無いと一行のまま外へ出る)
+      const overflow = await page.getByRole('status').evaluate(box => {
+        const span = box.querySelector('span')
+        if (span === null) throw new Error('案内文が無い')
+        return span.getBoundingClientRect().right - box.getBoundingClientRect().right
+      })
+      expect(overflow).toBeLessThanOrEqual(0)
     })
 
     test(`A で会話を開き、B で閉じ、次へで名刺工房まで進む`, async ({ page }) => {
