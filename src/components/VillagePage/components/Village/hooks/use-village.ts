@@ -47,6 +47,8 @@ type UseVillage = {
   visited: ReadonlySet<string>
   activeSpot: Spot | null
   speech: string
+  // 枠の aria-label に出す操作案内。タッチ端末ではスティック・A の説明
+  hintLabel: string
   reduceMotion: boolean
   locatorVisible: boolean
   placeNames: Record<string, string>
@@ -140,6 +142,7 @@ export function useVillage({ worldSet, text, playerSprites }: VillageOptions): U
     activeSpot,
     speech,
     setSpeech,
+    coarse,
     reduceMotion,
     locatorVisible,
     arrive,
@@ -243,6 +246,7 @@ export function useVillage({ worldSet, text, playerSprites }: VillageOptions): U
     visited,
     activeSpot,
     speech,
+    hintLabel: coarse ? text.hintTouch : text.hint,
     reduceMotion,
     locatorVisible,
     placeNames,
