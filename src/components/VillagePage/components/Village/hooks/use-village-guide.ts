@@ -20,8 +20,9 @@ const EMPTY_VISITED: ReadonlySet<string> = new Set<string>()
 let restoredThisLoad = false
 
 // 会話地点でも目的地でもない時の既定文。屋内は出口案内、屋外は操作案内
-const defaultSpeech = (world: World, text: VillageText): string =>
-  world.kind === 'interior' ? text.exitHint : text.hint
+// 屋外の操作案内はタッチ(pointer: coarse)ならスティック・A の説明に替える。判定はマウント後に一度だけ行う
+const defaultSpeech = (world: World, text: VillageText, coarse: boolean): string =>
+  world.kind === 'interior' ? text.exitHint : coarse ? text.hintTouch : text.hint
 
 export type VillageGuideOptions = {
   worldSet: WorldSet
@@ -46,6 +47,8 @@ type UseVillageGuide = {
   activeSpotRef: RefObject<Spot | null>
   visited: ReadonlySet<string>
   setVisited: Dispatch<SetStateAction<ReadonlySet<string>>>
+  // タッチ端末か(pointer: coarse)。枠の aria-label の案内文を切り替える
+  coarse: boolean
   activeSpot: Spot | null
   speech: string
   setSpeech: Dispatch<SetStateAction<string>>
@@ -78,13 +81,19 @@ export function useVillageGuide({
 
   const [visited, setVisited] = useState<ReadonlySet<string>>(EMPTY_VISITED)
   const [activeSpot, setActiveSpot] = useState<Spot | null>(null)
-  const [speech, setSpeech] = useState<string>(defaultSpeech(startWorld, text))
+  // サーバ描画はキーボード向けの案内。タッチ判定は window が要るのでマウント後に立てる
+  const coarseRef = useRef(false)
+  const [coarse, setCoarse] = useState(false)
+  const [speech, setSpeech] = useState<string>(defaultSpeech(startWorld, text, false))
   const [reduceMotion, setReduceMotion] = useState(false)
   const [locatorVisible, setLocatorVisible] = useState(true)
 
   // 位置と訪問はマウント後に読む。サーバ描画は常に開始ワールドの start で、ずれを起こさない
   useEffect(() => {
     setReduceMotion(window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+    const isCoarse = window.matchMedia('(pointer: coarse)').matches
+    coarseRef.current = isCoarse
+    setCoarse(isCoarse)
     // 読み込み直後の最初のマウントは保存を捨て、開始地点からやり直す
     const isFirstMountOfLoad = !restoredThisLoad
     restoredThisLoad = true
@@ -109,7 +118,7 @@ export function useVillageGuide({
     const spot = spotAt(restore.world, restore.cell)
     activeSpotRef.current = spot
     setActiveSpot(spot)
-    setSpeech(defaultSpeech(restore.world, text))
+    setSpeech(defaultSpeech(restore.world, text, coarseRef.current))
   }, [worldSet, startWorld, text, enterWorld])
 
   // 到着マスでワープ・会話地点・目的地を判定し、位置を保存する
@@ -150,7 +159,7 @@ export function useVillageGuide({
           }
           return
         }
-        setSpeech(defaultSpeech(target, text))
+        setSpeech(defaultSpeech(target, text, coarseRef.current))
         return
       }
       writePosition(worldSet.id, {
@@ -175,7 +184,7 @@ export function useVillageGuide({
         null
       setSpeech(
         goalSpot === null
-          ? defaultSpeech(here, text)
+          ? defaultSpeech(here, text, coarseRef.current)
           : text.headTo.replace('{place}', text.stops[goalSpot.id].place)
       )
       // 次へボタンで歩いてきた到着なら、会話窓を自動で開く。利用者が自分で歩いた到着では開かない
@@ -223,6 +232,8 @@ export function useVillageGuide({
     activeSpotRef,
     visited,
     setVisited,
+    // タッチ端末か。枠の aria-label の案内文を切り替える
+    coarse,
     activeSpot,
     speech,
     setSpeech,

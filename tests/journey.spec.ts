@@ -320,6 +320,13 @@ for (const { prefix, text, settings } of JOURNEYS) {
   test.describe(`A/B ボタン (${label})`, () => {
     test.use({ viewport: { width: 390, height: 664 }, isMobile: true, hasTouch: true })
 
+    test(`タッチ端末では町の操作案内がスティックと A の説明になる`, async ({ page }) => {
+      await openVillage(page, prefix)
+      await leaveRoom(page)
+      await expect(page.getByRole('status')).toContainText(text.hintTouch, { timeout: 3_000 })
+      await expect(page.locator('[data-village]')).toHaveAttribute('aria-label', text.hintTouch)
+    })
+
     test(`A で会話を開き、B で閉じ、次へで名刺工房まで進む`, async ({ page }) => {
       await openVillage(page, prefix)
       const dialog = page.getByRole('dialog')

@@ -63,6 +63,7 @@ function Village({
     visited,
     activeSpot,
     speech,
+    hintLabel,
     reduceMotion,
     locatorVisible,
     placeNames,
@@ -110,7 +111,7 @@ function Village({
           tabIndex={0}
           role='application'
           aria-roledescription='map'
-          aria-label={text.hint}
+          aria-label={hintLabel}
           data-village
           onKeyDown={onKeyDown}
           onKeyUp={onKeyUp}

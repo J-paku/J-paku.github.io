@@ -84,7 +84,8 @@ export type StopText = {
 export type VillageText = {
   intro: string // マップ上部の1行
   promise: string // 「1分・5か所・代表作3つ」の約束(intro の下)
-  hint: string // 操作案内(会話窓の既定文)
+  hint: string // 操作案内(会話窓の既定文)。キーボード向け
+  hintTouch: string // 操作案内のタッチ向け(スティック・A・地図をタップ)。pointer: coarse で置き換える
   noTarget: string // 近くに話せる地点が無い時の一言(E を押した時など)
   arriveAt: string // 地点到着の吹き出し。{place} を置換
   exitHint: string // 屋内で出口を案内する一言
