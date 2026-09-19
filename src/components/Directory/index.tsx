@@ -38,13 +38,7 @@ function Directory({ locale }: DirectoryProps) {
           <CareerDetail key={career.id} career={career} ui={content.ui} locale={locale} />
         ))}
       </div>
-      <Navigation
-        locale={locale}
-        current='list'
-        switchLabel={text.toVillage}
-        ui={content.ui}
-        pathname='/list'
-      />
+      <Navigation locale={locale} switchLabel={text.toVillage} ui={content.ui} pathname='/list' />
     </main>
   )
 }

@@ -24,7 +24,8 @@ type VillageInput = ReturnType<typeof useVillageInput>
 export type VillageOptions = {
   worldSet: WorldSet
   text: VillageText
-  sprites: Sheet
+  // 主人公だけの 16×24 シート(歩行コマの添字に使う)
+  playerSprites: Sheet
 }
 
 type UseVillage = {
@@ -32,6 +33,8 @@ type UseVillage = {
   frameRef: RefObject<HTMLDivElement | null>
   worldLayerRef: RefObject<HTMLDivElement | null>
   controlsRef: RefObject<HTMLDivElement | null>
+  // 一覧への出口を置く箱。縦持ちタッチでは枠の下に高さを持つ
+  exitRef: RefObject<HTMLDivElement | null>
   playerRef: RefObject<HTMLDivElement | null>
   locatorRef: RefObject<HTMLDivElement | null>
   // 考え事の吹き出しの土台。use-walk-loop が人物と同じ transform を毎フレーム書く
@@ -71,7 +74,7 @@ type UseVillage = {
   travel: (spotId: string) => void
 }
 
-export function useVillage({ worldSet, text, sprites }: VillageOptions): UseVillage {
+export function useVillage({ worldSet, text, playerSprites }: VillageOptions): UseVillage {
   const {
     startWorld,
     world,
@@ -98,8 +101,15 @@ export function useVillage({ worldSet, text, sprites }: VillageOptions): UseVill
   // 舞台いっぱいの要素と、縦持ちで枠の下に置く十字キー帯。マス寸法はこの2つの実測から決める
   const rootRef = useRef<HTMLDivElement>(null)
   const controlsRef = useRef<HTMLDivElement>(null)
+  const exitRef = useRef<HTMLDivElement>(null)
   // マス寸法は常に表示枠の10×9で決める。ワールドが広くなってもマスの大きさは変わらない
-  useStageScale({ root: rootRef, band: controlsRef, cols: VIEW_COLS, rows: VIEW_ROWS })
+  useStageScale({
+    root: rootRef,
+    band: controlsRef,
+    exit: exitRef,
+    cols: VIEW_COLS,
+    rows: VIEW_ROWS,
+  })
   const playerRef = useRef<HTMLDivElement>(null)
   const locatorRef = useRef<HTMLDivElement>(null)
   const hintRef = useRef<HTMLDivElement>(null)
@@ -167,7 +177,7 @@ export function useVillage({ worldSet, text, sprites }: VillageOptions): UseVill
     autoTalkRef,
     lockedRef,
     heldRef,
-    sprites,
+    sprites: playerSprites,
     reduceMotion,
     arrive,
     bump,
@@ -205,12 +215,13 @@ export function useVillage({ worldSet, text, sprites }: VillageOptions): UseVill
   )
 
   const target = activeSpot === null ? null : talkTarget(world, activeSpot)
-  // 吹き出しは物の上に出す。物がプレイヤーより下(下を向く地点)なら人物を隠すので、プレイヤーの頭上に出す
+  // 吹き出しは物の上に出す。物がプレイヤーより下(下を向く地点)なら人物を隠すので、プレイヤーの頭上に出す。
+  // 主人公の頭はマスの上へ半マスはみ出すので、その分だけ上に付ける
   const talkAt =
     activeSpot === null || target === null
       ? null
       : activeSpot.facing === 'down'
-        ? { x: activeSpot.cell.x + 0.5, y: activeSpot.cell.y }
+        ? { x: activeSpot.cell.x + 0.5, y: activeSpot.cell.y - 0.5 }
         : { x: target.x + target.w / 2, y: target.y }
   const talkText = activeSpot === null ? null : arriveSpeech(text, activeSpot.id)
   const talkLabel = activeSpot === null ? undefined : (text.stops[activeSpot.id].talk ?? text.talk)
@@ -220,6 +231,7 @@ export function useVillage({ worldSet, text, sprites }: VillageOptions): UseVill
     frameRef,
     worldLayerRef,
     controlsRef,
+    exitRef,
     playerRef,
     locatorRef,
     hintRef,

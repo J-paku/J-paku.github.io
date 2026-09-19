@@ -54,6 +54,18 @@ const box = async (page: Page, selector: string) => {
   return rect
 }
 
+test('PC: 一覧への出口は右下に固定される', async ({ page }) => {
+  await waitForStage(page)
+  const viewport = page.viewportSize()
+  if (viewport === null) throw new Error('viewport 未設定')
+  const exit = await box(page, '[data-village-exit]')
+  const frame = await box(page, '[data-village]')
+  expect(exit.x + exit.width).toBeLessThanOrEqual(viewport.width - 8)
+  expect(exit.y + exit.height).toBeLessThanOrEqual(viewport.height - 8)
+  expect(exit.y).toBeGreaterThan(frame.y + frame.height / 2)
+  expect(exit.width).toBeLessThan(frame.width / 2)
+})
+
 test('PC: 枠は上限 64px の整数マスで舞台に収まり、スティックと A/B は出ない', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 })
   await waitForStage(page)
@@ -87,9 +99,19 @@ test.describe('縦持ちのスマートフォン', () => {
     if (viewport === null) throw new Error('viewport 未設定')
     const frame = await box(page, '[data-village]')
     const band = await box(page, '[data-village-controls]')
+    const exitSlot = await box(page, '[data-village-exit-slot]')
+    const exit = await box(page, '[data-village-exit]')
     const { cols, rows, cell } = await stageVars(page)
-    // 幅基準: floor(390 / 列)。CSS 既定値ではなく JS の実測値であること(帯の高さは操作帯全体の実測)
-    expect(cell).toBe(expectedCell(viewport.width, viewport.height, band.height, cols, rows))
+    // 幅基準: floor(390 / 列)。CSS 既定値ではなく JS の実測値であること(差し引くのは帯と出口の箱の実測)
+    expect(cell).toBe(
+      expectedCell(viewport.width, viewport.height, band.height + exitSlot.height, cols, rows)
+    )
+    // 一覧への出口は枠のすぐ下に横いっぱい、帯より上
+    expect(exit.y).toBeGreaterThanOrEqual(frame.y + frame.height)
+    expect(exit.y - (frame.y + frame.height)).toBeLessThanOrEqual(24)
+    expect(exit.y + exit.height).toBeLessThanOrEqual(band.y)
+    expect(exit.width).toBeGreaterThanOrEqual(frame.width - 24)
+    expect(exit.height).toBeGreaterThanOrEqual(44)
     expect(frame.width).toBe(cell * cols)
     expect(frame.height).toBe(cell * rows)
     expect(band.y).toBeGreaterThanOrEqual(frame.y + frame.height)
