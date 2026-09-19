@@ -3,12 +3,13 @@
 // スプライトシートと地点リンクはここで一度だけ作り、クライアントの Village へ渡す
 import type { Locale } from '@content/types/content'
 import { readContent, readVillageText, readWorldSet, listStorySlugs } from '@/lib/content/read'
-import { buildSprites } from '@/lib/pixel/sprites'
+import { buildPlayerSprites, buildSprites } from '@/lib/pixel/sprites'
 import { allSpots } from '@/lib/village/spot'
 import { toHref } from '@/utils/locale-path'
 import Logo from '@/components/ui/Logo'
 import Boot from './components/Boot'
 import Navigation from '@/components/ui/Navigation'
+import ExitLink from './components/ExitLink'
 import Village from './components/Village'
 import styles from './village-page.module.css'
 
@@ -19,6 +20,7 @@ function VillagePage({ locale }: VillagePageProps) {
   const text = readVillageText(locale)
   const worldSet = readWorldSet()
   const sprites = buildSprites()
+  const playerSprites = buildPlayerSprites()
   const storySlugs = new Set(listStorySlugs(locale))
   // 地点ごとのリンク先。story は言語付きの作品ルート、external はそのまま。地点は全ワールド分
   const stopHrefs: Record<string, string | null> = {}
@@ -67,17 +69,14 @@ function VillagePage({ locale }: VillagePageProps) {
         worldSet={worldSet}
         text={text}
         sprites={sprites}
+        playerSprites={playerSprites}
+        exit={<ExitLink href={toHref('/list', locale)} label={text.toList} />}
         stopHrefs={stopHrefs}
         stopExternal={stopExternal}
         listHref={toHref('/list', locale)}
       />
-      <Navigation
-        locale={locale}
-        current='village'
-        switchLabel={text.toList}
-        ui={content.ui}
-        pathname='/'
-      />
+      {/* 一覧への出口は Village の中(ExitLink)。ここは設定メニューだけ */}
+      <Navigation locale={locale} ui={content.ui} pathname='/' />
     </main>
   )
 }

@@ -1,7 +1,7 @@
-// 全スプライトを一つの型付き辞書へまとめる
+// 全スプライトを型付き辞書へまとめる。地形・建物は 16×16 の1枚、主人公は 16×24 の別シート
 import { buildSheet } from './art'
 import type { PixelArt, Sheet } from './art'
-import { playerArt } from './actors'
+import { playerArt, PLAYER_HEIGHT } from './actors'
 import { palette } from './palette'
 import { structureArt } from './structures'
 import { terrainArt } from './terrain'
@@ -16,11 +16,14 @@ type PlayerSpriteKey =
   | 'player-right-0'
   | 'player-right-1'
 
-export type SpriteKey = keyof typeof terrainArt | keyof typeof structureArt | PlayerSpriteKey
+export type SpriteKey = keyof typeof terrainArt | keyof typeof structureArt
 
 export const SPRITE_ARTS: Record<SpriteKey, PixelArt> = {
   ...terrainArt,
   ...structureArt,
+}
+
+export const PLAYER_ARTS: Record<PlayerSpriteKey, PixelArt> = {
   'player-up-0': playerArt.up[0],
   'player-up-1': playerArt.up[1],
   'player-up-2': playerArt.up[2],
@@ -32,3 +35,4 @@ export const SPRITE_ARTS: Record<SpriteKey, PixelArt> = {
 }
 
 export const buildSprites = (): Sheet => buildSheet(SPRITE_ARTS, palette)
+export const buildPlayerSprites = (): Sheet => buildSheet(PLAYER_ARTS, palette, PLAYER_HEIGHT)
