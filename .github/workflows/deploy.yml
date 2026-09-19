@@ -27,6 +27,7 @@ jobs:
       # 前段が落ちたら後段を走らせる意味が無いので直列
       - run: npm run typecheck
       - run: npm run lint
+      - run: npm run format:check
       - run: npm run test
       - run: npm run build
       - name: Install Playwright Chromium
@@ -40,7 +41,7 @@ jobs:
       - name: Install CJK fonts for measurement
         run: sudo apt-get update && sudo apt-get install -y fonts-noto-cjk
       - name: Japanese line-break check
-        run: node scripts/check-ja-linebreak.mjs http://localhost:4173 /list/ /ko/list/ /works/meishi-cross-platform/ /ko/works/meishi-cross-platform/
+        run: node scripts/check-ja-linebreak.mjs http://localhost:4173 / /ko/ /list/ /ko/list/ /works/meishi-cross-platform/ /ko/works/meishi-cross-platform/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

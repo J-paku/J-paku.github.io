@@ -39,6 +39,7 @@ const eslintConfig = [
     ignores: [
       '.next/**',
       'out/**',
+      'dist/**',
       'node_modules/**',
       '.claude/**',
       'src/_v1-pages/**',
