@@ -1,0 +1,126 @@
+/*
+ * 「詳しく見る」トグル(DetailToggle)のスタイル。1コンポーネントフォルダ = 1 module.css の
+ * 決まりに合わせ、カードの殻(work-card.module.css)からボタン・ラベルの下線・シェブロン・
+ * 常時バウンスをここへ移した。中身は移動だけで、規則そのものは変えていない。
+ * ボタンをカードのどの行に置くか(grid-area)だけは親のグリッドが決めるため、クラスを props で
+ * 受け取る — 理由は work-card.module.css の .toggleSlot のコメント参照
+ */
+
+/* 詳細トグル。全幅バーは「存在感過多」で廃止 — 中央寄せの小さなテキストリンク然としたボタンにする。
+   罫線・背景塗りは持たず、ラベル文字色は常時 ink(旧来の ink-mid → hover 昇格はやめ、
+   最初から存在感を上げておく)。パネルとの間は .card の row-gap が空けるため margin-top は
+   持たせない(二重加算を避ける)。padding は可視サイズを絞っても 44px 相当のヒットボックスを
+   確保する分。ボタン全体を常時 2.5s 周期で二度小さく跳ねさせ、存在に気づかせる(詳細は下の
+   detail-toggle-bounce 参照) */
+.detailToggle {
+  justify-self: center;
+  width: fit-content;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 20px;
+  margin-top: 0;
+  border: none;
+  background: none;
+  font-family: var(--f-label);
+  font-size: 0.75rem;
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.1em;
+  color: var(--ink);
+  cursor: pointer;
+  animation: detail-toggle-bounce 2.5s linear infinite;
+}
+
+/* 開いている間(aria-expanded=true)は跳ねを止める — 読んでいる最中にボタンが揺れ続けるのを防ぐ */
+.detailToggle[aria-expanded='true'] {
+  animation: none;
+}
+
+/* ホバー中も跳ねを止める。ポインタ環境だけに掛けるのは、タッチでタップした瞬間の
+   :hover 残留(sticky hover)でバウンスが永続停止するのを避けるため
+   (shot.module.css の .shotOverlay のホバーガードと同じ趣旨) */
+@media (hover: hover) and (pointer: fine) {
+  .detailToggle:hover {
+    animation: none;
+  }
+}
+
+/* ラベル文言。下線(::after)の基準となるテキスト幅だけを持たせるためシェブロンとは別要素にする */
+.detailToggleLabel {
+  position: relative;
+}
+
+/* テキスト幅の点線下線。常時表示し、色は部号用のアクセント(赤)にしてカードを開く地点である
+   存在感を出す。ホバー・フォーカス時は実線に変えて応答を示す(色は accent のまま) */
+.detailToggleLabel::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -3px;
+  border-bottom: 1px dotted var(--accent);
+}
+
+.detailToggle:hover .detailToggleLabel::after,
+.detailToggle:focus-visible .detailToggleLabel::after {
+  border-bottom-style: solid;
+}
+
+/* シェブロン。部号として下線と同じ accent 色を持たせる。浮遊はボタン全体(.detailToggle)が
+   担うため、ここは開閉での回転 transition のみを持つ — 浮遊(ボタン)と回転(シェブロン)が
+   別要素の transform に分かれたことで合成の競合が起きない */
+.detailChevron {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  color: var(--accent);
+  transition: transform 220ms var(--ease-reveal);
+}
+
+.detailToggle[aria-expanded='true'] .detailChevron {
+  transform: rotate(180deg);
+}
+
+/* ボタン全体の常時バウンス。2.5s 周期のうち前半 0.8s で大きい跳ね(-6px)→小さい跳ね(-3px)を
+   二度行い、残り 1.7s(32%〜100%)は静止して休符を作る。上昇区間は ease-out(減速)・
+   下降区間は ease-in(加速)にして落下の重力感を出す — animation-timing-function は
+   そのキーフレームから次のキーフレームまでの区間に適用される */
+@keyframes detail-toggle-bounce {
+  0%,
+  32%,
+  100% {
+    transform: translateY(0);
+    animation-timing-function: ease-out;
+  }
+
+  8% {
+    transform: translateY(-6px);
+    animation-timing-function: ease-in;
+  }
+
+  16% {
+    transform: translateY(0);
+    animation-timing-function: ease-out;
+  }
+
+  24% {
+    transform: translateY(-3px);
+    animation-timing-function: ease-in;
+  }
+}
+
+/* 動きを減らす設定の環境 */
+@media (prefers-reduced-motion: reduce) {
+  /* 常時のバウンスアニメーションを止め、回転のみの静的な合図に戻す */
+  .detailToggle {
+    animation: none;
+  }
+
+  .detailChevron {
+    transition: none;
+  }
+
+  .detailToggle[aria-expanded='true'] .detailChevron {
+    transform: rotate(180deg);
+  }
+}

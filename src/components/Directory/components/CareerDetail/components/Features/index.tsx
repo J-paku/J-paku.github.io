@@ -59,7 +59,7 @@ function Features({ features, ui, locale }: FeaturesProps) {
                   <li key={role} className={isOwned ? styles.roleOwned : styles.roleOff}>
                     {roleLabels[role]}
                     {/* 塗りと淡さの差は目で見た人にしか伝わらない。担当・担当外は読み上げ用の文字でも添える */}
-                    <span className={styles.srOnly}>
+                    <span className='sr-only'>
                       {isOwned ? ui.career.roleOwned : ui.career.roleNotOwned}
                     </span>
                   </li>
