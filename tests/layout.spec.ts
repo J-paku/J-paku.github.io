@@ -155,6 +155,42 @@ test.describe('縦持ちのスマートフォン', () => {
     expect(a.y).toBeLessThan(b.y)
     expect(await scrollOverflow(page)).toBeLessThanOrEqual(0)
   })
+
+  test('操作帯を含む舞台全体で touch-action: none が効き、下方向のドラッグで文書がスクロールしない', async ({
+    page,
+  }) => {
+    await waitForStage(page)
+    // touch-action は継承されないプロパティなので、帯自身の computed style だけでは祖先の
+    // none を拾えない。ブラウザが実際にタッチのデフォルト動作(ページのパン)を止めるかは
+    // 帯とその祖先を合わせた実効値で決まるので、帯から根まで遡って none を持つ要素があるかを見る
+    // (実機の「黒帯を下へ引くとページごと動く」報告への対処)
+    const result = await page.evaluate(() => {
+      const controls = document.querySelector('[data-village-controls]')
+      const root = controls?.closest<HTMLElement>('[style*="--cols"]')
+      if (!(controls instanceof HTMLElement) || !(root instanceof HTMLElement)) {
+        throw new Error('操作帯か .root が見つからない')
+      }
+      let node: Element | null = controls
+      let controlsEffectiveNone = false
+      while (node !== null) {
+        if (getComputedStyle(node).touchAction === 'none') {
+          controlsEffectiveNone = true
+          break
+        }
+        node = node.parentElement
+      }
+      return {
+        controlsEffectiveNone,
+        rootTouchAction: getComputedStyle(root).touchAction,
+      }
+    })
+    // .root(黒帯と余白を含む舞台全体)自身が touch-action: none であること
+    expect(result.rootTouchAction).toBe('none')
+    // 帯からその祖先を遡った実効値も none であること(帯の自前の宣言は無くてもよい)
+    expect(result.controlsEffectiveNone).toBe(true)
+    // 文書自体がスクロール可能になっていないこと(回帰検知)
+    expect(await scrollOverflow(page)).toBeLessThanOrEqual(1)
+  })
 })
 
 // 枠の左右に150px以上のガターが空く(片側 (viewport幅 - 枠幅)/2 ≥ 150px)横持ち・タブレットは、
