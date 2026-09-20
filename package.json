@@ -4,8 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build && node scripts/verify-export.mjs",
+    "dev": "node scripts/build-sprites.mjs && next dev",
+    "build": "node scripts/build-sprites.mjs && next build && node scripts/verify-export.mjs",
     "start": "serve out -l 4173",
     "lint": "eslint .",
     "test": "vitest run",

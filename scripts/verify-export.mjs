@@ -62,5 +62,36 @@ if (refs === 0) {
   console.error('verify-export: css/js の参照が0件。検査が成立していない')
   failed = true
 }
+
+// スプライトシートは public/sprites へ焼いた実ファイル(scripts/build-sprites.mjs)。
+// 焼き損ねても HTML は今までどおり出るので、参照先が空のまま「村が見えないサイト」を
+// 配ってしまう。ここで実体と中身まで見て落とす。PNG の署名まで確かめるのは、
+// 0 バイトではないが中身が壊れている(途中で切れた等)場合も通さないため
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+const spriteRefs = new Set()
+for (const file of htmlFiles) {
+  const html = readFileSync(file, 'utf-8')
+  for (const [ref] of html.matchAll(/\/sprites\/[a-z0-9-]+\.png/g)) spriteRefs.add(ref)
+}
+for (const ref of spriteRefs) {
+  const abs = path.join(OUT, ref)
+  if (!existsSync(abs)) {
+    console.error(`verify-export: HTML が参照するシートが無い: ${ref}`)
+    failed = true
+    continue
+  }
+  const bytes = readFileSync(abs)
+  if (bytes.length === 0 || !bytes.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE)) {
+    console.error(`verify-export: シートが空か PNG ではない: ${ref} (${bytes.length} bytes)`)
+    failed = true
+  }
+}
+if (spriteRefs.size === 0) {
+  console.error('verify-export: スプライトシートの参照が0件。検査が成立していない')
+  failed = true
+}
+
 if (failed) process.exit(1)
-console.log(`verify-export: OK (${htmlFiles.length} html, ${refs} refs)`)
+console.log(
+  `verify-export: OK (${htmlFiles.length} html, ${refs} refs, ${spriteRefs.size} sprite sheets)`
+)

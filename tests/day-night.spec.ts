@@ -111,21 +111,50 @@ const leaveRoom = async (page: Page) => {
   await expect(page.locator('[data-world]')).toHaveAttribute('data-world', 'town')
 }
 
-// 背景画像のデータURIは数KBあるので、長さと簡易チェックサムへ畳んでから比べる。
-// PNG のデータURIであることも併せて返し、両方が none で「差がある」を取り逃さないようにする
+// 焼いたシートはサイト内の /sprites/<種類>-<段階>.png に置く(実体は public/sprites/、
+// 焼くのは scripts/build-sprites.mjs)。data URI をやめて実ファイルになったので、
+// 符号化の形ではなく「サイトが配るシートの PNG を指しているか」で見る。
+// 段階と拡張子の間には中身から導いた印(内容ハッシュ)が入ることがあるので、
+// 決め打ちの名前ではなく形で照合する。段階の綴りは DAY_PHASES から組み、ここを第二の正本にしない
+const SHEET_PATH = new RegExp(
+  `^/sprites/(?:sprite|player)-(?:${DAY_PHASES.join('|')})(?:-[0-9a-zA-Z]+)?\\.png$`
+)
+
+// 背景画像の URL を長さと簡易チェックサムへ畳んでから比べる。併せて「サイト内の焼いた
+// シート PNG を実際に読めているか」も返し、両方が none や 404 のときに
+// 「差がある」を取り逃さないようにする
 const sheetDigest = (page: Page, selector: string) =>
   page
     .locator(selector)
     .first()
-    .evaluate(element => {
+    .evaluate(async (element, pathPattern) => {
       const image = getComputedStyle(element).backgroundImage
       let sum = 0
       for (let i = 0; i < image.length; i += 1) sum = (sum * 31 + image.charCodeAt(i)) >>> 0
-      return {
-        png: image.includes('data:image/png;base64,'),
-        digest: `${image.length}:${sum.toString(16)}`,
+      const digest = `${image.length}:${sum.toString(16)}`
+
+      // none・グラデーション・複数指定はここで落とす(url() 1本だけを認める)
+      const single = /^url\((['"]?)(.+)\1\)$/.exec(image)
+      if (single === null) return { sheet: false, digest }
+      let url: URL
+      try {
+        url = new URL(single[2], location.href)
+      } catch {
+        return { sheet: false, digest }
       }
-    })
+      // 外部の画像を掴んでいないこと(配信元が同じ)と、焼いたシートの名前の規則に合っていること
+      if (url.origin !== location.origin || !new RegExp(pathPattern).test(url.pathname)) {
+        return { sheet: false, digest }
+      }
+      // URL の形だけでは「out/ に実体が無い(404)」を見逃す。実際に読めて寸法が出るまで確かめる
+      const drawable = await new Promise<boolean>(resolve => {
+        const probe = new Image()
+        probe.onload = () => resolve(probe.naturalWidth > 0 && probe.naturalHeight > 0)
+        probe.onerror = () => resolve(false)
+        probe.src = url.href
+      })
+      return { sheet: drawable, digest }
+    }, SHEET_PATH.source)
 
 for (const { prefix, text } of JOURNEYS) {
   const label = prefix === '' ? '/' : prefix
@@ -154,16 +183,16 @@ for (const { prefix, text } of JOURNEYS) {
     await expect(page.locator(VILLAGE_ROOT)).toHaveAttribute('data-phase', 'day')
     const dayGround = await sheetDigest(page, GROUND_SPRITE)
     const dayPlayer = await sheetDigest(page, '[data-village-player]')
-    expect(dayGround.png, '昼の地形シートがPNGのデータURIである').toBe(true)
-    expect(dayPlayer.png, '昼の主人公シートがPNGのデータURIである').toBe(true)
+    expect(dayGround.sheet, '昼の地形シートがサイト内の焼いたシートPNGである').toBe(true)
+    expect(dayPlayer.sheet, '昼の主人公シートがサイト内の焼いたシートPNGである').toBe(true)
 
     await page.clock.setFixedTime(new Date(PHASE_CLOCKS.night))
     await openVillage(page, prefix)
     await expect(page.locator(VILLAGE_ROOT)).toHaveAttribute('data-phase', 'night')
     const nightGround = await sheetDigest(page, GROUND_SPRITE)
     const nightPlayer = await sheetDigest(page, '[data-village-player]')
-    expect(nightGround.png, '夜の地形シートがPNGのデータURIである').toBe(true)
-    expect(nightPlayer.png, '夜の主人公シートがPNGのデータURIである').toBe(true)
+    expect(nightGround.sheet, '夜の地形シートがサイト内の焼いたシートPNGである').toBe(true)
+    expect(nightPlayer.sheet, '夜の主人公シートがサイト内の焼いたシートPNGである').toBe(true)
 
     // 属性が変わっただけでなく、要素へ解決される背景画像そのものが別物になっている
     expect(nightGround.digest, '地形シートが夜で入れ替わる').not.toBe(dayGround.digest)
