@@ -145,11 +145,13 @@ export const validateWorldSet = (set: WorldSet): string[] => {
   for (const [worldId, world] of Object.entries(set.worlds)) {
     issues.push(...validateWorld(set, worldId, world))
   }
-  // order は全ワールド通しの 1..n 連番で重複が無いこと(コース順の欠けは案内が途切れる)
+  // order は全ワールド通しの 1..n 連番で重複が無いこと(コース順の欠けは案内が途切れる)。
+  // order の無い地点はコース外なので、この検査からは除く
   const spots = Object.values(set.worlds).flatMap(w => w.spots)
-  const orders = spots.map(s => s.order).sort((a, b) => a - b)
+  const orderedSpots = spots.filter(s => s.order !== undefined)
+  const orders = orderedSpots.map(s => s.order ?? 0).sort((a, b) => a - b)
   if (orders.some((v, i) => v !== i + 1))
-    issues.push(`地点の order が全ワールド通しの 1..${spots.length} の連番になっていない`)
+    issues.push(`地点の order が全ワールド通しの 1..${orderedSpots.length} の連番になっていない`)
   return issues
 }
 

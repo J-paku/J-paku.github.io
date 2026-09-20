@@ -99,5 +99,29 @@ export const village: VillageText = {
         target: { kind: 'external', url: 'mailto:pjhrecr@gmail.com' },
       },
     },
+    monument: {
+      place: '経歴碑',
+      title: 'これまでの道',
+      claim: '2022年から2社で、社内システムのフロントエンドを作ってきました。',
+      entries: [
+        {
+          logo: '/logos/koyama.png',
+          company: '小山株式会社',
+          period: '2025.01 - 現在',
+          body: '社内業務スーパーアプリのWeb全域とiOSを担当。入社9か月でWeb開発チームリーダー',
+        },
+        {
+          logo: '/logos/meitec-fielders.png',
+          company: 'メイテックフィルダーズ',
+          period: '2022.04 - 2024.12',
+          body: '派遣先2社の情報システム部門で、Nuxt.jsのSPA新規構築とSharePointの運用・自動化',
+        },
+      ],
+      proof: '前半は派遣先の情報システム部門で、今は商社の社内開発チームでリーダーをしています。',
+      hook: '気になる作品は地図からいつでも戻れます。',
+      next: '作品一覧へ',
+      detail: 'それぞれの現場で何を作ったかは、作品一覧のプロフィールに続いています。',
+      talk: '読む',
+    },
   },
 }

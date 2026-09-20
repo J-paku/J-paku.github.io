@@ -148,6 +148,19 @@ describe('validateWorldSet', () => {
   it('実際の worldSet は問題なし', () => {
     expect(validateWorldSet(worldSet)).toEqual([])
   })
+  it('経歴碑(monument)が実際の町に 2×2 の構造物として登録されている', () => {
+    const monument = worldSet.worlds.town.structures.find(s => s.id === 'monument')
+    expect(monument).toEqual({ id: 'monument', kind: 'monument', cell: { x: 13, y: 3 } })
+  })
+  it('経歴碑の会話地点は order を持たず、コース外の地点として登録されている', () => {
+    const spot = worldSet.worlds.town.spots.find(s => s.id === 'monument')
+    expect(spot).toEqual({
+      id: 'monument',
+      structureId: 'monument',
+      cell: { x: 13, y: 5 },
+      facing: 'up',
+    })
+  })
 })
 
 it('2マス入口が建物の幅をはみ出す配置は弾く', () => {

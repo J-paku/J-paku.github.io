@@ -23,6 +23,7 @@ export type RoofColor = 'red' | 'blue'
 // house: area = 屋根行 + 壁行(見た目)、solid = 壁行(通行不可)。扉は最下段の壁で doorX の列
 // robot: 1×1(AI 作業台の相棒ロボット)、mailbox: 1×1(郵便ポスト)
 // desk: cell から 3×2(PC 机)、bed: cell から 1×2、table: cell から 2×2 — いずれも通行不可
+// monument: cell(左上)から 2×2(経歴碑)、stele: cell(上のマス)から縦 1×2(コードのみ対応、現状は未設置) — いずれも通行不可
 export type Structure =
   | {
       id: string
@@ -38,8 +39,17 @@ export type Structure =
   | { id: string; kind: 'desk'; cell: Cell }
   | { id: string; kind: 'bed'; cell: Cell }
   | { id: string; kind: 'table'; cell: Cell }
-// 会話地点。cell = 立ち位置(通行可)。order は 1 始まりのコース順(全ワールド通し)
-export type Spot = { id: string; structureId: string; cell: Cell; facing: Direction; order: number }
+  | { id: string; kind: 'monument'; cell: Cell }
+  | { id: string; kind: 'stele'; cell: Cell }
+// 会話地点。cell = 立ち位置(通行可)。order は 1 始まりのコース順(全ワールド通し)。
+// order が無い地点はコース外(次の地点・訪問数・完走判定からは除くが、話しかけ・地図表示・地図からの移動はできる)
+export type Spot = {
+  id: string
+  structureId: string
+  cell: Cell
+  facing: Direction
+  order?: number
+}
 // ワープ。cell に到着するか、通行不可な cell(扉)へぶつかったら target のワールド・マス・向きへ移る
 export type Warp = {
   id: string
@@ -79,6 +89,7 @@ export type StopText = {
   arrive?: string // 到着の吹き出し。無ければ arriveAt に place を入れる
   talk?: string // 会話ボタンの文言。無ければ text.talk
   link?: { label: string; target: LinkTarget }
+  entries?: { logo: string; company: string; period: string; body: string }[] // 経歴などの一覧。logo は /logos/ 配下のパス。モーダルでは claim と proof の間に並べる
 }
 
 export type VillageText = {

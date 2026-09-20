@@ -14,11 +14,16 @@ const side = (x: number, left: number, right: number): 'l' | 'm' | 'r' => {
 const wallKey = (x: number, left: number, right: number): SpriteKey =>
   `wall-${side(x, left, right)}`
 
-// 左上マスからの相対位置ごとにキーを並べた家具。行優先(上の行から左→右)
-const FURNITURE: Record<'desk' | 'bed' | 'table', { w: number; keys: readonly SpriteKey[] }> = {
+// 左上マスからの相対位置ごとにキーを並べた家具・設置物。行優先(上の行から左→右)
+const FURNITURE: Record<
+  'desk' | 'bed' | 'table' | 'monument' | 'stele',
+  { w: number; keys: readonly SpriteKey[] }
+> = {
   desk: { w: 3, keys: ['desk-tl', 'desk-tm', 'desk-tr', 'desk-bl', 'desk-bm', 'desk-br'] },
   bed: { w: 1, keys: ['bed-t', 'bed-b'] },
   table: { w: 2, keys: ['table-tl', 'table-tr', 'table-bl', 'table-br'] },
+  monument: { w: 2, keys: ['monument-tl', 'monument-tr', 'monument-bl', 'monument-br'] },
+  stele: { w: 1, keys: ['stele-t', 'stele-b'] },
 }
 
 export const facadeCells = (structure: Structure): FacadeCell[] => {

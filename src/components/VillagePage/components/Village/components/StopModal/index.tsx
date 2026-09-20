@@ -134,6 +134,29 @@ export function StopModal({
               <p className={styles.claim}>
                 <PhraseText text={stop.claim} locale={lang} />
               </p>
+              {stop.entries && stop.entries.length > 0 ? (
+                <ol className={styles.entries}>
+                  {stop.entries.map(entry => (
+                    <li key={entry.company} className={styles.entry}>
+                      {entry.logo !== '' ? (
+                        <img
+                          className={styles.entryLogo}
+                          src={entry.logo}
+                          alt={entry.company}
+                          height={24}
+                        />
+                      ) : null}
+                      <p className={styles.entryHead}>
+                        <span className={styles.entryCompany}>{entry.company}</span>
+                        <span className={styles.entryPeriod}>{entry.period}</span>
+                      </p>
+                      <p className={styles.entryBody}>
+                        <PhraseText text={entry.body} locale={lang} />
+                      </p>
+                    </li>
+                  ))}
+                </ol>
+              ) : null}
               <p>
                 <PhraseText text={stop.proof} locale={lang} />
               </p>

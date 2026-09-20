@@ -167,6 +167,45 @@
   text-underline-offset: 3px;
 }
 
+/* 経歴碑など、複数の会社をまとめて出す一覧。番号は視覚的に不要なので消す */
+.entries {
+  margin: 0 0 4px;
+  padding: 0;
+  list-style: none;
+}
+
+.entry + .entry {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--rule);
+}
+
+.entryLogo {
+  display: block;
+  width: auto;
+  height: 24px;
+  margin-bottom: 6px;
+}
+
+.entryHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0;
+  font-weight: 700;
+}
+
+.entryPeriod {
+  color: var(--ink-mid);
+  font-weight: 500;
+  font-size: 0.9em;
+}
+
+.entryBody {
+  margin: 4px 0 0;
+}
+
 /* パネルとは別枠で、箱(.box)の下端に常に固定して見せる(sticky ではなく実の別要素) */
 .actions {
   display: flex;

@@ -1,6 +1,19 @@
 // 会話地点 spotAt・allSpots・nextSpot・spotWorldId のテスト
-import type { World, WorldSet } from '@content/types/world'
+import { vi } from 'vitest'
+import type { Spot, World, WorldSet } from '@content/types/world'
 import { spotAt, allSpots, nextSpot, spotWorldId } from './spot'
+
+// server-only は Next.js のビルド境界専用ガードで、vitest(node 環境)では無条件に例外を投げる。
+// テストでは中身を持たない mock に差し替え、読み込み専用の @/lib/content/read を素通しにする
+vi.mock('server-only', () => ({}))
+
+import { readWorldSet } from '@/lib/content/read'
+
+// 実ワールドセットの town を取得。無ければテスト側で即座に落とし、以降の型を World に保つ
+const realWorldSet = readWorldSet()
+const realTownOrUndefined = realWorldSet.worlds.town
+if (realTownOrUndefined === undefined) throw new Error('worldSet に town が無い')
+const realTown: World = realTownOrUndefined
 
 // 屋内 1 地点。order は全ワールド通しの 1 番
 const room: World = {
@@ -124,6 +137,15 @@ describe('spotAt (全方向)', () => {
     tiles[2][4] = 'water'
     expect(spotAt({ ...field, tiles }, { x: 4, y: 2 })).toBeNull()
   })
+  it('2×2 の構造物(経歴碑を模した物)は、上下左右どのマスからでも話しかけられる', () => {
+    const monumentField: World = {
+      ...field,
+      structures: [{ id: 'mon', kind: 'monument', cell: { x: 3, y: 3 } }],
+      spots: [{ id: 'monument', structureId: 'mon', cell: { x: 3, y: 5 }, facing: 'up' }],
+    }
+    expect(spotAt(monumentField, { x: 3, y: 5 })?.id).toBe('monument')
+    expect(spotAt(monumentField, { x: 4, y: 5 })?.id).toBe('monument')
+  })
   it('建物は入口の幅だけ会話でき、側面・背面の壁越しには話せない', () => {
     const house: World = {
       ...field,
@@ -164,5 +186,41 @@ describe('spotAt (全方向)', () => {
     // 入口は x=4,5 の 2 マス。右端(5)は話せて、その次(6)は入口の外
     expect(spotAt(house, { x: 5, y: 4 })?.id).toBe('house')
     expect(spotAt(house, { x: 6, y: 4 })).toBeNull()
+  })
+})
+
+// order の無い地点(経歴碑のようにコース外の地点)を加えても、既存の set 自体はそのまま使う
+describe('order の無い地点', () => {
+  const monumentSpot: Spot = {
+    id: 'monument',
+    structureId: 'f',
+    cell: { x: 2, y: 0 },
+    facing: 'up',
+  }
+  const setWithMonument: WorldSet = {
+    ...set,
+    worlds: { ...set.worlds, town: { ...town, spots: [...town.spots, monumentSpot] } },
+  }
+  it('allSpots はコース地点だけを order 順で返し、order の無い地点は含まない', () => {
+    expect(allSpots(setWithMonument).map(s => s.id)).toEqual(['home', 'second', 'third'])
+  })
+  it('order の無い地点の次は null', () => {
+    expect(nextSpot(setWithMonument, monumentSpot)).toBeNull()
+  })
+  it('order の無い地点でも spotWorldId は解決できる', () => {
+    expect(spotWorldId(setWithMonument, 'monument')).toBe('town')
+  })
+})
+
+// 実際の worldSet(content/world.ts)の町に経歴碑が入った状態のテスト
+describe('spotAt (実際の worldSet — 経歴碑)', () => {
+  it('経歴碑(2×2)の真下の 2 マスのどちらからでも話しかけられる', () => {
+    expect(spotAt(realTown, { x: 13, y: 5 })?.id).toBe('monument')
+    expect(spotAt(realTown, { x: 14, y: 5 })?.id).toBe('monument')
+  })
+  it('既存の地点は経歴碑を加えても変わらず判定できる', () => {
+    expect(spotAt(realTown, { x: 6, y: 6 })?.id).toBe('meishi')
+    expect(spotAt(realTown, { x: 8, y: 14 })?.id).toBe('robot')
+    expect(spotAt(realTown, { x: 24, y: 15 })?.id).toBe('mailbox')
   })
 })
