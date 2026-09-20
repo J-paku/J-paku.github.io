@@ -9,6 +9,7 @@
 |---|---|
 | `art.ts` | エンジン本体。`compose` / `mirrorX` / `mirrorY` / `recolor` と `buildSheet` |
 | `terrain.ts` `structures.ts` `actors.ts` `weather-art.ts` | 絵の定義(地形・建物と設置物・主人公・雨と雪) |
+| `lantern.ts` | 夜に提げるランタンの正本。主人公(`actors.ts`)とロボット(`structures.ts`)が同じ型紙を重ねて使い、2箇所に描き分けない |
 | `palette.ts` | 1文字 → CSS 色。`'.'` は透明 |
 | `palette-phase.ts` | 時間帯4段階へのパレット派生 |
 | `png.ts` | RGBA → PNG の符号化(Node の zlib のみ) |
