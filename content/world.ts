@@ -84,7 +84,8 @@ const TOWN_BLOCKS: readonly (readonly Block[])[] = [
 ]
 
 // 町(30×20)。横道は y6-7 と y12-13、縦道は x10-11 と x18-19。
-// 池は x2-5/y14-17、広場は x22-27/y14-17。自宅前(14,12)から各地点まで16歩以内
+// 池は x2-5/y14-17、広場は x22-27/y14-17。自宅前(14,12)から各地点まで16歩以内。
+// 経歴碑(monument)は上寄り中央 (13,3)、話しかけ位置は (13,5) — コース外(order 無し)
 export const town: World = {
   id: 'town',
   kind: 'exterior',
@@ -120,12 +121,15 @@ export const town: World = {
     },
     { id: 'robot', kind: 'robot', cell: { x: 8, y: 15 } },
     { id: 'mailbox', kind: 'mailbox', cell: { x: 24, y: 16 } },
+    { id: 'monument', kind: 'monument', cell: { x: 13, y: 3 } },
   ],
   spots: [
     { id: 'meishi', structureId: 'meishi', cell: { x: 6, y: 6 }, facing: 'up', order: 2 },
     { id: 'lab', structureId: 'lab', cell: { x: 23, y: 6 }, facing: 'up', order: 3 },
     { id: 'robot', structureId: 'robot', cell: { x: 8, y: 14 }, facing: 'down', order: 4 },
     { id: 'mailbox', structureId: 'mailbox', cell: { x: 24, y: 15 }, facing: 'down', order: 5 },
+    // コース外(order 無し)。話しかけ・地図表示・地図からの移動はできるが、次の地点・訪問数・完走判定には数えない
+    { id: 'monument', structureId: 'monument', cell: { x: 13, y: 5 }, facing: 'up' },
   ],
   warps: [
     {

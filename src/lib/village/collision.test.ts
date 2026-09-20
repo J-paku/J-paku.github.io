@@ -121,3 +121,36 @@ describe('isWalkable', () => {
     expect(isWalkable(room, { x: 7, y: 3 })).toBe(true)
   })
 })
+
+// 経歴碑(2×2)と石碑(1×2)だけを置いた広場
+const plaza: World = {
+  id: 'plaza',
+  kind: 'exterior',
+  width: 6,
+  height: 6,
+  start: { x: 0, y: 5 },
+  startFacing: 'up',
+  tiles: Array.from({ length: 6 }, () => Array(6).fill('grass')),
+  structures: [
+    { id: 'mon', kind: 'monument', cell: { x: 1, y: 1 } },
+    { id: 'st', kind: 'stele', cell: { x: 4, y: 1 } },
+  ],
+  spots: [],
+  warps: [],
+}
+
+describe('isWalkable (経歴碑・石碑)', () => {
+  it('経歴碑は cell から 2×2 の全マスが不可、真下の行は通行可', () => {
+    expect(isWalkable(plaza, { x: 1, y: 1 })).toBe(false)
+    expect(isWalkable(plaza, { x: 2, y: 1 })).toBe(false)
+    expect(isWalkable(plaza, { x: 1, y: 2 })).toBe(false)
+    expect(isWalkable(plaza, { x: 2, y: 2 })).toBe(false)
+    expect(isWalkable(plaza, { x: 1, y: 3 })).toBe(true)
+  })
+  it('石碑は cell とその真下のマスだけが不可', () => {
+    expect(isWalkable(plaza, { x: 4, y: 1 })).toBe(false)
+    expect(isWalkable(plaza, { x: 4, y: 2 })).toBe(false)
+    expect(isWalkable(plaza, { x: 4, y: 3 })).toBe(true)
+    expect(isWalkable(plaza, { x: 5, y: 1 })).toBe(true)
+  })
+})

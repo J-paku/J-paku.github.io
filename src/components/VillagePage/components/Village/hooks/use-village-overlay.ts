@@ -74,8 +74,10 @@ export function useVillageOverlay({
   const [hintText, setHintText] = useState<string | null>(null)
   // 一言を消すタイマー。新しい一言が入ったら前の分を捨てる
   const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // 全ワールド通しの会話地点数。visitedRef の大きさと比べて「5 か所すべて話した」を判定する
-  const totalSpots = useMemo(() => allSpots(worldSet).length, [worldSet])
+  // コース地点(order を持つ地点)の id 一覧。一度だけ作り、visited との突き合わせに使う
+  const courseSpotIds = useMemo(() => allSpots(worldSet).map(spot => spot.id), [worldSet])
+  // 全ワールド通しの会話地点数(コース分のみ)
+  const totalSpots = courseSpotIds.length
   // 「5 か所すべて話した」の演出は一度だけ出す。再訪の度に一覧へ焦点を奪わない
   const celebratedRef = useRef(false)
 
@@ -139,8 +141,11 @@ export function useVillageOverlay({
     const wasTalk = mode === 'talk'
     lockedRef.current = false
     setMode('walk')
+    // コース外の地点(経歴碑など)を先に話しても size は増えるが完走にはならないため、
+    // visited に含まれるコース地点の数で判定する
+    const visitedCourseCount = courseSpotIds.filter(id => visitedRef.current.has(id)).length
     // 5 か所目の会話を閉じた瞬間だけ、一覧への案内に差し替えて焦点を移す
-    if (wasTalk && !celebratedRef.current && visitedRef.current.size === totalSpots) {
+    if (wasTalk && !celebratedRef.current && visitedCourseCount === totalSpots) {
       celebratedRef.current = true
       setSpeech(text.allSeen.replace('{list}', text.toList))
       // StopModal のアンマウント処理(返却先フォーカス)の後に上書きするため、次フレームまで待つ
@@ -151,7 +156,7 @@ export function useVillageOverlay({
         exit.focus()
       })
     }
-  }, [lockedRef, mode, visitedRef, totalSpots, setSpeech, text])
+  }, [lockedRef, mode, visitedRef, courseSpotIds, totalSpots, setSpeech, text])
 
   // M は開閉の切り替え。会話中は無視
   const openMap = useCallback(() => {

@@ -160,3 +160,22 @@ describe('拡大した入口', () => {
     ])
   })
 })
+
+describe('facadeCells (経歴碑 monument / 石碑 stele)', () => {
+  it('経歴碑は 2×2 を tl/tr/bl/br で埋める', () => {
+    const monument: Structure = { id: 'mon', kind: 'monument', cell: { x: 13, y: 3 } }
+    expect(facadeCells(monument)).toEqual([
+      { cell: { x: 13, y: 3 }, key: 'monument-tl' },
+      { cell: { x: 14, y: 3 }, key: 'monument-tr' },
+      { cell: { x: 13, y: 4 }, key: 'monument-bl' },
+      { cell: { x: 14, y: 4 }, key: 'monument-br' },
+    ])
+  })
+  it('石碑は cell と真下の 1 マス', () => {
+    const stele: Structure = { id: 'st', kind: 'stele', cell: { x: 5, y: 2 } }
+    expect(facadeCells(stele)).toEqual([
+      { cell: { x: 5, y: 2 }, key: 'stele-t' },
+      { cell: { x: 5, y: 3 }, key: 'stele-b' },
+    ])
+  })
+})

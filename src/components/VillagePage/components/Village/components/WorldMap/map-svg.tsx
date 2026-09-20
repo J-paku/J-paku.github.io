@@ -37,6 +37,8 @@ const STRUCTURE_COLORS = {
   desk: '#8a6a3a',
   bed: '#8a6a3a',
   table: '#8a6a3a',
+  monument: '#9a9a8c',
+  stele: '#9a9a8c',
 } as const
 
 function structureColor(structure: Structure) {

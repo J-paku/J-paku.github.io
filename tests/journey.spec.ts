@@ -100,6 +100,7 @@ for (const { prefix, text, settings } of JOURNEYS) {
   const lab = text.stops.lab
   const robot = text.stops.robot
   const mailbox = text.stops.mailbox
+  const monument = text.stops.monument
 
   test(`自分の部屋の会話から次の目的地を案内する (${label})`, async ({ page }) => {
     await openVillage(page, prefix)
@@ -176,6 +177,20 @@ for (const { prefix, text, settings } of JOURNEYS) {
     await page.locator(`a[href="${prefix}/list/"]`).first().click()
     await expect(page).toHaveURL(new RegExp(`${prefix}/list/$`))
     await expect(page.locator('#works')).toBeVisible()
+  })
+
+  test(`一覧の「マップで見る」から村へ戻るとブートが正しく終わる (${label})`, async ({ page }) => {
+    // 一覧ページからのクライアント遷移(<Link>)で村へ戻る。挿入された script は
+    // ブラウザが実行しないため、Boot の effect 側が代わりに舞台を開ける
+    await page.goto(`${prefix}/list/`)
+    await page.getByRole('link', { name: text.toVillage }).click()
+    await page.waitForSelector('#boot', { state: 'detached', timeout: 3_000 })
+    await expect(page.locator('[data-village]')).toBeVisible()
+    await page.locator('[data-village]').focus()
+    // 位置は到着時にだけ保存されるので、往復1マスで部屋の開始マスを保存させてから読む
+    await walk(page, 'ArrowRight', 1)
+    await walk(page, 'ArrowLeft', 1)
+    expect(await readCell(page)).toEqual({ worldId: 'room', cell: { x: 4, y: 4 } })
   })
 
   test(`町の地図から研究所へ高速移動する (${label})`, async ({ page }) => {
@@ -333,6 +348,76 @@ for (const { prefix, text, settings } of JOURNEYS) {
     const exit = page.locator('[data-village-exit]')
     await expect(exit).toBeFocused()
     await expect(exit).toHaveAttribute('data-bounce', '')
+  })
+
+  test(`町の経歴碑でロゴ付きの職歴一覧を確認でき、完走判定には数えない (${label})`, async ({
+    page,
+  }) => {
+    // 経歴碑の確認に続けて残り5か所も巡るので、次へ連鎖の待ちが重なり既定の30秒を超える
+    test.setTimeout(60_000)
+    await openVillage(page, prefix)
+    await leaveRoom(page)
+    // 自宅前 (14,12) から左 3(x=11)・上 6(y=6)・右 2(x=13)・上 1(y=5) で経歴碑。
+    // 経路のマスは content/world.ts の道(path)と草地(grass/grass-alt)のみを通る
+    await walk(page, 'ArrowLeft', 3)
+    await walk(page, 'ArrowUp', 6)
+    await walk(page, 'ArrowRight', 2)
+    await walk(page, 'ArrowUp', 1)
+    expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 13, y: 5 } })
+    await page.keyboard.press('e')
+    const dialog = page.getByRole('dialog')
+    await expect(dialog.getByRole('heading', { name: monument.title })).toBeVisible()
+    const entries = monument.entries
+    if (entries === undefined) throw new Error('経歴碑の entries が無い')
+    await expect(dialog.getByRole('img')).toHaveCount(entries.length)
+    for (const entry of entries) {
+      const logo = dialog.getByRole('img', { name: entry.company })
+      await expect(logo).toBeVisible()
+      await expect
+        .poll(() => logo.evaluate(el => (el as HTMLImageElement).naturalWidth), {
+          timeout: 5_000,
+        })
+        .toBeGreaterThan(0)
+    }
+    await page.keyboard.press('Escape')
+    await expect(dialog).toHaveCount(0)
+    // コース外の地点なので、話しても5か所の完走案内は発火しない
+    await expect(page.getByRole('status')).not.toContainText(
+      text.allSeen.replace('{list}', text.toList)
+    )
+    // 経歴碑から自宅前までの往路をそのまま逆にたどり、扉を抜けて自宅の会話起点(4,4)へ戻る
+    await walk(page, 'ArrowDown', 1)
+    await walk(page, 'ArrowLeft', 2)
+    await walk(page, 'ArrowDown', 6)
+    await walk(page, 'ArrowRight', 3)
+    await walk(page, 'ArrowUp', 1)
+    await walk(page, 'ArrowUp', 2)
+    expect(await readCell(page)).toEqual({ worldId: 'room', cell: { x: 4, y: 4 } })
+    // ここから先は「5 か所すべて話すと案内が変わり一覧のボタンへ焦点が移る」と同じ次へ連鎖で
+    // 残り4か所(コース地点)を巡り、経歴碑を挟んでも完走判定が数え漏れなく動くことを確認する
+    await page.keyboard.press('e')
+    await expect(dialog.getByRole('heading', { name: home.title })).toBeVisible()
+    await dialog.getByRole('button', { name: home.next }).click()
+    await expect(dialog.getByRole('heading', { name: meishi.title })).toBeVisible({
+      timeout: 10_000,
+    })
+    await dialog.getByRole('button', { name: meishi.next }).click()
+    await expect(dialog.getByRole('heading', { name: lab.title })).toBeVisible({
+      timeout: 10_000,
+    })
+    await dialog.getByRole('button', { name: lab.next }).click()
+    await expect(dialog.getByRole('heading', { name: robot.title })).toBeVisible({
+      timeout: 10_000,
+    })
+    await dialog.getByRole('button', { name: robot.next }).click()
+    await expect(dialog.getByRole('heading', { name: mailbox.title })).toBeVisible({
+      timeout: 10_000,
+    })
+    await page.keyboard.press('Escape')
+    await expect(dialog).toHaveCount(0)
+    await expect(page.getByRole('status')).toContainText(
+      text.allSeen.replace('{list}', text.toList)
+    )
   })
 
   test.describe(`A/B ボタン (${label})`, () => {

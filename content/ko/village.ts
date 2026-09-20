@@ -100,5 +100,30 @@ export const village: VillageText = {
         target: { kind: 'external', url: 'mailto:pjhrecr@gmail.com' },
       },
     },
+    monument: {
+      place: '경력비',
+      title: '지금까지의 길',
+      claim: '2022년부터 회사 2곳에서 사내 시스템의 프론트엔드를 만들어 왔습니다.',
+      entries: [
+        {
+          logo: '/logos/koyama.png',
+          company: '小山株式会社',
+          period: '2025.01 - 현재',
+          body: '사내 업무 슈퍼앱의 Web 전 영역과 iOS 담당. 입사 9개월 만에 Web 개발팀 리더',
+        },
+        {
+          logo: '/logos/meitec-fielders.png',
+          company: 'メイテックフィルダーズ',
+          period: '2022.04 - 2024.12',
+          body: '파견처 2곳의 정보시스템 부서에서 Nuxt.js SPA 신규 구축과 SharePoint 운용·자동화',
+        },
+      ],
+      proof:
+        '전반은 파견처 정보시스템 부서에서, 지금은 상사의 사내 개발팀에서 리더를 맡고 있습니다.',
+      hook: '궁금한 작품은 지도에서 언제든 돌아갈 수 있습니다.',
+      next: '작품 일람으로',
+      detail: '각 현장에서 무엇을 만들었는지는 작품 일람의 프로필에 이어집니다.',
+      talk: '읽기',
+    },
   },
 }

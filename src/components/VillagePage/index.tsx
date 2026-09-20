@@ -4,7 +4,6 @@
 import type { Locale } from '@content/types/content'
 import { readContent, readVillageText, readWorldSet, listStorySlugs } from '@/lib/content/read'
 import { buildPlayerSprites, buildSprites } from '@/lib/pixel/sprites'
-import { allSpots } from '@/lib/village/spot'
 import { toHref } from '@/utils/locale-path'
 import Logo from '@/components/ui/Logo'
 import Boot from './components/Boot'
@@ -23,9 +22,11 @@ function VillagePage({ locale }: VillagePageProps) {
   const playerSprites = buildPlayerSprites()
   const storySlugs = new Set(listStorySlugs(locale))
   // 地点ごとのリンク先。story は言語付きの作品ルート、external はそのまま。地点は全ワールド分
+  // (コース外の地点にも将来リンクが付く可能性があるため、allSpots ではなく全地点を対象にする)
   const stopHrefs: Record<string, string | null> = {}
   const stopExternal: Record<string, boolean> = {}
-  for (const spot of allSpots(worldSet)) {
+  const spots = Object.values(worldSet.worlds).flatMap(world => world.spots)
+  for (const spot of spots) {
     const link = text.stops[spot.id]?.link
     if (link === undefined) {
       stopHrefs[spot.id] = null
