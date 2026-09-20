@@ -86,6 +86,7 @@ const TOWN_BLOCKS: readonly (readonly Block[])[] = [
 // 町(30×20)。横道は y6-7 と y12-13、縦道は x10-11 と x18-19。
 // 池は x2-5/y14-17、広場は x22-27/y14-17。自宅前(14,12)から各地点まで16歩以内。
 // 経歴碑(monument)は上寄り中央 (13,3)、話しかけ位置は (13,5) — コース外(order 無し)
+// 家は屋根 2 行 + 壁 2 行(上段が窓行、下段が扉行)。3 軒とも同じ高さ
 export const town: World = {
   id: 'town',
   kind: 'exterior',
@@ -99,25 +100,26 @@ export const town: World = {
       id: 'home',
       kind: 'house',
       roof: 'red',
-      area: { x: 13, y: 9, w: 4, h: 3 },
-      solid: { x: 13, y: 11, w: 4, h: 1 },
+      area: { x: 13, y: 8, w: 4, h: 4 },
+      solid: { x: 13, y: 10, w: 4, h: 2 },
       doorX: 14,
     },
     {
       id: 'meishi',
       kind: 'house',
       roof: 'red',
-      area: { x: 4, y: 3, w: 4, h: 3 },
-      solid: { x: 4, y: 5, w: 4, h: 1 },
+      area: { x: 4, y: 2, w: 4, h: 4 },
+      solid: { x: 4, y: 4, w: 4, h: 2 },
       doorX: 6,
     },
     {
       id: 'lab',
       kind: 'house',
       roof: 'blue',
-      area: { x: 21, y: 3, w: 5, h: 3 },
-      solid: { x: 21, y: 5, w: 5, h: 1 },
+      area: { x: 21, y: 2, w: 5, h: 4 },
+      solid: { x: 21, y: 4, w: 5, h: 2 },
       doorX: 23,
+      doorWidth: 2,
     },
     { id: 'robot', kind: 'robot', cell: { x: 8, y: 15 } },
     { id: 'mailbox', kind: 'mailbox', cell: { x: 24, y: 16 } },
