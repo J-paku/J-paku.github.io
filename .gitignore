@@ -31,6 +31,10 @@ playwright-report
 .claude/
 *.tsbuildinfo
 
+# scripts/build-sprites.mjs が焼くスプライトシート。生成物なのでソースには入れない
+# (このフォルダ配下は全て生成物。手で置いたファイルは次のビルドで消える)
+/public/sprites/
+
 # 使い捨ての検証用スクリプトとスクリーンショットの置き場(リポジトリ直下のみ)。
 # .claude/ 配下の同名フォルダは上の .claude/ で既に外れている
 /probe/
