@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit",
+    "docs:check": "node scripts/check-docs.mjs",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"content/**/*.ts\" \"scripts/**/*.mjs\" \"tests/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"content/**/*.ts\" \"scripts/**/*.mjs\" \"tests/**/*.ts\""

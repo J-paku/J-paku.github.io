@@ -64,7 +64,7 @@ export const skills: SkillCategory[] = [
       {
         name: '팀 표준 AI 개발 기반 설계(멀티 에이전트)',
         evidence: ['ai-harness'],
-        note: '훅 25개, eval 36케이스, worktree 격리 병렬 실행',
+        note: '훅 25개, eval 회귀 검증, worktree 격리 병렬 실행',
       },
       { name: 'Git worktree 기반 병렬 작업 격리', evidence: ['ai-harness'] },
       { name: 'JSONL trace 실행 기록·자동 채점', evidence: ['ai-harness'] },
