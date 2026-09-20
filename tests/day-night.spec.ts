@@ -7,6 +7,9 @@ import type { VillageText } from '@content/types/world'
 import { village as villageJa } from '@content/ja/village'
 import { village as villageKo } from '@content/ko/village'
 import { DAY_PHASES, type DayPhase } from '@/utils/day-phase'
+// 村を開く手順・歩きの間合い(旋回だけで終わらせない押下時間と、到着を待つ時間)・描画待ちは
+// journey.spec と共用。正本は village.helpers.ts
+import { HOLD_MS, SETTLE_MS, openVillage, settleRender } from './village.helpers'
 
 type Journey = { prefix: string; text: VillageText }
 
@@ -57,7 +60,7 @@ const PLAYER_LIGHT = lightsOfKind('player')
 const TOWN_LIGHTS = {
   lamp: 3, // 街灯 lamp-west / lamp-east / lamp-plaza
   window: 4, // 家の窓。自宅1・名刺1・研究所2(どのマスが窓かは facade.ts が決める)
-  mailbox: 1, // ポストの縁を 1 周する LED(夜だけ点く)
+  mailbox: 1, // ポスト前面の上辺に並ぶ 5 粒の LED(夜だけ点く。粒は 5 つでも光源は 1 つ)
   campfire: 1, // たき火(ゆらぎが付く唯一の光源)
   player: 1, // 主人公が提げるランタン。構造物ではなく Lighting が直接置く
 } as const
@@ -96,34 +99,7 @@ const stubWeather = async (
   return { calls: () => calls }
 }
 
-// ブート演出が消えるまで待ち、キー操作を受け取る村の枠へフォーカスする(journey.spec と同じ手順)
-const focusVillage = async (page: Page) => {
-  await page.waitForSelector('#boot', { state: 'detached', timeout: 5_000 })
-  await page.locator('[data-village]').focus()
-}
-
-const openVillage = async (page: Page, prefix: string) => {
-  await page.goto(`${prefix}/`)
-  await focusVillage(page)
-}
-
 // 村は自室(屋内)から始まる。天気は屋外にしか降らないので、雨を数えるテストは必ず町へ出てから測る。
-// 歩き方の間合い(旋回だけで終わらせない押下時間と、到着を待つ時間)は journey.spec と同じ
-const HOLD_MS = 150
-const SETTLE_MS = 320
-
-// 到着の文言で未取得の書体サブセットが届くと、その瞬間に舞台が再描画される。
-// 描画が落ち着いてから数えるため、書体の到着と次フレームの描画完了まで待つ(journey.spec と同じ理由)
-const settleRender = (page: Page) =>
-  page.evaluate(() =>
-    document.fonts.ready.then(
-      () =>
-        new Promise<void>(resolve => {
-          requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
-        })
-    )
-  )
-
 // 自室の下端 (4,7) のマットへ乗ると町の自宅前 (14,12) へ出る。開始マス (4,4) から下へ 3 マス
 const leaveRoom = async (page: Page) => {
   for (let i = 0; i < 3; i += 1) {

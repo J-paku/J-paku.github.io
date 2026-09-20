@@ -1,12 +1,14 @@
 // 村の導線 E2E。部屋の会話 → 扉で町へ → 作品と一覧、地図の高速移動、位置と訪問の保存、
 // テーマ、家具の当たり判定を ja/ko 双方で確認する
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { VillageText } from '@content/types/world'
 import { worldSet } from '@content/world'
 import { village as villageJa } from '@content/ja/village'
 import { village as villageKo } from '@content/ko/village'
 import { ui as uiJa } from '@content/ja/ui'
 import { ui as uiKo } from '@content/ko/ui'
+// 村を開く手順・歩きの間合い・描画待ちは day-night.spec と共用。正本は village.helpers.ts
+import { HOLD_MS, SETTLE_MS, focusVillage, openVillage, settleRender } from './village.helpers'
 
 type SettingsLabels = { menu: string; light: string; dark: string }
 type Journey = { prefix: string; text: VillageText; settings: SettingsLabels }
@@ -27,38 +29,7 @@ const JOURNEYS: Journey[] = [
 // 位置と訪問の保存先は lib/preferences と同じ組み立て
 const POS_KEY = `village:${worldSet.id}:pos`
 const VISITED_KEY = `village:${worldSet.id}:visited`
-// 短押しは旋回だけ(TURN_MS 64ms)。旋回を越えて 1 マス分の移動を始めるまで押し、
-// 始まった移動は離しても最後まで進む(CELL_MS 256ms)ので到着を待ってから次の 1 マスへ
-const HOLD_MS = 150
-const SETTLE_MS = 320
 const WORK_SLUG = 'meishi-cross-platform'
-
-// ブート演出が消えるまで待ち、キー操作を受け取る村の枠へフォーカスする。
-// 操作帯のスティックも role=application なので data-village で枠を指す
-const focusVillage = async (page: Page) => {
-  await page.waitForSelector('#boot', { state: 'detached', timeout: 5_000 })
-  await page.locator('[data-village]').focus()
-}
-
-const openVillage = async (page: Page, prefix: string) => {
-  await page.goto(`${prefix}/`)
-  await focusVillage(page)
-}
-
-// 到着で新しい文言が出ると、Google Fonts の未取得サブセットがその場で読み込まれ、届いた瞬間に
-// 舞台全体が再描画される。シートが SVG だった頃はこれで主スレッドが 244ms 止まり(ja の町到着で実測)、
-// その間に押したキーは down/up が同じ隙間に落ちて旋回すら起きなかった。PNG 化で再描画は数 ms に
-// なったが、遅いランナーでも同じ形で落ちないよう、書体が届いてその再描画が終わる
-// (rAF 2 回 = 次フレームの描画完了後)まで待ってから次の入力へ進む
-const settleRender = (page: Page) =>
-  page.evaluate(() =>
-    document.fonts.ready.then(
-      () =>
-        new Promise<void>(resolve => {
-          requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
-        })
-    )
-  )
 
 // 方向キーを 1 マス分だけ押し、到着まで待ってから次の 1 マスへ進む
 const walk = async (page: Page, key: string, cells: number) => {
@@ -68,6 +39,26 @@ const walk = async (page: Page, key: string, cells: number) => {
     await page.keyboard.up(key)
     await page.waitForTimeout(SETTLE_MS)
     await settleRender(page)
+  }
+}
+
+// 会話窓の本文は押している間フレーム単位で送られるので、押した瞬間だけの press では
+// 1フレームも挟まらず届かない。押してから離すまでの長さで送る量が決まる
+const holdDown = async (page: Page, ms: number) => {
+  await page.keyboard.down('ArrowDown')
+  await page.waitForTimeout(ms)
+  await page.keyboard.up('ArrowDown')
+}
+
+// 本文が下端に着いたか。scrollTop は小数を持つので 1px の遊びを見る(use-held-scroll と同じ)
+const panelAtBottom = (panel: Locator) =>
+  panel.evaluate(el => el.scrollTop + el.clientHeight >= el.scrollHeight - 1)
+
+// 本文を下端まで送る。焦点が動くのは「押した瞬間に下端だった」時だけなので、
+// 送り切る前にボタンへ飛び移ることはない(短くて送る必要が無ければ1度も押さずに抜ける)
+const scrollPanelToBottom = async (page: Page, panel: Locator) => {
+  for (let i = 0; i < 20 && !(await panelAtBottom(panel)); i += 1) {
+    await holdDown(page, 300)
   }
 }
 
@@ -453,6 +444,49 @@ for (const { prefix, text, settings } of JOURNEYS) {
       })
       await page.getByRole('button', { name: text.buttonB }).tap()
       await expect(dialog).toHaveCount(0)
+    })
+
+    test(`本文を最後まで送ると次へボタンへ焦点が移り、そのまま A で押せる`, async ({ page }) => {
+      await openVillage(page, prefix)
+      const dialog = page.getByRole('dialog')
+      await page.getByRole('button', { name: text.buttonA }).tap()
+      await expect(dialog.getByRole('heading', { name: home.title })).toBeVisible()
+      const panel = dialog.locator('[data-village-panel]')
+      await scrollPanelToBottom(page, panel)
+      expect(await panelAtBottom(panel)).toBe(true)
+      // 下端からもう一度下を押すと、送る先が無いので焦点が窓の最初のボタンへ移る
+      await holdDown(page, HOLD_MS)
+      await expect(dialog.getByRole('button', { name: home.next })).toBeFocused()
+      // 焦点の当たったボタンを A で押す。次の地点まで自動で歩き、名刺工房の会話が開く
+      await page.getByRole('button', { name: text.buttonA }).tap()
+      await expect(dialog.getByRole('heading', { name: meishi.title })).toBeVisible({
+        timeout: 10_000,
+      })
+    })
+
+    test(`本文にリンクがある地点では、リンク・次へボタンの順に焦点が移る`, async ({ page }) => {
+      // 名刺工房までの自動歩行(10s 待ち)に本文送りが続くので、既定の 30s では足りない
+      test.setTimeout(60_000)
+      const link = meishi.link
+      if (link === undefined) throw new Error('名刺工房の link が無い')
+      await openVillage(page, prefix)
+      const dialog = page.getByRole('dialog')
+      await page.getByRole('button', { name: text.buttonA }).tap()
+      await expect(dialog.getByRole('heading', { name: home.title })).toBeVisible()
+      // モーダルが開いている間の A は次へボタンと同じ。自動で歩いた先で名刺工房の会話が開く
+      await page.getByRole('button', { name: text.buttonA }).tap()
+      await expect(dialog.getByRole('heading', { name: meishi.title })).toBeVisible({
+        timeout: 10_000,
+      })
+      const panel = dialog.locator('[data-village-panel]')
+      await scrollPanelToBottom(page, panel)
+      expect(await panelAtBottom(panel)).toBe(true)
+      // 焦点は DOM 順に渡る。ここは本文の中のリンクが操作ボタンより先にある地点なので、まずリンクへ
+      await holdDown(page, HOLD_MS)
+      await expect(dialog.getByRole('link', { name: link.label })).toBeFocused()
+      // もう一度下を押すと次へボタンへ。リンクは押すとページが移ってしまうのでここでは押さない
+      await holdDown(page, HOLD_MS)
+      await expect(dialog.getByRole('button', { name: meishi.next })).toBeFocused()
     })
   })
 
