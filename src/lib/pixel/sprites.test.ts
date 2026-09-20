@@ -1,9 +1,26 @@
 // スプライト素材の寸法と生成結果を検証する
 import { describe, expect, it } from 'vitest'
-import { TILE, validateArt } from './art'
+import { recolor, TILE, validateArt } from './art'
+import type { PixelArt } from './art'
 import { PLAYER_HEIGHT } from './actors'
 import { palette } from './palette'
 import { buildPlayerSprites, buildSprites, PLAYER_ARTS, SPRITE_ARTS } from './sprites'
+import type { SpriteKey } from './sprites'
+
+// 複数マスに跨る素材を 1 枚の下絵へ戻す。行優先で並べたキーを受け取る
+const stitch = (keys: readonly SpriteKey[], columns: number): PixelArt => {
+  const rows: string[] = []
+  for (let row = 0; row * columns < keys.length; row += 1) {
+    for (let y = 0; y < TILE; y += 1) {
+      let line = ''
+      for (let col = 0; col < columns; col += 1) line += SPRITE_ARTS[keys[row * columns + col]][y]
+      rows.push(line)
+    }
+  }
+  return rows
+}
+
+const charsOf = (art: PixelArt): Set<string> => new Set(art.join(''))
 
 describe('SPRITE_ARTS', () => {
   it('地形・建物はすべて十六行十六列である', () => {
@@ -29,6 +46,61 @@ describe('SPRITE_ARTS', () => {
 
   it('目印の背景が透明である', () => {
     expect(SPRITE_ARTS.marker.join('')).toContain('.')
+  })
+
+  it('経歴碑 2×2 は 32×32 の 1 枚に戻り、下辺が輪郭で接地する', () => {
+    const art = stitch(['monument-tl', 'monument-tr', 'monument-bl', 'monument-br'], 2)
+
+    expect(art).toHaveLength(TILE * 2)
+    for (const row of art) expect(row).toHaveLength(TILE * 2)
+    expect(art[art.length - 1]).toBe(`.${'x'.repeat(TILE * 2 - 2)}.`)
+  })
+
+  it('縦長の碑 1×2 は 16×32 の 1 枚に戻る', () => {
+    const art = stitch(['stele-t', 'stele-b'], 1)
+
+    expect(art).toHaveLength(TILE * 2)
+    expect(art[art.length - 1]).toBe('x'.repeat(TILE))
+  })
+
+  it('机 3×2 は床の色を塗らず透明で抜く', () => {
+    const art = stitch(['desk-tl', 'desk-tm', 'desk-tr', 'desk-bl', 'desk-bm', 'desk-br'], 3)
+
+    expect(art).toHaveLength(TILE * 2)
+    for (const row of art) expect(row).toHaveLength(TILE * 3)
+    // 'p' は部屋の床タイルの色。構造物側で塗ると床の模様が消える
+    expect(charsOf(art).has('p')).toBe(false)
+    expect(charsOf(art).has('.')).toBe(true)
+  })
+
+  it('屋根は赤 2 色と輪郭だけで描かれ、軒だけが木の色を持つ', () => {
+    for (const key of ['roof-red-l', 'roof-red-m', 'roof-red-r'] as const) {
+      expect([...charsOf(SPRITE_ARTS[key])].sort().join(''), key).toMatch(/^\.?Rrx$/)
+    }
+    for (const key of ['roof-red-l-low', 'roof-red-m-low', 'roof-red-r-low'] as const) {
+      expect([...charsOf(SPRITE_ARTS[key])].sort().join(''), key).toBe('Rekrx')
+    }
+  })
+
+  it('青い屋根は赤い屋根の色置換で作れる', () => {
+    for (const side of ['l', 'm', 'r'] as const) {
+      for (const suffix of ['', '-low'] as const) {
+        const red = SPRITE_ARTS[`roof-red-${side}${suffix}`]
+        const blue = SPRITE_ARTS[`roof-blue-${side}${suffix}`]
+        expect(recolor(red, { r: 'u', R: 'U' }), `${side}${suffix}`).toEqual(blue)
+      }
+    }
+  })
+
+  it('壁・窓・扉は同じ位置に柱を持ち、横に並べても継ぎ目が揃う', () => {
+    const post = SPRITE_ARTS['wall-m'].map(row => row.slice(0, 4))
+
+    for (const key of ['wall-l', 'wall-r', 'window', 'door', 'entrance-l'] as const) {
+      expect(
+        SPRITE_ARTS[key].map(row => row.slice(0, 4)),
+        key
+      ).toEqual(post)
+    }
   })
 })
 
