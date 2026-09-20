@@ -134,6 +134,7 @@ const plaza: World = {
   structures: [
     { id: 'mon', kind: 'monument', cell: { x: 1, y: 1 } },
     { id: 'st', kind: 'stele', cell: { x: 4, y: 1 } },
+    { id: 'lp', kind: 'lamp', cell: { x: 0, y: 4 } },
   ],
   spots: [],
   warps: [],
@@ -152,5 +153,10 @@ describe('isWalkable (経歴碑・石碑)', () => {
     expect(isWalkable(plaza, { x: 4, y: 2 })).toBe(false)
     expect(isWalkable(plaza, { x: 4, y: 3 })).toBe(true)
     expect(isWalkable(plaza, { x: 5, y: 1 })).toBe(true)
+  })
+  it('街灯は cell とその真下のマスだけが不可', () => {
+    expect(isWalkable(plaza, { x: 0, y: 4 })).toBe(false)
+    expect(isWalkable(plaza, { x: 0, y: 5 })).toBe(false)
+    expect(isWalkable(plaza, { x: 1, y: 4 })).toBe(true)
   })
 })

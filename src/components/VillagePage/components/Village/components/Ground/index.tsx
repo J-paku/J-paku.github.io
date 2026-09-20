@@ -1,20 +1,21 @@
 // 枠の中に床タイル・建物の正面・目的地の印を並べる地面の層
 'use client'
 
-import { useMemo } from 'react'
+import { memo, useMemo } from 'react'
 import type { Cell, World } from '@content/types/world'
-import type { Sheet } from '@/lib/pixel/art'
+import type { SheetLayout } from '@/lib/pixel/art'
 import { facadeCells } from '@/lib/village/facade'
 import { spriteIndex, spriteStyle } from '../../sprite-style'
 import styles from '../../scene.module.css'
 
 export type GroundProps = {
   world: World
-  sprites: Sheet
+  sprites: SheetLayout
   destination: Cell | null
 }
 
-export function Ground({ world, sprites, destination }: GroundProps) {
+// 地形と建物は移動・目的地・天候の更新では変わらない。
+const Terrain = memo(function Terrain({ world, sprites }: Omit<GroundProps, 'destination'>) {
   const tiles = useMemo(
     () =>
       world.tiles.flatMap((row, y) =>
@@ -45,6 +46,14 @@ export function Ground({ world, sprites, destination }: GroundProps) {
       {facade.map(cell => (
         <div key={cell.key} className={styles.sprite} style={cell.style} aria-hidden='true' />
       ))}
+    </>
+  )
+})
+
+export function Ground({ world, sprites, destination }: GroundProps) {
+  return (
+    <>
+      <Terrain world={world} sprites={sprites} />
       {destination !== null ? (
         <div
           className={`${styles.sprite} ${styles.marker}`}

@@ -1,11 +1,22 @@
 // スプライト素材の寸法と生成結果を検証する
+import { createHash } from 'node:crypto'
+import { inflateSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
-import { recolor, TILE, validateArt } from './art'
-import type { PixelArt } from './art'
+import { buildSheet, recolor, TILE, validateArt } from './art'
+import type { PixelArt, Sheet } from './art'
 import { PLAYER_HEIGHT } from './actors'
 import { palette } from './palette'
-import { buildPlayerSprites, buildSprites, PLAYER_ARTS, SPRITE_ARTS } from './sprites'
+import { LIGHT_KEYS, phasePalette } from './palette-phase'
+import {
+  buildPlayerSprites,
+  buildSprites,
+  buildWeatherSprites,
+  PLAYER_ARTS,
+  SPRITE_ARTS,
+} from './sprites'
 import type { SpriteKey } from './sprites'
+import { weatherArt } from './weather-art'
+import { DAY_PHASES } from '@/utils/day-phase'
 
 // 複数マスに跨る素材を 1 枚の下絵へ戻す。行優先で並べたキーを受け取る
 const stitch = (keys: readonly SpriteKey[], columns: number): PixelArt => {
@@ -21,6 +32,52 @@ const stitch = (keys: readonly SpriteKey[], columns: number): PixelArt => {
 }
 
 const charsOf = (art: PixelArt): Set<string> => new Set(art.join(''))
+
+// 灯り用の文字を 1 つでも含む素材のキーを昇順で返す。予約文字の漏れを見張るのに使う
+const litKeys = (arts: Record<string, PixelArt>): string[] =>
+  Object.entries(arts)
+    .filter(([, art]) => LIGHT_KEYS.some(key => art.join('').includes(key)))
+    .map(([key]) => key)
+    .sort()
+
+// 自前の PNG は必ずカラータイプ 6・フィルタ 0 なので、IDAT を展開して行頭 1 バイトを捨てれば RGBA に戻る
+const decode = (uri: string): { width: number; height: number; data: Uint8Array } => {
+  const bytes = Buffer.from(uri.slice(uri.indexOf(',') + 1), 'base64')
+  const width = bytes.readUInt32BE(16)
+  const height = bytes.readUInt32BE(20)
+  const parts: Buffer[] = []
+  let at = 8
+  while (at + 8 <= bytes.length) {
+    const length = bytes.readUInt32BE(at)
+    if (bytes.toString('latin1', at + 4, at + 8) === 'IDAT') {
+      parts.push(bytes.subarray(at + 8, at + 8 + length))
+    }
+    at += length + 12
+  }
+  const raw = inflateSync(Buffer.concat(parts))
+  const stride = width * 4
+  const data = new Uint8Array(stride * height)
+  for (let y = 0; y < height; y += 1) {
+    data.set(raw.subarray(y * (stride + 1) + 1, (y + 1) * (stride + 1)), y * stride)
+  }
+  return { width, height, data }
+}
+
+// シートを 1 度だけ展開し、マスの中の座標を指定して #rrggbb を読む
+const sampler = (sheet: Sheet): ((key: string, x: number, y: number) => string) => {
+  const image = decode(sheet.uri)
+  return (key, x, y) => {
+    const at = (y * image.width + sheet.index[key] * TILE + x) * 4
+    return `#${[0, 1, 2].map(i => image.data[at + i].toString(16).padStart(2, '0')).join('')}`
+  }
+}
+
+// 文字マトリクスをトーラス状にずらす。天気の 2 コマが平行移動の関係にあることを確かめるのに使う
+const shift = (art: PixelArt, dx: number, dy: number): PixelArt =>
+  Array.from({ length: TILE }, (_, y) => {
+    const row = art[(((y - dy) % TILE) + TILE) % TILE]
+    return Array.from({ length: TILE }, (_, x) => row[(((x - dx) % TILE) + TILE) % TILE]).join('')
+  })
 
 describe('SPRITE_ARTS', () => {
   it('地形・建物はすべて十六行十六列である', () => {
@@ -54,6 +111,21 @@ describe('SPRITE_ARTS', () => {
     expect(art).toHaveLength(TILE * 2)
     for (const row of art) expect(row).toHaveLength(TILE * 2)
     expect(art[art.length - 1]).toBe(`.${'x'.repeat(TILE * 2 - 2)}.`)
+  })
+
+  it('街灯 1×2 は柱がつながり、周りは草を見せるため透明である', () => {
+    const top = SPRITE_ARTS['lamp-t']
+    const bottom = SPRITE_ARTS['lamp-b']
+
+    // 継ぎ目の 1 行が一致していれば、2 枚を縦に置いたとき柱がずれない
+    expect(top[TILE - 1]).toBe(bottom[0])
+    expect(charsOf(top).has('.')).toBe(true)
+    expect(charsOf(bottom).has('.')).toBe(true)
+    // 灯りの文字を持つのは上半分だけ
+    expect(charsOf(top).has('9')).toBe(true)
+    expect(charsOf(bottom).has('9')).toBe(false)
+    // 足元は輪郭で接地し、左右は草に溶ける
+    expect(bottom[TILE - 1]).toBe(`....${'x'.repeat(8)}....`)
   })
 
   it('縦長の碑 1×2 は 16×32 の 1 枚に戻る', () => {
@@ -160,5 +232,142 @@ describe('PLAYER_ARTS', () => {
 
   it('主人公の背景が透明である', () => {
     for (const art of Object.values(PLAYER_ARTS)) expect(art.join('')).toContain('.')
+  })
+})
+
+describe('時刻ごとのシート', () => {
+  // 灯り用の文字へ置き換える前(57314e2)に測った昼のシート。街灯 2 枚は新設なので外して比べる
+  const BASELINE = { count: 53, length: 3318, sha256: '6852db7f3bd8b941' }
+
+  it('昼のシートは文字置換の前と 1 バイトも変わらない', () => {
+    const arts = Object.fromEntries(
+      Object.entries(SPRITE_ARTS).filter(([key]) => key !== 'lamp-t' && key !== 'lamp-b')
+    )
+    const sheet = buildSheet(arts, phasePalette(palette, 'day'))
+
+    expect(sheet.count).toBe(BASELINE.count)
+    expect(sheet.uri).toHaveLength(BASELINE.length)
+    expect(createHash('sha256').update(sheet.uri).digest('hex').slice(0, 16)).toBe(BASELINE.sha256)
+  })
+
+  it('どの段階も同じ並び順・同じ枚数で焼ける', () => {
+    const sheets = DAY_PHASES.map(phase => buildSprites(phase))
+    const [first] = sheets
+
+    for (const sheet of sheets) {
+      expect(sheet.index).toEqual(first.index)
+      expect(sheet.count).toBe(Object.keys(SPRITE_ARTS).length)
+      expect(sheet.height).toBe(TILE)
+    }
+    for (const phase of DAY_PHASES) {
+      expect(buildPlayerSprites(phase).index).toEqual(buildPlayerSprites('day').index)
+    }
+  })
+
+  it('夜のシートは昼のシートと別物である', () => {
+    expect(buildSprites('night').uri).not.toBe(buildSprites('day').uri)
+    expect(buildPlayerSprites('night').uri).not.toBe(buildPlayerSprites('day').uri)
+  })
+
+  it('昼は今までの色、夜は発光色になる', () => {
+    // '4' が窓のハイライト、'5' が地のガラス。取り違えると夜の窓が 1 段暗くなる
+    const lights = [
+      { label: '窓ガラスの明るい側', key: 'window', x: 6, y: 4, day: '#a0d0f8', night: '#fff0c0' },
+      { label: '窓ガラス', key: 'window', x: 7, y: 4, day: '#78c0e8', night: '#f8d878' },
+      { label: 'ロボットのレンズ', key: 'robot', x: 3, y: 8, day: '#6d90ba', night: '#78e0ff' },
+      { label: '経歴碑の星', key: 'monument-tl', x: 11, y: 6, day: '#f8e060', night: '#fff0a0' },
+      { label: '街灯のガラス', key: 'lamp-t', x: 5, y: 9, day: '#f8e060', night: '#fff0a0' },
+      { label: 'モニターの画面', key: 'desk-tm', x: 9, y: 2, day: '#78c0e8', night: '#a8e8ff' },
+      { label: 'モニターの光', key: 'desk-tm', x: 10, y: 2, day: '#f0e8d0', night: '#ffffff' },
+    ]
+    const day = sampler(buildSprites('day'))
+    const night = sampler(buildSprites('night'))
+
+    // 1 行ずつ expect すると最初の不一致で打ち切られ、後ろの行の誤りが隠れる。まとめて 1 回で比べる
+    const actual = lights.map(light => ({
+      label: light.label,
+      day: day(light.key, light.x, light.y),
+      night: night(light.key, light.x, light.y),
+    }))
+
+    expect(actual).toEqual(
+      lights.map(light => ({ label: light.label, day: light.day, night: light.night }))
+    )
+  })
+
+  it('目的地マーカーの赤はどの時刻でも沈まない', () => {
+    // 'm' は marker だけが使う色。色調に混ぜると夜は暗い紫(#552533)になり、目印として読めない
+    const actual = DAY_PHASES.map(phase => sampler(buildSprites(phase))('marker', 7, 5))
+
+    expect(actual).toEqual(DAY_PHASES.map(() => '#e83828'))
+  })
+
+  it('灯り用の文字は予約された素材だけが使う', () => {
+    // 地形や主人公がこの文字を持つと、夜に地面や服が光ってしまう。
+    // 経歴碑は星が上半分にしかないため tl・tr だけ、机も画面が上段だけなので上 3 枚だけが該当する
+    expect(litKeys(SPRITE_ARTS)).toEqual([
+      'desk-tl',
+      'desk-tm',
+      'desk-tr',
+      'lamp-t',
+      'monument-tl',
+      'monument-tr',
+      'robot',
+      'window',
+    ])
+    expect(litKeys(PLAYER_ARTS)).toEqual([])
+  })
+})
+
+describe('天気のシート', () => {
+  it('雨・雪ともコマごとに 16×16 ちょうどの 1 枚を返す', () => {
+    const sheets = buildWeatherSprites()
+
+    for (const kind of ['rain', 'snow'] as const) {
+      expect(sheets[kind], kind).toHaveLength(2)
+      for (const sheet of sheets[kind]) {
+        const image = decode(sheet.uri)
+        expect(sheet.count, kind).toBe(1)
+        expect(sheet.height, kind).toBe(TILE)
+        // 繰り返し単位が 1 マスちょうどであること。2 コマを 1 枚へ並べると単位が 2 マス幅になり、
+        // コマ送りが「落ちる」ではなく「横へ 1 マスずれる」動きになってしまう
+        expect([image.width, image.height], kind).toEqual([TILE, TILE])
+      }
+    }
+  })
+
+  it('2 コマは中身が違う', () => {
+    const sheets = buildWeatherSprites()
+
+    for (const kind of ['rain', 'snow'] as const) {
+      const [first, second] = sheets[kind]
+      expect(first.uri, kind).not.toBe(second.uri)
+      expect(weatherArt[kind][0], kind).not.toEqual(weatherArt[kind][1])
+    }
+  })
+
+  it('雪は主人公専用のモノクロを借りず、雪専用の文字だけで描く', () => {
+    for (const art of weatherArt.snow) {
+      const used = charsOf(art)
+      // '3'・'1' は主人公専用。借りると主人公を塗り替えたとき雪の色まで黙って変わる
+      expect(used.has('3')).toBe(false)
+      expect(used.has('1')).toBe(false)
+      expect(used.has('N') || used.has('O')).toBe(true)
+    }
+  })
+
+  it('2 コマ目は 1 コマ目を半マス分ずらしたものなので、端で絵がつながる', () => {
+    expect(weatherArt.rain[1]).toEqual(shift(weatherArt.rain[0], -4, 8))
+    expect(weatherArt.snow[1]).toEqual(shift(weatherArt.snow[0], 1, 8))
+  })
+
+  it('粒はまばらで、地面を覆い隠さない', () => {
+    for (const kind of ['rain', 'snow'] as const) {
+      for (const art of weatherArt[kind]) {
+        const lit = art.join('').replace(/\./g, '').length
+        expect(lit, kind).toBeGreaterThan(0)
+        expect(lit, kind).toBeLessThan(TILE * TILE * 0.1)
+      }
+    }
   })
 })

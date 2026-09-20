@@ -1,7 +1,7 @@
 // JS前と切り替え直後の見た目を決める。rAFが回り出したら useWalkLoop が実測pxで置き換える
 import type { CSSProperties } from 'react'
 import type { World } from '@content/types/world'
-import type { Sheet } from '@/lib/pixel/art'
+import type { SheetLayout } from '@/lib/pixel/art'
 import { createMoveState } from '@/lib/village/movement'
 import { playerPose } from '@/lib/village/player-pose'
 import { cameraOffset, VIEW_COLS, VIEW_ROWS } from './hooks/use-stage-scale'
@@ -33,8 +33,8 @@ export type InitialView = {
 
 export const initialView = (
   world: World,
-  sprites: Sheet,
-  playerSprites: Sheet,
+  sprites: SheetLayout,
+  playerSprites: SheetLayout,
   reduceMotion: boolean
 ): InitialView => {
   const outdoors = world.kind === 'exterior'

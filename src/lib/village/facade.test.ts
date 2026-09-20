@@ -178,4 +178,11 @@ describe('facadeCells (経歴碑 monument / 石碑 stele)', () => {
       { cell: { x: 5, y: 3 }, key: 'stele-b' },
     ])
   })
+  it('街灯は cell と真下の 1 マス', () => {
+    const lamp: Structure = { id: 'lp', kind: 'lamp', cell: { x: 9, y: 8 } }
+    expect(facadeCells(lamp)).toEqual([
+      { cell: { x: 9, y: 8 }, key: 'lamp-t' },
+      { cell: { x: 9, y: 9 }, key: 'lamp-b' },
+    ])
+  })
 })

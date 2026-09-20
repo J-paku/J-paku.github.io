@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef } from 'react'
 import type { RefObject } from 'react'
 import type { Cell, Direction, World } from '@content/types/world'
-import type { Sheet } from '@/lib/pixel/art'
+import type { SheetLayout } from '@/lib/pixel/art'
 import { step, type MoveState } from '@/lib/village/movement'
 import { playerPose } from '@/lib/village/player-pose'
 import { findPath } from '@/lib/village/path'
@@ -40,7 +40,7 @@ export type WalkLoopOptions = {
   autoTalkRef: RefObject<boolean>
   lockedRef: RefObject<boolean>
   heldRef: RefObject<Direction | null>
-  sprites: Sheet
+  sprites: SheetLayout
   reduceMotion: boolean
   arrive: (cell: Cell) => void
   bump: (cell: Cell) => void

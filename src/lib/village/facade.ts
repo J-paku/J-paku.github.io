@@ -16,7 +16,7 @@ const wallKey = (x: number, left: number, right: number): SpriteKey =>
 
 // 左上マスからの相対位置ごとにキーを並べた家具・設置物。行優先(上の行から左→右)
 const FURNITURE: Record<
-  'desk' | 'bed' | 'table' | 'monument' | 'stele',
+  'desk' | 'bed' | 'table' | 'monument' | 'stele' | 'lamp',
   { w: number; keys: readonly SpriteKey[] }
 > = {
   desk: { w: 3, keys: ['desk-tl', 'desk-tm', 'desk-tr', 'desk-bl', 'desk-bm', 'desk-br'] },
@@ -24,6 +24,7 @@ const FURNITURE: Record<
   table: { w: 2, keys: ['table-tl', 'table-tr', 'table-bl', 'table-br'] },
   monument: { w: 2, keys: ['monument-tl', 'monument-tr', 'monument-bl', 'monument-br'] },
   stele: { w: 1, keys: ['stele-t', 'stele-b'] },
+  lamp: { w: 1, keys: ['lamp-t', 'lamp-b'] },
 }
 
 export const facadeCells = (structure: Structure): FacadeCell[] => {

@@ -4,7 +4,7 @@
 import type { ReactNode } from 'react'
 import type { Locale } from '@content/types/content'
 import type { VillageText, WorldSet } from '@content/types/world'
-import type { Sheet } from '@/lib/pixel/art'
+import type { SheetLayout } from '@/lib/pixel/art'
 import { nextSpot } from '@/lib/village/spot'
 import ActionButtons from './components/ActionButtons'
 import Joystick from './components/Joystick'
@@ -12,11 +12,14 @@ import Minimap from './components/Minimap'
 import SpeechBox from './components/SpeechBox'
 import StopModal from './components/StopModal'
 import TalkBubble from './components/TalkBubble'
+import Weather, { type WeatherSheets } from './components/Weather'
 import WorldMap from './components/WorldMap'
 // Groundはscene.module.cssを読むので、CSSの出力順を変えないよう他の子より後に読み込む
 import Ground from './components/Ground'
+import { useDayPhase } from './hooks/use-day-phase'
 import { VIEW_COLS } from './hooks/use-stage-scale'
 import { useVillage } from './hooks/use-village'
+import { useWeather } from './hooks/use-weather'
 import { initialView } from './initial-view'
 import styles from './scene.module.css'
 
@@ -24,9 +27,11 @@ type VillageProps = {
   lang: Locale
   worldSet: WorldSet
   text: VillageText
-  sprites: Sheet
-  // 主人公だけ 16×24 の別シート(頭がマスの上へ半マスはみ出す)
-  playerSprites: Sheet
+  // 配置用の添字と寸法だけ。画像 URI は VillagePage の <style> が持つので重複して送らない
+  sprites: SheetLayout
+  // 主人公だけ 16×24 の別シート(頭がマスの上へ半マスはみ出す)の配置情報
+  playerSprites: SheetLayout
+  weatherSprites: WeatherSheets
   // 一覧への出口リンク。縦持ちタッチでは枠のすぐ下に横長で置くので Village の中で描く
   exit: ReactNode
   // spot.id → 解決済みリンク。null はリンク無し
@@ -41,11 +46,14 @@ function Village({
   text,
   sprites,
   playerSprites,
+  weatherSprites,
   exit,
   stopHrefs,
   stopExternal,
   listHref,
 }: VillageProps) {
+  const phase = useDayPhase()
+  const weather = useWeather()
   const {
     rootRef,
     frameRef,
@@ -99,9 +107,15 @@ function Village({
   } = initialView(world, sprites, playerSprites, reduceMotion)
 
   return (
-    <div ref={rootRef} className={styles.root} style={rootStyle}>
-      {/* シートの data URI はこの規則 1 本で解析させる(要素ごとの var() 展開を避ける) */}
-      <style>{`.${styles.sprite}{background-image:url('${sprites.uri}')}.${styles.player}{background-image:url('${playerSprites.uri}')}`}</style>
+    // data-phase は VillagePage のインラインスクリプトが初回描画の前に書き換える。
+    // hydration 時点の React 側はまだ既定の 'day' なので、この要素の属性差分は警告対象から外す
+    <div
+      ref={rootRef}
+      className={styles.root}
+      style={rootStyle}
+      data-phase={phase}
+      suppressHydrationWarning
+    >
       {/* 枠と操作帯をまとめる。横持ちの操作帯はこの箱を基準に枠の上辺へ重ねる */}
       <div className={styles.screen}>
         <div
@@ -138,6 +152,8 @@ function Village({
             style={worldStyle}
             data-world={world.id}
           >
+            {/* Ground は添字計算にしか使わない(index・count は4段階とも共通)。
+                背景URLは VillagePage が置いた<style>が担う */}
             <Ground world={world} sprites={sprites} destination={destination} />
             <div
               ref={playerRef}
@@ -184,6 +200,10 @@ function Village({
               </div>
             ) : null}
           </div>
+          {/* 雨・雪は world 層ではなく枠の子。枠は表示領域(10×9)ぶんしかないので、町 30×20 を
+              抱える world 層に敷くより描き替える面積が小さく、毎フレーム動く層の再描画にも巻き込まれない。
+              屋内(自室・建物の中)は天井があるので降らせない */}
+          {outdoors ? <Weather kind={weather} sheets={weatherSprites} /> : null}
           <SpeechBox text={speech} lang={lang} />
           {mode === 'talk' && activeSpot !== null ? (
             <StopModal

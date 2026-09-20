@@ -24,6 +24,7 @@ export type RoofColor = 'red' | 'blue'
 // robot: 1×1(AI 作業台の相棒ロボット)、mailbox: 1×1(郵便ポスト)
 // desk: cell から 3×2(PC 机)、bed: cell から 1×2、table: cell から 2×2 — いずれも通行不可
 // monument: cell(左上)から 2×2(経歴碑)、stele: cell(上のマス)から縦 1×2(コードのみ対応、現状は未設置) — いずれも通行不可
+// lamp: cell(上のマス = 灯)から縦 1×2(下は柱) — 上下 2 マスとも通行不可
 export type Structure =
   | {
       id: string
@@ -41,6 +42,7 @@ export type Structure =
   | { id: string; kind: 'table'; cell: Cell }
   | { id: string; kind: 'monument'; cell: Cell }
   | { id: string; kind: 'stele'; cell: Cell }
+  | { id: string; kind: 'lamp'; cell: Cell }
 // 会話地点。cell = 立ち位置(通行可)。order は 1 始まりのコース順(全ワールド通し)。
 // order が無い地点はコース外(次の地点・訪問数・完走判定からは除くが、話しかけ・地図表示・地図からの移動はできる)
 export type Spot = {
