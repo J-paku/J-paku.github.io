@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { buildSheet, recolor, TILE, validateArt } from './art'
 import type { PixelArt, Sheet } from './art'
 import { PLAYER_HEIGHT } from './actors'
+import { LANTERN_GLASS, LANTERN_SHINE } from './lantern'
 import { palette } from './palette'
 import { LIGHT_KEYS, phasePalette } from './palette-phase'
 import {
@@ -117,6 +118,26 @@ const changedKeys = (base: Record<string, PixelArt>, night: Record<string, Pixel
   Object.keys(base)
     .filter(key => base[key].join('') !== night[key].join(''))
     .sort()
+
+// 灯り文字の集合を昇順で返す。主人公とロボットで比べると「同じ灯りか」が分かる
+const lightChars = (points: readonly LanternPoint[]): string[] =>
+  [...new Set(points.map(point => point.nightChar))].sort()
+
+// 夜のランタンが実際に出す 2 色。palette-phase.ts の NIGHT_LIGHTS から来る値をここへ書き写すのは、
+// 「文字が何であれこの明るさで出ているか」を見たいため(文字の定数を辿ると差し替えに追従してしまう)
+const WHITE_METAL = '#ffffff'
+const WARM_GLASS = '#fff0a0'
+
+// 昼と夜で違うドットだけを残し、周りの余白を落とす。差分はそのマスへ重ねたランタンそのものなので、
+// 「同じ物を提げている」なら主人公の正面とロボットでこの型紙が 1 ドットも違わず一致する
+const lanternStencil = (base: PixelArt, night: PixelArt): string[] => {
+  const drawn = night
+    .map((row, y) => [...row].map((ch, x) => (ch === base[y][x] ? '.' : ch)).join(''))
+    .filter(row => /[^.]/.test(row))
+  const left = Math.min(...drawn.map(row => row.search(/[^.]/)))
+  const right = Math.max(...drawn.map(row => row.replace(/\.+$/, '').length))
+  return drawn.map(row => row.slice(left, right))
+}
 
 // 文字マトリクスをトーラス状にずらす。天気の 2 コマが平行移動の関係にあることを確かめるのに使う
 const shift = (art: PixelArt, dx: number, dy: number): PixelArt =>
@@ -282,7 +303,7 @@ describe('PLAYER_ARTS', () => {
 })
 
 describe('時刻ごとのシート', () => {
-  // 灯り用の文字へ置き換える前(57314e2)に測った昼のシート。街灯 2 枚は新設なので外して比べる
+  // 灯り用の文字へ置き換える前(57314e2)に測った昼のシート。街灯 2 枚と焚き火は新設なので外して比べる
   const BASELINE = { count: 53, length: 3318, sha256: '6852db7f3bd8b941' }
 
   // 主人公の昼のシートを焼いて取った実測値。主人公にも夜の双子ができたので、地形・建物と同じく
@@ -293,7 +314,9 @@ describe('時刻ごとのシート', () => {
 
   it('昼のシートは文字置換の前と 1 バイトも変わらない', () => {
     const arts = Object.fromEntries(
-      Object.entries(SPRITE_ARTS).filter(([key]) => key !== 'lamp-t' && key !== 'lamp-b')
+      Object.entries(SPRITE_ARTS).filter(
+        ([key]) => key !== 'lamp-t' && key !== 'lamp-b' && key !== 'campfire'
+      )
     )
     const sheet = buildSheet(arts, phasePalette(palette, 'day'))
 
@@ -368,6 +391,7 @@ describe('時刻ごとのシート', () => {
     // 地形や主人公がこの文字を持つと、夜に地面や服が光ってしまう。
     // 経歴碑は星が上半分にしかないため tl・tr だけ、机も画面が上段だけなので上 3 枚だけが該当する
     expect(litKeys(SPRITE_ARTS)).toEqual([
+      'campfire',
       'desk-tl',
       'desk-tm',
       'desk-tr',
@@ -462,6 +486,134 @@ describe('夜だけ差し替える素材', () => {
       dawn: fromDayArt('dawn'),
       dusk: fromDayArt('dusk'),
     })
+  })
+
+  it('主人公とロボットのランタンは同じ灯りの文字を使う', () => {
+    // 同じ道具なら灯る色も同じ。別々に描くと、片方だけ別の文字(=別の灯り色)になっても気付けない
+    const player = lightChars(lanternPoints(PLAYER_ARTS, PLAYER_NIGHT_ARTS))
+    const robot = lightChars(lanternPoints(SPRITE_ARTS, SPRITE_NIGHT_ARTS))
+
+    expect(player).toEqual(robot)
+    // 正本(lantern.ts)が決めた 2 文字だけを使う。どちらも街灯と同じ灯り用の予約文字で、
+    // ガラスは暖かい黄(9)、笠と受け皿は自分の光を受ける明るい金属(7)
+    expect(player).toEqual([LANTERN_GLASS, LANTERN_SHINE].sort())
+    expect(player).toEqual(['7', '9'])
+  })
+
+  it('夜のランタンは明るい笠・ガラス・明るい受け皿の 3 段になる', () => {
+    // 夜は光源以外の色が #101c38 へ 0.68 混ざって闇に沈むので、読めるのは灯り用の文字のドットだけ。
+    // その形が縦一様の長方形だと「手に提げた灯り」ではなく「体に付いた黄色い四角」に見える
+    // (4 倍の夜の画面で実測した失敗)。上下の段を明るい金物にし、受け皿をガラスより広く
+    // 張り出させて初めて手提げの輪郭になる。
+    //
+    // 期待値は文字ではなく焼き上がりの色で書く。LANTERN_SHINE のような定数で比べると、
+    // 定数の中身を暗い金物へ差し替えたとき型紙の形は変わらないまま灯りだけが消え、素通りする
+    const stencil = lanternStencil(PLAYER_ARTS['player-down-0'], PLAYER_NIGHT_ARTS['player-down-0'])
+    const night = phasePalette(palette, 'night')
+    const colorsOf = (row: string): string[] =>
+      [...row].filter(ch => ch !== '.').map(ch => night[ch])
+
+    expect({
+      rows: stencil.length,
+      cap: colorsOf(stencil[0]),
+      glass: stencil.slice(1, -1).map(colorsOf),
+      base: colorsOf(stencil[stencil.length - 1]),
+    }).toEqual({
+      rows: 6,
+      cap: [WHITE_METAL, WHITE_METAL],
+      glass: Array.from({ length: 4 }, () => [WARM_GLASS, WARM_GLASS]),
+      base: [WHITE_METAL, WHITE_METAL, WHITE_METAL],
+    })
+  })
+
+  it('横向きの笠はガラスより広く張り出す', () => {
+    // 横向きは体の脇が空くぶん笠を広く取れる面。ここで笠のふちを暗い金物(i)に戻すと、
+    // 夜は見えている笠がガラスと同じ幅まで縮み、灯りがまた 1 本の棒に潰れる
+    const stencil = lanternStencil(
+      PLAYER_ARTS['player-right-0'],
+      PLAYER_NIGHT_ARTS['player-right-0']
+    )
+    const night = phasePalette(palette, 'night')
+    const widest = (hex: string): number =>
+      Math.max(...stencil.map(row => [...row].filter(ch => ch !== '.' && night[ch] === hex).length))
+
+    expect({ cap: widest(WHITE_METAL), glass: widest(WARM_GLASS) }).toEqual({ cap: 4, glass: 2 })
+  })
+
+  it('ロボットが提げるのは主人公の正面と同じ 1 枚の絵である', () => {
+    // 昼との差分を切り出すと、そのマスへ重ねたランタンの形そのものになる。
+    // 形が 1 ドットでも違えば、どちらかが別に描かれている
+    const robot = lanternStencil(SPRITE_ARTS.robot, SPRITE_NIGHT_ARTS.robot)
+
+    expect(robot).toEqual(
+      lanternStencil(PLAYER_ARTS['player-down-0'], PLAYER_NIGHT_ARTS['player-down-0'])
+    )
+    // 4 倍表示で灯りが消えないよう、ガラスは 2 列 × 4 行の塊を保つ
+    expect(robot.filter(row => row.includes('99'))).toHaveLength(4)
+  })
+
+  it('横向きの夜のコマも反転してずれないよう 1〜14 列に収まる', () => {
+    for (const key of ['player-right-0', 'player-right-1'] as const) {
+      for (const row of PLAYER_NIGHT_ARTS[key]) {
+        expect(row[0], key).toBe('.')
+        expect(row[15], key).toBe('.')
+      }
+    }
+  })
+})
+
+describe('焚き火', () => {
+  it('どの段階のシートにも同じ索引で載る', () => {
+    const at = Object.keys(SPRITE_ARTS).indexOf('campfire')
+
+    expect(at).toBeGreaterThanOrEqual(0)
+    expect(DAY_PHASES.map(phase => buildSprites(phase).index.campfire)).toEqual(
+      DAY_PHASES.map(() => at)
+    )
+  })
+
+  it('夜だけの差し替えを持たない(昼も燃えている絵 1 枚で足りる)', () => {
+    expect(SPRITE_NIGHT_ARTS.campfire).toEqual(SPRITE_ARTS.campfire)
+  })
+
+  it('炎の身は夜に発光し、外側のふちだけが暗く沈む', () => {
+    // (7,5) は炎の上半身、(7,8) は下半身。どちらも灯り用の文字('9')。
+    // ここが黄(F)のままだと夜に #5a5b45 まで落ち、炎が「黄色い塊に暗い縁が付いたもの」に見える。
+    // (5,8) は外側のふち('r')で、ここは夜に沈んだままでよい — 沈むから炎の輪郭になる
+    const day = sampler(buildSprites('day'))
+    const night = sampler(buildSprites('night'))
+
+    expect({
+      upper: { day: day('campfire', 7, 5), night: night('campfire', 7, 5) },
+      lower: { day: day('campfire', 7, 8), night: night('campfire', 7, 8) },
+      edge: { day: day('campfire', 5, 8), night: night('campfire', 5, 8) },
+    }).toEqual({
+      upper: { day: palette['9'], night: phasePalette(palette, 'night')['9'] },
+      lower: { day: palette['9'], night: phasePalette(palette, 'night')['9'] },
+      edge: { day: palette.r, night: phasePalette(palette, 'night').r },
+    })
+  })
+
+  it('黄色いドットは 1 つ残らず灯り用の文字で描く', () => {
+    // 昼は '9' と F が同じ色なので、F が 1 つ混じっていても昼の絵では気付けない。
+    // 気付けるのは夜だけで、そこだけ暗い黄土のドットとして炎に穴が開く
+    expect(charsOf(SPRITE_ARTS.campfire).has('F')).toBe(false)
+    expect(charsOf(SPRITE_ARTS.campfire).has('9')).toBe(true)
+  })
+
+  it('炎を灯り用の文字へ移しても昼のタイルは 1 バイトも変わらない', () => {
+    // 文字を入れ替える前(F のまま)に焼いて取った実測値。'9' の昼の色は F と同じ #f8e060 なので、
+    // 色を替えたのではなく発光する文字へ移しただけなら昼のタイルはここへ一致する。
+    // 動いたときは「昼の絵のほうを触った」ということなので、この値を書き換えて合わせない
+    const CAMPFIRE_DAY = { length: 266, sha256: 'a0dffbdc7976d42c' }
+    const sheet = buildSheet({ campfire: SPRITE_ARTS.campfire }, phasePalette(palette, 'day'))
+
+    expect(sheet.uri).toHaveLength(CAMPFIRE_DAY.length)
+    expect(createHash('sha256').update(sheet.uri).digest('hex').slice(0, 16)).toBe(
+      CAMPFIRE_DAY.sha256
+    )
+    // 指紋だけだと「なぜ一致していられるのか」が残らないので、昼の色が等しいことも直接言う
+    expect(phasePalette(palette, 'day')['9']).toBe(phasePalette(palette, 'day').F)
   })
 })
 

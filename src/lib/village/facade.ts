@@ -28,7 +28,8 @@ const FURNITURE: Record<
 }
 
 export const facadeCells = (structure: Structure): FacadeCell[] => {
-  if (structure.kind === 'robot' || structure.kind === 'mailbox') {
+  // 1×1 の設置物は kind がそのままスプライトの鍵になる
+  if (structure.kind === 'robot' || structure.kind === 'mailbox' || structure.kind === 'campfire') {
     return [{ cell: structure.cell, key: structure.kind }]
   }
   if (structure.kind !== 'house') {

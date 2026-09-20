@@ -1,6 +1,7 @@
 // 村の建物と設置物を文字マトリクスで描く
 import { compose, mirrorX, recolor, TILE } from './art'
 import type { PixelArt } from './art'
+import { frontLantern, overlayLantern } from './lantern'
 
 type StructureKey =
   | 'roof-red-l'
@@ -24,6 +25,7 @@ type StructureKey =
   | 'entrance-r'
   | 'robot'
   | 'mailbox'
+  | 'campfire'
   | 'monument-tl'
   | 'monument-tr'
   | 'monument-bl'
@@ -325,6 +327,35 @@ const mailbox: PixelArt = [
   '...xRRRRRRRRx...',
   '..xssssssssssx..',
   '..xxxxxxxxxxxx..',
+]
+
+// 焚き火(1 マス)。下から石の輪・交差させた薪 2 本・炎、上へ弾ける火の粉。
+// 夜用の差し替えは作らない — 昼も燃えている絵 1 枚で足り、発光は palette-phase.ts が夜に効かせる。
+//
+// 炎の身は灯り用の文字(9)で、外側の縁だけが橙(r)と根元の濃い赤(R)。9 の昼の色は黄(F)と
+// 完全に同じ #f8e060 なので、この置き換えで昼の絵は 1 ドットも変わらない(sprites.test.ts が固定)。
+// 逆に F のままだと、夜は光源以外が #101c38 へ 0.68 混ざるので F は暗い黄土(#5a5b45)、
+// r は #532d38 まで落ち、炎が「黄色い塊に暗い縁が付いたもの」にしか見えない(4 倍の夜で実測)。
+// 身を発光させて縁だけ暗く残すと、夜でも炎の形が立つ。
+// 光る身は 5〜11 行(幅 2・2・4・4・6・6・4)。1〜2 ドットの細片は 4 倍表示で消えるので、
+// 横幅はどの行も 2 ドット以上を保つ。上へ飛ぶ火の粉(1・3・5 行の 1 ドット)も熾火なので光らせる
+const campfire: PixelArt = [
+  '................',
+  '..........9.....',
+  '................',
+  '.....9..........',
+  '.......rr.......',
+  '......r99r..9...',
+  '......r99r......',
+  '.....r9999r.....',
+  '.....r9999r.....',
+  '....r999999r....',
+  '....r999999r....',
+  '....Rr9999rR....',
+  '..bkkkRrrREEEb..',
+  '....bkkkEEEb....',
+  'xssxbEEEkkkbxssx',
+  'xSSxxssxxssxxSSx',
 ]
 
 // 経歴碑 2×2(32×32)。石の台座に金の星と月桂樹、中央に 2 社分の碑文の線。星は灯り用の文字(9)
@@ -687,6 +718,7 @@ export const structureArt: Record<StructureKey, PixelArt> = {
   'entrance-r': mirrorX(entranceLeft),
   robot,
   mailbox,
+  campfire,
   'monument-tl': cut(monument, 0, 0),
   'monument-tr': cut(monument, 1, 0),
   'monument-bl': cut(monument, 0, 1),
@@ -722,45 +754,18 @@ export const structureArt: Record<StructureKey, PixelArt> = {
 }
 
 // ここから下は夜だけ使う差し替え。昼の絵へ灯りを重ねるだけなので、昼のドットは 1 つも変わらない
-const CLEAR = '.'
 
-// 型紙の CLEAR は元の絵をそのまま残す。絵のドットへ重ねてしまったら、黙って消さず組み立て時に落とす
-const overlay = (art: PixelArt, patch: PixelArt): PixelArt =>
-  art.map((row, y) =>
-    [...row]
-      .map((ch, x) => {
-        if (patch[y][x] === CLEAR) return ch
-        if (ch !== CLEAR) throw new Error(`灯りが絵と重なっています(${x}列${y}行)`)
-        return patch[y][x]
-      })
-      .join('')
-  )
-
-// ロボットが右腕から提げる手提げランタン。主人公が夜に持つものと同じ作り・同じ大きさ・同じ灯り色に
-// して、同じ道具だと分かるようにする。ガラス 2 列 × 4 行は光源文字の '9'(夜は #fff0a0)、笠は h、
-// 台は S。腕(7・8 行)の真下に笠が来るよう 10 行目から吊るし、
-// 体側のふちは胴の輪郭(12 列)と 13 列に足した x でつなぐ
-const robotLantern: PixelArt = [
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '................',
-  '..............hh',
-  '..............99',
-  '.............x99',
-  '.............x99',
-  '.............x99',
-  '.............SSS',
-]
+// ロボットが右腕から提げる手提げランタン。絵は主人公が正面で提げるものと同じ 1 枚(lantern.ts の
+// frontLantern)で、ここで変えるのは吊るす高さだけ。腕(7・8 行)の真下に笠が来るよう 10 行目から下げる。
+// ここへ形を描き足すと「同じ道具」が 2 つの絵に分かれ、片方だけ直されて別物になる。
+//
+// 6 行の型紙がこのマスの最終行(15)まで届く。lantern.ts の「足元の行へ下ろさない」はマスの下 6 行を
+// 頭上の余白に使える 16×24 の主人公の掟で、16×16 に体が詰まったロボットには当てはまらない
+// (ロボットは足まで 15 行目に載っているので、受け皿だけが接地して見えることはない)
+const ROBOT_LANTERN_TOP = 10
 
 // 夜だけ差し替える絵。structureArt にすでにあるキーしか持てない型にする。
 // ここへ新しいキーを足すと 4 段階のシートでマスの並びがずれ、昼と夜で別のマスが出てしまう
 export const structureNightArt: Partial<Record<StructureKey, PixelArt>> = {
-  robot: overlay(robot, robotLantern),
+  robot: overlayLantern(robot, frontLantern, ROBOT_LANTERN_TOP),
 }

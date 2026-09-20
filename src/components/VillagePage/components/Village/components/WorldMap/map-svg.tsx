@@ -40,6 +40,7 @@ const STRUCTURE_COLORS = {
   monument: '#9a9a8c',
   stele: '#9a9a8c',
   lamp: '#c9a13c',
+  campfire: '#c9843e',
 } as const
 
 function structureColor(structure: Structure) {
