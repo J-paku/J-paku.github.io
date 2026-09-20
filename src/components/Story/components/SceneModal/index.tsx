@@ -16,7 +16,7 @@ import { useRef } from 'react'
 import type { WorkStoryScene } from '@content/types/content'
 import DeviceFrame from '@/components/ui/DeviceFrame'
 import ScenePlayer from '@/components/ui/ScenePlayer'
-import PlaybackIcon from '@/components/ui/PlaybackIcon'
+import PlaybackPulse from '@/components/ui/PlaybackPulse'
 import ControlIcon from './components/ControlIcon'
 import { useModalDialog } from './hooks/use-modal-dialog'
 import { useSceneCarousel } from './hooks/use-scene-carousel'
@@ -106,22 +106,9 @@ function SceneModal({
             </DeviceFrame>
           </div>
 
-          {/* 押した直後だけ出て消える合図。装飾なので読み上げ対象から外す */}
-          <span key={pulseKey} className={styles.pulse} aria-hidden='true'>
-            {isAutoAdvancePaused ? (
-              <PlaybackIcon kind='play' className={styles.pulseIcon} />
-            ) : (
-              <PlaybackIcon kind='pause' className={styles.pulseIcon} />
-            )}
-          </span>
-
-          {/* 停止中はその状態が続いていることを示し続ける。合図が消えたあとも
-              「止まっている」と分かるようにするため、パルスとは別に置く */}
-          {isAutoAdvancePaused ? (
-            <span className={styles.pausedMark} aria-hidden='true'>
-              <PlaybackIcon kind='play' className={styles.pulseIcon} />
-            </span>
-          ) : null}
+          {/* 押した直後の合図と停止中の印。作品カードのキャプチャ枠と同じ部品を使う
+              (包む要素は持たないので、ここの重なり順は従来どおり DOM 順で決まる) */}
+          <PlaybackPulse variant='scene' paused={isAutoAdvancePaused} pulseKey={pulseKey} />
         </button>
 
         <div className={styles.controls}>

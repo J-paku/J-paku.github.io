@@ -270,7 +270,7 @@
 }
 
 /* hover はタッチ環境でタップ後も :hover が残留する(sticky hover)ため、ポインタ環境だけに掛ける
-   — WorkCard の .detailToggle(work-card.module.css)と同じ処方 */
+   — WorkCard の .detailToggle(detail-toggle.module.css)と同じ処方 */
 @media (hover: hover) and (pointer: fine) {
   .detailTrigger:hover {
     background: color-mix(in srgb, var(--accent) 16%, transparent);
@@ -295,16 +295,6 @@
   .detailTrigger:focus-visible .detailArrow {
     transform: none;
   }
-}
-
-/* 読み上げ専用テキスト。導線のアクセシブルネームへ社名を足すためだけに置く */
-.srOnly {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
 }
 
 /* 下塊 — 列の底の帯。上の罫線は経歴リストとの切れ目。

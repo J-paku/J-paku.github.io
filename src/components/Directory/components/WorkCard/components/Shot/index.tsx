@@ -7,7 +7,8 @@ import { toHref } from '@/utils/locale-path'
 import DeviceFrame from '@/components/ui/DeviceFrame'
 import ScenePlayer from '@/components/ui/ScenePlayer'
 import PlaybackIcon from '@/components/ui/PlaybackIcon'
-import styles from '../../work-card.module.css'
+import PlaybackPulse from '@/components/ui/PlaybackPulse'
+import styles from './shot.module.css'
 
 type ShotProps = {
   work: Work
@@ -15,7 +16,10 @@ type ShotProps = {
   ui: UiStrings
   // 枠そのもの。親のuseLinksOverlayが外側クリックの判定にも使う
   shotRef: RefObject<HTMLDivElement | null>
-  shotClassName: string
+  // カードのグリッドのどの行に置くかだけを親から受け取る(work-card.module.css の .shotSlot)
+  slotClassName: string
+  // 画面に丸ごと収まっているか。写真の色を戻す修飾子の出し分けに使う
+  isFullyVisible: boolean
   videoRef: RefObject<HTMLVideoElement | null>
   showVideo: boolean
   showReel: boolean
@@ -31,7 +35,7 @@ type ShotProps = {
 }
 
 function Shot(props: ShotProps) {
-  const { work, locale, ui, shotRef, shotClassName } = props
+  const { work, locale, ui, shotRef, slotClassName, isFullyVisible } = props
   const { videoRef, showVideo, showReel, storyScenes, activeReelIndex } = props
   const { isMotionPaused, pulseKey, hasMotion, isFinePointer, handleToggleMotion } = props
   const { isLinksOpen, setIsLinksOpen } = props
@@ -43,10 +47,16 @@ function Shot(props: ShotProps) {
   const hasStoryOverlay = !hasLinks && work.story !== undefined
   const hasOverlay = hasLinks || hasStoryOverlay
 
+  // 修飾子は枠自身の状態なのでここで組む。.shotInView は画面に丸ごと収まっている間だけ写真の色を
+  // 戻す印。.shotHasVideo はモーション(動画・リール)を持つカードの識別用で、覆いの背景の
+  // pointer-events 分岐だけに効く — 持たないカードのCSSは1px も変わらない
+  let shotClassName = isFullyVisible ? `${styles.shot} ${styles.shotInView}` : styles.shot
+  if (hasMotion) shotClassName += ` ${styles.shotHasVideo}`
+
   // グリフは背景装飾。要素として置くと支援技術から隠しても色コントラスト検査に掛かるため、
   // data 属性で渡して CSS の疑似要素として描く
   return (
-    <div ref={shotRef} className={shotClassName} data-glyph={work.glyph}>
+    <div ref={shotRef} className={`${slotClassName} ${shotClassName}`} data-glyph={work.glyph}>
       {showVideo ? (
         /* 実操作デモ動画。装飾専用(既存の img alt='' と同等の扱い)なので aria-hidden で読み上げから外す。
            停止手段は下の全面トグル(デスクトップ)/オーバーレイ内トグル(タッチ)が別途担う(WCAG 2.2.2) */
@@ -65,7 +75,7 @@ function Shot(props: ShotProps) {
       ) : showReel && storyScenes !== undefined ? (
         /* ストーリー場面の循環リール。装飾専用(video と同等の扱い)なので aria-hidden で読み上げから外す。
            DeviceFrame は px固定の縁取りを持つため自然サイズで描画し、.reelScale の transform: scale()
-           で丸ごと縮小する(詳細は work-card.module.css 側のコメント参照) */
+           で丸ごと縮小する(詳細は shot.module.css 側のコメント参照) */
         <div className={styles.reel} aria-hidden='true'>
           <div className={styles.reelScale}>
             <DeviceFrame>
@@ -97,25 +107,9 @@ function Shot(props: ShotProps) {
         />
       ) : null}
       {hasMotion ? (
-        <>
-          {/* 中央のパルス合図(ユーチューブ式)。key を変えて要素を作り直し、押すたびに同じ
-              アニメーションを頭から再生させる。アイコンは新しい状態を示す(停止直後は▶、
-              再生直後は⏸) — SceneModal の pulse と同じ手法・同じ判断 */}
-          <span key={pulseKey} className={styles.videoPulse} aria-hidden='true'>
-            {isMotionPaused ? (
-              <PlaybackIcon kind='play' className={styles.videoPulseIcon} />
-            ) : (
-              <PlaybackIcon kind='pause' className={styles.videoPulseIcon} />
-            )}
-          </span>
-          {isMotionPaused ? (
-            /* 停止中はその状態が続いていることを示し続ける常時表示の印。パルスが消えたあとも
-               「止まっている」と分かるようにする */
-            <span className={styles.videoPausedMark} aria-hidden='true'>
-              <PlaybackIcon kind='play' className={styles.videoPulseIcon} />
-            </span>
-          ) : null}
-        </>
+        /* 中央のパルス合図(ユーチューブ式)と停止中の常時表示の印。SceneModal と同じ部品。
+           包む要素を持たないので、.shotOverlay との重なりは従来どおり DOM 順のまま */
+        <PlaybackPulse variant='card' paused={isMotionPaused} pulseKey={pulseKey} />
       ) : null}
       {hasOverlay && !(hasMotion && isFinePointer) ? (
         <button
@@ -124,7 +118,7 @@ function Shot(props: ShotProps) {
           aria-expanded={isLinksOpen}
           onClick={() => setIsLinksOpen(open => !open)}
         >
-          <span className={styles.srOnly}>{hasLinks ? ui.work.openLinks : ui.work.openStory}</span>
+          <span className='sr-only'>{hasLinks ? ui.work.openLinks : ui.work.openStory}</span>
         </button>
       ) : null}
       {hasOverlay ? (

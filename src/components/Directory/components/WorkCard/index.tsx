@@ -100,10 +100,6 @@ function WorkCard({ work, index, locale, ui }: WorkCardProps) {
   // 詳細を持たないカード(大半)のモバイル1列表示に row-gap 分の空行が余白として残るため分ける
   let cardClassName = isRevealed ? `${styles.card} ${styles.cardRevealed}` : styles.card
   if (hasDetail) cardClassName += ` ${styles.hasDetail}`
-  let shotClassName = isFullyVisible ? `${styles.shot} ${styles.shotInView}` : styles.shot
-  // モーション(動画・リール)を持つカードの識別用修飾子。持たないカードのCSSは1px も変えず、
-  // この修飾子が付いた shot だけに分岐する(オーバーレイ背景の pointer-events 分岐で使う)
-  if (hasMotion) shotClassName += ` ${styles.shotHasVideo}`
 
   // 通し番号。接頭辞などの文言は付けない(表示文字列は content/ の外に置かない)
   const serial = String(index + 1).padStart(2, '0')
@@ -141,7 +137,8 @@ function WorkCard({ work, index, locale, ui }: WorkCardProps) {
         locale={locale}
         ui={ui}
         shotRef={shotRef}
-        shotClassName={shotClassName}
+        slotClassName={styles.shotSlot}
+        isFullyVisible={isFullyVisible}
         videoRef={videoRef}
         showVideo={showVideo}
         showReel={showReel}
@@ -174,6 +171,7 @@ function WorkCard({ work, index, locale, ui }: WorkCardProps) {
           isDetailOpen={isDetailOpen}
           setIsDetailOpen={setIsDetailOpen}
           detailId={detailId}
+          slotClassName={styles.toggleSlot}
           ui={ui}
         />
       ) : null}

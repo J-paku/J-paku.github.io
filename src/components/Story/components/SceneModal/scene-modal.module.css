@@ -105,54 +105,8 @@
   outline-offset: 4px;
 }
 
-/* 押した直後に一度だけ出る合図。操作の受理を伝えるだけなので、押せない要素として扱う */
-.pulse {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  background-color: color-mix(in srgb, var(--color-scrim) 70%, transparent);
-  pointer-events: none;
-  opacity: 0;
-  animation: scene-toggle-pulse 620ms var(--ease-reveal);
-}
-
-@keyframes scene-toggle-pulse {
-  from {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(0.7);
-  }
-  to {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(1.35);
-  }
-}
-
-/* 停止している間ずっと出しておく印。合図(パルス)が消えたあとも状態が分かるようにする */
-.pausedMark {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  background-color: color-mix(in srgb, var(--color-scrim) 55%, transparent);
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-}
-
-.pulseIcon {
-  width: 1.75rem;
-  height: 1.75rem;
-}
+/* 押した直後のパルスと停止中の印は src/components/ui/PlaybackPulse/(variant='scene')が持つ。
+   .sceneToggle の color(--color-scrim-ink)は継承に頼らず向こうで明示してある */
 
 /* 場面送りのコントロール行。frameWrap の下、panel の幅いっぱいに中央寄せで置く
    (frameWrap 自体は 120px まで縮む可能性があるため、ボタン+カウンタの取り回しに幅を持たせる) */
@@ -225,16 +179,11 @@
   }
 }
 
+/* パルスを止める指定は PlaybackPulse 側が同じ media で持つ */
 @media (prefers-reduced-motion: reduce) {
   .dialog::backdrop,
-  .panel,
-  .pulse {
+  .panel {
     animation: none;
-  }
-
-  /* パルスが出ないぶん、停止中の印だけで状態を伝える */
-  .pulse {
-    display: none;
   }
 }
 

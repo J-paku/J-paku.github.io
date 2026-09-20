@@ -50,6 +50,7 @@ last_reviewed: 2026-09-21
 ## 画面をまたぐ部品 — `src/components/ui/`
 
 `DeviceFrame`(iPhone 枠)・`Logo`・`Navigation`・`PhraseText`(日本語の文節改行)・`PlaybackIcon`・
-`ScenePlayer`・`SettingsMenu`(言語とテーマ)・`TechTag`。
+`PlaybackPulse`(再生切り替えのパルスと停止中の印)・`ScenePlayer`・`SettingsMenu`(言語とテーマ)・
+`TechTag`。
 
 **2箇所以上から使い始めた時点でここへ引き上げる。** 1箇所しか使わない部品は画面側のフォルダに置く。

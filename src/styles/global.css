@@ -103,6 +103,22 @@ textarea {
   transform: translateY(0);
 }
 
+/*
+ * 読み上げ専用テキスト — 視覚的に潰し、支援技術にだけ残す。
+ * display: none / visibility: hidden は読み上げからも消えるので使わない。
+ * 同じ規則が CareerDetail・ProfileColumn・Shot の3箇所に同文で置かれていたため、
+ * 上の skip link と同じ「画面横断のアクセシビリティ部品」としてここへ集約した
+ * (CSS Modules に置くと1フォルダ1 module.css の決まりで共有できない)。
+ */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 /* :focus-visible — outline を消さずアクセントで明示する */
 :focus-visible {
   outline: 2px solid var(--accent);
