@@ -429,9 +429,9 @@ describe('夜だけ差し替える素材', () => {
     expect(night.height).toBe(day.height)
   })
 
-  it('夜に絵が変わるのはランタンを持つ素材だけ', () => {
+  it('夜に絵が変わるのは LED の付くポストだけ', () => {
     // 地形や建物まで夜だけ別の絵になっていないかの見張り。増やすときはここを意図的に更新する
-    expect(changedKeys(SPRITE_ARTS, SPRITE_NIGHT_ARTS)).toEqual(['robot'])
+    expect(changedKeys(SPRITE_ARTS, SPRITE_NIGHT_ARTS)).toEqual(['mailbox'])
   })
 
   it('主人公のランタンは夜だけ灯り、昼・明け方・夕方には無い', () => {
@@ -463,9 +463,9 @@ describe('夜だけ差し替える素材', () => {
     })
   })
 
-  it('ロボットのランタンも夜だけ灯る', () => {
+  it('ポストの LED も夜だけ灯る', () => {
     const points = lanternPoints(SPRITE_ARTS, SPRITE_NIGHT_ARTS)
-    expect(points.length, 'ロボットに「昼は灯り文字でなく夜だけ灯る」点が無い').toBeGreaterThan(0)
+    expect(points.length, 'ポストに「昼は灯り文字でなく夜だけ灯る」点が無い').toBeGreaterThan(0)
 
     const point = points[0]
     const fromDayArt = (phase: DayPhase): Pixel =>
@@ -488,14 +488,10 @@ describe('夜だけ差し替える素材', () => {
     })
   })
 
-  it('主人公とロボットのランタンは同じ灯りの文字を使う', () => {
-    // 同じ道具なら灯る色も同じ。別々に描くと、片方だけ別の文字(=別の灯り色)になっても気付けない
-    const player = lightChars(lanternPoints(PLAYER_ARTS, PLAYER_NIGHT_ARTS))
-    const robot = lightChars(lanternPoints(SPRITE_ARTS, SPRITE_NIGHT_ARTS))
-
-    expect(player).toEqual(robot)
-    // 正本(lantern.ts)が決めた 2 文字だけを使う。どちらも街灯と同じ灯り用の予約文字で、
+  it('主人公のランタンは正本が決めた 2 文字だけで描く', () => {
+    // 別々に描き直されると、灯り色だけが片方でずれても気付けない。
     // ガラスは暖かい黄(9)、笠と受け皿は自分の光を受ける明るい金属(7)
+    const player = lightChars(lanternPoints(PLAYER_ARTS, PLAYER_NIGHT_ARTS))
     expect(player).toEqual([LANTERN_GLASS, LANTERN_SHINE].sort())
     expect(player).toEqual(['7', '9'])
   })
@@ -540,16 +536,23 @@ describe('夜だけ差し替える素材', () => {
     expect({ cap: widest(WHITE_METAL), glass: widest(WARM_GLASS) }).toEqual({ cap: 4, glass: 2 })
   })
 
-  it('ロボットが提げるのは主人公の正面と同じ 1 枚の絵である', () => {
-    // 昼との差分を切り出すと、そのマスへ重ねたランタンの形そのものになる。
-    // 形が 1 ドットでも違えば、どちらかが別に描かれている
-    const robot = lanternStencil(SPRITE_ARTS.robot, SPRITE_NIGHT_ARTS.robot)
+  it('ポストの LED は縁を 1 周し、6 色が順に並ぶ', () => {
+    // 昼との差分がそのまま LED の帯になる。縁を一周していないと、夜のポストは
+    // 一部だけ光って「点け忘れ」に見える
+    const stencil = lanternStencil(SPRITE_ARTS.mailbox, SPRITE_NIGHT_ARTS.mailbox)
+    const dots = stencil
+      .join('')
+      .split('')
+      .filter(ch => ch !== '.')
 
-    expect(robot).toEqual(
-      lanternStencil(PLAYER_ARTS['player-down-0'], PLAYER_NIGHT_ARTS['player-down-0'])
-    )
-    // 4 倍表示で灯りが消えないよう、ガラスは 2 列 × 4 行の塊を保つ
-    expect(robot.filter(row => row.includes('99'))).toHaveLength(4)
+    // 上辺 10 + 右辺 6 + 下辺 10 + 左辺 6
+    expect(dots).toHaveLength(32)
+    // 6 色すべてが使われ、余計な文字が混ざらない
+    expect([...new Set(dots)].sort()).toEqual(['#', '*', '+', '6', '8', '9'])
+    // どの色も夜には発光色になる(1 つでも普通の色だと帯がそこで途切れて見える)
+    const night = phasePalette(palette, 'night')
+    const day = phasePalette(palette, 'day')
+    expect([...new Set(dots)].every(ch => night[ch] !== day[ch])).toBe(true)
   })
 
   it('横向きの夜のコマも反転してずれないよう 1〜14 列に収まる', () => {

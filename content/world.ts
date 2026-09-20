@@ -89,8 +89,7 @@ const TOWN_BLOCKS: readonly (readonly Block[])[] = [
 // 郵便ポスト(mailbox)は広場の北端 (24,14)、話しかけ位置は道に面した (24,13)
 // 焚き火(campfire)はロボット (8,15) の東隣 (9,15) の草地に 1 マス、通行不可。
 // ロボットの話しかけ位置 (8,14) とその周りの道は塞がない
-// 街灯(lamp)は西 (9,8)・東 (20,8)・広場際 (20,14)・ポスト隣 (25,13) の4つ、いずれも上下2マスが通行不可。
-// 西・東・広場際は草地に、ポスト隣だけは上が道 (25,13)・下が広場 (25,14) にまたがって立つ
+// 街灯(lamp)は西 (9,8)・東 (20,8)・広場際 (20,14)の3つ、いずれも上下2マスが通行不可で草地に立つ
 // 家は屋根 2 行 + 壁 2 行(上段が窓行、下段が扉行)。3 軒とも同じ高さ
 export const town: World = {
   id: 'town',
@@ -133,7 +132,6 @@ export const town: World = {
     { id: 'lamp-west', kind: 'lamp', cell: { x: 9, y: 8 } },
     { id: 'lamp-east', kind: 'lamp', cell: { x: 20, y: 8 } },
     { id: 'lamp-plaza', kind: 'lamp', cell: { x: 20, y: 14 } },
-    { id: 'lamp-mailbox', kind: 'lamp', cell: { x: 25, y: 13 } },
   ],
   spots: [
     { id: 'meishi', structureId: 'meishi', cell: { x: 6, y: 6 }, facing: 'up', order: 2 },

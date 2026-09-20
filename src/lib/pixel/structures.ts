@@ -1,7 +1,6 @@
 // 村の建物と設置物を文字マトリクスで描く
 import { compose, mirrorX, recolor, TILE } from './art'
 import type { PixelArt } from './art'
-import { frontLantern, overlayLantern } from './lantern'
 
 type StructureKey =
   | 'roof-red-l'
@@ -753,19 +752,41 @@ export const structureArt: Record<StructureKey, PixelArt> = {
   ),
 }
 
-// ここから下は夜だけ使う差し替え。昼の絵へ灯りを重ねるだけなので、昼のドットは 1 つも変わらない
+// ここから下は夜だけ使う差し替え。昼の絵のドットは 1 つも変わらない
 
-// ロボットが右腕から提げる手提げランタン。絵は主人公が正面で提げるものと同じ 1 枚(lantern.ts の
-// frontLantern)で、ここで変えるのは吊るす高さだけ。腕(7・8 行)の真下に笠が来るよう 10 行目から下げる。
-// ここへ形を描き足すと「同じ道具」が 2 つの絵に分かれ、片方だけ直されて別物になる。
-//
-// 6 行の型紙がこのマスの最終行(15)まで届く。lantern.ts の「足元の行へ下ろさない」はマスの下 6 行を
-// 頭上の余白に使える 16×24 の主人公の掟で、16×16 に体が詰まったロボットには当てはまらない
-// (ロボットは足まで 15 行目に載っているので、受け皿だけが接地して見えることはない)
-const ROBOT_LANTERN_TOP = 10
+// ポストの前面を 1 周する LED の並び。色は 6 つを順に繰り返す。全部を光源文字にするのは、
+// 夜は光源以外の色が #101c38 へ 0.68 混ざって沈むので、ここが普通の色だと帯ごと闇に消えるため
+const LED_CYCLE = ['+', '9', '*', '6', '8', '#'] as const
+
+// 帯を回す矩形。ポストの絵(mailbox)の前面の縁に合わせた実測値で、
+// 内側の〒と投函口には掛からない(縁だけを一周する)
+const LED_TOP = 6
+const LED_BOTTOM = 13
+const LED_LEFT = 3
+const LED_RIGHT = 12
+
+// 上辺 → 右辺 → 下辺 → 左辺と時計回りに 1 周する道順。色を順に置くだけで帯が一周つながる
+const ledRing = (): readonly (readonly [number, number])[] => {
+  const cells: [number, number][] = []
+  for (let x = LED_LEFT; x <= LED_RIGHT; x += 1) cells.push([LED_TOP, x])
+  for (let y = LED_TOP + 1; y < LED_BOTTOM; y += 1) cells.push([y, LED_RIGHT])
+  for (let x = LED_RIGHT; x >= LED_LEFT; x -= 1) cells.push([LED_BOTTOM, x])
+  for (let y = LED_BOTTOM - 1; y > LED_TOP; y -= 1) cells.push([y, LED_LEFT])
+  return cells
+}
+
+// 昼のポストの縁を LED の粒へ置き換える。重ね合わせ(透明な場所へ描き足す)ではなく置き換えなのは、
+// 16 ドットのポストへ粒を外付けすると 4 倍表示でごみに見えるため。縁がそのまま光れば形が読める
+const litMailbox = (art: PixelArt): PixelArt => {
+  const rows = art.map(row => [...row])
+  ledRing().forEach(([y, x], i) => {
+    rows[y][x] = LED_CYCLE[i % LED_CYCLE.length]
+  })
+  return rows.map(row => row.join(''))
+}
 
 // 夜だけ差し替える絵。structureArt にすでにあるキーしか持てない型にする。
 // ここへ新しいキーを足すと 4 段階のシートでマスの並びがずれ、昼と夜で別のマスが出てしまう
 export const structureNightArt: Partial<Record<StructureKey, PixelArt>> = {
-  robot: overlayLantern(robot, frontLantern, ROBOT_LANTERN_TOP),
+  mailbox: litMailbox(mailbox),
 }

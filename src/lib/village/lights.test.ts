@@ -6,7 +6,7 @@ import { NO_GLOW, PLAYER_LIGHT, worldLights, type LightKind, type LightSource } 
 // 絵そのものを読むのはこのテストの中だけ。lights.ts はクライアントの束に入るので、
 // あちらが sprites.ts を実行時に取り込むと node:crypto まで一緒に配られてしまう
 import { LIGHT_KEYS } from '@/lib/pixel/palette-phase'
-import { SPRITE_ARTS } from '@/lib/pixel/sprites'
+import { SPRITE_ARTS, SPRITE_NIGHT_ARTS } from '@/lib/pixel/sprites'
 
 // server-only は Next.js のビルド境界専用ガードで、vitest(node 環境)では無条件に例外を投げる。
 // テストでは中身を持たない mock に差し替え、読み込み専用の @/lib/content/read を素通しにする
@@ -48,8 +48,8 @@ const fakeWorld = (structures: Structure[]): World => ({
 })
 
 describe('worldLights (町)', () => {
-  it('街灯 4 本ぶんの灯りが出る', () => {
-    expect(byKind(town, 'lamp')).toHaveLength(4)
+  it('街灯 3 本ぶんの灯りが出る', () => {
+    expect(byKind(town, 'lamp')).toHaveLength(3)
   })
   it('街灯の灯はマスの中央より少し下で、暖色の中くらいの灯りになる', () => {
     // 街灯は cell(= 上のマス)が灯、その真下が柱
@@ -59,13 +59,16 @@ describe('worldLights (町)', () => {
     expect(lamp.y).toBeCloseTo(8.6)
     expect(lamp.flicker).toBeUndefined()
   })
-  it('ロボットのランタンは 1 つで、右腕の側へ寄る', () => {
-    const lanterns = byKind(town, 'robot')
-    expect(lanterns).toHaveLength(1)
-    const lantern = lightById(town, 'robot')
-    expect(lantern).toMatchObject({ radius: 2, intensity: 0.26, color: '#ffe8a8' })
-    expect(lantern.x).toBeCloseTo(8.95)
-    expect(lantern.y).toBeCloseTo(15.8)
+  it('ポストの LED は 1 つで、マスの中央を弱く照らす', () => {
+    expect(byKind(town, 'mailbox')).toHaveLength(1)
+    const led = lightById(town, 'mailbox')
+    expect(led).toMatchObject({ kind: 'mailbox', radius: 1.8, intensity: 0.22, color: '#f2e8ff' })
+    expect(led.x).toBeCloseTo(24.5)
+    expect(led.y).toBeCloseTo(14.55)
+    expect(led.flicker).toBeUndefined()
+  })
+  it('ロボットは後光を出さない(隣の焚き火が同じ場所を照らす)', () => {
+    expect(worldLights(town).filter(light => light.id === 'robot')).toEqual([])
   })
   it('焚き火の灯りは町に置かれた焚き火と同じ数だけ出る', () => {
     const placed = town.structures.filter(structure => structure.kind === 'campfire')
@@ -124,9 +127,9 @@ describe('worldLights (種類ごとの灯り)', () => {
     expect(lights[0].flicker).toBeUndefined()
   })
   it('灯りを持たない構造物は光源を出さない', () => {
-    const mailbox: Structure = { id: 'm', kind: 'mailbox', cell: { x: 1, y: 1 } }
+    const robot: Structure = { id: 'r', kind: 'robot', cell: { x: 1, y: 1 } }
     const desk: Structure = { id: 'd', kind: 'desk', cell: { x: 3, y: 1 } }
-    expect(worldLights(fakeWorld([mailbox, desk]))).toEqual([])
+    expect(worldLights(fakeWorld([robot, desk]))).toEqual([])
   })
   it('屋内(自室)は光源を持たない', () => {
     expect(worldLights(room)).toEqual([])
@@ -164,9 +167,13 @@ const SAMPLES: Record<Structure['kind'], Structure> = {
 
 // その種類の絵が灯り用の文字を 1 つでも使うか。種類 → スプライトの鍵の対応は facadeCells が
 // 唯一の正本なので、ここで並べ直さない(窓が家の一部であることも facadeCells だけが知っている)
+// 夜だけ差し替わる絵(ポストの LED など)も数える。昼の絵だけを見ると、夜に光る素材が
+// この突き合わせからまるごと漏れてしまう
 const hasLitSprite = (structure: Structure): boolean =>
   facadeCells(structure).some(({ key }) =>
-    LIGHT_KEYS.some(char => SPRITE_ARTS[key].join('').includes(char))
+    [SPRITE_ARTS[key], SPRITE_NIGHT_ARTS[key]].some(art =>
+      LIGHT_KEYS.some(char => art.join('').includes(char))
+    )
   )
 
 // その種類が後光を出すか。表を覗かず worldLights の結果で見るので、窓のように

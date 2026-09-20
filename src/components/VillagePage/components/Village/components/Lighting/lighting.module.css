@@ -27,16 +27,17 @@
    ほぼ同色になり、地形の描き分けが消えていた。screen は下の色を必ず残したまま
    「足りない明るさ」だけを足すので、暗い所は暗いまま色味が残って明るくなる。
    plus-lighter は使わない(対応範囲がこちらより狭い)。
-   screen は通常合成より明るく出るぶん、内側の段の比率は 60/36/16% から 0.6 倍へ落としてある */
+   screen は通常合成より明るく出るぶん、内側の段の比率は 60/36/16% から 0.6 倍へ落とし、
+   さらに実画面で見て明るすぎたので 2/3 へ絞った(36/22/10% → 24/15/7%) */
 .light {
   position: absolute;
   border-radius: 50%;
   mix-blend-mode: screen;
   background: radial-gradient(
     circle closest-side,
-    color-mix(in srgb, var(--light-color) 36%, transparent) 0 34%,
-    color-mix(in srgb, var(--light-color) 22%, transparent) 34% 56%,
-    color-mix(in srgb, var(--light-color) 10%, transparent) 56% 76%,
+    color-mix(in srgb, var(--light-color) 24%, transparent) 0 34%,
+    color-mix(in srgb, var(--light-color) 15%, transparent) 34% 56%,
+    color-mix(in srgb, var(--light-color) 7%, transparent) 56% 76%,
     transparent 76%
   );
 }
