@@ -1,5 +1,5 @@
-// 村の建物と設置物を八ドット部品から組み立てる
-import { compose, mirrorX, recolor } from './art'
+// 村の建物と設置物を文字マトリクスで描く
+import { compose, mirrorX, recolor, TILE } from './art'
 import type { PixelArt } from './art'
 
 type StructureKey =
@@ -24,6 +24,12 @@ type StructureKey =
   | 'entrance-r'
   | 'robot'
   | 'mailbox'
+  | 'monument-tl'
+  | 'monument-tr'
+  | 'monument-bl'
+  | 'monument-br'
+  | 'stele-t'
+  | 'stele-b'
   | 'marker'
   | 'desk-tl'
   | 'desk-tm'
@@ -39,248 +45,392 @@ type StructureKey =
   | 'table-br'
   | 'locator'
 
-const roofInnerTop: PixelArt = [
-  'xxxxxxxx',
-  'rrrRrrrR',
-  'rrrRrrrR',
-  'RRRRRRRR',
-  'rRrrrRrr',
-  'rRrrrRrr',
-  'rRrrrRrr',
-  'RRRRRRRR',
+// 32×32 や 16×32 の下絵から 16×16 のマス 1 枚を切り出す。col・row はマス単位
+const cut = (art: PixelArt, col: number, row: number): PixelArt =>
+  art.slice(row * TILE, row * TILE + TILE).map(line => line.slice(col * TILE, col * TILE + TILE))
+
+// 屋根の最上段。上辺だけ輪郭を持ち、鱗状の瓦を赤 2 色だけで描く(青は recolor で作る)
+const roofRedLeft: PixelArt = [
+  '....xxxxxxxxxxxx',
+  '....xrrrRrrrrrrr',
+  '...xrrrrrrrrrrrr',
+  '...xrrrrrrrrrrrr',
+  '..xrrrrRRrrrrrrR',
+  '..xrrrRRRRrrrrRR',
+  '.xRRRRRRRRRRRRRR',
+  '.xrrRrrrrrrrRrrr',
+  'xrrrrrrrrrrrrrrr',
+  'xrrrrrrrrrrrrrrr',
+  'xrrRRrrrrrrRRrrr',
+  'xrRRRRrrrrRRRRrr',
+  'xRRRRRRRRRRRRRRR',
+  'xrrrrrrrRrrrrrrr',
+  'xrrrrrrrrrrrrrrr',
+  'xrrrrrrrrrrrrrrr',
 ]
 
-const roofLeftTop: PixelArt = [
-  'xxxxxxxx',
-  'xrrRrrrR',
-  'xrrRrrrR',
-  'xRRRRRRR',
-  'xRrrrRrr',
-  'xRrrrRrr',
-  'xRrrrRrr',
-  'xRRRRRRR',
+const roofRedMiddle: PixelArt = [
+  'xxxxxxxxxxxxxxxx',
+  'RrrrrrrrRrrrrrrr',
+  'rrrrrrrrrrrrrrrr',
+  'rrrrrrrrrrrrrrrr',
+  'RrrrrrrRRrrrrrrR',
+  'RRrrrrRRRRrrrrRR',
+  'RRRRRRRRRRRRRRRR',
+  'rrrrRrrrrrrrRrrr',
+  'rrrrrrrrrrrrrrrr',
+  'rrrrrrrrrrrrrrrr',
+  'rrrRRrrrrrrRRrrr',
+  'rrRRRRrrrrRRRRrr',
+  'RRRRRRRRRRRRRRRR',
+  'RrrrrrrrRrrrrrrr',
+  'rrrrrrrrrrrrrrrr',
+  'rrrrrrrrrrrrrrrr',
 ]
 
-const roofRightTop: PixelArt = [
-  'xxxxxxxx',
-  'rrrRrrrx',
-  'rrrRrrrx',
-  'RRRRRRRx',
-  'rRrrrRrx',
-  'rRrrrRrx',
-  'rRrrrRrx',
-  'RRRRRRRx',
+const roofRedRight: PixelArt = [
+  'xxxxxxxxxxxx....',
+  'RrrrrrrrRrrx....',
+  'rrrrrrrrrrrrx...',
+  'rrrrrrrrrrrrx...',
+  'RrrrrrrRRrrrrx..',
+  'RRrrrrRRRRrrrx..',
+  'RRRRRRRRRRRRRRx.',
+  'rrrrRrrrrrrrRrx.',
+  'rrrrrrrrrrrrrrrx',
+  'rrrrrrrrrrrrrrrx',
+  'rrrRRrrrrrrRRrrx',
+  'rrRRRRrrrrRRRRrx',
+  'RRRRRRRRRRRRRRRx',
+  'RrrrrrrrRrrrrrrx',
+  'rrrrrrrrrrrrrrrx',
+  'rrrrrrrrrrrrrrrx',
 ]
 
-const roofInnerBottom: PixelArt = [
-  'rrrRrrrR',
-  'rrrRrrrR',
-  'rrrRrrrR',
-  'RRRRRRRR',
-  'rRrrrRrr',
-  'rRrrrRrr',
-  'rRrrrRrr',
-  'RRRRRRRR',
+// 屋根の続きの段。上辺の輪郭を持たず、下 4 行が軒(茶色の桁)になる
+const roofRedLeftLow: PixelArt = [
+  'xrrrrrrRRrrrrrrR',
+  'xRrrrrRRRRrrrrRR',
+  'xRRRRRRRRRRRRRRR',
+  'xrrrRrrrrrrrRrrr',
+  'xrrrrrrrrrrrrrrr',
+  'xrrrrrrrrrrrrrrr',
+  'xrrRRrrrrrrRRrrr',
+  'xrRRRRrrrrRRRRrr',
+  'xRRRRRRRRRRRRRRR',
+  'xrrrrrrrRrrrrrrr',
+  'xrrrrrrrrrrrrrrr',
+  'xrrrrrrrrrrrrrrr',
+  'xxxxxxxxxxxxxxxx',
+  'xeeeeeeeeeeeeeee',
+  'xkkkkkkkkkkkkkkk',
+  'xxxxxxxxxxxxxxxx',
 ]
 
-const roofLeftBottom: PixelArt = [
-  'xrrRrrrR',
-  'xrrRrrrR',
-  'xrrRrrrR',
-  'xRRRRRRR',
-  'xRrrrRrr',
-  'xRrrrRrr',
-  'xRrrrRrr',
-  'RRRRRRRR',
+const roofRedMiddleLow: PixelArt = [
+  'RrrrrrrRRrrrrrrR',
+  'RRrrrrRRRRrrrrRR',
+  'RRRRRRRRRRRRRRRR',
+  'rrrrRrrrrrrrRrrr',
+  'rrrrrrrrrrrrrrrr',
+  'rrrrrrrrrrrrrrrr',
+  'rrrRRrrrrrrRRrrr',
+  'rrRRRRrrrrRRRRrr',
+  'RRRRRRRRRRRRRRRR',
+  'RrrrrrrrRrrrrrrr',
+  'rrrrrrrrrrrrrrrr',
+  'rrrrrrrrrrrrrrrr',
+  'xxxxxxxxxxxxxxxx',
+  'eeeeeeeeeeeeeeee',
+  'kkkkkkkkkkkkkkkk',
+  'xxxxxxxxxxxxxxxx',
 ]
 
-const roofRightBottom: PixelArt = [
-  'rrrRrrrx',
-  'rrrRrrrx',
-  'rrrRrrrx',
-  'RRRRRRRx',
-  'rRrrrRrx',
-  'rRrrrRrx',
-  'rRrrrRrx',
-  'RRRRRRRR',
+const roofRedRightLow: PixelArt = [
+  'RrrrrrrRRrrrrrrx',
+  'RRrrrrRRRRrrrrRx',
+  'RRRRRRRRRRRRRRRx',
+  'rrrrRrrrrrrrRrrx',
+  'rrrrrrrrrrrrrrrx',
+  'rrrrrrrrrrrrrrrx',
+  'rrrRRrrrrrrRRrrx',
+  'rrRRRRrrrrRRRRrx',
+  'RRRRRRRRRRRRRRRx',
+  'RrrrrrrrRrrrrrrx',
+  'rrrrrrrrrrrrrrrx',
+  'rrrrrrrrrrrrrrrx',
+  'xxxxxxxxxxxxxxxx',
+  'eeeeeeeeeeeeeeex',
+  'kkkkkkkkkkkkkkkx',
+  'xxxxxxxxxxxxxxxx',
 ]
 
-const wallTopLeft: PixelArt = [
-  'hhhhhhhh',
-  'hhhhhhhh',
-  'hhhHhhhh',
-  'hhhhhhhh',
-  'HHHHHHHH',
-  'hhhhhhhh',
-  'hhhhhhhh',
-  'hhhhhhhh',
+// 壁。左端に木の柱、上に梁受け、下に石積みの土台。中央のマスは横に繰り返しても継ぎ目が出ない
+const wallLeft: PixelArt = [
+  'xekxkkhhhhhhhhkk',
+  'xekxkhhhhhhhhhhk',
+  'xekxhhhhhhhhhhhh',
+  'xekxhhhhhhhhhhhh',
+  'xekxhhhhhhhhhhhh',
+  'xekxhhhhhhhhhhhh',
+  'xekxhhhhhhhhhhhh',
+  'xekxhhhhhhhhhhhh',
+  'xekxhhhhhhhhhhhh',
+  'xekxhhhhhhhhhhhh',
+  'xekxhhhhhhhhhhhh',
+  'xekxhhhhhhhhhhhh',
+  'xekxHHHHHHHHHHHH',
+  'xekxsssSsssssSss',
+  'xekxSsssssSsssss',
+  'xxxxxxxxxxxxxxxx',
 ]
 
-const wallTopRight: PixelArt = [
-  'hhhhhhhh',
-  'hhhhhhhh',
-  'hhhhhhhh',
-  'hhhhhhhh',
-  'HHHHHHHH',
-  'hhhhhhhh',
-  'hhhhhhhh',
-  'hhhhHhhh',
+// 中央の壁だけ花の彫り飾りを入れる
+const wallMiddle: PixelArt = [
+  'xekxkkhhhhhhhhkk',
+  'xekxkhhhhhhhhhhk',
+  'xekxhhhhhhhhhhhh',
+  'xekxhhhhhhhhhhhh',
+  'xekxhhhhhhkhhhhh',
+  'xekxhhhhkhkhkhhh',
+  'xekxhhhhhkkkhhhh',
+  'xekxhhhhhhkhhhhh',
+  'xekxhhhhhhhhhhhh',
+  'xekxhhhhhhhhhhhh',
+  'xekxhhhhhhhhhhhh',
+  'xekxhhhhhhhhhhhh',
+  'xekxHHHHHHHHHHHH',
+  'xekxsssSsssssSss',
+  'xekxSsssssSsssss',
+  'xxxxxxxxxxxxxxxx',
 ]
 
-const wallBottomLeft: PixelArt = [
-  'hhhhhhhh',
-  'HHHHHHHH',
-  'hhhhhhhh',
-  'hhhhhhhh',
-  'hhhhhhhh',
-  'HHHHHHHH',
-  'HHHHHHHH',
-  'xxxxxxxx',
+// 右端の壁は外側にも柱を立て、最外列を輪郭にする
+const wallRight: PixelArt = [
+  'xekxkkhhhhkkxkex',
+  'xekxkhhhhhhkxkex',
+  'xekxhhhhhhhhxkex',
+  'xekxhhhhhhhhxkex',
+  'xekxhhhhhhhhxkex',
+  'xekxhhhhhhhhxkex',
+  'xekxhhhhhhhhxkex',
+  'xekxhhhhhhhhxkex',
+  'xekxhhhhhhhhxkex',
+  'xekxhhhhhhhhxkex',
+  'xekxhhhhhhhhxkex',
+  'xekxhhhhhhhhxkex',
+  'xekxHHHHHHHHxkex',
+  'xekxsssSssssxkex',
+  'xekxSsssssSsxkex',
+  'xxxxxxxxxxxxxxxx',
 ]
 
-const wallBottomRight: PixelArt = [
-  'hhhhhhhh',
-  'HHHHHHHH',
-  'hhhhhhhh',
-  'hhhhhhhh',
-  'hhhhhhhh',
-  'HHHHHHHH',
-  'HHHHHHHH',
-  'xxxxxxxx',
+// 窓。壁を下地に木枠と 4 枚ガラス、下に窓台を置く
+const windowTile: PixelArt = [
+  'xekxkkhhhhhhhhkk',
+  'xekxkhhhhhhhhhhk',
+  'xekxhhhhhhhhhhhh',
+  'xekxhxxxxxxxxxxh',
+  'xekxhxvnnxxvnnxh',
+  'xekxhxnnnxxnnnxh',
+  'xekxhxxxxxxxxxxh',
+  'xekxhxvnnxxvnnxh',
+  'xekxhxnnnxxnnnxh',
+  'xekxhxxxxxxxxxxh',
+  'xekxheeeeeeeeeeh',
+  'xekxhxxxxxxxxxxh',
+  'xekxHHHHHHHHHHHH',
+  'xekxsssSsssssSss',
+  'xekxSsssssSsssss',
+  'xxxxxxxxxxxxxxxx',
 ]
 
-// 外壁の部品だけに輪郭を重ねる
-const withLeftOutline = (art: PixelArt): PixelArt => art.map(row => `x${row.slice(1)}`)
-const withRightOutline = (art: PixelArt): PixelArt => art.map(row => `${row.slice(0, -1)}x`)
-
-const windowTopLeft: PixelArt = [
-  'hhhhhhhh',
-  'hhhhhhhh',
-  'hhhHhhhh',
-  'hhhhxxxx',
-  'HHHHxnvx',
-  'hhhhxnnx',
-  'hhhhxxxx',
-  'hhhhxnnx',
+// 扉 1 マス。まぐさの下に板戸、腰の高さに取っ手
+const doorTile: PixelArt = [
+  'xekxkkhhhhhhhhkk',
+  'xekxkhhhhhhhhhhk',
+  'xekxhxxxxxxxxxxh',
+  'xekxhxEEEEEEEExh',
+  'xekxhxkkEkkEkkxh',
+  'xekxhxkkEkkEkkxh',
+  'xekxhxkkEkkEkkxh',
+  'xekxhxkkEkkEkkxh',
+  'xekxhxkkEkkEkkxh',
+  'xekxhxkkEkFEkkxh',
+  'xekxhxkkEkkEkkxh',
+  'xekxhxkkEkkEkkxh',
+  'xekxHxkkEkkEkkxH',
+  'xekxsxkkEkkEkkxs',
+  'xekxSxkkEkkEkkxs',
+  'xxxxxxxxxxxxxxxx',
 ]
 
-const windowTopRight: PixelArt = [
-  'hhhhhhhh',
-  'hhhhhhhh',
-  'hhhhhhhh',
-  'xxxxhhhh',
-  'nnnxHHHH',
-  'nnnxhhhh',
-  'xxxxhhhh',
-  'nnnxHhhh',
+// 2 マス幅の入口は観音開き。右端の列が中央の合わせ目で、右マスは左右反転
+const entranceLeft: PixelArt = [
+  'xekxkkhhhhhhhhhh',
+  'xekxkhhhhhhhhhhh',
+  'xekxhxxxxxxxxxxx',
+  'xekxhxEEEEEEEEEx',
+  'xekxhxkkEkkEkkkx',
+  'xekxhxkkEkkEkkkx',
+  'xekxhxkkEkkEkkkx',
+  'xekxhxkkEkkEkkkx',
+  'xekxhxkkEkkEkkkx',
+  'xekxhxkkEkkEkkFx',
+  'xekxhxkkEkkEkkkx',
+  'xekxhxkkEkkEkkkx',
+  'xekxHxkkEkkEkkkx',
+  'xekxsxkkEkkEkkkx',
+  'xekxSxkkEkkEkkkx',
+  'xxxxxxxxxxxxxxxx',
 ]
 
-const windowBottomLeft: PixelArt = [
-  'hhhhxnnx',
-  'HHHHxnnx',
-  'hhhhxxxx',
-  'hhhhHHHH',
-  'hhhhhhhh',
-  'HHHHHHHH',
-  'HHHHHHHH',
-  'xxxxxxxx',
-]
-
-const windowBottomRight: PixelArt = [
-  'nnnxhhhh',
-  'nnnxHHHH',
-  'xxxxhhhh',
-  'HHHHhhhh',
-  'hhhhhhhh',
-  'HHHHHHHH',
-  'HHHHHHHH',
-  'xxxxxxxx',
-]
-
-// 扉は幅8ドット(列4〜11)・輪郭は列3と列12。上枠は行2から始め扉板は下端まで伸ばす
-const doorTopLeft: PixelArt = [
-  'hhhhhhhh',
-  'hHhhhhhh',
-  'hhhxxxxx',
-  'hhhxDDDD',
-  'HHHxddDd',
-  'hhhxddDd',
-  'hhhxddDd',
-  'hhhxddDd',
-]
-
-const doorTopRight: PixelArt = [
-  'hhhhhhhh',
-  'hhhhhhhh',
-  'xxxxxhhh',
-  'DDDDxhhh',
-  'dDddxHHH',
-  'dDddxhhh',
-  'dDddxhhh',
-  'dDddxhHh',
-]
-
-const doorBottomLeft: PixelArt = [
-  'hhhxDDDD',
-  'HHHxddDd',
-  'hhhxddDd',
-  'hhhxddDd',
-  'hhhxddDd',
-  'HHHxddDd',
-  'HHHxddDd',
-  'xxxxddDd',
-]
-
-// 腰の高さに取っ手を1ドット置く
-const doorBottomRight: PixelArt = [
-  'DDDDxhhh',
-  'dDddxHHH',
-  'dDFdxhhh',
-  'dDddxhhh',
-  'dDddxhhh',
-  'dDddxHHH',
-  'dDddxHHH',
-  'dDddxxxx',
-]
-
-// AI 作業台の相棒ロボット(1マス16×16)。丸みのあるボックス頭に目玉2つ、頭上にアンテナ、短い胴体
+// AI 作業台の相棒ロボット(1 マス)。ゴーグルの目とアンテナの星が目印
 const robot: PixelArt = [
-  '.......mm.......',
-  '.......xx.......',
-  '.....xxxxxx.....',
-  '....xSSSSSSx....',
-  '....xssssssx....',
-  '....xssssssx....',
-  '....xsnxxnsx....',
-  '....xssssssx....',
-  '....xSSSSSSx....',
+  '.......FF.......',
+  '......FFFF......',
+  '.......aa.......',
   '....xxxxxxxx....',
-  '...xSSSSSSSSx...',
+  '..x1111111111x..',
+  '..x111111111sx..',
+  'xxxaaaassaaaaxxx',
+  'xSxnvvnssnvvnxSx',
+  'xSxLnnLssLnnLxSx',
+  'xxxaaaassaaaaxxx',
+  '..xsssSSSSsssx..',
+  '..xxxxxxxxxxxx..',
   '...xssssssssx...',
-  '...xssssssssx...',
-  '...xSSSSSSSSx...',
-  '....xx....xx....',
-  '................',
+  '...xsxhhhhxsx...',
+  '...xxxxxxxxxx...',
+  '...xeex..xeex...',
 ]
 
-// 郵便ポスト(1マス16×16)。赤い箱に投函口、支柱の脇に小さな旗
+// 郵便ポスト(1 マス)。日本式の丸型で、笠・投函口・〒 の印・石の台座
 const mailbox: PixelArt = [
+  '.......xx.......',
+  '......xrrx......',
+  '.....xrrrrx.....',
+  '....xrrrrrrx....',
+  '..xxrrrrrrrrxx..',
+  '..xRRRRRRRRRRx..',
+  '...xrrrrrrrrx...',
+  '...xrxxxxxxrx...',
+  '...xrxxxxxxrx...',
+  '...xrrrrrrrrx...',
+  '...xrhhhhhhrx...',
+  '...xrrrhhrrrx...',
+  '...xRrrhhrrRx...',
+  '...xRRRRRRRRx...',
+  '..xssssssssssx..',
+  '..xxxxxxxxxxxx..',
+]
+
+// 経歴碑 2×2(32×32)。石の台座に金の星と月桂樹、中央に 2 社分の碑文の線
+const monument: PixelArt = [
+  '................................',
+  '..............xxxx..............',
+  '............xxhsSSxx............',
+  '...........xhssFFsSSx...........',
+  '..........xhssFFFFsSSx..........',
+  '.........xhsssFFFFssSSx.........',
+  '.........xhFFFFFFFFFFSx.........',
+  '.........xhsFFFppFFFSSx.........',
+  '.....xxxxxhssFFFFFPsSSxxxxx.....',
+  '.....xhssssssFFssFFsssssSSx.....',
+  '.....xhsssssFFssssFPssssSSx.....',
+  '.....xhsssssssssssssssssSSx.....',
+  '.....xhsssssssssssssssssSSx.....',
+  '.....xhssGssssssssssssGsSSx.....',
+  '.....xhsgGgssSSSSSSssgGgSSx.....',
+  '.....xhgtGtgsSSSSSSsgtGtgSx.....',
+  '.....xhsgGgsshhhhhhssgGgSSx.....',
+  '.....xhgtGtgssssssssgtGtgSx.....',
+  '.....xhsgGgssSSSSSSssgGgSSx.....',
+  '.....xhssGsssSSSSSSsssGsSSx.....',
+  '.....xhsssssshhhhhhsssssSSx.....',
+  '.....xhsssssssssssssssssSSx.....',
+  '.....xSSSSSSSSSSSSSSSSSSSSx.....',
+  '.....xhhhhhhhhhhhhhhhhhhhhx.....',
+  '...xhhhhhhhhhhhhhhhhhhhhhhhhx...',
+  '...xssssssssssssssssssssssssx...',
+  '...xHHHHHHHHHHHHHHHHHHHHHHHHx...',
+  '...xSSSSSSSSSSSSSSSSSSSSSSSSx...',
+  '.xhhhhhhhhhhhhhhhhhhhhhhhhhhhhx.',
+  '.xssssssssssssssssssssssssssssx.',
+  '.xHHHHHHHHHHHHHHHHHHHHHHHHHHHHx.',
+  '.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.',
+]
+
+// 縦長の碑 1×2(16×32)。2×2 と同じ意匠を 1 マス幅へ縮めたもの
+const stele: PixelArt = [
   '................',
-  '.....xxxxxx.....',
-  '....xrrrrrrx....',
-  '....xrUUUUrxm...',
-  '....xrrrrrrx....',
-  '....xrrDDrrx....',
-  '....xrrrrrrx....',
-  '....xrrrrrrx....',
-  '....xRRRRRRx....',
-  '....xxxxxxxx....',
-  '.......kk.......',
-  '.......kk.......',
-  '.......kk.......',
-  '.......kk.......',
-  '......kkkk......',
-  '................',
+  '......xxxx......',
+  '.....xhssSx.....',
+  '....xhssssSx....',
+  '...xhssssssSx...',
+  '..xhssssssssSx..',
+  '..xhssssssssSx..',
+  '..xhsssFFsssSx..',
+  '..xhssFFFFssSx..',
+  '..xhFFFFFFFFSx..',
+  '..xhsFFppFFsSx..',
+  '..xhssFFFFssSx..',
+  '..xhsFFssFFsSx..',
+  '..xhssssssssSx..',
+  '..xhssssssssSx..',
+  '..xhssssssssSx..',
+  '..xhSSSSSSSSSx..',
+  '..xhSSSSSSSSSx..',
+  '..xhhhhhhhhhSx..',
+  '..xhssssssssSx..',
+  '..xhSSSSSSSSSx..',
+  '..xhSSSSSSSSSx..',
+  '..xhhhhhhhhhSx..',
+  '..xhssssssssSx..',
+  '.xhhhhhhhhhhhhx.',
+  '.xssssssssssssx.',
+  '.xSSSSSSSSSSSSx.',
+  'xhhhhhhhhhhhhhhx',
+  'xssssssssssssssx',
+  'xssssssssssssssx',
+  'xSSSSSSSSSSSSSSx',
+  'xxxxxxxxxxxxxxxx',
+]
+
+// PC 机 3×2(48×32)。上段は天板を上から見た形で画面 2 枚・キーボード・ノート PC、下段は前板と脚
+const desk: PixelArt = [
+  '.........xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.........',
+  '.........xvnnnnnnnnnnnnxxvnnnnnnnnnnnnx.........',
+  '.........xnhhhhnnnnnnnnxxnhhhhhhhnnnnnx.........',
+  '.........xnnhhhhhhnnnnnxxnnnnnnnnnnnnnx.........',
+  '.........xnhhhhhnnnnnnnxxnnnnnnnnhhnnnx.........',
+  '.........xnnnhhhhhhhnnnxxnnhhnhhnhhnnnx.........',
+  '.........xnnnnnnnnnnnnnxxnnnnnnnnnnnnnx.........',
+  'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+  'xeeeeeeeeeeeeeeaaaeeeeeeeeeeeeaaaeeeeeeeeeeeeeex',
+  'xeeeeeeeeeeeaaaaaaaaaeeeeeeaaaaaaaaaeeeeeeeeeeex',
+  'xeeeexxxxxxxxxeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeex',
+  'xeeeexnnnnnnnxeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeex',
+  'xeeeexnhhhnnnxeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeex',
+  'xeeeexnnnnnnnxeeeexxxxxxxxxxxxxxxxxxxxeeeeeeeeex',
+  'xeeeexxxxxxxxxeeeexsasasasasasasasasaxeeeeeeeeex',
+  'xeeexsssssssssxeeexsasasasasasasasasaxeeeeeeeeex',
+  'xeeexSSSSSSSSSxeeexsasasssssssssasasaxeeeeeeeeex',
+  'xeeexxxxxxxxxxxeeexxxxxxxxxxxxxxxxxxxxeeeeeeeeex',
+  'xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeex',
+  'xkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkx',
+  'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+  '..xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeex..',
+  '..xkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkx..',
+  '..xkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkx..',
+  '..xEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEx..',
+  '..xkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkx..',
+  '..xkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkx..',
+  '..xEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEx..',
+  '..xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx..',
+  '..xkkkkx................................xkkkkx..',
+  '..xkkkkx................................xkkkkx..',
+  '..xxxxxx................................xxxxxx..',
 ]
 
 const markerTopLeft: PixelArt = [
@@ -303,101 +453,6 @@ const markerBottomLeft: PixelArt = [
   '.......x',
   '.....xxx',
   '........',
-]
-
-const deskTopLeft: PixelArt = [
-  'pppppppppppppppp',
-  'pppppppppppppppp',
-  'xxxxxxxxxxxxxxxx',
-  'xvvvvvvvvvvvvvvx',
-  'xvnnnnnnnnnnnnvx',
-  'xvnnhhhhnnnnnnvx',
-  'xvnnnnnnnnnnnnvx',
-  'xxxxxxxxxxxxxxxx',
-  'ppppppxssxpppppp',
-  'ppppxxxxxxxxpppp',
-  'xxxxxxxxxxxxxxxx',
-  'xkkkkkkkkkkkkkkx',
-  'xkkkkkkkkkkkkkkx',
-  'pppppppppppppppp',
-  'pppppppppppppppp',
-  'pppppppppppppppp',
-]
-
-const deskTopMiddle: PixelArt = [
-  'pppppppppppppppp',
-  'pppppppppppppppp',
-  'pppppppppxxxxxxp',
-  'pppppppppxhhhhxp',
-  'pppppppppxxxxxxp',
-  'pppppppppppppppp',
-  'pppxxxxxxxxxxppp',
-  'pppxssssssssxppp',
-  'pppxxssssssxxppp',
-  'pppxxxxxxxxxxppp',
-  'xxxxxxxxxxxxxxxx',
-  'xkkkkkkkkkkkkkkx',
-  'xkkkkkkkkkkkkkkx',
-  'pppppppppppppppp',
-  'pppppppppppppppp',
-  'pppppppppppppppp',
-]
-
-const deskTopRight: PixelArt = [
-  'pppppppppppppppp',
-  'ppppppppppxxpppp',
-  'pppppppppxssxppp',
-  'ppppppppxssssxpp',
-  'ppppppppppxxpppp',
-  'ppppppppppxxpppp',
-  'ppxxxxxxxxxxpppp',
-  'ppxhhhhhhhhxpppp',
-  'ppxxxxxxxxxxpppp',
-  'pppppppppppppppp',
-  'xxxxxxxxxxxxxxxx',
-  'xkkkkkkkkkkkkkkx',
-  'xkkkkkkkkkkkkkkx',
-  'pppppppppppppppp',
-  'pppppppppppppppp',
-  'pppppppppppppppp',
-]
-
-const deskBottomLeft: PixelArt = [
-  'xkkkkkkkkkkkkkkk',
-  'xddddddddddddddd',
-  'xddddddddddddddd',
-  'xddddddddddddddd',
-  'xddddddddddddddd',
-  'xddddddddddddddd',
-  'xddddddddddddddd',
-  'xddddddddddddddd',
-  'xxxxxxxxxxxxxxxx',
-  'pxkkxppppppppppp',
-  'pxkkxppppppppppp',
-  'pxkkxppppppppppp',
-  'pxkkxppppppppppp',
-  'pxkkxppppppppppp',
-  'pxxxxppppppppppp',
-  'pppppppppppppppp',
-]
-
-const deskBottomMiddle: PixelArt = [
-  'kkkkkkkkkkkkkkkk',
-  'dddddddddddddddd',
-  'dddddddddddddddd',
-  'dddddddddddddddd',
-  'dddddddddddddddd',
-  'dddddddddddddddd',
-  'dddddddddddddddd',
-  'dddddddddddddddd',
-  'xxxxxxxxxxxxxxxx',
-  'pppppppppppppppp',
-  'pppppppppppppppp',
-  'pppppppppppppppp',
-  'pppppppppppppppp',
-  'pppppppppppppppp',
-  'pppppppppppppppp',
-  'pppppppppppppppp',
 ]
 
 const bedTop: PixelArt = [
@@ -550,26 +605,6 @@ const locatorBottomLeft: PixelArt = [
 
 const shiftedMirrorX = (art: PixelArt): PixelArt => mirrorX(art).map(row => `${row.slice(1)}.`)
 
-const roofRedLeft = compose(roofLeftTop, roofInnerTop, roofLeftBottom, roofInnerBottom)
-const roofRedMiddle = compose(roofInnerTop, roofInnerTop, roofInnerBottom, roofInnerBottom)
-const roofRedRight = compose(roofInnerTop, roofRightTop, roofInnerBottom, roofRightBottom)
-// 最上段より下の屋根行。上端の輪郭を持たず、下半分の瓦を繰り返すだけ
-const roofRedLeftLow = compose(roofLeftBottom, roofInnerBottom, roofLeftBottom, roofInnerBottom)
-const roofRedMiddleLow = compose(roofInnerBottom, roofInnerBottom, roofInnerBottom, roofInnerBottom)
-const roofRedRightLow = compose(roofInnerBottom, roofRightBottom, roofInnerBottom, roofRightBottom)
-const wallMiddle = compose(wallTopLeft, wallTopRight, wallBottomLeft, wallBottomRight)
-const wallLeft = compose(
-  withLeftOutline(wallTopLeft),
-  wallTopRight,
-  withLeftOutline(wallBottomLeft),
-  wallBottomRight
-)
-const wallRight = compose(
-  wallTopLeft,
-  withRightOutline(wallTopRight),
-  wallBottomLeft,
-  withRightOutline(wallBottomRight)
-)
 const tableTopLeft = compose(
   tableTopOuterTop,
   tableTopInnerTop,
@@ -583,60 +618,48 @@ const tableBottomLeft = compose(
   tableBottomInnerBottom
 )
 
-// 2マス幅の入口は観音開きの扉。左マスは左枠+左の扉板で、右端の1列が中央の合わせ目。右マスは左右反転
-const entranceLeft: PixelArt = [
-  'hhhhhhhhhhhhhhhh',
-  'hHhhhhhhhhhhhhhh',
-  'hhxxxxxxxxxxxxxx',
-  'hhxDDDDDDDDDDDDD',
-  'HHxddDdddDdddDdD',
-  'hhxddDdddDdddDdD',
-  'hhxddDdddDdddDdD',
-  'hhxddDdddDdddDdD',
-  'hhxddDdddDdddDFD',
-  'HHxddDdddDdddDdD',
-  'hhxddDdddDdddDdD',
-  'hhxddDdddDdddDdD',
-  'hhxddDdddDdddDdD',
-  'HHxddDdddDdddDdD',
-  'HHxddDdddDdddDdD',
-  'xxxddDdddDdddDdD',
-]
+const blueRoof = { r: 'u', R: 'U' }
 
 export const structureArt: Record<StructureKey, PixelArt> = {
   'roof-red-l': roofRedLeft,
   'roof-red-m': roofRedMiddle,
   'roof-red-r': roofRedRight,
-  'roof-blue-l': recolor(roofRedLeft, { r: 'u', R: 'U' }),
-  'roof-blue-m': recolor(roofRedMiddle, { r: 'u', R: 'U' }),
-  'roof-blue-r': recolor(roofRedRight, { r: 'u', R: 'U' }),
+  'roof-blue-l': recolor(roofRedLeft, blueRoof),
+  'roof-blue-m': recolor(roofRedMiddle, blueRoof),
+  'roof-blue-r': recolor(roofRedRight, blueRoof),
   'roof-red-l-low': roofRedLeftLow,
   'roof-red-m-low': roofRedMiddleLow,
   'roof-red-r-low': roofRedRightLow,
-  'roof-blue-l-low': recolor(roofRedLeftLow, { r: 'u', R: 'U' }),
-  'roof-blue-m-low': recolor(roofRedMiddleLow, { r: 'u', R: 'U' }),
-  'roof-blue-r-low': recolor(roofRedRightLow, { r: 'u', R: 'U' }),
+  'roof-blue-l-low': recolor(roofRedLeftLow, blueRoof),
+  'roof-blue-m-low': recolor(roofRedMiddleLow, blueRoof),
+  'roof-blue-r-low': recolor(roofRedRightLow, blueRoof),
   'wall-l': wallLeft,
   'wall-m': wallMiddle,
   'wall-r': wallRight,
-  window: compose(windowTopLeft, windowTopRight, windowBottomLeft, windowBottomRight),
-  door: compose(doorTopLeft, doorTopRight, doorBottomLeft, doorBottomRight),
+  window: windowTile,
+  door: doorTile,
   'entrance-l': entranceLeft,
   'entrance-r': mirrorX(entranceLeft),
   robot,
   mailbox,
+  'monument-tl': cut(monument, 0, 0),
+  'monument-tr': cut(monument, 1, 0),
+  'monument-bl': cut(monument, 0, 1),
+  'monument-br': cut(monument, 1, 1),
+  'stele-t': cut(stele, 0, 0),
+  'stele-b': cut(stele, 0, 1),
   marker: compose(
     markerTopLeft,
     mirrorX(markerTopLeft),
     markerBottomLeft,
     mirrorX(markerBottomLeft)
   ),
-  'desk-tl': deskTopLeft,
-  'desk-tm': deskTopMiddle,
-  'desk-tr': deskTopRight,
-  'desk-bl': deskBottomLeft,
-  'desk-bm': deskBottomMiddle,
-  'desk-br': mirrorX(deskBottomLeft),
+  'desk-tl': cut(desk, 0, 0),
+  'desk-tm': cut(desk, 1, 0),
+  'desk-tr': cut(desk, 2, 0),
+  'desk-bl': cut(desk, 0, 1),
+  'desk-bm': cut(desk, 1, 1),
+  'desk-br': cut(desk, 2, 1),
   'bed-t': bedTop,
   'bed-b': bedBottom,
   'table-tl': tableTopLeft,
