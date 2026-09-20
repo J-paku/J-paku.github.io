@@ -127,3 +127,91 @@ export const playerArt: PlayerFrames = {
   ],
   right: [stand(rightBody, rightFeet), walk(rightBody, '....xAAx.xAAx...')],
 }
+
+// ここから下は夜だけ使う差分。昼のコマへ灯りを重ねるだけなので、体と服のドットは昼と 1 ドットも変わらない
+const CLEAR = '.'
+
+// 型紙の CLEAR は元の絵をそのまま残す。体のドットへ重ねてしまったら、黙って体を削らず組み立て時に落とす
+const overlayRow = (row: string, patch: string): string =>
+  [...row]
+    .map((ch, x) => {
+      if (patch[x] === CLEAR) return ch
+      if (ch !== CLEAR) throw new Error(`灯りが体と重なっています(${x}列)`)
+      return patch[x]
+    })
+    .join('')
+
+// 灯りの型紙は「体 18 行 + その 1 行下」の 19 行。静止コマは体が 4 行目から、歩行コマは 5 行目から始まるので、
+// 型紙も同じだけ下げる。こうすると手からの位置がどのコマでも同じになり、コマ送りで灯りだけが跳ねない
+const LANTERN_ROWS = 19
+
+const lanternArt = (rows: Record<number, string>): PixelArt =>
+  Array.from({ length: LANTERN_ROWS }, (_, y) => rows[y] ?? BLANK)
+
+const overlayLantern = (art: PixelArt, lantern: PixelArt, top: number): PixelArt =>
+  art.map((row, y) => {
+    const at = y - top
+    return at < 0 || at >= LANTERN_ROWS ? row : overlayRow(row, lantern[at])
+  })
+
+const standLit = (art: PixelArt, lantern: PixelArt): PixelArt => overlayLantern(art, lantern, 4)
+const walkLit = (art: PixelArt, lantern: PixelArt): PixelArt => overlayLantern(art, lantern, 5)
+
+// 手提げランタン。街灯と同じ作りにする — 明るいガラスの塊を、上の笠・下の台・両脇の暗いふちで囲う。
+// ガラスは光源文字の '9'(夜は #fff0a0)で街灯・経歴碑の星と同じ灯り色。笠は h、台は S の金物。
+// 夜は色調が深く沈むので、笠には夜でもいちばん明るく残る h を使い、腕から灯りへ渡る金具として読ませる。
+//
+// 置く高さは手の行(正面・背面は 16、横向きは 12)に合わせる。足元の行(18)へ下ろすと
+// 地面に置いた物に見え、4 倍では持ち物として読めない。そのため灯りは体の行 12〜17 に収め、
+// 足元の行には一切かからない。ガラスは 2 列 × 4 行の塊にする — 1〜2 ドットの細片では 4 倍で消える。
+// 体側のふちは体の輪郭をそのまま使う。外側は、タイルの端まで 2 列しか空いていない向き
+// (正面・背面)ではふちを省いて塊の幅を優先する。夜の地面は暗く、主人公には白い drop-shadow が
+// 付くので、ふちが無くても地面とは切れて見える
+
+// 正面。手(12列)の外側 2 列がガラス。笠と台は 3 列で体の輪郭までせり出し、腕から吊るした金具に見せる
+const downLantern = lanternArt({
+  12: '.............hhh',
+  13: '..............99',
+  14: '..............99',
+  15: '..............99',
+  16: '..............99',
+  17: '.............SSS',
+})
+
+// 背面。胴が広く、手の行(15・16)は体の脇が 1 列しか空いていないので、灯りはほとんど胴に隠れる。
+// 見えるのは上半分の 2 列と、手の高さで 1 列ぶんの帯だけ。笠(4列)と台(3列)は幅が取れるので、
+// そこで灯りの形と、体から吊るしている金具を示す
+const upLantern = lanternArt({
+  12: 'hhhh............',
+  13: '99x.............',
+  14: '99..............',
+  15: '9...............',
+  16: '9...............',
+  17: 'SSS.............',
+})
+
+// 横向き。体の脇が 4 列空くので灯り全体が見え、外側のふち(14列)も置ける。
+// 手は 12 行の 10・11 列。その真下(13 行)から笠が伸び、ガラス 2×4 を
+// 体の輪郭(11列)と外側のふちで挟む。反転して左向きを作るため、昼のコマと同じく 1〜14 列に収める
+const rightLantern = lanternArt({
+  13: '...........hhhx.',
+  14: '............99x.',
+  15: '............99x.',
+  16: '............99x.',
+  17: '............99x.',
+})
+
+// 夜のコマ。コマ数も並びも playerArt と同じで、違いは灯りのドットだけ
+export const playerNightArt: PlayerFrames = {
+  up: [
+    standLit(playerArt.up[0], upLantern),
+    walkLit(playerArt.up[1], upLantern),
+    walkLit(playerArt.up[2], upLantern),
+  ],
+  down: [
+    standLit(playerArt.down[0], downLantern),
+    walkLit(playerArt.down[1], downLantern),
+    walkLit(playerArt.down[2], downLantern),
+  ],
+  right: [standLit(playerArt.right[0], rightLantern), walkLit(playerArt.right[1], rightLantern)],
+}

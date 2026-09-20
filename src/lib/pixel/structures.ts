@@ -720,3 +720,47 @@ export const structureArt: Record<StructureKey, PixelArt> = {
     shiftedMirrorX(locatorBottomLeft)
   ),
 }
+
+// ここから下は夜だけ使う差し替え。昼の絵へ灯りを重ねるだけなので、昼のドットは 1 つも変わらない
+const CLEAR = '.'
+
+// 型紙の CLEAR は元の絵をそのまま残す。絵のドットへ重ねてしまったら、黙って消さず組み立て時に落とす
+const overlay = (art: PixelArt, patch: PixelArt): PixelArt =>
+  art.map((row, y) =>
+    [...row]
+      .map((ch, x) => {
+        if (patch[y][x] === CLEAR) return ch
+        if (ch !== CLEAR) throw new Error(`灯りが絵と重なっています(${x}列${y}行)`)
+        return patch[y][x]
+      })
+      .join('')
+  )
+
+// ロボットが右腕から提げる手提げランタン。主人公が夜に持つものと同じ作り・同じ大きさ・同じ灯り色に
+// して、同じ道具だと分かるようにする。ガラス 2 列 × 4 行は光源文字の '9'(夜は #fff0a0)、笠は h、
+// 台は S。腕(7・8 行)の真下に笠が来るよう 10 行目から吊るし、
+// 体側のふちは胴の輪郭(12 列)と 13 列に足した x でつなぐ
+const robotLantern: PixelArt = [
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '..............hh',
+  '..............99',
+  '.............x99',
+  '.............x99',
+  '.............x99',
+  '.............SSS',
+]
+
+// 夜だけ差し替える絵。structureArt にすでにあるキーしか持てない型にする。
+// ここへ新しいキーを足すと 4 段階のシートでマスの並びがずれ、昼と夜で別のマスが出てしまう
+export const structureNightArt: Partial<Record<StructureKey, PixelArt>> = {
+  robot: overlay(robot, robotLantern),
+}
