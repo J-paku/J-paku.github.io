@@ -1,0 +1,44 @@
+/* 表示枠(.frame)いっぱいに敷く雨・雪のタイル。枠は overflow:hidden なのでここで切り取られる。
+   ジョイスティックと枠が触作を持つので、ここは常に pointer-events:none。
+   z-index 1 は world 層(auto)より上、モーダルの覆い(2)・会話窓(3)・ミニマップ(4)・
+   読み込みの覆い(4)より下。scene.module.css と stop-modal.module.css の対応する値を参照 */
+.layer {
+  /* 2 コマの見せ消しの周期。コマ送りの速さはここ 1 か所で決める */
+  --weather-period: 0.5s;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-image: var(--weather-sheet);
+  /* 1 コマ = 1 マスぶんの 16×16。シートを横に並べて切り出すのではなく、1 枚をそのまま敷き詰める */
+  background-repeat: repeat;
+  background-size: var(--cell) var(--cell);
+  image-rendering: pixelated;
+  /* steps(1) なので区間の頭の値を保ち、区切りで瞬時に飛ぶ。中間の半透明は一切作らない */
+  animation: weather-frame var(--weather-period) steps(1) infinite;
+}
+/* 2 コマ目は半周期ぶん進めた状態で始める。1 コマ目と山谷が入れ替わり、常にどちらか一方だけが見える。
+   animation の一括指定が delay を 0 に戻すため、.layer より詳細度を上げて確実に後勝ちさせる */
+.layer.second {
+  animation-delay: calc(var(--weather-period) / -2);
+}
+@keyframes weather-frame {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+/* 動きを控える設定ではコマ送りを止める。止めると 2 コマが重なって粒が倍になるので、1 コマだけ残す */
+@media (prefers-reduced-motion: reduce) {
+  .layer {
+    animation: none;
+  }
+  .layer.second {
+    display: none;
+  }
+}

@@ -30,6 +30,8 @@ type StructureKey =
   | 'monument-br'
   | 'stele-t'
   | 'stele-b'
+  | 'lamp-t'
+  | 'lamp-b'
   | 'marker'
   | 'desk-tl'
   | 'desk-tm'
@@ -225,17 +227,17 @@ const wallRight: PixelArt = [
   'xxxxxxxxxxxxxxxx',
 ]
 
-// 窓。壁を下地に木枠と 4 枚ガラス、下に窓台を置く
+// 窓。壁を下地に木枠と 4 枚ガラス、下に窓台を置く。ガラスは灯り用の文字(4・5)で描く
 const windowTile: PixelArt = [
   'xekxkkhhhhhhhhkk',
   'xekxkhhhhhhhhhhk',
   'xekxhhhhhhhhhhhh',
   'xekxhxxxxxxxxxxh',
-  'xekxhxvnnxxvnnxh',
-  'xekxhxnnnxxnnnxh',
+  'xekxhx455xx455xh',
+  'xekxhx555xx555xh',
   'xekxhxxxxxxxxxxh',
-  'xekxhxvnnxxvnnxh',
-  'xekxhxnnnxxnnnxh',
+  'xekxhx455xx455xh',
+  'xekxhx555xx555xh',
   'xekxhxxxxxxxxxxh',
   'xekxheeeeeeeeeeh',
   'xekxhxxxxxxxxxxh',
@@ -285,7 +287,7 @@ const entranceLeft: PixelArt = [
   'xxxxxxxxxxxxxxxx',
 ]
 
-// AI 作業台の相棒ロボット(1 マス)。ゴーグルの目とアンテナの星が目印
+// AI 作業台の相棒ロボット(1 マス)。ゴーグルの目とアンテナの星が目印。レンズは灯り用の文字(8)
 const robot: PixelArt = [
   '.......FF.......',
   '......FFFF......',
@@ -295,7 +297,7 @@ const robot: PixelArt = [
   '..x111111111sx..',
   'xxxaaaassaaaaxxx',
   'xSxnvvnssnvvnxSx',
-  'xSxLnnLssLnnLxSx',
+  'xSx8nn8ss8nn8xSx',
   'xxxaaaassaaaaxxx',
   '..xsssSSSSsssx..',
   '..xxxxxxxxxxxx..',
@@ -325,19 +327,19 @@ const mailbox: PixelArt = [
   '..xxxxxxxxxxxx..',
 ]
 
-// 経歴碑 2×2(32×32)。石の台座に金の星と月桂樹、中央に 2 社分の碑文の線
+// 経歴碑 2×2(32×32)。石の台座に金の星と月桂樹、中央に 2 社分の碑文の線。星は灯り用の文字(9)
 const monument: PixelArt = [
   '................................',
   '..............xxxx..............',
   '............xxhsSSxx............',
-  '...........xhssFFsSSx...........',
-  '..........xhssFFFFsSSx..........',
-  '.........xhsssFFFFssSSx.........',
-  '.........xhFFFFFFFFFFSx.........',
-  '.........xhsFFFppFFFSSx.........',
-  '.....xxxxxhssFFFFFPsSSxxxxx.....',
-  '.....xhssssssFFssFFsssssSSx.....',
-  '.....xhsssssFFssssFPssssSSx.....',
+  '...........xhss99sSSx...........',
+  '..........xhss9999sSSx..........',
+  '.........xhsss9999ssSSx.........',
+  '.........xh9999999999Sx.........',
+  '.........xhs999pp999SSx.........',
+  '.....xxxxxhss99999PsSSxxxxx.....',
+  '.....xhssssss99ss99sssssSSx.....',
+  '.....xhsssss99ssss9PssssSSx.....',
   '.....xhsssssssssssssssssSSx.....',
   '.....xhsssssssssssssssssSSx.....',
   '.....xhssGssssssssssssGsSSx.....',
@@ -397,22 +399,24 @@ const stele: PixelArt = [
   'xxxxxxxxxxxxxxxx',
 ]
 
-// PC 机 3×2(48×32)。上段は天板を上から見た形で画面 2 枚・キーボード・ノート PC、下段は前板と脚
+// PC 机 3×2(48×32)。上段は天板を上から見た形で画面 2 枚・キーボード・ノート PC、下段は前板と脚。
+// 画面は灯り用の文字(6・7)。各モニターの左上 1 ドット(2 枚で計 2 ドット)だけは水色(v)のままで、
+// 夜は光らない縁として残す
 const desk: PixelArt = [
   '.........xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.........',
-  '.........xvnnnnnnnnnnnnxxvnnnnnnnnnnnnx.........',
-  '.........xnhhhhnnnnnnnnxxnhhhhhhhnnnnnx.........',
-  '.........xnnhhhhhhnnnnnxxnnnnnnnnnnnnnx.........',
-  '.........xnhhhhhnnnnnnnxxnnnnnnnnhhnnnx.........',
-  '.........xnnnhhhhhhhnnnxxnnhhnhhnhhnnnx.........',
-  '.........xnnnnnnnnnnnnnxxnnnnnnnnnnnnnx.........',
+  '.........xv666666666666xxv666666666666x.........',
+  '.........x6777766666666xx6777777766666x.........',
+  '.........x6677777766666xx6666666666666x.........',
+  '.........x6777776666666xx6666666677666x.........',
+  '.........x6667777777666xx6677677677666x.........',
+  '.........x6666666666666xx6666666666666x.........',
   'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
   'xeeeeeeeeeeeeeeaaaeeeeeeeeeeeeaaaeeeeeeeeeeeeeex',
   'xeeeeeeeeeeeaaaaaaaaaeeeeeeaaaaaaaaaeeeeeeeeeeex',
   'xeeeexxxxxxxxxeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeex',
-  'xeeeexnnnnnnnxeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeex',
-  'xeeeexnhhhnnnxeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeex',
-  'xeeeexnnnnnnnxeeeexxxxxxxxxxxxxxxxxxxxeeeeeeeeex',
+  'xeeeex6666666xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeex',
+  'xeeeex6777666xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeex',
+  'xeeeex6666666xeeeexxxxxxxxxxxxxxxxxxxxeeeeeeeeex',
   'xeeeexxxxxxxxxeeeexsasasasasasasasasaxeeeeeeeeex',
   'xeeexsssssssssxeeexsasasasasasasasasaxeeeeeeeeex',
   'xeeexSSSSSSSSSxeeexsasasssssssssasasaxeeeeeeeeex',
@@ -431,6 +435,47 @@ const desk: PixelArt = [
   '..xkkkkx................................xkkkkx..',
   '..xkkkkx................................xkkkkx..',
   '..xxxxxx................................xxxxxx..',
+]
+
+// 街灯 1×2 の上半分。笠(s・S)の下に灯り用の文字(9)のガラス。外周は輪郭(x)で、
+// 昼の草地でも夜の濃紺でも形が潰れないようにする。柱の位置は lamp-b の上端と揃える
+const lampTop: PixelArt = [
+  '................',
+  '................',
+  '.......xx.......',
+  '......xssx......',
+  '.....xsssSx.....',
+  '....xssssSSx....',
+  '...xSSSSSSSSx...',
+  '...xx999999xx...',
+  '....x999999x....',
+  '....x999999x....',
+  '....x999999x....',
+  '....x999999x....',
+  '....xx9999xx....',
+  '.....xSSSSx.....',
+  '......xsSx......',
+  '......xsSx......',
+]
+
+// 街灯 1×2 の下半分。柱が地面まで続き、足元だけ台座が広がる。周りは草を見せるため透明
+const lampBottom: PixelArt = [
+  '......xsSx......',
+  '......xsSx......',
+  '......xsSx......',
+  '......xsSx......',
+  '......xsSx......',
+  '......xsSx......',
+  '......xsSx......',
+  '......xsSx......',
+  '......xsSx......',
+  '......xsSx......',
+  '......xsSx......',
+  '.....xsSSSx.....',
+  '.....xsSSSx.....',
+  '....xsSSSSSx....',
+  '....xSSSSSSx....',
+  '....xxxxxxxx....',
 ]
 
 const markerTopLeft: PixelArt = [
@@ -648,6 +693,8 @@ export const structureArt: Record<StructureKey, PixelArt> = {
   'monument-br': cut(monument, 1, 1),
   'stele-t': cut(stele, 0, 0),
   'stele-b': cut(stele, 0, 1),
+  'lamp-t': lampTop,
+  'lamp-b': lampBottom,
   marker: compose(
     markerTopLeft,
     mirrorX(markerTopLeft),

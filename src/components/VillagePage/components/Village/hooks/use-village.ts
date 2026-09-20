@@ -3,7 +3,7 @@
 import { useMemo, useRef } from 'react'
 import type { RefObject } from 'react'
 import type { Cell, Spot, VillageText, World, WorldSet } from '@content/types/world'
-import type { Sheet } from '@/lib/pixel/art'
+import type { SheetLayout } from '@/lib/pixel/art'
 import { talkTarget } from '@/lib/village/spot'
 import { useVillageInput, type VillageActions } from './use-village-input'
 import { cameraOffset, useStageScale, VIEW_COLS, VIEW_ROWS } from './use-stage-scale'
@@ -25,7 +25,7 @@ export type VillageOptions = {
   worldSet: WorldSet
   text: VillageText
   // 主人公だけの 16×24 シート(歩行コマの添字に使う)
-  playerSprites: Sheet
+  playerSprites: SheetLayout
 }
 
 type UseVillage = {

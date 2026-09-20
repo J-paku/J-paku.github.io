@@ -17,6 +17,9 @@ export type Sheet = {
   height: number
 }
 
+// クライアントの配置計算には画像本体を渡さない。
+export type SheetLayout = Pick<Sheet, 'index' | 'count' | 'tile' | 'height'>
+
 export const PART = 8
 export const TILE = 16
 
