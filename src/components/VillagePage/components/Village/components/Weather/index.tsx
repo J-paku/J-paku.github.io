@@ -27,10 +27,20 @@ export function Weather({ kind, sheets }: WeatherProps) {
 
   return (
     <>
-      <div className={styles.layer} style={layerStyle(first)} aria-hidden='true' />
+      {/* data-weather は E2E がこの層を掴むための正式な取っ手。クラス名は CSS Modules が
+          ビルドごとにハッシュへ変えるので使えず、DOM の位置で指すと層の置き場所を変えた
+          途端に空振りする。値に降水の種類を載せてあるので雨と雪の取り違えも弾ける。
+          見た目に効かない属性だが、消すとテストが対象を見失う */}
+      <div
+        className={styles.layer}
+        style={layerStyle(first)}
+        data-weather={kind}
+        aria-hidden='true'
+      />
       <div
         className={`${styles.layer} ${styles.second}`}
         style={layerStyle(second)}
+        data-weather={kind}
         aria-hidden='true'
       />
     </>
