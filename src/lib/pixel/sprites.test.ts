@@ -12,11 +12,14 @@ import {
   buildSprites,
   buildWeatherSprites,
   PLAYER_ARTS,
+  PLAYER_NIGHT_ARTS,
   SPRITE_ARTS,
+  SPRITE_NIGHT_ARTS,
 } from './sprites'
 import type { SpriteKey } from './sprites'
 import { weatherArt } from './weather-art'
 import { DAY_PHASES } from '@/utils/day-phase'
+import type { DayPhase } from '@/utils/day-phase'
 
 // 複数マスに跨る素材を 1 枚の下絵へ戻す。行優先で並べたキーを受け取る
 const stitch = (keys: readonly SpriteKey[], columns: number): PixelArt => {
@@ -71,6 +74,49 @@ const sampler = (sheet: Sheet): ((key: string, x: number, y: number) => string) 
     return `#${[0, 1, 2].map(i => image.data[at + i].toString(16).padStart(2, '0')).join('')}`
   }
 }
+
+type Pixel = { hex: string; alpha: number }
+
+// sampler と同じ読み方にアルファを足したもの。透明('.')はパレットの文字ではないので、
+// 時刻で色を混ぜてもアルファは動かない。つまりアルファの差は色替えでは作れず、
+// 「絵そのものが夜だけ違う」ことの証拠になる(シート全体のハッシュ比較と違い、差の中身まで特定できる)
+const pixelSampler = (sheet: Sheet): ((key: string, x: number, y: number) => Pixel) => {
+  const image = decode(sheet.uri)
+  return (key, x, y) => {
+    const at = (y * image.width + sheet.index[key] * TILE + x) * 4
+    return {
+      hex: `#${[0, 1, 2].map(i => image.data[at + i].toString(16).padStart(2, '0')).join('')}`,
+      alpha: image.data[at + 3],
+    }
+  }
+}
+
+type LanternPoint = { key: string; x: number; y: number; dayChar: string; nightChar: string }
+
+// 昼は灯り文字でないのに夜だけ灯り文字になる点を集める。これが「昼には無かったランタンのガラス」。
+// 灯り文字('4'〜'9')は palette-phase が夜に発光色へ差し替える予約文字で、主人公の昼の絵は 1 つも持たない
+const lanternPoints = (
+  base: Record<string, PixelArt>,
+  night: Record<string, PixelArt>
+): LanternPoint[] => {
+  const isLit = (ch: string): boolean => LIGHT_KEYS.some(light => light === ch)
+  const points: LanternPoint[] = []
+  for (const [key, art] of Object.entries(base)) {
+    art.forEach((row, y) => {
+      Array.from(row).forEach((dayChar, x) => {
+        const nightChar = night[key][y][x]
+        if (isLit(nightChar) && !isLit(dayChar)) points.push({ key, x, y, dayChar, nightChar })
+      })
+    })
+  }
+  return points
+}
+
+// 夜に絵が変わった素材のキーを昇順で返す
+const changedKeys = (base: Record<string, PixelArt>, night: Record<string, PixelArt>): string[] =>
+  Object.keys(base)
+    .filter(key => base[key].join('') !== night[key].join(''))
+    .sort()
 
 // 文字マトリクスをトーラス状にずらす。天気の 2 コマが平行移動の関係にあることを確かめるのに使う
 const shift = (art: PixelArt, dx: number, dy: number): PixelArt =>
@@ -239,6 +285,12 @@ describe('時刻ごとのシート', () => {
   // 灯り用の文字へ置き換える前(57314e2)に測った昼のシート。街灯 2 枚は新設なので外して比べる
   const BASELINE = { count: 53, length: 3318, sha256: '6852db7f3bd8b941' }
 
+  // 主人公の昼のシートを焼いて取った実測値。主人公にも夜の双子ができたので、地形・建物と同じく
+  // バイト同一性で留める。夜の差し替えが昼の絵へ漏れれば枚数・長さ・指紋のどれかが動く。
+  // この指紋の先頭は配信ファイル名にも入る(sprites.ts の sheetFileName)ので、
+  // ここが動くときは配る URL も変わる = 古い PNG を掴んだままの利用者が出ない
+  const PLAYER_BASELINE = { count: 8, length: 1166, sha256: 'acefcbace650ec3f' }
+
   it('昼のシートは文字置換の前と 1 バイトも変わらない', () => {
     const arts = Object.fromEntries(
       Object.entries(SPRITE_ARTS).filter(([key]) => key !== 'lamp-t' && key !== 'lamp-b')
@@ -248,6 +300,16 @@ describe('時刻ごとのシート', () => {
     expect(sheet.count).toBe(BASELINE.count)
     expect(sheet.uri).toHaveLength(BASELINE.length)
     expect(createHash('sha256').update(sheet.uri).digest('hex').slice(0, 16)).toBe(BASELINE.sha256)
+  })
+
+  it('昼の主人公シートは 1 バイトも変わらない', () => {
+    const sheet = buildPlayerSprites('day')
+
+    expect(sheet.count).toBe(PLAYER_BASELINE.count)
+    expect(sheet.uri).toHaveLength(PLAYER_BASELINE.length)
+    expect(createHash('sha256').update(sheet.uri).digest('hex').slice(0, 16)).toBe(
+      PLAYER_BASELINE.sha256
+    )
   })
 
   it('どの段階も同じ並び順・同じ枚数で焼ける', () => {
@@ -316,6 +378,90 @@ describe('時刻ごとのシート', () => {
       'window',
     ])
     expect(litKeys(PLAYER_ARTS)).toEqual([])
+  })
+})
+
+describe('夜だけ差し替える素材', () => {
+  // 夜にできるのは差し替えだけ。鍵が増減・前後すると、UI が昼の index で夜の画像を引くため町中の絵がずれる
+  it('夜の素材は昼と同じ鍵を同じ順序で持つ', () => {
+    expect(Object.keys(SPRITE_NIGHT_ARTS)).toEqual(Object.keys(SPRITE_ARTS))
+    expect(Object.keys(PLAYER_NIGHT_ARTS)).toEqual(Object.keys(PLAYER_ARTS))
+  })
+
+  it('焼き上がった夜のシートも昼と同じ index を同じ順序で持つ', () => {
+    // toEqual は鍵の順序を見ないので、並び順は Object.keys の配列にして比べる
+    expect(Object.keys(buildSprites('night').index)).toEqual(Object.keys(buildSprites('day').index))
+    expect(Object.keys(buildPlayerSprites('night').index)).toEqual(
+      Object.keys(buildPlayerSprites('day').index)
+    )
+  })
+
+  it('主人公の夜のシートはコマ数も高さも昼と同じ', () => {
+    const night = buildPlayerSprites('night')
+    const day = buildPlayerSprites('day')
+
+    expect(night.count).toBe(day.count)
+    expect(night.count).toBe(Object.keys(PLAYER_ARTS).length)
+    expect(night.height).toBe(day.height)
+  })
+
+  it('夜に絵が変わるのはランタンを持つ素材だけ', () => {
+    // 地形や建物まで夜だけ別の絵になっていないかの見張り。増やすときはここを意図的に更新する
+    expect(changedKeys(SPRITE_ARTS, SPRITE_NIGHT_ARTS)).toEqual(['robot'])
+  })
+
+  it('主人公のランタンは夜だけ灯り、昼・明け方・夕方には無い', () => {
+    const points = lanternPoints(PLAYER_ARTS, PLAYER_NIGHT_ARTS)
+    // 夜だけ灯る点が 1 つも無ければ、夜の絵がランタンを持っていない(差し替えが効いていない)
+    expect(points.length, '主人公に「昼は灯り文字でなく夜だけ灯る」点が無い').toBeGreaterThan(0)
+
+    const point = points[0]
+    // その座標に昼の絵が何を描くかは昼の素材だけで決まる。'.'(透明)ならアルファ 0、
+    // 色付きならその文字を各段階のパレットへ通した色。夜の期待値だけが発光色になる
+    const fromDayArt = (phase: DayPhase): Pixel =>
+      point.dayChar === '.'
+        ? { hex: '#000000', alpha: 0 }
+        : { hex: phasePalette(palette, phase)[point.dayChar], alpha: 255 }
+    const read = (phase: DayPhase): Pixel =>
+      pixelSampler(buildPlayerSprites(phase))(point.key, point.x, point.y)
+
+    // 1 段階ずつ expect すると最初の不一致で打ち切られ、後ろの段階の誤りが隠れる。まとめて 1 回で比べる
+    expect({
+      night: read('night'),
+      day: read('day'),
+      dawn: read('dawn'),
+      dusk: read('dusk'),
+    }).toEqual({
+      night: { hex: phasePalette(palette, 'night')[point.nightChar], alpha: 255 },
+      day: fromDayArt('day'),
+      dawn: fromDayArt('dawn'),
+      dusk: fromDayArt('dusk'),
+    })
+  })
+
+  it('ロボットのランタンも夜だけ灯る', () => {
+    const points = lanternPoints(SPRITE_ARTS, SPRITE_NIGHT_ARTS)
+    expect(points.length, 'ロボットに「昼は灯り文字でなく夜だけ灯る」点が無い').toBeGreaterThan(0)
+
+    const point = points[0]
+    const fromDayArt = (phase: DayPhase): Pixel =>
+      point.dayChar === '.'
+        ? { hex: '#000000', alpha: 0 }
+        : { hex: phasePalette(palette, phase)[point.dayChar], alpha: 255 }
+    const read = (phase: DayPhase): Pixel =>
+      pixelSampler(buildSprites(phase))(point.key, point.x, point.y)
+
+    expect({
+      night: read('night'),
+      day: read('day'),
+      dawn: read('dawn'),
+      dusk: read('dusk'),
+    }).toEqual({
+      night: { hex: phasePalette(palette, 'night')[point.nightChar], alpha: 255 },
+      day: fromDayArt('day'),
+      dawn: fromDayArt('dawn'),
+      dusk: fromDayArt('dusk'),
+    })
   })
 })
 
