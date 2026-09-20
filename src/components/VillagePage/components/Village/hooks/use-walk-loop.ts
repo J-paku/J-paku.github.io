@@ -30,6 +30,8 @@ export type WalkLoopOptions = {
   locatorRef: RefObject<HTMLDivElement | null>
   // 考え事の吹き出しの土台。人物と同じ transform を受けて頭上に付いて回る
   hintRef: RefObject<HTMLDivElement | null>
+  // 夜に主人公が持つ灯り。吹き出しの土台と同じく人物と同じ transform を受けて付いて回る
+  playerLightRef: RefObject<HTMLDivElement | null>
   // ワープ後に新しいワールドの描画を待つ間だけ出す覆い。閾値を超えた時だけ見せる
   loadingRef: RefObject<HTMLDivElement | null>
   worldRef: RefObject<World>
@@ -57,6 +59,7 @@ export function useWalkLoop({
   playerRef,
   locatorRef,
   hintRef,
+  playerLightRef,
   loadingRef,
   worldRef,
   stateRef,
@@ -139,6 +142,9 @@ export function useWalkLoop({
       // 考え事の吹き出しの土台も反転させず、プレイヤーと同じ位置へ毎フレーム追従させる
       const hint = hintRef.current
       if (hint !== null) hint.style.transform = shift
+      // 主人公が持つ灯りも同じ位置へ。光は左右対称なので向きが変わっても反転させない
+      const playerLight = playerLightRef.current
+      if (playerLight !== null) playerLight.style.transform = shift
       if (spriteKeyRef.current === key) return
       spriteKeyRef.current = key
       player.dataset.sprite = key
@@ -155,6 +161,7 @@ export function useWalkLoop({
       worldRef,
       locatorRef,
       hintRef,
+      playerLightRef,
       loadingRef,
     ]
   )

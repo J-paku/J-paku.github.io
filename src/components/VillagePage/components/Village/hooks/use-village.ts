@@ -39,6 +39,8 @@ type UseVillage = {
   locatorRef: RefObject<HTMLDivElement | null>
   // 考え事の吹き出しの土台。use-walk-loop が人物と同じ transform を毎フレーム書く
   hintRef: RefObject<HTMLDivElement | null>
+  // 主人公が持つ灯り。吹き出しの土台と同じく、use-walk-loop が人物と同じ transform を毎フレーム書く
+  playerLightRef: RefObject<HTMLDivElement | null>
   loadingRef: RefObject<HTMLDivElement | null>
   camRef: RefObject<{ x: number; y: number }>
   world: World
@@ -115,6 +117,7 @@ export function useVillage({ worldSet, text, playerSprites }: VillageOptions): U
   const playerRef = useRef<HTMLDivElement>(null)
   const locatorRef = useRef<HTMLDivElement>(null)
   const hintRef = useRef<HTMLDivElement>(null)
+  const playerLightRef = useRef<HTMLDivElement>(null)
   const loadingRef = useRef<HTMLDivElement>(null)
   const lockedRef = useRef(false)
   const actionsRef = useRef<VillageActions>(NO_ACTIONS)
@@ -172,6 +175,7 @@ export function useVillage({ worldSet, text, playerSprites }: VillageOptions): U
     playerRef,
     locatorRef,
     hintRef,
+    playerLightRef,
     loadingRef,
     worldRef,
     stateRef,
@@ -238,6 +242,7 @@ export function useVillage({ worldSet, text, playerSprites }: VillageOptions): U
     playerRef,
     locatorRef,
     hintRef,
+    playerLightRef,
     loadingRef,
     camRef,
     world,
