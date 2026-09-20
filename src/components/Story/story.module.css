@@ -35,7 +35,8 @@
 }
 
 /* 既定(ライト)ではロゴ(白地用)を出し、ダーク用は隠す。data-theme='dark' の時だけ入れ替える
-   (ThemeProvider が document.documentElement.dataset.theme へ反映する。tokens.css と同じ体系) */
+   (html-shell.tsx のインラインスクリプトと SettingsMenu が document.documentElement.dataset.theme へ
+   反映する。tokens.css と同じ体系) */
 .logoDark {
   display: none;
 }

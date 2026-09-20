@@ -64,7 +64,7 @@ export const skills: SkillCategory[] = [
       {
         name: 'チーム標準AI開発基盤の設計(マルチエージェント)',
         evidence: ['ai-harness'],
-        note: 'フック25個、eval 36ケース、worktree隔離による並列実行',
+        note: 'フック25個、evalによる回帰検証、worktree隔離による並列実行',
       },
       { name: 'Git worktreeによる並列作業の隔離', evidence: ['ai-harness'] },
       { name: 'JSONL traceによる実行記録・自動採点', evidence: ['ai-harness'] },

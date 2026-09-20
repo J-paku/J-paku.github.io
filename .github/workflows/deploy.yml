@@ -25,6 +25,7 @@ jobs:
           cache: npm
       - run: npm ci
       # 前段が落ちたら後段を走らせる意味が無いので直列
+      - run: npm run docs:check
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run format:check
