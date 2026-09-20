@@ -29,6 +29,8 @@ playwright-report
 
 .env
 .claude/
+# Codex(コードエージェント)がローカルに置く設定。リポジトリでは共有しない
+.codex/
 *.tsbuildinfo
 
 # scripts/build-sprites.mjs が焼くスプライトシート。生成物なのでソースには入れない
