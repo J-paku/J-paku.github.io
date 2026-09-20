@@ -87,6 +87,8 @@ const TOWN_BLOCKS: readonly (readonly Block[])[] = [
 // 池は x2-5/y14-17、広場は x22-27/y14-17。自宅前(14,12)から各地点まで16歩以内。
 // 経歴碑(monument)は上寄り中央 (13,3)、話しかけ位置は (13,5) — コース外(order 無し)
 // 郵便ポスト(mailbox)は広場の北端 (24,14)、話しかけ位置は道に面した (24,13)
+// 焚き火(campfire)はロボット (8,15) の東隣 (9,15) の草地に 1 マス、通行不可。
+// ロボットの話しかけ位置 (8,14) とその周りの道は塞がない
 // 街灯(lamp)は西 (9,8)・東 (20,8)・広場際 (20,14)・ポスト隣 (25,13) の4つ、いずれも上下2マスが通行不可。
 // 西・東・広場際は草地に、ポスト隣だけは上が道 (25,13)・下が広場 (25,14) にまたがって立つ
 // 家は屋根 2 行 + 壁 2 行(上段が窓行、下段が扉行)。3 軒とも同じ高さ
@@ -125,6 +127,7 @@ export const town: World = {
       doorWidth: 2,
     },
     { id: 'robot', kind: 'robot', cell: { x: 8, y: 15 } },
+    { id: 'campfire', kind: 'campfire', cell: { x: 9, y: 15 } },
     { id: 'mailbox', kind: 'mailbox', cell: { x: 24, y: 14 } },
     { id: 'monument', kind: 'monument', cell: { x: 13, y: 3 } },
     { id: 'lamp-west', kind: 'lamp', cell: { x: 9, y: 8 } },

@@ -109,7 +109,7 @@ describe('facadeCells (house)', () => {
   })
 })
 
-describe('facadeCells (robot / mailbox)', () => {
+describe('facadeCells (robot / mailbox / campfire)', () => {
   it('ロボットは cell の 1 マス', () => {
     const robot: Structure = { id: 'r', kind: 'robot', cell: { x: 1, y: 9 } }
     expect(facadeCells(robot)).toEqual([{ cell: { x: 1, y: 9 }, key: 'robot' }])
@@ -117,6 +117,10 @@ describe('facadeCells (robot / mailbox)', () => {
   it('ポストは cell の 1 マス', () => {
     const mailbox: Structure = { id: 'm', kind: 'mailbox', cell: { x: 9, y: 12 } }
     expect(facadeCells(mailbox)).toEqual([{ cell: { x: 9, y: 12 }, key: 'mailbox' }])
+  })
+  it('焚き火は cell の 1 マス', () => {
+    const campfire: Structure = { id: 'cf', kind: 'campfire', cell: { x: 9, y: 15 } }
+    expect(facadeCells(campfire)).toEqual([{ cell: { x: 9, y: 15 }, key: 'campfire' }])
   })
 })
 
