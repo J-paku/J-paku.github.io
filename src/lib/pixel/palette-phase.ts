@@ -8,11 +8,11 @@ import type { Palette } from './art'
 import type { DayPhase } from '@/utils/day-phase'
 
 // 灯り用に予約した文字。地形・主人公の絵はこの文字を使わない(予約はsprites.test.tsが固定する)
-export const LIGHT_KEYS = ['4', '5', '6', '7', '8', '9'] as const
+export const LIGHT_KEYS = ['4', '5', '6', '7', '8', '9', '+', '*', '#'] as const
 
 export type LightKey = (typeof LIGHT_KEYS)[number]
 
-// 6文字ちょうどを要求する表。1文字でも欠けたり余ったりすれば型検査で落ちる。
+// LIGHT_KEYSと同じ文字をちょうど要求する表。1文字でも欠けたり余ったりすれば型検査で落ちる。
 // Record<string, string>のままだと'9'を'a'と打ち間違えても気付けず、夜に壁の輪郭が塗り替わる
 type LightPalette = Record<LightKey, string>
 
@@ -44,6 +44,9 @@ const NIGHT_LIGHTS: LightPalette = {
   '7': '#ffffff',
   '8': '#78e0ff',
   '9': '#fff0a0',
+  '+': '#ff5040',
+  '*': '#50e070',
+  '#': '#c070ff',
 }
 // 夕方・明け方は昼の色を夜の発光色へ 0.8 だけ寄せた値。弱い混色だと灯った窓が
 // 同じ明るさの壁に溶けて「点いている」と読めなかったため、夜側へ大きく倒している。
@@ -55,6 +58,9 @@ const DUSK_LIGHTS: LightPalette = {
   '7': '#fcfaf6',
   '8': '#76d0f1',
   '9': '#feed93',
+  '+': '#f66a52',
+  '*': '#79d383',
+  '#': '#c391f2',
 }
 const DAWN_LIGHTS: LightPalette = {
   '4': '#eceacb',
@@ -63,6 +69,9 @@ const DAWN_LIGHTS: LightPalette = {
   '7': '#fcfaf6',
   '8': '#76d0f1',
   '9': '#feed93',
+  '+': '#f66a52',
+  '*': '#79d383',
+  '#': '#c391f2',
 }
 
 const PHASE_TINT: Record<Exclude<DayPhase, 'day'>, Tint> = {

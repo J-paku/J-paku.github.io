@@ -8,7 +8,7 @@ import type { Cell, Structure, World } from '@content/types/world'
 import { facadeCells } from './facade'
 
 // 灯りの種類。描画側はこの値をそのまま data 属性へ載せる
-export type LightKind = 'lamp' | 'robot' | 'campfire' | 'window'
+export type LightKind = 'lamp' | 'campfire' | 'window' | 'mailbox'
 
 // 光源 1 つ。x・y は灯そのものの中心(マスの真ん中なら整数 + 0.5)
 export type LightSource = {
@@ -24,12 +24,14 @@ export type LightSource = {
 
 // 灯りの色はドット絵と同じ「データとしての色」なのでここに置く。
 // CSS 側は var(--light-color) を受け取るだけで、色リテラルを持たない
-const WARM = '#ffe8a8' // 電球色。街灯と、ロボット・主人公が提げるランタン
+const WARM = '#ffe8a8' // 電球色。街灯と、主人公が提げるランタン
 const FIRE = '#ffb464' // 焚き火の橙
 const WINDOW = '#ffeec8' // 室内から窓越しに漏れる白熱色
+// ポストの縁の LED。赤・黄・緑・水色・青・紫が混ざるので、こぼれる光はほぼ白。
+// 紫へわずかに寄せて、電球色の街灯と並んだときに別物だと分かるようにする
+const LED = '#f2e8ff'
 
-// マスの中のどこが灯なのかを dx・dy で持つ。街灯は上のマスの少し下寄りが灯、
-// ロボットはランタンを右腕に提げているので右下寄りになる
+// マスの中のどこが灯なのかを dx・dy で持つ。街灯なら上のマスの少し下寄りが灯になる
 type Glow = {
   kind: LightKind
   dx: number
@@ -45,12 +47,13 @@ type Glow = {
 // 下の表が「union に無い鍵を持っている」として型検査で落ちる。
 // 文字列で書き写すと union が変わっても表は古い綴りのまま通り、実行時の結び付きだけが
 // 黙って切れて「夜に灯りだけが点かない」になる(FURNITURE・SHEET_BUILDERS と同じ作り)
-type GlowKind = Extract<Structure['kind'], 'lamp' | 'robot' | 'campfire'>
+type GlowKind = Extract<Structure['kind'], 'lamp' | 'campfire' | 'mailbox'>
 
 // 灯りを持つ構造物の表(種類を増やすときはここへ 1 行足す)
 const GLOW: Record<GlowKind, Glow> = {
   lamp: { kind: 'lamp', dx: 0.5, dy: 0.6, radius: 2.6, intensity: 0.3, color: WARM },
-  robot: { kind: 'robot', dx: 0.95, dy: 0.8, radius: 2, intensity: 0.26, color: WARM },
+  // ポストは縁を 1 周する LED なので、灯はマスの真ん中。街灯より弱く狭い
+  mailbox: { kind: 'mailbox', dx: 0.5, dy: 0.55, radius: 1.8, intensity: 0.22, color: LED },
   campfire: {
     kind: 'campfire',
     dx: 0.5,
@@ -65,15 +68,18 @@ const GLOW: Record<GlowKind, Glow> = {
 // 後光をあえて付けない種類。灯り用の文字(パレットの 4~9)を使う絵を持ちながら周りが暗いままの
 // ものは、そう決めたのか付け忘れたのかが外から見分けられない。ここに綴りがあれば「決めた」と読める。
 // 経歴碑の星と机のモニターは、その絵自身が光って見えればよい小さな灯り。地面まで照らすと夜の
-// 暗がりが薄れ、村を照らす 4 つ(街灯・ロボット・焚き火・家の窓)との区別も付かなくなる。
+// 暗がりが薄れ、村を照らす 4 つ(街灯・焚き火・家の窓・ポストの LED)との区別も付かなくなる。
+// ロボットはゴーグルのレンズが光るが、後光はすぐ隣の焚き火が受け持つ。同じ場所を 2 つの光源で
+// 照らすと、そこだけ二重に明るくなって焚き火の存在が読めなくなる。
 // 灯りと無縁な種類(ポスト・ベッド・テーブルなど)は書かない — 発光する絵を持つものだけを並べる表。
 // この表と GLOW の両方から漏れた発光素材は lights.test.ts の不変条件が落として知らせる
-export const NO_GLOW: readonly Extract<Structure['kind'], 'monument' | 'desk'>[] = [
+export const NO_GLOW: readonly Extract<Structure['kind'], 'monument' | 'desk' | 'robot'>[] = [
   'monument',
   'desk',
+  'robot',
 ]
 
-// 種類から表を引けるかの判定。灯りを持たない種類(ポスト・机など)では false になる。
+// 種類から表を引けるかの判定。灯りを持たない種類(机・ロボットなど)では false になる。
 // in ではなく Object.hasOwn を使う — in は継承した性質にも当たるので、'constructor' や
 // 'toString' のような綴りがこの見張りを素通りしてしまう
 const isGlowKind = (kind: Structure['kind']): kind is GlowKind => Object.hasOwn(GLOW, kind)

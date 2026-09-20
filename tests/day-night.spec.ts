@@ -55,9 +55,9 @@ const PLAYER_LIGHT = lightsOfKind('player')
 // 実ブラウザで数えた値をそのまま書く。
 // ★ 町の構成(content/world.ts の structures と家の窓の並び)を変えたら、この表も一緒に直す
 const TOWN_LIGHTS = {
-  lamp: 4, // 街灯 lamp-west / lamp-east / lamp-plaza / lamp-mailbox
+  lamp: 3, // 街灯 lamp-west / lamp-east / lamp-plaza
   window: 4, // 家の窓。自宅1・名刺1・研究所2(どのマスが窓かは facade.ts が決める)
-  robot: 1, // ロボットが提げるランタン
+  mailbox: 1, // ポストの縁を 1 周する LED(夜だけ点く)
   campfire: 1, // たき火(ゆらぎが付く唯一の光源)
   player: 1, // 主人公が提げるランタン。構造物ではなく Lighting が直接置く
 } as const
