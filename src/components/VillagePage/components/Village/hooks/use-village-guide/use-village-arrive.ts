@@ -1,33 +1,21 @@
-// 到着・衝突の結果を会話地点・案内文・訪問済みへ反映する。保存した位置と訪問はマウント後にここで戻す
-// ただし再読み込み(本当のページ読み込み)では最初からやり直す
-import { useCallback, useEffect, useRef, useState } from 'react'
+// 到着マスと衝突の後始末。ワープ・会話地点・目的地を判定し、位置の保存と案内文の差し替えまでを持つ。
+// 会話地点・案内文・目印の入れ物は入口フックの持ち物で、ここは受け取った ref と setState へ書くだけ
+import { useCallback, useRef } from 'react'
 import type { Dispatch, RefObject, SetStateAction } from 'react'
 import type { Cell, Spot, VillageText, World, WorldSet } from '@content/types/world'
 import type { MoveState } from '@/lib/village/movement'
-import { isWalkable } from '@/lib/village/collision'
 import { findPath } from '@/lib/village/path'
 import { spotAt } from '@/lib/village/spot'
 import { warpAt } from '@/lib/village/warp'
-import { clearVillageProgress, readPosition, readVisited, writePosition } from '@/lib/preferences'
+import { writePosition } from '@/lib/preferences'
 import type { SpotRef } from '@/lib/village/spot'
-import { findWorld, type EnterWorld } from './use-village-world'
-import type { VillageActions } from './use-village-input'
+import { findWorld, type EnterWorld } from '../use-village-world'
+import type { VillageActions } from '../use-village-input'
+import { defaultSpeech } from './default-speech'
 
-const EMPTY_VISITED: ReadonlySet<string> = new Set<string>()
-
-// モジュール変数。ページを読み込み直すと false から始まるので、その回の最初のマウントだけ保存を捨てられる。
-// アプリ内の画面移動では JS の文脈が残り true のままなので、作品ページから村へ戻った時は復元される
-let restoredThisLoad = false
-
-// 会話地点でも目的地でもない時の既定文。屋内は出口案内、屋外は操作案内
-// 屋外の操作案内はタッチ(pointer: coarse)ならスティック・A の説明に替える。判定はマウント後に一度だけ行う
-const defaultSpeech = (world: World, text: VillageText, coarse: boolean): string =>
-  world.kind === 'interior' ? text.exitHint : coarse ? text.hintTouch : text.hint
-
-export type VillageGuideOptions = {
+type VillageArriveOptions = {
   worldSet: WorldSet
   text: VillageText
-  startWorld: World
   worldRef: RefObject<World>
   worldKeyRef: RefObject<string>
   stateRef: RefObject<MoveState>
@@ -37,31 +25,24 @@ export type VillageGuideOptions = {
   pendingFastRef: RefObject<boolean>
   autoTalkRef: RefObject<boolean>
   actionsRef: RefObject<VillageActions>
+  activeSpotRef: RefObject<Spot | null>
+  coarseRef: RefObject<boolean>
   setDestination: Dispatch<SetStateAction<Cell | null>>
   setPlayerCell: Dispatch<SetStateAction<Cell>>
+  setActiveSpot: Dispatch<SetStateAction<Spot | null>>
+  setSpeech: Dispatch<SetStateAction<string>>
+  setLocatorVisible: Dispatch<SetStateAction<boolean>>
   enterWorld: EnterWorld
 }
 
-type UseVillageGuide = {
-  visitedRef: RefObject<ReadonlySet<string>>
-  activeSpotRef: RefObject<Spot | null>
-  visited: ReadonlySet<string>
-  setVisited: Dispatch<SetStateAction<ReadonlySet<string>>>
-  // タッチ端末か(pointer: coarse)。枠の aria-label の案内文を切り替える
-  coarse: boolean
-  activeSpot: Spot | null
-  speech: string
-  setSpeech: Dispatch<SetStateAction<string>>
-  reduceMotion: boolean
-  locatorVisible: boolean
+type UseVillageArrive = {
   arrive: (cell: Cell) => void
   bump: (cell: Cell) => void
 }
 
-export function useVillageGuide({
+export function useVillageArrive({
   worldSet,
   text,
-  startWorld,
   worldRef,
   worldKeyRef,
   stateRef,
@@ -71,55 +52,16 @@ export function useVillageGuide({
   pendingFastRef,
   autoTalkRef,
   actionsRef,
+  activeSpotRef,
+  coarseRef,
   setDestination,
   setPlayerCell,
+  setActiveSpot,
+  setSpeech,
+  setLocatorVisible,
   enterWorld,
-}: VillageGuideOptions): UseVillageGuide {
-  const visitedRef = useRef<ReadonlySet<string>>(EMPTY_VISITED)
-  const activeSpotRef = useRef<Spot | null>(null)
+}: VillageArriveOptions): UseVillageArrive {
   const locatorHiddenRef = useRef(false)
-
-  const [visited, setVisited] = useState<ReadonlySet<string>>(EMPTY_VISITED)
-  const [activeSpot, setActiveSpot] = useState<Spot | null>(null)
-  // サーバ描画はキーボード向けの案内。タッチ判定は window が要るのでマウント後に立てる
-  const coarseRef = useRef(false)
-  const [coarse, setCoarse] = useState(false)
-  const [speech, setSpeech] = useState<string>(defaultSpeech(startWorld, text, false))
-  const [reduceMotion, setReduceMotion] = useState(false)
-  const [locatorVisible, setLocatorVisible] = useState(true)
-
-  // 位置と訪問はマウント後に読む。サーバ描画は常に開始ワールドの start で、ずれを起こさない
-  useEffect(() => {
-    setReduceMotion(window.matchMedia('(prefers-reduced-motion: reduce)').matches)
-    const isCoarse = window.matchMedia('(pointer: coarse)').matches
-    coarseRef.current = isCoarse
-    setCoarse(isCoarse)
-    // 読み込み直後の最初のマウントは保存を捨て、開始地点からやり直す
-    const isFirstMountOfLoad = !restoredThisLoad
-    restoredThisLoad = true
-    if (isFirstMountOfLoad) clearVillageProgress(worldSet.id)
-    const saved = isFirstMountOfLoad ? null : readPosition(worldSet.id)
-    const savedWorld = saved === null ? null : findWorld(worldSet, saved.worldId)
-    const restore =
-      saved !== null && savedWorld !== null && isWalkable(savedWorld, saved.cell)
-        ? { id: saved.worldId, world: savedWorld, cell: saved.cell, facing: saved.facing }
-        : {
-            id: worldSet.startWorldId,
-            world: startWorld,
-            cell: startWorld.start,
-            facing: startWorld.startFacing,
-          }
-    enterWorld(restore.id, restore.world, restore.cell, restore.facing)
-    const restored: ReadonlySet<string> = isFirstMountOfLoad
-      ? EMPTY_VISITED
-      : new Set(readVisited(worldSet.id))
-    visitedRef.current = restored
-    setVisited(restored)
-    const spot = spotAt(restore.world, restore.cell)
-    activeSpotRef.current = spot
-    setActiveSpot(spot)
-    setSpeech(defaultSpeech(restore.world, text, coarseRef.current))
-  }, [worldSet, startWorld, text, enterWorld])
 
   // 到着マスでワープ・会話地点・目的地を判定し、位置を保存する
   const arrive = useCallback(
@@ -192,6 +134,7 @@ export function useVillageGuide({
         autoTalkRef.current = false
         if (spot !== null) actionsRef.current.onTalk()
       }
+      // 追加の依存は入口フックが持つ ref と setState で、描画をまたいでも同じ実体。作り直す回数は分割前と同じ
     },
     [
       worldSet,
@@ -207,7 +150,12 @@ export function useVillageGuide({
       pendingFastRef,
       autoTalkRef,
       actionsRef,
+      activeSpotRef,
+      coarseRef,
       setDestination,
+      setActiveSpot,
+      setSpeech,
+      setLocatorVisible,
     ]
   )
 
@@ -224,22 +172,8 @@ export function useVillageGuide({
       activeSpotRef.current = spot
       setActiveSpot(spot)
     },
-    [arrive, worldRef, stateRef]
+    [arrive, worldRef, stateRef, activeSpotRef, setActiveSpot]
   )
 
-  return {
-    visitedRef,
-    activeSpotRef,
-    visited,
-    setVisited,
-    // タッチ端末か。枠の aria-label の案内文を切り替える
-    coarse,
-    activeSpot,
-    speech,
-    setSpeech,
-    reduceMotion,
-    locatorVisible,
-    arrive,
-    bump,
-  }
+  return { arrive, bump }
 }

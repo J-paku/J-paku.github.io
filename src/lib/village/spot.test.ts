@@ -1,7 +1,7 @@
-// 会話地点 spotAt・allSpots・nextSpot・spotWorldId のテスト
+// 会話地点 spotAt・allSpots・nextSpot・spotWorldId・talkAnchor のテスト
 import { vi } from 'vitest'
 import type { Spot, World, WorldSet } from '@content/types/world'
-import { spotAt, allSpots, nextSpot, spotWorldId } from './spot'
+import { spotAt, allSpots, nextSpot, spotWorldId, talkAnchor } from './spot'
 
 // server-only は Next.js のビルド境界専用ガードで、vitest(node 環境)では無条件に例外を投げる。
 // テストでは中身を持たない mock に差し替え、読み込み専用の @/lib/content/read を素通しにする
@@ -102,20 +102,22 @@ describe('spotWorldId', () => {
   })
 })
 
+// 2×2 のテーブルを 1 つ置いた野原。spotAt と talkAnchor のテストで共用する
+const field: World = {
+  id: 'field',
+  kind: 'exterior',
+  width: 10,
+  height: 8,
+  start: { x: 4, y: 2 },
+  startFacing: 'down',
+  tiles: Array.from({ length: 8 }, () => Array(10).fill('grass')),
+  structures: [{ id: 't', kind: 'table', cell: { x: 3, y: 3 } }],
+  spots: [{ id: 'table', structureId: 't', cell: { x: 4, y: 2 }, facing: 'down', order: 1 }],
+  warps: [],
+}
+
 // 物の占有矩形を囲む通路から、全方向で会話できる
 describe('spotAt (全方向)', () => {
-  const field: World = {
-    id: 'field',
-    kind: 'exterior',
-    width: 10,
-    height: 8,
-    start: { x: 4, y: 2 },
-    startFacing: 'down',
-    tiles: Array.from({ length: 8 }, () => Array(10).fill('grass')),
-    structures: [{ id: 't', kind: 'table', cell: { x: 3, y: 3 } }],
-    spots: [{ id: 'table', structureId: 't', cell: { x: 4, y: 2 }, facing: 'down', order: 1 }],
-    warps: [],
-  }
   it.each([
     { x: 3, y: 2 },
     { x: 4, y: 5 },
@@ -222,5 +224,49 @@ describe('spotAt (実際の worldSet — 経歴碑)', () => {
     expect(spotAt(realTown, { x: 6, y: 6 })?.id).toBe('meishi')
     expect(spotAt(realTown, { x: 8, y: 14 })?.id).toBe('robot')
     expect(spotAt(realTown, { x: 24, y: 15 })?.id).toBe('mailbox')
+  })
+})
+
+// 吹き出しを付ける位置。x は物の中央、y は物の上辺。下を向く地点だけはプレイヤーの頭上
+describe('talkAnchor', () => {
+  it('下を向く地点は、物ではなくプレイヤーの頭上(半マス上)に出す', () => {
+    expect(talkAnchor(field, field.spots[0])).toEqual({ x: 4.5, y: 1.5 })
+  })
+  it('上を向く地点は、テーブル(2×2)の中央・上辺に出す', () => {
+    const spot: Spot = { id: 'below', structureId: 't', cell: { x: 4, y: 5 }, facing: 'up' }
+    expect(talkAnchor(field, spot)).toEqual({ x: 4, y: 3 })
+  })
+  it('横を向く地点でも、位置は同じ物の中央・上辺で変わらない', () => {
+    const spot: Spot = { id: 'beside', structureId: 't', cell: { x: 5, y: 4 }, facing: 'left' }
+    expect(talkAnchor(field, spot)).toEqual({ x: 4, y: 3 })
+  })
+  it('机(3×2)は左上から 1.5 マス右が中央', () => {
+    expect(talkAnchor(room, room.spots[0])).toEqual({ x: 1.5, y: 0 })
+  })
+  it('建物は入口の列(幅 2)の中央・最下段の壁の上辺に出す', () => {
+    const house: World = {
+      ...field,
+      structures: [
+        {
+          id: 'h',
+          kind: 'house',
+          roof: 'red',
+          area: { x: 2, y: 1, w: 6, h: 3 },
+          solid: { x: 2, y: 2, w: 6, h: 2 },
+          doorX: 4,
+          doorWidth: 2,
+        },
+      ],
+    }
+    const spot: Spot = { id: 'house', structureId: 'h', cell: { x: 4, y: 4 }, facing: 'up' }
+    expect(talkAnchor(house, spot)).toEqual({ x: 5, y: 3 })
+  })
+  it('物が見つからない地点は、向いている 1 マスの中央・上辺に出す', () => {
+    const spot: Spot = { id: 'ghost', structureId: 'missing', cell: { x: 4, y: 2 }, facing: 'up' }
+    expect(talkAnchor(field, spot)).toEqual({ x: 4.5, y: 1 })
+  })
+  it('物が見つからなくても、下を向く地点はプレイヤーの頭上のまま', () => {
+    const spot: Spot = { id: 'ghost', structureId: 'missing', cell: { x: 4, y: 2 }, facing: 'down' }
+    expect(talkAnchor(field, spot)).toEqual({ x: 4.5, y: 1.5 })
   })
 })

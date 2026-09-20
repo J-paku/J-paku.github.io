@@ -4,11 +4,11 @@ import { useMemo, useRef } from 'react'
 import type { RefObject } from 'react'
 import type { Cell, Spot, VillageText, World, WorldSet } from '@content/types/world'
 import type { SheetLayout } from '@/lib/pixel/art'
-import { talkTarget } from '@/lib/village/spot'
+import { talkAnchor } from '@/lib/village/spot'
 import { useVillageInput, type VillageActions } from './use-village-input'
 import { cameraOffset, useStageScale, VIEW_COLS, VIEW_ROWS } from './use-stage-scale'
-import { useVillageGuide } from './use-village-guide'
-import { useVillageOverlay } from './use-village-overlay'
+import { useVillageGuide } from './use-village-guide/use-village-guide'
+import { useVillageOverlay } from './use-village-overlay/use-village-overlay'
 import { useVillageWorld } from './use-village-world'
 import { useWalkLoop } from './use-walk-loop'
 
@@ -221,15 +221,7 @@ export function useVillage({ worldSet, text, playerSprites }: VillageOptions): U
     [world, text]
   )
 
-  const target = activeSpot === null ? null : talkTarget(world, activeSpot)
-  // 吹き出しは物の上に出す。物がプレイヤーより下(下を向く地点)なら人物を隠すので、プレイヤーの頭上に出す。
-  // 主人公の頭はマスの上へ半マスはみ出すので、その分だけ上に付ける
-  const talkAt =
-    activeSpot === null || target === null
-      ? null
-      : activeSpot.facing === 'down'
-        ? { x: activeSpot.cell.x + 0.5, y: activeSpot.cell.y - 0.5 }
-        : { x: target.x + target.w / 2, y: target.y }
+  const talkAt = activeSpot === null ? null : talkAnchor(world, activeSpot)
   const talkText = activeSpot === null ? null : arriveSpeech(text, activeSpot.id)
   const talkLabel = activeSpot === null ? undefined : (text.stops[activeSpot.id].talk ?? text.talk)
 

@@ -19,8 +19,9 @@ export const facedCell = (spot: Spot): Cell => ({
   y: spot.cell.y + FACING[spot.facing].y,
 })
 
-// 吹き出しやモーダルを付ける相手の範囲。家は入口の列、家具は占有矩形。物が見つからなければ向いている 1 マス
-export const talkTarget = (world: World, spot: Spot): Rect => {
+// 吹き出しやモーダルを付ける相手の範囲。家は入口の列、家具は占有矩形。物が見つからなければ向いている 1 マス。
+// 外から使うのは talkAnchor だけなので、このモジュールの中に閉じる
+const talkTarget = (world: World, spot: Spot): Rect => {
   const structure = world.structures.find(s => s.id === spot.structureId)
   if (structure === undefined) return { ...facedCell(spot), w: 1, h: 1 }
   if (structure.kind === 'house') {
@@ -28,6 +29,15 @@ export const talkTarget = (world: World, spot: Spot): Rect => {
     return { x: structure.doorX, y, w: structure.doorWidth ?? 1, h: 1 }
   }
   return structureRect(structure)
+}
+
+// 吹き出しを付ける位置(マス単位・小数)。x は物の中央、y は物の上辺。
+// 物がプレイヤーより下(下を向く地点)なら吹き出しが人物を隠すので、プレイヤーの頭上に出す。
+// 主人公の頭はマスの上へ半マスはみ出すので、その分だけ上に付ける
+export const talkAnchor = (world: World, spot: Spot): { x: number; y: number } => {
+  if (spot.facing === 'down') return { x: spot.cell.x + 0.5, y: spot.cell.y - 0.5 }
+  const target = talkTarget(world, spot)
+  return { x: target.x + target.w / 2, y: target.y }
 }
 
 export const spotAt = (world: World, cell: Cell): Spot | null => {

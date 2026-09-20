@@ -1,19 +1,14 @@
 // 訪問地点の説明を読み進める焦点管理付きモーダル。村の枠の中に重ねて開く
 'use client'
 
-import {
-  useEffect,
-  useId,
-  useRef,
-  type CSSProperties,
-  type KeyboardEvent,
-  type RefObject,
-} from 'react'
+import { useId, useRef, type CSSProperties, type RefObject } from 'react'
 
 import type { Locale } from '@content/types/content'
 import type { Direction, StopText } from '@content/types/world'
 import PhraseText from '@/components/ui/PhraseText'
 
+import { useHeldScroll } from './hooks/use-held-scroll'
+import { useModalFocus } from './hooks/use-modal-focus'
 import { useScrollThumb } from './hooks/use-scroll-thumb'
 import styles from './stop-modal.module.css'
 
@@ -32,10 +27,6 @@ export type StopModalProps = {
   returnTo: RefObject<HTMLElement | null>
 }
 
-const FOCUSABLE_SELECTOR = 'a[href], button:not([disabled])'
-// 押しっぱなしの間、1フレームで動かす本文スクロール量(px)
-const SCROLL_STEP = 6
-
 // CSS 変数は CSSProperties に含まれないので、使う分だけを足した形で渡す
 type RailStyle = CSSProperties & { '--thumb-top': string; '--thumb-size': string }
 
@@ -53,61 +44,13 @@ export function StopModal({
   returnTo,
 }: StopModalProps) {
   const titleId = useId()
+  const dialogRef = useRef<HTMLDivElement>(null)
   const titleRef = useRef<HTMLHeadingElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const thumb = useScrollThumb(panelRef)
-
-  useEffect(() => {
-    const returnTarget = returnTo.current
-    titleRef.current?.focus()
-
-    return () => {
-      returnTarget?.focus()
-    }
-  }, [returnTo])
-
-  // ジョイスティック・矢印キーの押しっぱなしで本文を送る。閉じたら(アンマウントで)止まる
-  useEffect(() => {
-    let frame: number
-    const step = () => {
-      const direction = scrollHeldRef.current
-      const panel = panelRef.current
-      if (panel !== null && (direction === 'up' || direction === 'down')) {
-        panel.scrollTop += direction === 'down' ? SCROLL_STEP : -SCROLL_STEP
-      }
-      frame = requestAnimationFrame(step)
-    }
-    frame = requestAnimationFrame(step)
-    return () => cancelAnimationFrame(frame)
-  }, [scrollHeldRef])
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Escape') {
-      event.preventDefault()
-      onClose()
-      return
-    }
-
-    if (event.key !== 'Tab') return
-
-    // 操作ボタン(.actions)はパネルの外(.box の兄弟)にあるので、ダイアログ全体から探す
-    const focusable = event.currentTarget.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
-    if (!focusable.length) return
-
-    const first = focusable[0]
-    const last = focusable[focusable.length - 1]
-
-    if (
-      event.shiftKey &&
-      (document.activeElement === first || document.activeElement === titleRef.current)
-    ) {
-      event.preventDefault()
-      last.focus()
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault()
-      first.focus()
-    }
-  }
+  // フックを呼ぶ順がそのまま effect の実行順・片付け順になる。つまみ → 焦点 → 送り の順を入れ替えない
+  const handleKeyDown = useModalFocus({ titleRef, returnTo, onClose })
+  useHeldScroll({ dialogRef, panelRef, titleRef, scrollHeldRef })
 
   const railStyle: RailStyle = {
     '--thumb-top': `${(thumb.top * 100).toFixed(2)}%`,
@@ -116,6 +59,7 @@ export function StopModal({
 
   return (
     <div
+      ref={dialogRef}
       className={styles.overlay}
       role='dialog'
       aria-modal='true'
@@ -126,7 +70,8 @@ export function StopModal({
       <div className={styles.pop}>
         <div className={styles.box}>
           <div className={styles.body}>
-            <div ref={panelRef} className={styles.panel}>
+            {/* data-village-panel は E2E が本文の送り位置(scrollTop)を読むための目印 */}
+            <div ref={panelRef} className={styles.panel} data-village-panel>
               <small className={styles.place}>{stop.place}</small>
               <h2 ref={titleRef} id={titleId} className={styles.title} tabIndex={-1}>
                 <PhraseText text={stop.title} locale={lang} />

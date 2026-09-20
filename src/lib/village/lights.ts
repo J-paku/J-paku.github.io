@@ -27,7 +27,7 @@ export type LightSource = {
 const WARM = '#ffe8a8' // 電球色。街灯と、主人公が提げるランタン
 const FIRE = '#ffb464' // 焚き火の橙
 const WINDOW = '#ffeec8' // 室内から窓越しに漏れる白熱色
-// ポストの縁の LED。赤・黄・緑・水色・青・紫が混ざるので、こぼれる光はほぼ白。
+// ポストの前面に点く LED。赤・緑・紫の 3 色が混ざるので、こぼれる光はほぼ白。
 // 紫へわずかに寄せて、電球色の街灯と並んだときに別物だと分かるようにする
 const LED = '#f2e8ff'
 
@@ -52,7 +52,8 @@ type GlowKind = Extract<Structure['kind'], 'lamp' | 'campfire' | 'mailbox'>
 // 灯りを持つ構造物の表(種類を増やすときはここへ 1 行足す)
 const GLOW: Record<GlowKind, Glow> = {
   lamp: { kind: 'lamp', dx: 0.5, dy: 0.6, radius: 2.6, intensity: 0.3, color: WARM },
-  // ポストは縁を 1 周する LED なので、灯はマスの真ん中。街灯より弱く狭い
+  // ポストの LED は前面の上辺に横一列なので、灯は横の真ん中。にじみは 1 本きりなので縦は
+  // 粒の高さまで上げず、胴まで掛かるマスの中ほどに置く。街灯より弱く狭い
   mailbox: { kind: 'mailbox', dx: 0.5, dy: 0.55, radius: 1.8, intensity: 0.22, color: LED },
   campfire: {
     kind: 'campfire',

@@ -31,7 +31,19 @@ export function ActionButtons({
       onTalk()
       return
     }
-    if (mode === 'talk' && hasNext) onNext()
+    if (mode !== 'talk') return
+    // 会話窓の中のボタン・リンクへ焦点が移っていれば、そこを押す。
+    // スティックで本文を送り切った先(次へ・閉じる・本文のリンク)を A で決定できるようにする。
+    // A/B 自身は押下でフォーカスを奪わない(preventFocusSteal)ので、ここには入らない
+    const active = document.activeElement
+    if (
+      (active instanceof HTMLButtonElement || active instanceof HTMLAnchorElement) &&
+      active.closest('[role="dialog"]') !== null
+    ) {
+      active.click()
+      return
+    }
+    if (hasNext) onNext()
   }
 
   const handleB = () => {

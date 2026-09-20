@@ -238,9 +238,12 @@
   cursor: pointer;
 }
 
-.actions > button:focus-visible,
-.actions > a:focus-visible,
-.link:focus-visible {
+/* :focus-visible ではなく :focus で描く。ジョイスティックで本文を送り切った先の焦点は
+   focus() で移すので、ポインタ由来と見なされて :focus-visible に入らないことがある。
+   この窓の中だけの指定で、見出し(.title:focus)は今まで通り枠を出さない */
+.actions > button:focus,
+.actions > a:focus,
+.link:focus {
   outline: 2px solid #181818;
   outline-offset: 2px;
 }
