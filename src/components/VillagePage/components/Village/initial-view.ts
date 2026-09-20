@@ -27,6 +27,9 @@ export type InitialView = {
   worldStyle: CSSProperties
   startPose: ReturnType<typeof playerPose>
   playerStyle: SpriteStyle
+  // rAF が回り出すまで、人物と同じ位置へ置かれるものの土台になる transform。
+  // 目印・考え事の吹き出し・主人公の灯りが同じ文字列を受け取るので、ここが唯一の正本になる
+  startShift: string
   locatorStyle: CSSProperties
   locatorSpriteStyle: SpriteStyle
 }
@@ -70,6 +73,7 @@ export const initialView = (
     worldStyle,
     startPose,
     playerStyle,
+    startShift,
     locatorStyle,
     locatorSpriteStyle,
   }

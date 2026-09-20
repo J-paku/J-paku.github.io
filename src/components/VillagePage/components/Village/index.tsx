@@ -8,6 +8,7 @@ import type { SheetLayout } from '@/lib/pixel/art'
 import { nextSpot } from '@/lib/village/spot'
 import ActionButtons from './components/ActionButtons'
 import Joystick from './components/Joystick'
+import Lighting from './components/Lighting'
 import Minimap from './components/Minimap'
 import SpeechBox from './components/SpeechBox'
 import StopModal from './components/StopModal'
@@ -63,6 +64,7 @@ function Village({
     playerRef,
     locatorRef,
     hintRef,
+    playerLightRef,
     loadingRef,
     camRef,
     world,
@@ -102,6 +104,7 @@ function Village({
     worldStyle,
     startPose,
     playerStyle,
+    startShift,
     locatorStyle,
     locatorSpriteStyle,
   } = initialView(world, sprites, playerSprites, reduceMotion)
@@ -155,6 +158,11 @@ function Village({
             {/* Ground は添字計算にしか使わない(index・count は4段階とも共通)。
                 背景URLは VillagePage が置いた<style>が担う */}
             <Ground world={world} sprites={sprites} destination={destination} />
+            {/* 夜の灯り。地面の上・目印(z 1)と主人公(z 2)の下に敷く層で、
+                主人公の持つ灯りだけは use-walk-loop が人物と同じ transform を毎フレーム書く
+                (rAF が回るまでの土台として、人物・目印と同じ startShift を渡す)。
+                昼夜の出し分けは Lighting 側の [data-phase='night'] が受け持つ */}
+            <Lighting world={world} playerLightRef={playerLightRef} startShift={startShift} />
             <div
               ref={playerRef}
               data-village-player

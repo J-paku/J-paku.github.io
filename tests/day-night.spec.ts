@@ -1,4 +1,5 @@
 // 昼夜の空と天気の E2E。時計を4つの帯それぞれへ固定して村の段階と実シートを確かめ、
+// 夜の灯りがともって主人公に付いて回ること・昼は同じ要素が描かれないことを確かめ、
 // Open-Meteo の応答を差し替えて雨の層が出る/出ないを確かめ、最後に段階と天気が載っても
 // 5か所のコースが今までどおり完走することを ja/ko 双方で見る
 import { expect, test, type Page } from '@playwright/test'
@@ -40,6 +41,32 @@ const RAIN_LAYERS = '[data-weather="rain"]'
 // 降っている間に並ぶ層の枚数。2 コマを不透明度で交互に見せ消しする作りなので、出ているなら必ず 2 枚。
 // 1 枚しか無ければコマ送りが片側だけになっている状態で、「降っている」とは認めない
 const WEATHER_LAYER_COUNT = 2
+
+// 夜の灯り。Lighting が world 層へ敷く光源で、data-village-light に光源の種類が載る。
+// 主人公が持つ灯り(player)だけは use-walk-loop が人物と同じ transform を毎フレーム書く。
+// 昼夜の出し分けは CSS([data-phase='night'])なので、昼でも要素自体は DOM に残る。
+// クラス名は CSS Modules が毎ビルド変えるので使わない
+const LIGHTS = '[data-village-light]'
+const lightsOfKind = (kind: string) => `[data-village-light="${kind}"]`
+const PLAYER_LIGHT = lightsOfKind('player')
+// 夜の町にともる灯りの内訳。「1つ以上ある」だけを見ると主人公のランタン1つで通ってしまい、
+// 街灯も窓もたき火も丸ごと消えたことに気付けないので、種類ごとの数をここで打つ。
+// 期待値を worldLights から作らない — 検査対象で検査対象を測っても何も証明できないため、
+// 実ブラウザで数えた値をそのまま書く。
+// ★ 町の構成(content/world.ts の structures と家の窓の並び)を変えたら、この表も一緒に直す
+const TOWN_LIGHTS = {
+  lamp: 4, // 街灯 lamp-west / lamp-east / lamp-plaza / lamp-mailbox
+  window: 4, // 家の窓。自宅1・名刺1・研究所2(どのマスが窓かは facade.ts が決める)
+  robot: 1, // ロボットが提げるランタン
+  campfire: 1, // たき火(ゆらぎが付く唯一の光源)
+  player: 1, // 主人公が提げるランタン。構造物ではなく Lighting が直接置く
+} as const
+// 上の表の合計。ここを別に書くと表と二重の正本になるので、必ず表から足す
+const TOWN_LIGHT_TOTAL = Object.values(TOWN_LIGHTS).reduce((sum, count) => sum + count, 0)
+// 人物と灯りの中心のずれの許容。両者は同じ transform を受けるので本来は 0 で、実測のまるめしか出ない。
+// 追従が切れた灯りは歩き終えた人物から 1 マスぶん離れる。1 マスの px は画面の大きさで決まるが、
+// use-stage-scale.ts の下限(CELL_MIN = 12px)を下回ることはないので、1px の許容とは取り違えようがない
+const LIGHT_GAP_TOLERANCE_PX = 1
 
 const OPEN_METEO = 'https://api.open-meteo.com/**'
 // 降っていない応答。段階だけを見たいテストでもこれを敷いて実ネットワークへ出さない
@@ -110,6 +137,48 @@ const leaveRoom = async (page: Page) => {
   // 雨が出ていようと出ていまいと素通りするテストになってしまう
   await expect(page.locator('[data-world]')).toHaveAttribute('data-world', 'town')
 }
+
+// 実際に描かれている灯りの数。昼夜の出し分けは CSS なので要素は昼も DOM に残り、枚数では
+// 「消えている」を判定できない。どの手段で消していても取り逃さないよう、display・visibility・
+// 不透明度・面積を先祖まで遡って見る。夜の合計(TOWN_LIGHT_TOTAL)も同じ物差しで数えるので、
+// この数え方が常に 0 を返す作りなら夜の側が落ちて気付ける
+const paintedLights = (page: Page) =>
+  page.evaluate(selector => {
+    const painted = (element: Element): boolean => {
+      const rect = element.getBoundingClientRect()
+      if (rect.width === 0 || rect.height === 0) return false
+      let node: Element | null = element
+      while (node !== null) {
+        const style = getComputedStyle(node)
+        if (style.display === 'none' || style.visibility === 'hidden') return false
+        if (Number(style.opacity) === 0) return false
+        node = node.parentElement
+      }
+      return true
+    }
+    return Array.from(document.querySelectorAll(selector)).filter(painted).length
+  }, LIGHTS)
+
+// 主人公と主人公の灯りの中心のずれを、同じ評価の中で両方の矩形を取って測る。
+// 2回に分けて測ると移動中の1フレームぶんの差がそのままずれに化ける(カメラも毎フレーム動く)。
+// 中心で見るのは、灯りが明滅で伸び縮みしても中心なら動かないため。
+// pose には rAF が人物へ書いた transform がそのまま入る(本当に歩いたかの裏取りに使う)
+const playerLightGap = (page: Page) =>
+  page.evaluate(
+    ([playerSelector, lightSelector]) => {
+      const player = document.querySelector<HTMLElement>(playerSelector)
+      const light = document.querySelector<HTMLElement>(lightSelector)
+      if (player === null || light === null) return null
+      const center = (element: HTMLElement) => {
+        const rect = element.getBoundingClientRect()
+        return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
+      }
+      const at = center(player)
+      const lit = center(light)
+      return { x: lit.x - at.x, y: lit.y - at.y, pose: player.style.transform }
+    },
+    ['[data-village-player]', PLAYER_LIGHT]
+  )
 
 // 焼いたシートはサイト内の /sprites/<種類>-<段階>.png に置く(実体は public/sprites/、
 // 焼くのは scripts/build-sprites.mjs)。data URI をやめて実ファイルになったので、
@@ -197,6 +266,68 @@ for (const { prefix, text } of JOURNEYS) {
     // 属性が変わっただけでなく、要素へ解決される背景画像そのものが別物になっている
     expect(nightGround.digest, '地形シートが夜で入れ替わる').not.toBe(dayGround.digest)
     expect(nightPlayer.digest, '主人公シートが夜で入れ替わる').not.toBe(dayPlayer.digest)
+  })
+
+  test(`夜の町は灯りがともり、主人公の灯りは歩いても離れない (${label})`, async ({ page }) => {
+    await stubWeather(page, DRY)
+    await page.clock.setFixedTime(new Date(PHASE_CLOCKS.night))
+    await openVillage(page, prefix)
+    await expect(page.locator(VILLAGE_ROOT)).toHaveAttribute('data-phase', 'night')
+    // 街灯もたき火も町にある。屋内のまま数えると主人公の灯りしか見ないテストになる
+    await leaveRoom(page)
+
+    // 種類ごとに数を見る。合計だけだと、街灯が消えたぶん窓が増えたような入れ替わりを通してしまう
+    for (const [kind, count] of Object.entries(TOWN_LIGHTS)) {
+      await expect(
+        page.locator(lightsOfKind(kind)),
+        `夜の町に ${kind} の灯りが ${count} つ置かれている`
+      ).toHaveCount(count)
+    }
+    // 置かれているだけでなく本当に描かれている(先祖まで遡って display・visibility・不透明度・面積を見る)。
+    // 表に無い種類が増えていればこの合計がずれて落ちる
+    expect(await paintedLights(page), '夜の町では表どおりの灯りがすべて描かれている').toBe(
+      TOWN_LIGHT_TOTAL
+    )
+
+    const before = await playerLightGap(page)
+    if (before === null) throw new Error('主人公か主人公の灯りが描かれていない')
+
+    // 自宅前 (14,12) から右へ1マス(journey.spec が通れることを押さえている道)。
+    // 押す・離す・到着を待つ間合いは leaveRoom と同じ
+    await page.keyboard.down('ArrowRight')
+    await page.waitForTimeout(HOLD_MS)
+    await page.keyboard.up('ArrowRight')
+    await page.waitForTimeout(SETTLE_MS)
+    await settleRender(page)
+
+    const after = await playerLightGap(page)
+    if (after === null) throw new Error('歩いた後に主人公か主人公の灯りが消えた')
+    // 先に「本当に歩いた」を確かめる。動いていなければ、ずれが同じでも何も証明していない
+    expect(after.pose, '人物へ書かれる transform が変わっている(実際に歩いた)').not.toBe(
+      before.pose
+    )
+    // カメラも一緒に動くので画面の絶対座標では判定できない。人物と灯りの中心のずれが
+    // 歩く前後で変わらないことだけが「灯りが人物に固定されている」を意味する
+    expect(Math.abs(after.x - before.x), '灯りが横に置いていかれていない').toBeLessThanOrEqual(
+      LIGHT_GAP_TOLERANCE_PX
+    )
+    expect(Math.abs(after.y - before.y), '灯りが縦に置いていかれていない').toBeLessThanOrEqual(
+      LIGHT_GAP_TOLERANCE_PX
+    )
+  })
+
+  test(`昼は灯りの要素が残ったまま一つも描かれない (${label})`, async ({ page }) => {
+    await stubWeather(page, DRY)
+    await page.clock.setFixedTime(new Date(PHASE_CLOCKS.day))
+    await openVillage(page, prefix)
+    await expect(page.locator(VILLAGE_ROOT)).toHaveAttribute('data-phase', 'day')
+    // 夜と同じ場所で数える。屋内で数えても町の光源は元から無いので、消えた証明にならない
+    await leaveRoom(page)
+
+    // 段階が変わるたびに層を組み直さない作りなので、要素は昼も DOM に残っているのが正しい。
+    // 枚数が 0 なのを合格にすると、そもそも描いていない場合と見分けが付かなくなる
+    await expect(page.locator(PLAYER_LIGHT), '灯りの要素自体は昼でも DOM にある').toBeAttached()
+    expect(await paintedLights(page), '昼は灯りが一つも描かれない').toBe(0)
   })
 
   test(`大阪が雨なら雨の層が出て、読み上げからは外れる (${label})`, async ({ page }) => {

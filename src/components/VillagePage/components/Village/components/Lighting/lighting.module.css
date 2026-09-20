@@ -1,0 +1,76 @@
+/* 夜だけ灯る偽の照明。カメラの掛かる .world の中に敷き、光源ごとの丸を絶対配置で置く。
+   z-index は付けない(auto)。目的地の印(1)・主人公(2)より下に沈め、人と印が光でぼやけないようにする
+   (値は scene.module.css の .marker / .player を参照)。
+   舞台全体を暗くする層は作らない — 夜の暗さはスプライトのパレット(palette-phase.ts)が既に持っている */
+.layer {
+  position: absolute;
+  inset: 0;
+  display: none;
+  pointer-events: none;
+}
+/* isolation: isolate をここへ書いてはいけない。灯りは下のタイルと混ぜて初めて「照らす」になるので、
+   この層を隔離すると混ぜる相手が消え、ただの薄い色板に戻る。混ぜる相手を囲うまとまりは
+   scene.module.css の .world(will-change: transform)が既に作っている */
+
+/* 灯すのは夜だけ。段階は村の根(scene.module.css の .root)の data-phase 1 属性が決める。
+   既定を display:none にしてあるので、昼はこの層の描画そのものが起きない */
+:global([data-phase='night']) .layer {
+  display: block;
+}
+/* 光の溜まり。ぼかしではなく 4 段のハードストップで刻む — 滑らかににじませると、
+   16px のマスを並べた画面でそこだけ写真のように浮いてドット絵の質感が壊れる。
+   色(--light-color)と濃さ(opacity)だけが光源ごとにインラインで入り、
+   段の切り方はここに 1 つだけ置く(同じグラデーションの文字列を要素の数だけ HTML へ出さないため)。
+
+   合成は screen(1-(1-a)(1-b))。通常合成(source-over)だと下の色を灯りの色で置き換えていくので、
+   濃くするほどどのマスも同じ色へ寄る — 実測で灯りの下の草(彩度 2.5%)が灯りの外の石畳(2.4%)と
+   ほぼ同色になり、地形の描き分けが消えていた。screen は下の色を必ず残したまま
+   「足りない明るさ」だけを足すので、暗い所は暗いまま色味が残って明るくなる。
+   plus-lighter は使わない(対応範囲がこちらより狭い)。
+   screen は通常合成より明るく出るぶん、内側の段の比率は 60/36/16% から 0.6 倍へ落としてある */
+.light {
+  position: absolute;
+  border-radius: 50%;
+  mix-blend-mode: screen;
+  background: radial-gradient(
+    circle closest-side,
+    color-mix(in srgb, var(--light-color) 36%, transparent) 0 34%,
+    color-mix(in srgb, var(--light-color) 22%, transparent) 34% 56%,
+    color-mix(in srgb, var(--light-color) 10%, transparent) 56% 76%,
+    transparent 76%
+  );
+}
+/* 焚き火のゆらぎ。濃さは光源ごとのインライン opacity が持っているので、keyframes で opacity を
+   動かすとその濃さを丸ごと上書きしてしまう。filter: opacity() なら今の濃さの何割かだけを動かせる。
+   steps(1) で 3 段に切り、中間の滑らかな明滅を作らない。周期 1.5s は炎が息をするくらいの速さ。
+   filter と mix-blend-mode が同じ要素に乗る組み合わせになるが、filter が作るのは
+   「この要素の中身のまとまり」で、混ぜる相手(下に描かれたタイル)は変わらないので screen は効く。
+   順序は filter → 不透明度 → 合成なので、ゆらぎはそのまま光の強弱として出る */
+.light.flicker {
+  animation: village-light-flicker 1.5s steps(1) infinite;
+}
+@keyframes village-light-flicker {
+  0% {
+    filter: opacity(1);
+  }
+  40% {
+    filter: opacity(0.9);
+  }
+  70% {
+    filter: opacity(0.96);
+  }
+  100% {
+    filter: opacity(1);
+  }
+}
+/* 動きを控える設定では揺らぎを止める。止めても灯りはインラインの濃さのまま残る */
+@media (prefers-reduced-motion: reduce) {
+  .light.flicker {
+    animation: none;
+  }
+}
+/* 主人公のランタン。位置は use-walk-loop が毎フレーム transform で書く
+   (rAF が回るまでの土台は Lighting がインラインで置く) */
+.light.player {
+  will-change: transform;
+}
