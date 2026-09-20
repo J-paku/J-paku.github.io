@@ -8,6 +8,9 @@
   height: 100%;
   display: grid;
   place-items: center;
+  /* 黒帯(操作帯)や余白を指で下へ引くと文書ごとパンする実機報告への対処。
+     .frame と同じ方針で、舞台全体はブラウザのスクロールに渡さない */
+  touch-action: none;
 }
 /* 枠と操作帯の箱。横持ちの操作帯(absolute)はこの箱を基準に枠の上辺へ重なる */
 .screen {
