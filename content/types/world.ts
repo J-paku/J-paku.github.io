@@ -134,6 +134,8 @@ export type FishingText = {
   stop: string // 確認窓の閉じるボタン「やめる」
   cast: string // 投げた直後の会話窓「……」
   bite: string // 「何かがかかった!」
+  landed: string // 釣り上げた瞬間の会話窓「経験を釣り上げた!」
+  complete: string // 全部を初めて釣り上げた時だけ landed の代わりに出す「すべての経験を釣り上げた!」
   caughtPlace: string // 結果窓の場所名「釣り上げた経験」
   caughtClaim: string // {date} を機能の着手時期に置換
   caughtTech: string // {tech} を技術名(' / ' 区切り)に置換

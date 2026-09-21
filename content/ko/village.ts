@@ -56,6 +56,8 @@ export const village: VillageText = {
     stop: '그만둔다',
     cast: '……',
     bite: '뭔가 걸렸다!',
+    landed: '경험을 낚아 올렸다!',
+    complete: '모든 경험을 낚아 올렸다!',
     caughtPlace: '낚아 올린 경험',
     caughtClaim: '{date}에 착수한 사내 업무 앱 기능입니다.',
     caughtTech: '사용한 기술: {tech}',

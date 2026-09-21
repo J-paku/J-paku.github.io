@@ -15,8 +15,9 @@ import StopModal from './components/StopModal'
 import TalkBubble from './components/TalkBubble'
 import Weather, { type WeatherSheets } from './components/Weather'
 import WorldMap from './components/WorldMap'
-// Groundはscene.module.cssを読むので、CSSの出力順を変えないよう他の子より後に読み込む
+// Ground・FishingFloatはscene.module.cssを読むので、CSSの出力順を変えないよう他の子より後に読み込む
 import Ground from './components/Ground'
+import FishingFloat from './components/FishingFloat'
 import { useDayPhase } from './hooks/use-day-phase'
 import { VIEW_COLS } from './hooks/use-stage-scale'
 import { useVillage } from './hooks/use-village'
@@ -193,6 +194,11 @@ function Village({
                 (rAF が回るまでの土台として、人物・目印と同じ startShift を渡す)。
                 昼夜の出し分けは Lighting 側の [data-phase='night'] が受け持つ */}
             <Lighting world={world} playerLightRef={playerLightRef} startShift={startShift} />
+            {/* 水面の浮きと釣り上げた巻物。灯りの上・主人公(z 2)の下に置く。
+                釣っていない間は置くマスが決まらない(at が null)ので何も描かない */}
+            {fishing.at !== null ? (
+              <FishingFloat at={fishing.at} phase={fishing.phase} sprites={sprites} />
+            ) : null}
             <div
               ref={playerRef}
               data-village-player

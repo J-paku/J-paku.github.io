@@ -149,7 +149,8 @@ describe('PLAYER_ARTS', () => {
   })
 
   it('横向きは反転してもずれないよう 1〜14 列に収まる', () => {
-    for (const key of ['player-right-0', 'player-right-1'] as const) {
+    // 竿のコマも左向きは scaleX(-1) で作るので、同じ掟が要る
+    for (const key of ['player-right-0', 'player-right-1', 'player-fish-right'] as const) {
       for (const row of PLAYER_ARTS[key]) {
         expect(row[0]).toBe('.')
         expect(row[15]).toBe('.')

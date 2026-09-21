@@ -42,6 +42,8 @@ export type WalkLoopOptions = {
   autoTalkRef: RefObject<boolean>
   lockedRef: RefObject<boolean>
   heldRef: RefObject<Direction | null>
+  // 釣っている間だけ true。歩行コマの代わりに竿を持つコマを出す
+  fishingPoseRef: RefObject<boolean>
   sprites: SheetLayout
   reduceMotion: boolean
   arrive: (cell: Cell) => void
@@ -68,6 +70,7 @@ export function useWalkLoop({
   autoTalkRef,
   lockedRef,
   heldRef,
+  fishingPoseRef,
   sprites,
   reduceMotion,
   arrive,
@@ -92,6 +95,21 @@ export function useWalkLoop({
   const smoothedCamRef = useRef<{ x: number; y: number } | null>(null)
   // 直前に描いたワールド。差し替わったフレームは補間を挟まず新しい原点へ飛ばす
   const paintedWorldRef = useRef<World | null>(null)
+  // 直前に書いた人物の位置。止まっている間も同じ位置のまま向きと反転だけ書き直すため覚えておく
+  const shiftRef = useRef('')
+
+  // 人物のコマ(向き・歩き・竿)と反転を DOM へ書く。位置は直前のまま使うので、
+  // 歩行が止まっている間でも呼べる。同じコマならシートの添字は書き換えない
+  const applyPose = useCallback(() => {
+    const player = playerRef.current
+    if (player === null) return
+    const { key, flip } = playerPose(stateRef.current, reduceMotion, fishingPoseRef.current)
+    player.style.transform = `${shiftRef.current}${flip ? ' scaleX(-1)' : ''}`
+    if (spriteKeyRef.current === key) return
+    spriteKeyRef.current = key
+    player.dataset.sprite = key
+    player.style.setProperty('--i', String(spriteIndex(sprites, key)))
+  }, [sprites, reduceMotion, playerRef, stateRef, fishingPoseRef])
 
   // 毎フレームの書き込みは DOM 直更新。React の state は到着時だけ動かす
   const paint = useCallback(
@@ -133,9 +151,9 @@ export function useWalkLoop({
       // 整数pxで寄せないとタイルの継ぎ目に1pxの隙間が出る
       if (layer !== null)
         layer.style.transform = `translate(${-Math.round(cam.x * px)}px, ${-Math.round(cam.y * px)}px)`
-      const { key, flip } = playerPose(state, reduceMotion)
       const shift = `translate(${v.x * px}px, ${v.y * px}px)`
-      player.style.transform = `${shift}${flip ? ' scaleX(-1)' : ''}`
+      shiftRef.current = shift
+      applyPose()
       // 目印は反転させず、プレイヤーと同じ位置に重ねる(上への持ち上げは CSS 側)
       const locator = locatorRef.current
       if (locator !== null) locator.style.transform = shift
@@ -145,13 +163,9 @@ export function useWalkLoop({
       // 主人公が持つ灯りも同じ位置へ。光は左右対称なので向きが変わっても反転させない
       const playerLight = playerLightRef.current
       if (playerLight !== null) playerLight.style.transform = shift
-      if (spriteKeyRef.current === key) return
-      spriteKeyRef.current = key
-      player.dataset.sprite = key
-      player.style.setProperty('--i', String(spriteIndex(sprites, key)))
     },
     [
-      sprites,
+      applyPose,
       reduceMotion,
       frameRef,
       worldLayerRef,
@@ -173,8 +187,10 @@ export function useWalkLoop({
       // 長いフレーム(タブ復帰など)で一気に進まないよう上限を置く
       const elapsed = Math.min(now - last, 250)
       last = now
-      // 会話・地図を開いた間は歩行の進捗と経路もその場で止める
+      // 会話・地図を開いた間は歩行の進捗と経路もその場で止める。
+      // ただし釣りは止めている間に竿を持つコマへ変わるので、位置は据え置きでコマだけ書き直す
       if (lockedRef.current) {
+        applyPose()
         raf = window.requestAnimationFrame(loop)
         return
       }
@@ -239,6 +255,7 @@ export function useWalkLoop({
     arrive,
     bump,
     paint,
+    applyPose,
     lockedRef,
     worldRef,
     stateRef,

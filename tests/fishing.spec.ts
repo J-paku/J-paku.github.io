@@ -1,5 +1,6 @@
-// 釣りの E2E。池のほとりで A(E)を押すと確認窓が出て、投げると会話窓が「……」→「何かがかかった!」と
-// 変わり、現職の機能が結果窓に出ることを ja/ko 双方で確かめる。
+// 釣りの E2E。池のほとりで A(E)を押すと確認窓が出て、投げると水面に浮きが出て
+// 会話窓が「……」→「何かがかかった!」→「経験を釣り上げた!」と変わり、巻物が跳ねてから
+// 現職の機能が結果窓に出ることを ja/ko 双方で確かめる。
 // 併せて「投げている間は歩けない」「水に背を向けていれば釣れない」「池の中へは踏み込めない」を見る。
 // 既存の地点(経歴碑など)の回帰は journey.spec が持つので、ここでは繰り返さない
 import { expect, test, type Page } from '@playwright/test'
@@ -7,10 +8,15 @@ import type { VillageText } from '@content/types/world'
 import { worldSet } from '@content/world'
 import { village as villageJa } from '@content/ja/village'
 import { village as villageKo } from '@content/ko/village'
+// 段階ごとの待ち時間は lib 側の定数が正本。ここに秒数を書き写すと片方だけ動いた時に気付けない
+import { FISHING_BITE_MS, FISHING_CAST_MS, FISHING_LAND_MS } from '@/lib/village/fishing'
 // 村を開く手順・歩きの間合い・描画待ちは journey.spec と共用。正本は village.helpers.ts
 import { HOLD_MS, SETTLE_MS, openVillage, settleRender } from './village.helpers'
 
 type Journey = { prefix: string; text: VillageText }
+
+// 遅いランナーでは描画とタイマーの発火が少し後ろへずれる。待ち時間の定数にこの分だけ上乗せする
+const SLACK_MS = 3_000
 
 const JOURNEYS: Journey[] = [
   { prefix: '', text: villageJa },
@@ -73,22 +79,43 @@ for (const { prefix, text } of JOURNEYS) {
     expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 5, y: 13 } })
     const dialog = page.getByRole('dialog')
     const speech = page.getByRole('status')
+    // 水面に出る 1 枚(浮き → 巻物)と、竿を持つコマに変わる主人公
+    const float = page.locator('[data-village-float]')
+    const player = page.locator('[data-village-player]')
     await page.keyboard.press('e')
     await expect(dialog.getByRole('heading', { name: fishing.prompt })).toBeVisible()
     await expect(dialog).toContainText(fishing.lure)
+    // 確認窓の間はまだ何も投げていないので水面は空のまま
+    await expect(float).toHaveCount(0)
     // 確認窓の「次へ」が釣り糸を投げる手
     await dialog.getByRole('button', { name: fishing.go }).click()
     await expect(dialog).toHaveCount(0)
     await expect(speech).toContainText(fishing.cast)
+    // 投げた先の水のマスに浮きが出て、主人公は歩行コマから竿を持つコマへ変わる
+    await expect(float).toHaveAttribute('data-phase', 'casting')
+    await expect(player).toHaveAttribute('data-sprite', 'player-fish-down')
     // 投げている間は窓が無くても移動が止まる(押しても保存された位置が変わらない)
     await walk(page, 'ArrowUp', 1)
     expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 5, y: 13 } })
-    await expect(speech).toContainText(fishing.bite, { timeout: 5_000 })
-    // 釣れた中身は機能一覧から選ぶので題は決まらない。場所名で結果窓だと分かる
-    await expect(dialog).toContainText(fishing.caughtPlace, { timeout: 5_000 })
+    // かかると浮きが沈む絵へ差し替わる
+    await expect(speech).toContainText(fishing.bite, { timeout: FISHING_CAST_MS + SLACK_MS })
+    await expect(float).toHaveAttribute('data-phase', 'bite')
+    // そのあと巻物が水から跳ね、浮いている間だけ会話窓が「釣り上げた」に変わる。
+    // 機能は複数あるので 1 匹目で全部は揃わない(揃った時だけ complete が出る)
+    await expect(float).toHaveAttribute('data-phase', 'landing', {
+      timeout: FISHING_BITE_MS + SLACK_MS,
+    })
+    await expect(speech).toContainText(fishing.landed)
+    // 釣れた中身は機能一覧から選ぶので題は決まらない。場所名で結果窓だと分かる。
+    // 巻物は窓の裏に残したままにする
+    await expect(dialog).toContainText(fishing.caughtPlace, { timeout: FISHING_LAND_MS + SLACK_MS })
+    await expect(float).toHaveAttribute('data-phase', 'caught')
     await dialog.getByRole('button', { name: text.close }).click()
     await expect(dialog).toHaveCount(0)
-    // 閉じれば錠が外れ、また歩ける
+    // 閉じれば水面が片付き、主人公も歩行コマ(下向きの待ち)へ戻る
+    await expect(float).toHaveCount(0)
+    await expect(player).toHaveAttribute('data-sprite', 'player-down-0')
+    // 錠も外れ、また歩ける
     await walk(page, 'ArrowUp', 1)
     expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 5, y: 12 } })
   })
