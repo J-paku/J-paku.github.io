@@ -10,7 +10,8 @@ import type { VillageActions } from '../use-village-input'
 import { useVillageHint } from './use-village-hint'
 import { useVillageTravel } from './use-village-travel'
 
-type Mode = 'walk' | 'talk' | 'map'
+// clock は卓上時計の設定窓(action: 'clock' の地点)。talk と同じく移動を止めるが、訪問数には数えない
+type Mode = 'walk' | 'talk' | 'map' | 'clock'
 
 export type VillageOverlayOptions = {
   worldSet: WorldSet
@@ -44,6 +45,8 @@ type UseVillageOverlay = {
   travel: (spotId: string) => void
   // 話せる相手がいない所で話しかけた時の一言。無ければ null
   hintText: string | null
+  // 会話窓(role='status')の一言を差し替える手。時計の設定窓が結果を伝えるのに使う
+  announce: (message: string) => void
 }
 
 export function useVillageOverlay({
@@ -95,6 +98,11 @@ export function useVillageOverlay({
     lockedRef.current = true
     heldRef.current = null
     pendingRouteRef.current = null
+    // 時計の地点は会話窓ではなく設定窓。コース外なので visited にも入れない
+    if (spot.action === 'clock') {
+      setMode('clock')
+      return
+    }
     setMode('talk')
     if (visitedRef.current.has(spot.id)) return
     const marked = new Set(visitedRef.current)
@@ -116,6 +124,7 @@ export function useVillageOverlay({
   ])
 
   const closeOverlay = useCallback(() => {
+    // 完走の演出は会話窓を閉じた時だけ。時計の設定窓・地図はここを通っても数えない
     const wasTalk = mode === 'talk'
     lockedRef.current = false
     setMode('walk')
@@ -179,5 +188,6 @@ export function useVillageOverlay({
     goNext,
     travel,
     hintText,
+    announce: setSpeech,
   }
 }

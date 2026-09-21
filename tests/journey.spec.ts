@@ -473,6 +473,78 @@ for (const { prefix, text, settings } of JOURNEYS) {
     )
   })
 
+  test(`Z で話しかけ、会話中の Z で次の地点へ進み、X で閉じる (${label})`, async ({ page }) => {
+    await openVillage(page, prefix)
+    await expect(page.locator('[data-village-bubble]')).toBeVisible()
+    // Z / X は A / B ボタンと同じ。キー配置に依らず event.code で読むので code 名で押す
+    await page.keyboard.press('KeyZ')
+    const dialog = page.getByRole('dialog')
+    const title = dialog.getByRole('heading', { name: home.title })
+    await expect(title).toBeVisible()
+    // 焦点が見出し(本文)にある間の Z は次へボタンと同じ。自動で歩いた先で名刺工房の会話が開く
+    await expect(title).toBeFocused()
+    await page.keyboard.press('KeyZ')
+    await expect(dialog.getByRole('heading', { name: meishi.title })).toBeVisible({
+      timeout: 10_000,
+    })
+    await page.keyboard.press('KeyX')
+    await expect(dialog).toHaveCount(0)
+  })
+
+  test(`上キーを押し続けると閉じるから見出しまで戻り、本文も巻き戻る (${label})`, async ({
+    page,
+  }) => {
+    // PC 原寸の枠(640×576)だと自宅の本文が窓に収まり、巻き戻す余地が残らないことがある。
+    // 高さを詰めて枠ごと縮め、本文を必ずあふれさせる
+    await page.setViewportSize({ width: 1280, height: 480 })
+    await openVillage(page, prefix)
+    await page.keyboard.press('e')
+    const dialog = page.getByRole('dialog')
+    const panel = dialog.locator('[data-village-panel]')
+    const title = dialog.getByRole('heading', { name: home.title })
+    const next = dialog.getByRole('button', { name: home.next })
+    const close = dialog.getByRole('button', { name: text.close })
+    await expect(title).toBeFocused()
+    await scrollPanelToBottom(page, panel)
+    await expect(next).toBeFocused()
+    // 窓の中の焦点の移り先と時刻を控える(見出しは 'heading'、ボタンは文言)。
+    // 見出しに着いた後で、戻りが毎フレームではなく間隔を置いて進んだかを読む
+    type FocusLog = [string, number][]
+    type FocusLogWindow = Window & { focusLog?: FocusLog }
+    await dialog.evaluate(root => {
+      const log: FocusLog = []
+      const host: FocusLogWindow = window
+      host.focusLog = log
+      root.addEventListener('focusin', event => {
+        const target = event.target
+        if (!(target instanceof HTMLElement)) return
+        const name =
+          target instanceof HTMLHeadingElement ? 'heading' : (target.textContent ?? '').trim()
+        log.push([name, performance.now()])
+      })
+    })
+    // 進む向きは押した瞬間の 1 つだけ。右で閉じるへ
+    await page.keyboard.down('ArrowRight')
+    await expect(close).toBeFocused()
+    await page.keyboard.up('ArrowRight')
+    const before = await panel.evaluate(el => el.scrollTop)
+    expect(before).toBeGreaterThan(0)
+    // 上を押したまま離さない。閉じる → 次へ → 見出しと間隔を置いて戻り、見出しに着いた後は
+    // 押し直さなくても本文が上へ巻き戻る
+    await page.keyboard.down('ArrowUp')
+    await expect(title).toBeFocused()
+    // 1 つずつ戻り、次へから見出しまで FOCUS_BACK_REPEAT_MS(300ms)待つ。250ms はフレームの揺れを
+    // 差し引いた下限で、毎フレーム遡る壊れ方はここで落ちる
+    const focusLog = await page.evaluate(() => {
+      const host: FocusLogWindow = window
+      return host.focusLog ?? []
+    })
+    expect(focusLog.map(([name]) => name)).toEqual([text.close, home.next, 'heading'])
+    expect(focusLog[2][1] - focusLog[1][1]).toBeGreaterThanOrEqual(250)
+    await expect.poll(() => panel.evaluate(el => el.scrollTop)).toBeLessThan(before)
+    await page.keyboard.up('ArrowUp')
+  })
+
   test.describe(`A/B ボタン (${label})`, () => {
     test.use({ viewport: { width: 390, height: 664 }, isMobile: true, hasTouch: true })
 
@@ -575,20 +647,69 @@ for (const { prefix, text, settings } of JOURNEYS) {
       await page.waitForTimeout(50)
       await page.mouse.move(x + 30, y)
       await expect(close).toBeFocused()
+      // 戻る向きは押し続けると 300ms ごとにもう 1 つ遡る。押した瞬間の 1 つを 2 フレームで
+      // 処理させてから手を離し、確かめる側の待ち時間で焦点が見出しまで流れないようにする
+      const waitTwoFrames = () =>
+        page.evaluate(
+          () =>
+            new Promise<void>(resolve => {
+              requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+            })
+        )
       await page.mouse.move(x - 30, y)
-      await expect(next).toBeFocused()
+      await waitTwoFrames()
+      await page.mouse.move(x, y)
       await page.mouse.up()
+      await expect(next).toBeFocused()
       await page.keyboard.down('ArrowRight')
       await expect(close).toBeFocused()
       await page.keyboard.up('ArrowRight')
       await page.keyboard.down('ArrowLeft')
-      await expect(next).toBeFocused()
+      await waitTwoFrames()
       await page.keyboard.up('ArrowLeft')
+      await expect(next).toBeFocused()
       await page.waitForTimeout(50)
       await page.keyboard.down('ArrowLeft')
       await expect(title).toBeFocused()
       await expect.poll(() => panel.evaluate(el => el.scrollTop)).toBe(0)
       await page.keyboard.up('ArrowLeft')
+    })
+
+    test(`スティックの上を押し続けると閉じるから見出しまで戻り、本文も巻き戻る`, async ({
+      page,
+    }) => {
+      await openVillage(page, prefix)
+      await page.getByRole('button', { name: text.buttonA }).tap()
+      const dialog = page.getByRole('dialog')
+      const panel = dialog.locator('[data-village-panel]')
+      const title = dialog.getByRole('heading', { name: home.title })
+      const next = dialog.getByRole('button', { name: home.next })
+      const close = dialog.getByRole('button', { name: text.close })
+      await expect(title).toBeFocused()
+      const stick = await page.getByRole('application', { name: text.joystick }).boundingBox()
+      if (stick === null) throw new Error('スティックが無い')
+      const x = stick.x + stick.width / 2
+      const y = stick.y + stick.height / 2
+      await page.mouse.move(x, y)
+      await page.mouse.down()
+      // 右を押し続けて本文を下端まで送り、次へボタンへ焦点を渡す
+      await page.mouse.move(x + 30, y)
+      await expect(next).toBeFocused({ timeout: 10_000 })
+      // 進む向きは押した瞬間の 1 つだけなので、中央へ戻してから右を押し直して閉じるへ
+      await page.mouse.move(x, y)
+      await page.waitForTimeout(50)
+      await page.mouse.move(x + 30, y)
+      await expect(close).toBeFocused()
+      await page.mouse.move(x, y)
+      await page.waitForTimeout(50)
+      const before = await panel.evaluate(el => el.scrollTop)
+      expect(before).toBeGreaterThan(0)
+      // 上へ倒したまま離さない。閉じる → 次へ → 見出しと間隔を置いて戻り、見出しに着いた後は
+      // 倒し直さなくても本文が上へ巻き戻る
+      await page.mouse.move(x, y - 30)
+      await expect(title).toBeFocused()
+      await expect.poll(() => panel.evaluate(el => el.scrollTop)).toBeLessThan(before)
+      await page.mouse.up()
     })
   })
 

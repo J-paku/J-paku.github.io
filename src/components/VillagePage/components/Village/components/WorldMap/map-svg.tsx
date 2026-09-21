@@ -41,12 +41,96 @@ const STRUCTURE_COLORS = {
   stele: '#9a9a8c',
   lamp: '#c9a13c',
   campfire: '#c9843e',
+  clock: '#8a6a3a',
 } as const
 
 function structureColor(structure: Structure) {
   if (structure.kind === 'house') return STRUCTURE_COLORS[`house-${structure.roof}`]
 
   return STRUCTURE_COLORS[structure.kind]
+}
+
+// 会話地点の印。訪問済みの緑は地図の草(#6bb36a)と紛れないよう濃くする
+const MARKER_COLORS = {
+  visited: '#2f9e44',
+  unvisited: '#1a1a18',
+  plate: '#fff',
+  plateEdge: '#1a1a18',
+} as const
+
+// 7×7 のドット絵。フォント依存で滲むため <text> は使わず '#' の位置に rect を置く
+const CHECK_GLYPH: readonly string[] = [
+  '.......',
+  '.....##',
+  '....##.',
+  '##.##..',
+  '.###...',
+  '..##...',
+  '.......',
+]
+
+// 「?」は下敷きの縁と同じ黒なので、左右 1 ドットを空けて縁と繋がらないようにする
+const QUESTION_GLYPH: readonly string[] = [
+  '..###..',
+  '.##.##.',
+  '....##.',
+  '...##..',
+  '...##..',
+  '.......',
+  '...##..',
+]
+
+const GLYPH_CELLS = 7
+// 字の周りを 1 ドットずつ広げた白い下敷き(縁の黒 1 ドットを含めて 9 ドット角)
+const PLATE_CELLS = GLYPH_CELLS + 2
+
+type SpotMarkerProps = {
+  cell: Cell
+  scale: number
+  visited: boolean
+}
+
+function SpotMarker({ cell, scale, visited }: SpotMarkerProps) {
+  // 1 ドットの辺。縮尺 4 なら 1px(字 7px・下敷き 9px)、縮尺 16 なら 3px(字 21px・下敷き 27px)
+  const dot = Math.max(1, Math.round(scale / 5))
+  const glyphSize = GLYPH_CELLS * dot
+  const plateSize = PLATE_CELLS * dot
+  // 地点マスの中心に置く。ドットの格子がずれないよう整数へ丸める
+  const left = Math.round(cell.x * scale + scale / 2 - glyphSize / 2)
+  const top = Math.round(cell.y * scale + scale / 2 - glyphSize / 2)
+  const glyph = visited ? CHECK_GLYPH : QUESTION_GLYPH
+  const inkColor = visited ? MARKER_COLORS.visited : MARKER_COLORS.unvisited
+
+  return (
+    <g>
+      <rect
+        x={left - dot}
+        y={top - dot}
+        width={plateSize}
+        height={plateSize}
+        fill={MARKER_COLORS.plateEdge}
+      />
+      <rect x={left} y={top} width={glyphSize} height={glyphSize} fill={MARKER_COLORS.plate} />
+      {glyph.flatMap((row, rowIndex) =>
+        row
+          .split('')
+          .flatMap((pixel, colIndex) =>
+            pixel === '#'
+              ? [
+                  <rect
+                    key={`${colIndex}-${rowIndex}`}
+                    x={left + colIndex * dot}
+                    y={top + rowIndex * dot}
+                    width={dot}
+                    height={dot}
+                    fill={inkColor}
+                  />,
+                ]
+              : []
+          )
+      )}
+    </g>
+  )
 }
 
 export function MapSvg({ world, scale, visited, player, destination, spotIds }: MapSvgProps) {
@@ -105,16 +189,7 @@ export function MapSvg({ world, scale, visited, player, destination, spotIds }: 
       {world.spots
         .filter(spot => visibleSpotIds.has(spot.id))
         .map(spot => (
-          <rect
-            key={spot.id}
-            x={spot.cell.x * scale}
-            y={spot.cell.y * scale}
-            width={scale}
-            height={scale}
-            fill={visited.has(spot.id) ? '#1a1a18' : '#fff'}
-            stroke='#1a1a18'
-            strokeWidth={visited.has(spot.id) ? 0 : 1}
-          />
+          <SpotMarker key={spot.id} cell={spot.cell} scale={scale} visited={visited.has(spot.id)} />
         ))}
       {destination ? (
         <rect

@@ -26,6 +26,7 @@ type StructureKey =
   | 'robot'
   | 'mailbox'
   | 'campfire'
+  | 'clock'
   | 'monument-tl'
   | 'monument-tr'
   | 'monument-bl'
@@ -356,6 +357,29 @@ const campfire: PixelArt = [
   '....bkkkEEEb....',
   'xssxbEEEkkkbxssx',
   'xSSxxssxxssxxSSx',
+]
+
+// 卓上時計(1 マス)。下 2/3 が木の小机(天板 e・前縁 E・脚)で、その上に 8×6 の時計を載せる。
+// 時計の身はクリーム(h・H)、液晶は黒(a)で、表示の数字だけ灯り用の文字(6・7)にする。
+// 夜用の差し替えは作らない — 数字が palette-phase.ts で発光色へ変わり、机と身は闇に沈む。
+// 背景は透明('.')のまま。床の色(p)で塗ると部屋の床の縞模様がこのマスだけ消える(机 desk と同じ扱い)
+const clock: PixelArt = [
+  '....xxxxxxxx....',
+  '....xhhhhhhx....',
+  '....xaaaaaax....',
+  '....x67aa67x....',
+  '....xhhhhhhx....',
+  '....xHHHHHHx....',
+  '.xxxxxxxxxxxxxx.',
+  '.xeeeeeeeeeeeex.',
+  '.xeeeeeeeeeeeex.',
+  '.xEEEEEEEEEEEEx.',
+  '.xxxxxxxxxxxxxx.',
+  '..xeEx....xeEx..',
+  '..xeEx....xeEx..',
+  '..xeEx....xeEx..',
+  '..xeEx....xeEx..',
+  '..xxxx....xxxx..',
 ]
 
 // 経歴碑 2×2(32×32)。石の二段台座に木の額を立て、頭に金の星、背に月桂樹と白い花を添える。
@@ -721,6 +745,7 @@ export const structureArt: Record<StructureKey, PixelArt> = {
   robot,
   mailbox: mailboxWithLeds(mailbox, false),
   campfire,
+  clock,
   'monument-tl': cut(monument, 0, 0),
   'monument-tr': cut(monument, 1, 0),
   'monument-bl': cut(monument, 0, 1),

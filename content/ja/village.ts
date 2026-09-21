@@ -5,7 +5,7 @@ export const village: VillageText = {
   intro:
     'フロントエンド / プロダクトエンジニアJ-Pakuのポートフォリオ。5か所を歩いて回ると、私がどんな問題を解くのかが分かります。',
   promise: '1分・5か所・代表作3つ',
-  hint: '矢印キー・WASDで移動、Eで話す、Mで地図',
+  hint: '矢印キー・WASDで移動、Zで話す・Xで閉じる、Mで地図',
   hintTouch: 'スティックで移動、Aで話す、右下の地図をタップで移動',
   noTarget: '近くに話せる相手がいない。扉や建物を探してみよう',
   arriveAt: '{place}の前です。話を聞きますか?',
@@ -26,6 +26,28 @@ export const village: VillageText = {
   buttonA: '決定',
   buttonB: 'キャンセル',
   joystick: '移動スティック',
+  // 卓上時計の設定窓(action: 'clock' の地点)。会話窓ではなくこの文言を使う
+  clock: {
+    place: '卓上時計',
+    arrive: '机の上に時計が置いてある。',
+    talk: '時間を設定する',
+    prompt: '時計が置かれている。時間を設定しますか?',
+    realtime: '現在時間',
+    custom: 'カスタム時間',
+    cancel: 'やめる',
+    setRealtime: '現在時間に設定しました。ポートフォリオ村の時間が現在時間基準に変わります。',
+    customIntro: 'カスタム時間を設定します。村の時間帯を直接変更できます。',
+    pick: '時間を選んでください。',
+    hourLabel: '時',
+    minuteLabel: '分',
+    prevHour: '1時間戻す',
+    nextHour: '1時間進める',
+    prevMinute: '10分戻す',
+    nextMinute: '10分進める',
+    decide: '決定',
+    setCustom: 'カスタム時間を設定しました。ポートフォリオ村の時間が {time} に変更されます。',
+    cancelled: '設定を取り消しました。',
+  },
   stops: {
     home: {
       place: 'PC',

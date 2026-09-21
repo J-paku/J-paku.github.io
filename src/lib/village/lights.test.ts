@@ -163,6 +163,7 @@ const SAMPLES: Record<Structure['kind'], Structure> = {
   stele: { id: 'stele', kind: 'stele', cell: { x: 1, y: 1 } },
   lamp: { id: 'lamp', kind: 'lamp', cell: { x: 1, y: 1 } },
   campfire: { id: 'campfire', kind: 'campfire', cell: { x: 1, y: 1 } },
+  clock: { id: 'clock', kind: 'clock', cell: { x: 1, y: 1 } },
 }
 
 // その種類の絵が灯り用の文字を 1 つでも使うか。種類 → スプライトの鍵の対応は facadeCells が

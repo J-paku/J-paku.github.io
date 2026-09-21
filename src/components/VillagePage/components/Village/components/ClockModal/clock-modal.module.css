@@ -1,0 +1,227 @@
+/* 卓上時計の設定窓。村の枠の中に重ね、下の帯(会話窓・ミニマップ)は覆わずその上だけを暗くする。
+   会話窓(SpeechBox・z 3)・ミニマップ(z 4)より下、地点の窓(StopModal)と同じ z 2 に置き、
+   人物・目印(world 層)より上に出す。
+   村の窓は時刻にもテーマにも連動しない白地と黒線で固定する。線と文字は舞台(village-page.module.css)が
+   配る --pad-line / --pad-ink を借り、読み物の地だけをここで決める(--pad-face は半透明で本文の地にできない) */
+.overlay {
+  --clock-face: #fff;
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  bottom: max(76px, calc(var(--minimap-h, 0px) + 16px));
+  background: color-mix(in srgb, var(--color-scrim) 76%, transparent);
+  /* 窓の端まで触ってもページ側へスクロールの慣性が抜けないようにする */
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
+/* 枠いっぱいの箱に中央寄せで置く。フェードだけで、拡大・縮小はしない */
+.pop {
+  display: flex;
+  position: absolute;
+  padding: 8px;
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+  animation: fade 120ms ease-out;
+}
+
+.box {
+  display: flex;
+  box-sizing: border-box;
+  width: min(100%, 420px);
+  max-height: 100%;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 18px 20px;
+  border: 3px solid var(--pad-line);
+  border-radius: 0;
+  box-shadow:
+    inset 0 0 0 2px var(--clock-face),
+    inset 0 0 0 3px var(--pad-line);
+  background: var(--clock-face);
+  color: var(--pad-ink);
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pop {
+    animation: none;
+  }
+}
+
+.title {
+  margin: 0 0 12px;
+  font: 600 20px/1.3 var(--f-label);
+}
+
+.lead {
+  margin: 0 0 10px;
+  font: 400 15px/1.6 var(--f-body);
+  /* 日本語は PhraseText の <wbr> でのみ折り返す。anywhere ではなく break-word を非常口にする */
+  line-break: strict;
+  overflow-wrap: break-word;
+}
+
+/* 時と分の針。矢印で 1 時間・10 分ずつ動かす */
+.dial {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin: 4px 0 16px;
+}
+
+.unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.unitLabel {
+  font: 500 12px/1.4 var(--f-label);
+}
+
+.spin {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 指で押せる最小の大きさ(36px)を下限にする */
+.step {
+  display: inline-flex;
+  min-width: 36px;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 0;
+  border: 3px solid var(--pad-line);
+  border-radius: 0;
+  background: var(--clock-face);
+  color: var(--pad-ink);
+  font: 500 14px/1 var(--f-label);
+  cursor: pointer;
+}
+
+/* 矢印は情報を持たない飾りなので、要素ではなく疑似要素で描く */
+.step::before {
+  content: attr(data-glyph);
+}
+
+.value {
+  display: inline-block;
+  min-width: 52px;
+  font: 700 28px/1.2 var(--f-mono);
+  text-align: center;
+}
+
+.actions {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.actions > button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 7px 12px;
+  border: 3px solid var(--pad-line);
+  border-radius: 0;
+  box-shadow:
+    inset 0 0 0 2px var(--clock-face),
+    inset 0 0 0 3px var(--pad-line);
+  background: var(--clock-face);
+  color: var(--pad-ink);
+  font: 500 14px/1.4 var(--f-label);
+  cursor: pointer;
+}
+
+/* :focus-visible ではなく :focus で描く。段階が変わった先の焦点は focus() で移すので、
+   ポインタ由来と見なされて :focus-visible に入らないことがある */
+.actions > button:focus,
+.step:focus {
+  outline: 2px solid var(--pad-line);
+  outline-offset: 2px;
+}
+
+/* 狭い画面では文字と余白を詰める */
+@media (max-width: 520px) {
+  .overlay {
+    bottom: max(48px, calc(var(--minimap-h, 0px) + 12px));
+  }
+  .pop {
+    padding: 4px;
+  }
+  .box {
+    padding: 12px 14px;
+  }
+  .title {
+    margin: 0 0 8px;
+    font-size: 18px;
+  }
+  .lead {
+    font-size: 13px;
+  }
+  .value {
+    font-size: 24px;
+  }
+  .actions > button {
+    min-height: 36px;
+    padding: 5px 10px;
+    font-size: 13px;
+  }
+}
+
+/* 縦持ちの端末では枠が画面の半分にも満たないので、枠を離れて画面全体に広げる。
+   帯(スティック・A/B)は覆わない。--band は帯の上端までの距離なので、A は決定、
+   B は閉じるとして使えるように帯の上で止まる。上の 520px 向けの詰めより後に置いて上書きする */
+@media (pointer: coarse) and (orientation: portrait) {
+  .overlay {
+    position: fixed;
+    /* 歯車(100)・四隅の導線(50)より上に出す */
+    z-index: 110;
+    inset: 0;
+    bottom: var(--band, 0px);
+    background: var(--color-scrim);
+  }
+  .pop {
+    padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+      max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  }
+  .box {
+    width: min(100%, 460px);
+    padding: 18px 20px;
+  }
+  .title {
+    margin: 0 0 12px;
+    font-size: 22px;
+  }
+  .lead {
+    font-size: 16px;
+  }
+  .value {
+    font-size: 30px;
+  }
+  .step {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .actions > button {
+    min-height: 44px;
+    padding: 7px 14px;
+    font-size: 15px;
+  }
+}

@@ -9,10 +9,13 @@
 export const DAY_PHASES = ['dawn', 'day', 'dusk', 'night'] as const
 export type DayPhase = (typeof DAY_PHASES)[number]
 
-export const dayPhaseAt = (now: Date): DayPhase => {
-  const jstHour = (now.getUTCHours() + 9) % 24
-  if (jstHour >= 5 && jstHour < 7) return 'dawn'
-  if (jstHour >= 7 && jstHour < 17) return 'day'
-  if (jstHour >= 17 && jstHour < 19) return 'dusk'
+// 村の時刻(0〜23時)から段階を決める判定式の正本。実時刻と机上時計(利用者が一時的に
+// 時刻を動かす仕掛け)で別々のしきい値を持たないよう、時だけを受け取る形にして1本に寄せてある
+export const dayPhaseAtHour = (hour: number): DayPhase => {
+  if (hour >= 5 && hour < 7) return 'dawn'
+  if (hour >= 7 && hour < 17) return 'day'
+  if (hour >= 17 && hour < 19) return 'dusk'
   return 'night'
 }
+
+export const dayPhaseAt = (now: Date): DayPhase => dayPhaseAtHour((now.getUTCHours() + 9) % 24)

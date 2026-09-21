@@ -26,6 +26,7 @@ export type RoofColor = 'red' | 'blue'
 // monument: cell(左上)から 2×2(経歴碑)、stele: cell(上のマス)から縦 1×2(コードのみ対応、現状は未設置) — いずれも通行不可
 // lamp: cell(上のマス = 灯)から縦 1×2(下は柱) — 上下 2 マスとも通行不可
 // campfire: 1×1(ロボットの隣の焚き火) — 通行不可
+// clock: 1×1(自室の小机に載せた卓上時計) — 通行不可
 export type Structure =
   | {
       id: string
@@ -45,6 +46,7 @@ export type Structure =
   | { id: string; kind: 'stele'; cell: Cell }
   | { id: string; kind: 'lamp'; cell: Cell }
   | { id: string; kind: 'campfire'; cell: Cell }
+  | { id: string; kind: 'clock'; cell: Cell }
 // 会話地点。cell = 立ち位置(通行可)。order は 1 始まりのコース順(全ワールド通し)。
 // order が無い地点はコース外(次の地点・訪問数・完走判定からは除くが、話しかけ・地図表示・地図からの移動はできる)
 export type Spot = {
@@ -54,6 +56,9 @@ export type Spot = {
   cell: Cell
   facing: Direction
   order?: number
+  // 話しかけると会話窓ではなく時計の設定窓を開く地点。order は付けず、訪問数にも数えない。
+  // 文言は text.stops ではなく text.clock が持つ
+  action?: 'clock'
 }
 // ワープ。cell に到着するか、通行不可な cell(扉)へぶつかったら target のワールド・マス・向きへ移る
 export type Warp = {
@@ -97,6 +102,29 @@ export type StopText = {
   entries?: { logo: string; company: string; period: string; body: string }[] // 経歴などの一覧。logo は /logos/ 配下のパス。モーダルでは claim と proof の間に並べる
 }
 
+// 卓上時計の設定窓の文言。{time} は「18:00」のような時刻に置換
+export type ClockText = {
+  place: string // 地点名(吹き出し・読み上げ)
+  arrive: string // 時計の前に立った時の吹き出し
+  talk: string // 会話ボタン(A)の文言
+  prompt: string // 1次: 「時計が置かれている。時間を設定しますか?」
+  realtime: string // 選択肢: 現在時間
+  custom: string // 選択肢: カスタム時間
+  cancel: string // 選択肢: やめる
+  setRealtime: string // 結果: 現在時間に設定した
+  customIntro: string // 2次の見出し
+  pick: string // 「時間を選んでください。」
+  hourLabel: string // 時の読み上げ名
+  minuteLabel: string // 分の読み上げ名
+  prevHour: string // ◀(時を1つ戻す)の読み上げ名
+  nextHour: string // ▶(時を1つ進める)
+  prevMinute: string // 分を10分戻す
+  nextMinute: string // 分を10分進める
+  decide: string // 決定
+  setCustom: string // 結果: カスタム時間を設定した。{time} を置換
+  cancelled: string // 結果: 設定を取消した
+}
+
 export type VillageText = {
   intro: string // マップ上部の1行
   promise: string // 「1分・5か所・代表作3つ」の約束(intro の下)
@@ -122,4 +150,5 @@ export type VillageText = {
   buttonB: string // B ボタンの読み上げ名(キャンセル)
   joystick: string // 仮想スティックの読み上げ名(タッチ端末)
   stops: Record<string, StopText> // spot.id → 文言
+  clock: ClockText // 卓上時計の設定窓(action: 'clock' の地点の文言)
 }

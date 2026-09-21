@@ -5,7 +5,7 @@ export const village: VillageText = {
   intro:
     '프론트엔드 / 프로덕트 엔지니어 J-Paku의 포트폴리오. 걸어서 다섯 곳을 돌면 제가 어떤 문제를 푸는지 알 수 있습니다.',
   promise: '1분 · 5곳 · 대표 작업 3개',
-  hint: '방향키·WASD로 이동 · E로 대화 · M으로 지도',
+  hint: '방향키·WASD로 이동 · Z로 대화·X로 닫기 · M으로 지도',
   hintTouch: '스틱으로 이동 · A로 대화 · 오른쪽 아래 지도를 탭하면 이동',
   noTarget: '근처에 말 걸 곳이 없네. 문이나 건물을 찾아보자',
   arriveAt: '{place} 앞이에요. 이야기를 들어볼까요?',
@@ -26,6 +26,28 @@ export const village: VillageText = {
   buttonA: '선택',
   buttonB: '취소',
   joystick: '이동 스틱',
+  // 卓上時計の設定窓(action: 'clock' の地点)。会話窓ではなくこの文言を使う
+  clock: {
+    place: '책상시계',
+    arrive: '책상 위에 시계가 놓여 있다.',
+    talk: '시간 설정하기',
+    prompt: '책상시계가 놓여 있다. 시간을 설정하시겠습니까?',
+    realtime: '현재시간',
+    custom: '커스텀시간',
+    cancel: '그만두기',
+    setRealtime: '현재시간으로 설정했습니다. 포트폴리오 마을이 현재시간 기준으로 바뀝니다.',
+    customIntro: '커스텀시간을 설정합니다. 포트폴리오 마을의 시간대를 직접 바꿀 수 있습니다.',
+    pick: '시간을 선택해주세요.',
+    hourLabel: '시',
+    minuteLabel: '분',
+    prevHour: '1시간 뒤로',
+    nextHour: '1시간 앞으로',
+    prevMinute: '10분 뒤로',
+    nextMinute: '10분 앞으로',
+    decide: '결정',
+    setCustom: '커스텀시간을 설정했습니다. 포트폴리오 마을의 시간이 {time}(으)로 변경됩니다.',
+    cancelled: '설정을 취소했습니다.',
+  },
   stops: {
     home: {
       place: 'PC',

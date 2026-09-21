@@ -12,6 +12,10 @@ import { focusablesIn } from '../focusables'
 // 押しっぱなしの間、1フレームで動かす本文スクロール量(px)
 const SCROLL_STEP = 6
 
+// 戻る向き(上・左)を押しっぱなしにした間、焦点を1つ前へ移し直す間隔(ms)。人が枠の移りを見てから
+// 手を離すまで(反応はおよそ 0.2〜0.25 秒)より長くし、ボタンを1つずつ遡るのを目で追って止められるようにする
+const FOCUS_BACK_REPEAT_MS = 300
+
 // 下端判定の遊び(px)。scrollTop は小数を持つので、等号では下端に着いても一致しない
 const BOTTOM_SLACK = 1
 
@@ -37,14 +41,18 @@ export function useHeldScroll({
   // ジョイスティック・矢印キーの押しっぱなしで本文を送る。閉じたら(アンマウントで)止まる
   useEffect(() => {
     // 前フレームの方向。押した瞬間(前フレームと違う向き)だけを1回の操作として数える。
-    // 焦点送りはこの1回だけに反応させ、押しっぱなしで最後まで流れて行かないようにする。
+    // 前へ(下・右)の焦点送りはこの1回だけに反応させ、押しっぱなしで最後まで流れて行かないようにする。
     // 初期値は null ではなく今この瞬間の向き。次へで自動歩行している間も下を押し続けていると、
     // 開いた直後の1フレーム目が null → down を新しい押下と読み、いきなり焦点を渡してしまう
     let previous: Direction | null = scrollHeldRef.current
+    // 戻る向きで最後に焦点を移した rAF 時刻。押した瞬間の移動で置き、離す・向きを変えると空に戻す。
+    // 空の間は押しっぱなしでも遡らない(開く前から押されていた向きでは動かさない)
+    let backMovedAt: number | null = null
     let frame: number
 
-    // pressed は「今フレームが押した瞬間か」。下端到達時以外の焦点送りは押した瞬間だけ
-    const advance = (direction: 'up' | 'down', pressed: boolean) => {
+    // pressed は「今フレームが押した瞬間か」。下端到達時以外の前への焦点送りは押した瞬間だけ。
+    // now は rAF の時刻(ms)で、戻る焦点送りを繰り返す間隔を測る
+    const advance = (direction: 'up' | 'down', pressed: boolean, now: number) => {
       const panel = panelRef.current
       const dialog = dialogRef.current
       if (panel === null || dialog === null) return
@@ -56,11 +64,14 @@ export function useHeldScroll({
       // 焦点がボタン・リンクに移っている間は本文を送らない(下端で動かないうえ、
       // 焦点を移した拍子のスクロールと競合する)。上下はそのまま焦点の行き来に使う
       if (index >= 0) {
-        if (!pressed) return
         if (direction === 'down') {
-          focusables[Math.min(index + 1, focusables.length - 1)].focus()
+          if (pressed) focusables[Math.min(index + 1, focusables.length - 1)].focus()
           return
         }
+        // 戻る向きは押した瞬間にすぐ1つ、押し続ければ FOCUS_BACK_REPEAT_MS ごとにもう1つ遡る
+        const repeatDue = backMovedAt !== null && now - backMovedAt >= FOCUS_BACK_REPEAT_MS
+        if (!pressed && !repeatDue) return
+        backMovedAt = now
         // 先頭から上は本文へ戻す。押し続ければ次のフレームから本文が送られる。
         // preventScroll を付けないと見出しが見える位置まで本文が一気に巻き戻る
         if (index === 0) titleRef.current?.focus({ preventScroll: true })
@@ -79,12 +90,14 @@ export function useHeldScroll({
       if (direction === 'down' && isAtBottom(panel)) focusables[0]?.focus()
     }
 
-    const step = () => {
+    const step = (now: number) => {
       const direction = scrollHeldRef.current
       const pressed = direction !== null && direction !== previous
+      // 離した・向きを変えたら繰り返しの起点を捨て、次は押した瞬間から数え直す
+      if (direction !== previous) backMovedAt = null
       previous = direction
       if (direction !== null) {
-        advance(direction === 'down' || direction === 'right' ? 'down' : 'up', pressed)
+        advance(direction === 'down' || direction === 'right' ? 'down' : 'up', pressed, now)
       }
       frame = requestAnimationFrame(step)
     }
