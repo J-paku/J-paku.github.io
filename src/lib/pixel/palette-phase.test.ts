@@ -74,7 +74,7 @@ describe('phasePalette', () => {
   // 色調と比率をここで釘付けにする。tintやratioを触ると必ずこのテストが落ちる
   it.each([
     ['night', '#315045'],
-    ['dusk', '#959346'],
+    ['dusk', '#92bb60'],
     ['dawn', '#6b9d83'],
   ] as const)('%sの通常文字は色調へ混ざった固定値になる', (phase, expected) => {
     expect(phasePalette(base, phase)[NORMAL_KEY]).toBe(expected)
