@@ -31,8 +31,9 @@ type Tint = { readonly tint: string; readonly ratio: number }
 // フェーズごとの色調(目視調整しやすいよう数値だけをここに集約する)
 // 夜は #182848 の 0.55 では「曇った夕方」にしか見えなかったので、より暗く青い色へ深く混ぜる
 const NIGHT_TINT: Tint = { tint: '#101c38', ratio: 0.68 }
-// 夕方は橙のまま比率だけ上げ、日没の赤みをはっきり出す
-const DUSK_TINT: Tint = { tint: '#c05020', ratio: 0.4 }
+// 夕方は #c05020 の 0.4 だと草がオリーブ色へ振り切れて「秋の枯れ野」に見えたので、
+// 薄い金色へ浅く混ぜる。草は緑のまま、光だけ傾いた午後に見せる
+const DUSK_TINT: Tint = { tint: '#f0a860', ratio: 0.22 }
 // 明け方は紫(#5040a0)が強すぎて濁っていたので、青寄りの薄明色へ替えて比率を上げる
 const DAWN_TINT: Tint = { tint: '#5868b8', ratio: 0.4 }
 
