@@ -5,6 +5,7 @@ import type { RefObject } from 'react'
 import type { CareerFeature, CareerRole } from '@content/types/content'
 import type { Cell, Spot, StopText, VillageText, World, WorldSet } from '@content/types/world'
 import type { SheetLayout } from '@/lib/pixel/art'
+import { waterBubble } from '@/lib/village/fishing'
 import { nextSpot, talkAnchor } from '@/lib/village/spot'
 import { useVillageInput, type VillageActions, type VillageButtons } from './use-village-input'
 import { cameraOffset, useStageScale, VIEW_COLS, VIEW_ROWS } from './use-stage-scale'
@@ -75,11 +76,14 @@ type UseVillage = {
   talkAt: { x: number; y: number } | null
   talkText: string | null
   talkLabel: string | undefined
+  // 吹き出しの形。地点の会話はいつも台詞で、水辺だけ全部を釣り上げた後はボタンの無い考え事に替わる
+  talkKind: 'speech' | 'thought'
   // 話せる相手がいない時の考え事の吹き出し。2.5 秒で消える。位置は hintRef が毎フレーム追従する
   hintText: string | null
   mode: 'walk' | 'talk' | 'map' | 'clock' | 'fishing'
-  // 釣りの進み具合と、結果窓に出す文言、浮きを置く水のマス。出す物が無ければ stop は null
-  fishing: { phase: FishingPhase; stop: StopText | null; at: Cell | null }
+  // 釣りの進み具合と、結果窓に出す文言、浮きを置く水のマス、全部を釣り上げたか。
+  // 出す物が無ければ stop は null。exhausted の間は水辺の吹き出しが考え事になり、A を押しても投げない
+  fishing: { phase: FishingPhase; stop: StopText | null; at: Cell | null; exhausted: boolean }
   setHeld: VillageInput['setHeld']
   // 会話窓が開いている間の上下入力。StopModal が本文スクロールに読む
   scrollHeldRef: VillageInput['scrollHeldRef']
@@ -309,10 +313,13 @@ export function useVillage({
       : canFish
         ? { x: playerCell.x + 0.5, y: playerCell.y - 0.5 }
         : null
+  // 水辺の吹き出しの文言・ボタン・形。全部を釣り上げた後はボタンの無い考え事に替わる
+  const water = waterBubble(text.fishing, fishing.exhausted)
   const talkText =
-    activeSpot !== null ? arriveSpeech(text, activeSpot) : canFish ? text.fishing.prompt : null
+    activeSpot !== null ? arriveSpeech(text, activeSpot) : canFish ? water.text : null
   const talkLabel =
-    activeSpot !== null ? talkLabelOf(text, activeSpot) : canFish ? text.fishing.go : undefined
+    activeSpot !== null ? talkLabelOf(text, activeSpot) : canFish ? water.label : undefined
+  const talkKind = canFish ? water.kind : 'speech'
 
   return {
     rootRef,
@@ -339,6 +346,7 @@ export function useVillage({
     talkAt,
     talkText,
     talkLabel,
+    talkKind,
     hintText: canFish ? null : hintText,
     mode,
     fishing,

@@ -1,9 +1,9 @@
-// 釣りの規則 isFishingSpot・pickCatch・isCollectionComplete・catchToStop のテスト
+// 釣りの規則 isFishingSpot・pickCatch・isCollectionComplete・waterBubble・catchToStop のテスト
 import { vi } from 'vitest'
 import type { CareerFeature, CareerRole } from '@content/types/content'
 import type { Cell, FishingText, World } from '@content/types/world'
 import { isWalkable } from './collision'
-import { isFishingSpot, pickCatch, isCollectionComplete, catchToStop } from './fishing'
+import { isFishingSpot, pickCatch, isCollectionComplete, waterBubble, catchToStop } from './fishing'
 
 // server-only は Next.js のビルド境界専用ガードで、vitest(node 環境)では無条件に例外を投げる。
 // テストでは中身を持たない mock に差し替え、読み込み専用の @/lib/content/read を素通しにする
@@ -114,6 +114,7 @@ describe('isCollectionComplete', () => {
 const text: FishingText = {
   prompt: '釣りをしてみますか?',
   go: '釣る',
+  exhausted: 'もう釣れそうにない…',
   cast: '……',
   bite: '何かがかかった!',
   landed: '経験を釣り上げた!',
@@ -125,6 +126,23 @@ const text: FishingText = {
   caughtHook: 'もう一度投げてみてください。',
   caughtNext: '作品一覧へ',
 }
+
+describe('waterBubble', () => {
+  it('まだ釣り残しがあれば、prompt と「釣る」ボタンの話し吹き出し', () => {
+    expect(waterBubble(text, false)).toEqual({
+      text: '釣りをしてみますか?',
+      label: '釣る',
+      kind: 'speech',
+    })
+  })
+  it('全部を釣り上げた後は、ボタン無しの考え事の吹き出し', () => {
+    expect(waterBubble(text, true)).toEqual({
+      text: 'もう釣れそうにない…',
+      label: undefined,
+      kind: 'thought',
+    })
+  })
+})
 
 const roleLabels: Record<CareerRole, string> = {
   design: '設計',
@@ -155,6 +173,19 @@ describe('catchToStop', () => {
     const stop = catchToStop(caught, text, roleLabels)
     expect(stop.proof).toBe('使った技術: TypeScript')
     expect(stop.detail).toBe('担当した工程: 実装')
+  })
+  it('last を省けば hook は caughtHook のまま(false を渡したのと同じ)', () => {
+    const caught = feature('単独')
+    expect(catchToStop(caught, text, roleLabels).hook).toBe('もう一度投げてみてください。')
+    expect(catchToStop(caught, text, roleLabels, false)).toEqual(
+      catchToStop(caught, text, roleLabels)
+    )
+  })
+  it('最後の 1 つ(last = true)は hook が空で、それ以外は普段と同じ', () => {
+    const caught = feature('単独')
+    const stop = catchToStop(caught, text, roleLabels, true)
+    expect(stop.hook).toBe('')
+    expect({ ...stop, hook: text.caughtHook }).toEqual(catchToStop(caught, text, roleLabels))
   })
 })
 

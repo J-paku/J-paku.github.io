@@ -129,6 +129,7 @@ export type ClockText = {
 export type FishingText = {
   prompt: string // 水辺の吹き出し
   go: string // 吹き出しのボタン「釣る」
+  exhausted: string // 全部を釣り上げた後、水辺で prompt の代わりに浮かぶ考え事の吹き出し(ボタン無し)
   cast: string // 投げた直後の会話窓「……」
   bite: string // 「何かがかかった!」
   landed: string // 釣り上げた瞬間の会話窓「経験を釣り上げた!」

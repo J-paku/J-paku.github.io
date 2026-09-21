@@ -1,10 +1,13 @@
 // 焼く前の絵そのものを検証する。寸法・使える色・継ぎ目の噛み合いなど、文字マトリクスだけで分かること
 import { describe, expect, it } from 'vitest'
 import { recolor, TILE, validateArt } from './art'
+import type { PixelArt } from './art'
 import { PLAYER_HEIGHT } from './actors'
+import { FISHING_LINES } from './fishing-art'
 import { palette } from './palette'
 import { buildPlayerSprites, buildSprites, PLAYER_ARTS, SPRITE_ARTS } from './sprites'
 import { charsOf, stitch } from './sprites.fixture'
+import type { Direction } from '@content/types/world'
 
 describe('SPRITE_ARTS', () => {
   it('地形・建物はすべて十六行十六列である', () => {
@@ -160,5 +163,131 @@ describe('PLAYER_ARTS', () => {
 
   it('主人公の背景が透明である', () => {
     for (const art of Object.values(PLAYER_ARTS)) expect(art.join('')).toContain('.')
+  })
+})
+
+describe('釣り糸', () => {
+  // 竿を構えたコマ・浮き・糸の 3 枚を、村と同じ置き方でドットの座標へ並べて確かめる。
+  // 座標は主人公が立つマスの左上を (0, 0) とするドット。主人公の絵は頭が半マス(8 行)上へはみ出し、
+  // 左向きは右向きの絵を scaleX(-1) で反転する(scene.module.css の .player と use-walk-loop.ts)。
+  // 重なりは下から糸・浮き・主人公の順(FishingFloat は糸を浮きより先に同じ高さで置き、
+  // 主人公はそれより上の高さ)なので、竿や体の下、浮きの下へ入った糸のドットは見えない
+  const FACED: Record<Direction, { x: number; y: number }> = {
+    up: { x: 0, y: -1 },
+    down: { x: 0, y: 1 },
+    left: { x: -1, y: 0 },
+    right: { x: 1, y: 0 },
+  }
+
+  // 浮きが沈む深さ(ドット)。当たりの合図(fishing-float.module.css の village-float-bite)は
+  // 0.12 マス ≈ 1.92 ドット下げる。格子に乗らない深さなので切り上げた 2 ドットで見る —
+  // 2 ドット沈めても離れなければ、それより浅い実際の沈みでも糸の端と浮きの糸は離れない。
+  // 動くのは当たりの浮きだけだが、投げた浮きも同じ深さまで確かめる
+  const SINKS = [0, 2] as const
+
+  // 絵の透明でないドットを「x,y → 文字」で返す。flip は 16 列の中で左右を入れ替える
+  const placeDots = (
+    art: PixelArt,
+    left: number,
+    top: number,
+    flip: boolean
+  ): Map<string, string> => {
+    const dots = new Map<string, string>()
+    art.forEach((row, y) => {
+      Array.from(row).forEach((ch, x) => {
+        if (ch !== '.') dots.set(`${left + (flip ? TILE - 1 - x : x)},${top + y}`, ch)
+      })
+    })
+    return dots
+  }
+
+  const xOf = (dot: string): number => Number(dot.split(',')[0])
+  const yOf = (dot: string): number => Number(dot.split(',')[1])
+
+  // 8 近傍(斜めも 1 本の線としてつながって見える)
+  const neighbors = (dot: string): string[] => {
+    const [x, y] = dot.split(',').map(Number)
+    return [-1, 0, 1]
+      .flatMap(dy => [-1, 0, 1].map(dx => `${x + dx},${y + dy}`))
+      .filter(near => near !== dot)
+  }
+
+  const inspect = (facing: Direction, float: 'bobber' | 'bobber-bite', sink: number) => {
+    const pose = PLAYER_ARTS[`player-fish-${facing === 'left' ? 'right' : facing}`]
+    const player = placeDots(pose, 0, -8, facing === 'left')
+    const bobber = placeDots(
+      SPRITE_ARTS[float],
+      FACED[facing].x * TILE,
+      FACED[facing].y * TILE + sink,
+      false
+    )
+    const placement = FISHING_LINES[facing]
+    const line = placeDots(
+      SPRITE_ARTS[placement.key],
+      placement.x * TILE,
+      placement.y * TILE,
+      placement.flip
+    )
+    const visibleLine = [...line.keys()].filter(dot => !player.has(dot) && !bobber.has(dot))
+    // 穂先は竿(e)の先端。下向きは足元の水へ下ろすので一番下、それ以外は立てるので一番上
+    const rod = [...player].filter(([, ch]) => ch === 'e').map(([dot]) => dot)
+    const [tip] = rod.sort((a, b) => (facing === 'down' ? yOf(b) - yOf(a) : yOf(a) - yOf(b)))
+    const floatLine = [...bobber].filter(([, ch]) => ch === 's').map(([dot]) => dot)
+    const floatColumn = new Set(floatLine.map(xOf))
+    // 穂先から、見えている糸と浮きの糸(s)だけを踏んでたどる
+    const path = new Set([...visibleLine, ...floatLine])
+    const reached = new Set([tip])
+    const queue = [tip]
+    for (let dot = queue.pop(); dot !== undefined; dot = queue.pop()) {
+      for (const near of neighbors(dot)) {
+        if (!path.has(near) || reached.has(near)) continue
+        reached.add(near)
+        queue.push(near)
+      }
+    }
+    return {
+      facing,
+      float,
+      sink,
+      // 見えている糸と浮きの糸が、穂先から途切れずに 1 本でつながる
+      connected: [...path].every(dot => reached.has(dot)),
+      // 浮きの玉や波紋(s 以外)の下へ潜ってよいのは浮きの糸の列だけ。そこは浮きが沈んだ瞬間に
+      // 現れて糸の続きになる。ほかの列の潜り込みは玉を横切って引いた描き間違いで、
+      // 止まっている間は玉に隠れて見えないので、ここで捕まえる
+      underBody: [...line.keys()].filter(
+        dot => (bobber.get(dot) ?? 's') !== 's' && !floatColumn.has(xOf(dot))
+      ),
+      // 2×2 が埋まっていない = 太さ 1 ドットのまま。糸の縦の部分が浮きの糸と 1 列ずれて
+      // 並ぶと、つながってはいても 2 列の太い糸に見える(左向きを右の単純な鏡像に置いたときがこれ)
+      thick: [...path].filter(dot => {
+        const [x, y] = dot.split(',').map(Number)
+        return [`${x + 1},${y}`, `${x},${y + 1}`, `${x + 1},${y + 1}`].every(near => path.has(near))
+      }),
+    }
+  }
+
+  it('4 向きとも、投げた浮きにもかかった浮きにも、沈んだ瞬間にも穂先から途切れずにつながる', () => {
+    const cases = (['up', 'down', 'left', 'right'] as const).flatMap(facing =>
+      (['bobber', 'bobber-bite'] as const).flatMap(float =>
+        SINKS.map(sink => ({ facing, float, sink }))
+      )
+    )
+
+    expect(cases.map(({ facing, float, sink }) => inspect(facing, float, sink))).toEqual(
+      cases.map(({ facing, float, sink }) => ({
+        facing,
+        float,
+        sink,
+        connected: true,
+        underBody: [],
+        thick: [],
+      }))
+    )
+  })
+
+  it('糸は浮きの糸と同じ 1 色だけで描く', () => {
+    for (const key of ['fishing-line-up', 'fishing-line-down', 'fishing-line-right'] as const) {
+      expect([...charsOf(SPRITE_ARTS[key])].sort().join(''), key).toBe('.s')
+    }
   })
 })

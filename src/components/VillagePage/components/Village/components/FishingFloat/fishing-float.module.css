@@ -1,8 +1,15 @@
-/* 釣りの水面に置く 1 枚の、重なりの高さと動きだけ。絵の切り出しは scene.module.css の
-   .sprite が持ち、色はスプライトシートの中にしかない(このファイルに色は書かない) */
+/* 釣りの水面に置く 1 枚(浮き・巻物)と糸の、重なりの高さと動きだけ。
+   絵の切り出しは scene.module.css の .sprite が持ち、色はスプライトシートの中にしかない
+   (このファイルに色は書かない) */
 .float {
   /* 目的地の印(scene.module.css の .marker)と同じ高さ。主人公(2)より下に沈め、
      竿を持つ体が常に浮きより手前へ来るようにする */
+  z-index: 1;
+  pointer-events: none;
+}
+/* 竿の先から浮きへ渡す糸。浮きと同じ高さで主人公の下に敷く(竿の下へ入った端は竿が隠す)。
+   左右反転と置き場所は FishingFloat がインラインで入れる */
+.line {
   z-index: 1;
   pointer-events: none;
 }
@@ -21,6 +28,13 @@
      秒数はここに書かず FishingFloat が --land-ms で渡す(lib 側と二重に持たない) */
   .float[data-float-phase='landing'] {
     animation: village-float-land var(--land-ms) ease-out both;
+  }
+  /* 投げた直後の主人公は振りかぶり・振り下ろしのコマで、竿の先が構えの位置に無い。
+     構えのコマへ戻るまで(FISHING_SWING_MS)糸を隠し、終われば見える状態に戻る。
+     秒数は FishingFloat が --swing-ms で渡す(主人公のコマを切り替える側と同じ定数)。
+     動きを控える設定では最初から構えのコマなので、この隠しも掛けない */
+  .line {
+    animation: village-line-wait var(--swing-ms);
   }
 }
 /* 動かすのは transform だけ。位置(left/top)はマスごとにインラインで入っているので触らない */
@@ -44,5 +58,12 @@
   }
   100% {
     transform: translateY(calc(var(--cell) * -0.4));
+  }
+}
+/* 始まりから終わりまで隠したまま。fill を付けないので、終われば元の見える状態へ戻る */
+@keyframes village-line-wait {
+  from,
+  to {
+    visibility: hidden;
   }
 }

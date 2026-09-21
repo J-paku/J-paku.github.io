@@ -2,6 +2,9 @@
 // 釣っている間は歩行コマではなく竿を持つコマを使う(向きの左右反転は歩行と同じ)
 import type { MoveState } from './movement'
 
+// 竿を振る時間(前半が振りかぶり)。振っている間は竿先が動くので、糸は FishingFloat がこの間だけ隠す
+export const FISHING_SWING_MS = 360
+
 export const playerPose = (
   state: MoveState,
   reduceMotion: boolean,
@@ -13,7 +16,11 @@ export const playerPose = (
   const direction = state.facing === 'left' ? 'right' : state.facing
   const frame = walking ? (!side && state.stride === 1 ? 2 : 1) : 0
   const castFrame =
-    reduceMotion || fishingElapsedMs >= 360 ? '' : fishingElapsedMs < 180 ? '-backswing' : '-cast'
+    reduceMotion || fishingElapsedMs >= FISHING_SWING_MS
+      ? ''
+      : fishingElapsedMs < FISHING_SWING_MS / 2
+        ? '-backswing'
+        : '-cast'
   return {
     key: fishing ? `player-fish-${direction}${castFrame}` : `player-${direction}-${frame}`,
     flip: state.facing === 'left',

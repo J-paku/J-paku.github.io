@@ -19,7 +19,8 @@ describe('時刻ごとのシート', () => {
   // 経歴碑を木の額へ描き直した後の昼のシート。街灯 2 枚・焚き火・卓上時計は従来通り外して比べる。
   // 後から足した素材を外したままにするのは、基準を焼き直さずに「既存のマスが 1 バイトも動いていない」
   // ことだけを言い続けるため(足すたびに基準を書き換えると、この検査は何も守らなくなる)。
-  // 釣りの小物(浮き・当たりの浮き・巻物)3 枚を足したので更新
+  // 釣りの小物(浮き・当たりの浮き・巻物)3 枚を足したので更新。
+  // 後から足した釣り糸 3 枚は、上の方針どおり外して比べる
   const BASELINE = { count: 56, length: 3542, sha256: 'd01b770a892c73ce' }
 
   // 主人公の昼のシートを焼いて取った実測値。主人公にも夜の双子ができたので、地形・建物と同じく
@@ -32,7 +33,12 @@ describe('時刻ごとのシート', () => {
   it('昼のシートは消灯レンズと経歴碑を含む基準画像と一致する', () => {
     const arts = Object.fromEntries(
       Object.entries(SPRITE_ARTS).filter(
-        ([key]) => key !== 'lamp-t' && key !== 'lamp-b' && key !== 'campfire' && key !== 'clock'
+        ([key]) =>
+          key !== 'lamp-t' &&
+          key !== 'lamp-b' &&
+          key !== 'campfire' &&
+          key !== 'clock' &&
+          !key.startsWith('fishing-line-')
       )
     )
     const sheet = buildSheet(arts, phasePalette(palette, 'day'))
