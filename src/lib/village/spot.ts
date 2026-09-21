@@ -13,10 +13,11 @@ const FACING: Record<Direction, Cell> = {
   right: { x: 1, y: 0 },
 }
 
-// 地点で向いている先のマス(話しかける相手の物が置いてある所)
-export const facedCell = (spot: Spot): Cell => ({
-  x: spot.cell.x + FACING[spot.facing].x,
-  y: spot.cell.y + FACING[spot.facing].y,
+// 向いている先のマス(地点なら話しかける相手の物が置いてある所)。
+// Spot に限らず歩いている最中の立ち位置と向きでも引けるよう、必要な 2 つだけを受け取る
+export const facedCell = (at: { cell: Cell; facing: Direction }): Cell => ({
+  x: at.cell.x + FACING[at.facing].x,
+  y: at.cell.y + FACING[at.facing].y,
 })
 
 // 吹き出しやモーダルを付ける相手の範囲。家は入口の列、家具は占有矩形。物が見つからなければ向いている 1 マス。

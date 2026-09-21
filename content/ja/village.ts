@@ -48,6 +48,21 @@ export const village: VillageText = {
     setCustom: 'カスタム時間を設定しました。ポートフォリオ村の時間が {time} に変更されます。',
     cancelled: '設定を取り消しました。',
   },
+  fishing: {
+    place: '池',
+    prompt: '釣りをしてみますか?',
+    lure: '水面が静かに揺れている。',
+    go: '釣る',
+    stop: 'やめる',
+    cast: '……',
+    bite: '何かがかかった!',
+    caughtPlace: '釣り上げた経験',
+    caughtClaim: '{date}に着手した、社内業務アプリの機能です。',
+    caughtTech: '使った技術: {tech}',
+    caughtRoles: '担当した工程: {roles}',
+    caughtHook: 'もう一度投げると、別の経験が釣れるかもしれません。',
+    caughtNext: '作品一覧へ',
+  },
   stops: {
     home: {
       place: 'PC',

@@ -125,6 +125,23 @@ export type ClockText = {
   cancelled: string // 結果: 設定を取消した
 }
 
+// 釣りの文言。確認窓・結果窓は StopModal(StopText)で出すので、その形へ写す元になる
+export type FishingText = {
+  place: string // 確認窓の場所名(池)
+  prompt: string // 確認窓の見出し「釣りをしてみますか?」
+  lure: string // 確認窓の一文(水面の様子)
+  go: string // 確認窓の次へボタン「釣る」
+  stop: string // 確認窓の閉じるボタン「やめる」
+  cast: string // 投げた直後の会話窓「……」
+  bite: string // 「何かがかかった!」
+  caughtPlace: string // 結果窓の場所名「釣り上げた経験」
+  caughtClaim: string // {date} を機能の着手時期に置換
+  caughtTech: string // {tech} を技術名(' / ' 区切り)に置換
+  caughtRoles: string // {roles} を担当工程名('・' 区切り)に置換
+  caughtHook: string // 結果窓の締めの一言
+  caughtNext: string // 結果窓の次へ(作品一覧へのリンク)
+}
+
 export type VillageText = {
   intro: string // マップ上部の1行
   promise: string // 「1分・5か所・代表作3つ」の約束(intro の下)
@@ -149,6 +166,7 @@ export type VillageText = {
   buttonA: string // A ボタンの読み上げ名(決定)
   buttonB: string // B ボタンの読み上げ名(キャンセル)
   joystick: string // 仮想スティックの読み上げ名(タッチ端末)
+  fishing: FishingText // 池での釣りの文言
   stops: Record<string, StopText> // spot.id → 文言
   clock: ClockText // 卓上時計の設定窓(action: 'clock' の地点の文言)
 }

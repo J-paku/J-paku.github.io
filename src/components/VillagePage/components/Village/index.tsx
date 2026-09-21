@@ -2,7 +2,7 @@
 // 状態と手は useVillage が組み立て、ここは受け取った値を枠・操作帯・重ね表示へ流し込むだけ
 'use client'
 import type { ReactNode } from 'react'
-import type { Locale } from '@content/types/content'
+import type { CareerFeature, CareerRole, Locale } from '@content/types/content'
 import type { VillageText, WorldSet } from '@content/types/world'
 import type { SheetLayout } from '@/lib/pixel/art'
 import ActionButtons from './components/ActionButtons'
@@ -39,6 +39,9 @@ type VillageProps = {
   stopHrefs: Record<string, string | null>
   stopExternal: Record<string, boolean>
   listHref: string
+  // 池で釣り上げる中身(現職の機能一覧)と、その工程の名前。文言は VillagePage が content から写す
+  catches: readonly CareerFeature[]
+  roleLabels: Record<CareerRole, string>
 }
 
 function Village({
@@ -52,6 +55,8 @@ function Village({
   stopHrefs,
   stopExternal,
   listHref,
+  catches,
+  roleLabels,
 }: VillageProps) {
   const phase = useDayPhase()
   const weather = useWeather()
@@ -82,6 +87,7 @@ function Village({
     talkLabel,
     hintText,
     mode,
+    fishing,
     setHeld,
     scrollHeldRef,
     onKeyDown,
@@ -93,13 +99,13 @@ function Village({
     openTalk,
     openMap,
     closeOverlay,
-    goNext,
     travel,
     hasNext,
+    onNext,
     pressA,
     pressB,
     announce,
-  } = useVillage({ worldSet, text, playerSprites })
+  } = useVillage({ worldSet, text, playerSprites, catches, roleLabels })
 
   const {
     outdoors,
@@ -112,6 +118,26 @@ function Village({
     locatorStyle,
     locatorSpriteStyle,
   } = initialView(world, sprites, playerSprites, reduceMotion)
+
+  // 会話窓に出す中身。地点の会話か釣りの窓かをここで 1 つに決め、StopModal は 1 か所だけで描く。
+  // 「次へ」の有無と行き先(hasNext・onNext)は A ボタンと共用するので use-village が持つ。
+  // 釣りの確認窓は閉じるが「やめる」になる(結果窓は地点と同じ文言)
+  const dialog =
+    mode === 'talk' && activeSpot !== null
+      ? {
+          stop: text.stops[activeSpot.id],
+          href: stopHrefs[activeSpot.id] ?? null,
+          external: stopExternal[activeSpot.id] ?? false,
+          closeLabel: text.close,
+        }
+      : mode === 'fishing' && fishing.stop !== null
+        ? {
+            stop: fishing.stop,
+            href: null,
+            external: false,
+            closeLabel: fishing.phase === 'confirm' ? text.fishing.stop : text.close,
+          }
+        : null
 
   return (
     // data-phase は VillagePage のインラインスクリプトが初回描画の前に書き換える。
@@ -217,17 +243,17 @@ function Village({
               屋内(自室・建物の中)は天井があるので降らせない */}
           {outdoors ? <Weather kind={weather} sheets={weatherSprites} /> : null}
           <SpeechBox text={speech} lang={lang} />
-          {mode === 'talk' && activeSpot !== null ? (
+          {dialog !== null ? (
             <StopModal
-              stop={text.stops[activeSpot.id]}
-              href={stopHrefs[activeSpot.id] ?? null}
-              external={stopExternal[activeSpot.id] ?? false}
+              stop={dialog.stop}
+              href={dialog.href}
+              external={dialog.external}
               lang={lang}
-              closeLabel={text.close}
+              closeLabel={dialog.closeLabel}
               hasNext={hasNext}
               listHref={listHref}
               scrollHeldRef={scrollHeldRef}
-              onNext={goNext}
+              onNext={onNext}
               onClose={closeOverlay}
               returnTo={frameRef}
             />
