@@ -78,8 +78,8 @@ type UseVillage = {
   // 話せる相手がいない時の考え事の吹き出し。2.5 秒で消える。位置は hintRef が毎フレーム追従する
   hintText: string | null
   mode: 'walk' | 'talk' | 'map' | 'clock' | 'fishing'
-  // 釣りの進み具合と、確認窓・結果窓に出す文言。出す物が無ければ stop は null
-  fishing: { phase: FishingPhase; stop: StopText | null; cast: () => void }
+  // 釣りの進み具合と、確認窓・結果窓に出す文言、浮きを置く水のマス。出す物が無ければ stop は null
+  fishing: { phase: FishingPhase; stop: StopText | null; at: Cell | null; cast: () => void }
   setHeld: VillageInput['setHeld']
   // 会話窓が開いている間の上下入力。StopModal が本文スクロールに読む
   scrollHeldRef: VillageInput['scrollHeldRef']
@@ -155,6 +155,8 @@ export function useVillage({
   const lockedRef = useRef(false)
   const actionsRef = useRef<VillageActions>(NO_ACTIONS)
   const buttonsRef = useRef<VillageButtons>(NO_BUTTONS)
+  // 釣っている間だけ true。重ね表示側が書き、歩行ループが毎フレーム読んで竿のコマへ差し替える
+  const fishingPoseRef = useRef(false)
 
   const {
     heldRef,
@@ -218,6 +220,7 @@ export function useVillage({
     autoTalkRef,
     lockedRef,
     heldRef,
+    fishingPoseRef,
     sprites: playerSprites,
     reduceMotion,
     arrive,
@@ -252,6 +255,7 @@ export function useVillage({
       lockedRef,
       actionsRef,
       heldRef,
+      fishingPoseRef,
     })
 
   // A/B は重ね表示の手(openTalk・goNext・closeOverlay)を使うので、その後に置く。

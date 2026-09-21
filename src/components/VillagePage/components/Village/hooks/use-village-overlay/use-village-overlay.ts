@@ -15,7 +15,7 @@ import type {
 } from '@content/types/world'
 import { isFishingSpot } from '@/lib/village/fishing'
 import type { MoveState } from '@/lib/village/movement'
-import { allSpots, type SpotRef } from '@/lib/village/spot'
+import { allSpots, facedCell, type SpotRef } from '@/lib/village/spot'
 import { writeVisited } from '@/lib/preferences'
 import type { VillageActions } from '../use-village-input'
 import { defaultSpeech } from '../use-village-guide/default-speech'
@@ -53,6 +53,8 @@ export type VillageOverlayOptions = {
   lockedRef: RefObject<boolean>
   actionsRef: RefObject<VillageActions>
   heldRef: RefObject<Direction | null>
+  // 釣っている間だけ true にする印。歩行ループが毎フレーム読んで竿を持つコマへ差し替える
+  fishingPoseRef: RefObject<boolean>
 }
 
 type UseVillageOverlay = {
@@ -66,8 +68,8 @@ type UseVillageOverlay = {
   hintText: string | null
   // 会話窓(role='status')の一言を差し替える手。時計の設定窓が結果を伝えるのに使う
   announce: (message: string) => void
-  // 釣りの進み具合と、確認窓・結果窓に出す文言。出す物が無ければ stop は null
-  fishing: { phase: FishingPhase; stop: StopText | null; cast: () => void }
+  // 釣りの進み具合と、確認窓・結果窓に出す文言、浮きを置く水のマス。出す物が無ければ stop は null
+  fishing: { phase: FishingPhase; stop: StopText | null; at: Cell | null; cast: () => void }
 }
 
 export function useVillageOverlay({
@@ -94,12 +96,14 @@ export function useVillageOverlay({
   lockedRef,
   actionsRef,
   heldRef,
+  fishingPoseRef,
 }: VillageOverlayOptions): UseVillageOverlay {
   const [mode, setMode] = useState<Mode>('walk')
   const { hintText, showHint, clearHint } = useVillageHint({ world })
   const {
     phase: fishingPhase,
     stop: fishingStop,
+    at: fishingAt,
     start: startFishing,
     cast: castFishing,
     reset: resetFishing,
@@ -117,6 +121,15 @@ export function useVillageOverlay({
     if (mode !== 'walk') heldRef.current = null
   }, [mode, heldRef, lockedRef])
 
+  // 竿を持つコマにするのは実際に投げてから。確認窓(まだ釣ると決めていない)の間は普段の立ち姿のまま
+  useEffect(() => {
+    fishingPoseRef.current =
+      fishingPhase === 'casting' ||
+      fishingPhase === 'bite' ||
+      fishingPhase === 'landing' ||
+      fishingPhase === 'caught'
+  }, [fishingPhase, fishingPoseRef])
+
   const openTalk = useCallback(() => {
     if (lockedRef.current) return
     const spot = activeSpotRef.current
@@ -128,7 +141,8 @@ export function useVillageOverlay({
         heldRef.current = null
         pendingRouteRef.current = null
         setMode('fishing')
-        startFishing()
+        // 浮きと巻物は向いている先の水のマスへ置く。歩き出せば釣りは終わるので、ここで決め打ちできる
+        startFishing(facedCell(stateRef.current))
         return
       }
       // 話せる相手がいない所で話しかけた時は、プレイヤーの頭上に一言だけ出す
@@ -249,6 +263,6 @@ export function useVillageOverlay({
     travel,
     hintText,
     announce: setSpeech,
-    fishing: { phase: fishingPhase, stop: fishingStop, cast: castFishing },
+    fishing: { phase: fishingPhase, stop: fishingStop, at: fishingAt, cast: castFishing },
   }
 }

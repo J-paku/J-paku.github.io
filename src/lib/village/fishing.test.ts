@@ -1,9 +1,9 @@
-// 釣りの規則 isFishingSpot・pickCatch・confirmStop・catchToStop のテスト
+// 釣りの規則 isFishingSpot・pickCatch・isCollectionComplete・confirmStop・catchToStop のテスト
 import { vi } from 'vitest'
 import type { CareerFeature, CareerRole } from '@content/types/content'
 import type { Cell, FishingText, World } from '@content/types/world'
 import { isWalkable } from './collision'
-import { isFishingSpot, pickCatch, confirmStop, catchToStop } from './fishing'
+import { isFishingSpot, pickCatch, isCollectionComplete, confirmStop, catchToStop } from './fishing'
 
 // server-only は Next.js のビルド境界専用ガードで、vitest(node 環境)では無条件に例外を投げる。
 // テストでは中身を持たない mock に差し替え、読み込み専用の @/lib/content/read を素通しにする
@@ -66,26 +66,48 @@ const feature = (name: string): CareerFeature => ({
 
 describe('pickCatch', () => {
   it('空なら null', () => {
-    expect(pickCatch([], null)).toBeNull()
+    expect(pickCatch([], new Set())).toBeNull()
   })
-  it('1 件なら、直前と同じ名前でもそれを返す', () => {
+  it('1 件だけなら、まだ釣っていない時はそれを返す', () => {
     const only = feature('a')
-    expect(pickCatch([only], null)).toBe(only)
-    expect(pickCatch([only], 'a')).toBe(only)
+    expect(pickCatch([only], new Set())).toBe(only)
   })
-  it('2 件以上なら直前と同じ名前を除いて選ぶ', () => {
+  it('まだ釣っていない名前を優先して選ぶ', () => {
     const items = [feature('a'), feature('b')]
-    expect(pickCatch(items, 'a', () => 0)?.name).toBe('b')
-    expect(pickCatch(items, 'a', () => 0.99)?.name).toBe('b')
+    // 未取得が b だけなので、random の値に関わらず b
+    expect(pickCatch(items, new Set(['a']), () => 0)?.name).toBe('b')
+    expect(pickCatch(items, new Set(['a']), () => 0.99)?.name).toBe('b')
   })
-  it('直前を除いた残りから random の値で選び分ける', () => {
+  it('未取得が複数あれば、その中から random の値で選び分ける', () => {
     const items = [feature('a'), feature('b'), feature('c')]
-    expect(pickCatch(items, 'a', () => 0)?.name).toBe('b')
-    expect(pickCatch(items, 'a', () => 0.99)?.name).toBe('c')
+    expect(pickCatch(items, new Set(['a']), () => 0)?.name).toBe('b')
+    expect(pickCatch(items, new Set(['a']), () => 0.99)?.name).toBe('c')
   })
-  it('直前が無ければ全件が対象', () => {
+  it('全部釣り終えていれば全件が対象', () => {
     const items = [feature('a'), feature('b')]
-    expect(pickCatch(items, null, () => 0)?.name).toBe('a')
+    const caught = new Set(['a', 'b'])
+    expect(pickCatch(items, caught, () => 0)?.name).toBe('a')
+    expect(pickCatch(items, caught, () => 0.99)?.name).toBe('b')
+  })
+  it('何も釣っていなければ全件が対象', () => {
+    const items = [feature('a'), feature('b')]
+    expect(pickCatch(items, new Set(), () => 0)?.name).toBe('a')
+  })
+})
+
+describe('isCollectionComplete', () => {
+  const items = [feature('a'), feature('b')]
+  it('列が空なら、集め終えたとは言わない', () => {
+    expect(isCollectionComplete([], new Set(['a']))).toBe(false)
+  })
+  it('一部しか釣っていなければ false', () => {
+    expect(isCollectionComplete(items, new Set())).toBe(false)
+    expect(isCollectionComplete(items, new Set(['a']))).toBe(false)
+  })
+  it('全ての名前が揃えば true', () => {
+    expect(isCollectionComplete(items, new Set(['a', 'b']))).toBe(true)
+    // 列に無い名前が混じっていても、揃っていれば true
+    expect(isCollectionComplete(items, new Set(['a', 'b', 'c']))).toBe(true)
   })
 })
 
@@ -97,6 +119,8 @@ const text: FishingText = {
   stop: 'やめる',
   cast: '……',
   bite: '何かがかかった!',
+  landed: '経験を釣り上げた!',
+  complete: 'すべての経験を釣り上げた!',
   caughtPlace: '釣り上げた経験',
   caughtClaim: '{date}に着手した機能です。',
   caughtTech: '使った技術: {tech}',
@@ -161,7 +185,10 @@ describe('実際の町の池', () => {
     expect(pondCells).toHaveLength(36)
     for (const cell of pondCells) {
       // どのマスで落ちたか分かるよう、座標ごと突き合わせる
-      expect({ ...cell, tile: realTown.tiles[cell.y]?.[cell.x] }).toEqual({ ...cell, tile: 'water' })
+      expect({ ...cell, tile: realTown.tiles[cell.y]?.[cell.x] }).toEqual({
+        ...cell,
+        tile: 'water',
+      })
       expect({ ...cell, walkable: isWalkable(realTown, cell) }).toEqual({
         ...cell,
         walkable: false,

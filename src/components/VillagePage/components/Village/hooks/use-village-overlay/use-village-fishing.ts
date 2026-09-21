@@ -1,18 +1,22 @@
-// 釣りの進み具合(確認 → 投げる → かかる)と、窓に出す文言だけを持つ。
-// この状態は村の画面の外から読まないので、store は立てずにこのフックの中の state・ref で閉じる
+// 釣りの進み具合(確認 → 投げる → かかる → 釣り上げる)と、窓に出す文言・浮きを置くマスだけを持つ。
+// この状態は村の画面の外から読まないので、store は立てずにこのフックの中の state・ref で閉じる。
+// 釣った一覧は保存しない(タブを開いている間だけ覚える)。訪問記録と違って進行の鍵ではなく、
+// 開き直す度に最初から釣り集められる方が何度でも遊べるため
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import type { CareerFeature, CareerRole } from '@content/types/content'
-import type { StopText, VillageText, World } from '@content/types/world'
+import type { Cell, StopText, VillageText, World } from '@content/types/world'
 import {
   catchToStop,
   confirmStop,
   FISHING_BITE_MS,
   FISHING_CAST_MS,
+  FISHING_LAND_MS,
+  isCollectionComplete,
   pickCatch,
 } from '@/lib/village/fishing'
 
-export type FishingPhase = 'idle' | 'confirm' | 'casting' | 'caught'
+export type FishingPhase = 'idle' | 'confirm' | 'casting' | 'bite' | 'landing' | 'caught'
 
 export type VillageFishingOptions = {
   text: VillageText
@@ -27,7 +31,9 @@ export type UseVillageFishing = {
   phase: FishingPhase
   // 確認窓・結果窓に出す文言。それ以外の間は null
   stop: StopText | null
-  start: () => void
+  // 浮きと巻物を置く水のマス。確認から釣り上げまでの間だけ持ち、やめれば null
+  at: Cell | null
+  start: (at: Cell) => void
   cast: () => void
   reset: () => void
 }
@@ -41,13 +47,17 @@ export function useVillageFishing({
 }: VillageFishingOptions): UseVillageFishing {
   const [phase, setPhase] = useState<FishingPhase>('idle')
   const [caught, setCaught] = useState<CareerFeature | null>(null)
-  // 直前に釣り上げた名前。同じ物が続けて出ないように pickCatch へ渡す
-  const lastNameRef = useRef<string | null>(null)
-  // 投げてから「かかった」までと、その後に釣り上げるまでのタイマー
+  const [at, setAt] = useState<Cell | null>(null)
+  // これまでに釣り上げた名前。まだ釣っていない物を先に出すため pickCatch へ渡す
+  const caughtNamesRef = useRef(new Set<string>())
+  // 全部を釣り上げた時の文言を出したか。初めての一度だけ差し替える
+  const completedRef = useRef(false)
+  // 投げてから「かかった」まで・かかってから釣り上げるまで・巻物が水面に浮いている間のタイマー
   const castTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const biteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const landTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // タイマーと釣果をまとめて捨てる
+  // タイマーと釣果をまとめて捨てる。釣った一覧はこの回限りの物ではないので残す
   const reset = useCallback(() => {
     if (castTimerRef.current !== null) {
       clearTimeout(castTimerRef.current)
@@ -57,15 +67,24 @@ export function useVillageFishing({
       clearTimeout(biteTimerRef.current)
       biteTimerRef.current = null
     }
+    if (landTimerRef.current !== null) {
+      clearTimeout(landTimerRef.current)
+      landTimerRef.current = null
+    }
     setPhase('idle')
     setCaught(null)
+    setAt(null)
   }, [])
 
-  // 確認窓を開く。前の回のタイマーが残っていれば先に捨てる
-  const start = useCallback(() => {
-    reset()
-    setPhase('confirm')
-  }, [reset])
+  // 確認窓を開き、浮きを置く水のマスを覚える。前の回のタイマーが残っていれば先に捨てる
+  const start = useCallback(
+    (cell: Cell) => {
+      reset()
+      setPhase('confirm')
+      setAt(cell)
+    },
+    [reset]
+  )
 
   const cast = useCallback(() => {
     // 「釣る」は確認窓からだけ。投げている最中の連打は捨てる
@@ -74,18 +93,30 @@ export function useVillageFishing({
     setSpeech(text.fishing.cast)
     castTimerRef.current = setTimeout(() => {
       castTimerRef.current = null
+      setPhase('bite')
       setSpeech(text.fishing.bite)
       biteTimerRef.current = setTimeout(() => {
         biteTimerRef.current = null
-        const picked = pickCatch(catches, lastNameRef.current)
+        // まだ釣っていない物を優先。全部釣り終えていれば全体から選ぶ
+        const picked = pickCatch(catches, caughtNamesRef.current)
         // 釣れる中身が無い時は窓を出さず、静かに元へ戻す
         if (picked === null) {
           reset()
           return
         }
-        lastNameRef.current = picked.name
+        caughtNamesRef.current.add(picked.name)
         setCaught(picked)
-        setPhase('caught')
+        setPhase('landing')
+        // 全部揃った瞬間だけ専用の文言。二度目からは普段の釣り上げ文に戻す
+        const completedNow =
+          !completedRef.current && isCollectionComplete(catches, caughtNamesRef.current)
+        if (completedNow) completedRef.current = true
+        setSpeech(completedNow ? text.fishing.complete : text.fishing.landed)
+        // 巻物が水面の上に浮いている間だけ待ってから結果窓へ渡す
+        landTimerRef.current = setTimeout(() => {
+          landTimerRef.current = null
+          setPhase('caught')
+        }, FISHING_LAND_MS)
       }, FISHING_BITE_MS)
     }, FISHING_CAST_MS)
   }, [phase, catches, text, setSpeech, reset])
@@ -104,5 +135,5 @@ export function useVillageFishing({
     reset()
   }, [world, reset])
 
-  return { phase, stop, start, cast, reset }
+  return { phase, stop, at, start, cast, reset }
 }

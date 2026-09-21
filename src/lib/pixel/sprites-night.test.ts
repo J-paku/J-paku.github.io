@@ -195,7 +195,7 @@ describe('夜だけ差し替える素材', () => {
   })
 
   it('横向きの夜のコマも反転してずれないよう 1〜14 列に収まる', () => {
-    for (const key of ['player-right-0', 'player-right-1'] as const) {
+    for (const key of ['player-right-0', 'player-right-1', 'player-fish-right'] as const) {
       for (const row of PLAYER_NIGHT_ARTS[key]) {
         expect(row[0], key).toBe('.')
         expect(row[15], key).toBe('.')

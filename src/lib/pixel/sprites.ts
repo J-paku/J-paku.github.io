@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { buildSheet } from './art'
 import type { PixelArt, Sheet } from './art'
 import { playerArt, playerNightArt, PLAYER_HEIGHT } from './actors'
+import { fishingArt } from './fishing-art'
 import { palette } from './palette'
 import { phasePalette } from './palette-phase'
 import { structureArt, structureNightArt } from './structures'
@@ -19,8 +20,12 @@ type PlayerSpriteKey =
   | 'player-down-2'
   | 'player-right-0'
   | 'player-right-1'
+  | 'player-fish-up'
+  | 'player-fish-down'
+  | 'player-fish-right'
 
-export type SpriteKey = keyof typeof terrainArt | keyof typeof structureArt
+export type SpriteKey =
+  keyof typeof terrainArt | keyof typeof structureArt | keyof typeof fishingArt
 
 // 主人公のコマ表の型は actors.ts の値から導く。同じ形をここへ書き写すと正本が 2 つになり、
 // 向きやコマを足したときに片方だけが古いまま通ってしまう
@@ -49,7 +54,7 @@ const mergeNightArt = <Key extends string>(
   return { ...base, ...overrides }
 }
 
-// 主人公の 8 コマをシート用の平らな辞書へ並べる。昼と夜で同じ関数を通すので、
+// 主人公の 11 コマをシート用の平らな辞書へ並べる。昼と夜で同じ関数を通すので、
 // 鍵の集合・並び順・コマ数は構造的に一致する(夜だけコマが増減することが起こり得ない)
 const playerSpriteArts = (frames: PlayerFrames): Record<PlayerSpriteKey, PixelArt> => ({
   'player-up-0': frames.up[0],
@@ -60,11 +65,16 @@ const playerSpriteArts = (frames: PlayerFrames): Record<PlayerSpriteKey, PixelAr
   'player-down-2': frames.down[2],
   'player-right-0': frames.right[0],
   'player-right-1': frames.right[1],
+  'player-fish-up': frames.fish[0],
+  'player-fish-down': frames.fish[1],
+  'player-fish-right': frames.fish[2],
 })
 
+// 釣りの小物は昼夜で絵が変わらないので、地形・建物と同じ 16×16 のシートへ並べるだけでよい
 export const SPRITE_ARTS: Record<SpriteKey, PixelArt> = {
   ...terrainArt,
   ...structureArt,
+  ...fishingArt,
 }
 
 // 夜だけ絵そのものが変わる素材(灯したランタン)。色ではなく絵が違うのでパレットでは表せない。
