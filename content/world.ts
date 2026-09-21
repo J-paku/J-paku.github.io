@@ -75,7 +75,7 @@ const expandBlocks = (rows: readonly (readonly Block[])[]): Tile[][] =>
     row.flatMap(b => [BLOCK_TILES[b][2], BLOCK_TILES[b][3]]),
   ])
 
-// 町のブロック地図(15×10)。外周1ブロック=2マス分が木の壁で四辺を閉じるが、
+// 町のブロック地図(15×10)。外周1ブロック=2マス分が木の壁(南西の角だけは池の水)で四辺を閉じるが、
 // 北の中央だけは 2マス幅の道が外周を抜けて町の外へ続く
 const TOWN_BLOCKS: readonly (readonly Block[])[] = [
   [T, T, T, T, T, T, T, P, T, T, T, T, T, T, T],
@@ -85,13 +85,14 @@ const TOWN_BLOCKS: readonly (readonly Block[])[] = [
   [T, g, G, F, G, P, G, G, G, P, G, G, g, G, T],
   [T, G, G, G, G, P, G, G, G, P, G, g, G, G, T],
   [T, G, P, P, P, P, P, P, P, P, P, P, P, P, T],
-  [T, W, W, G, G, g, G, G, G, G, G, S, S, S, T],
-  [T, W, W, G, F, G, G, G, G, G, G, S, S, S, T],
-  [T, T, T, T, T, T, T, T, T, T, T, T, T, T, T],
+  [W, W, W, G, G, g, G, G, G, G, G, S, S, S, T],
+  [W, W, W, G, F, G, G, G, G, G, G, S, S, S, T],
+  [W, W, W, T, T, T, T, T, T, T, T, T, T, T, T],
 ]
 
 // 町(30×20)。横道は y6-7 と y12-13、縦道は x10-11 と x18-19。
-// 池は x2-5/y14-17、広場は x22-27/y14-17。自宅前(14,12)から各地点まで16歩以内。
+// 池は x0-5/y14-19、広場は x22-27/y14-17。自宅前(14,12)から各地点まで16歩以内。
+// 池は外周まで届くが、水も木と同じく通行不可なので町の境はそのまま閉じている。
 // 北の道は x14-15/y0-5 で、外周を抜けて町の外へ出る。道の左右 x12-13・x16-17 の y0-1 は木。
 // 経歴碑はその木の手前 (16,2)、話しかけ位置は道に面した (16,4) — コース外
 // 次の旅(journey)は道の突き当たり x14-15/y0 に着くと開く。外周のマスなので吹き出しの置き場が

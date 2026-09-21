@@ -48,6 +48,21 @@ export const village: VillageText = {
     setCustom: '커스텀시간을 설정했습니다. 포트폴리오 마을의 시간이 {time}(으)로 변경됩니다.',
     cancelled: '설정을 취소했습니다.',
   },
+  fishing: {
+    place: '연못',
+    prompt: '낚시를 해볼까요?',
+    lure: '수면이 잔잔하게 흔들린다.',
+    go: '낚는다',
+    stop: '그만둔다',
+    cast: '……',
+    bite: '뭔가 걸렸다!',
+    caughtPlace: '낚아 올린 경험',
+    caughtClaim: '{date}에 착수한 사내 업무 앱 기능입니다.',
+    caughtTech: '사용한 기술: {tech}',
+    caughtRoles: '담당한 공정: {roles}',
+    caughtHook: '한 번 더 던지면 다른 경험이 낚일지도 모릅니다.',
+    caughtNext: '작품 목록으로',
+  },
   stops: {
     home: {
       place: 'PC',

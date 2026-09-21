@@ -102,12 +102,18 @@ export function StopModal({
                   ))}
                 </ol>
               ) : null}
-              <p>
-                <PhraseText text={stop.proof} locale={lang} />
-              </p>
-              <p>
-                <PhraseText text={stop.detail} locale={lang} />
-              </p>
+              {/* 空の段落は描かない。釣りの確認窓のように claim だけで足りる窓があり、
+                  空の <p> を置くと本文の下に余白だけが残る */}
+              {stop.proof !== '' ? (
+                <p>
+                  <PhraseText text={stop.proof} locale={lang} />
+                </p>
+              ) : null}
+              {stop.detail !== '' ? (
+                <p>
+                  <PhraseText text={stop.detail} locale={lang} />
+                </p>
+              ) : null}
               {stop.link && href !== null ? (
                 <a
                   className={styles.link}
@@ -118,9 +124,11 @@ export function StopModal({
                   {stop.link.label}
                 </a>
               ) : null}
-              <p>
-                <PhraseText text={stop.hook} locale={lang} />
-              </p>
+              {stop.hook !== '' ? (
+                <p>
+                  <PhraseText text={stop.hook} locale={lang} />
+                </p>
+              ) : null}
             </div>
             {thumb.visible ? (
               <div className={styles.rail} style={railStyle} aria-hidden='true'>
