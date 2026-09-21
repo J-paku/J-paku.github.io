@@ -217,8 +217,8 @@ describe('order の無い地点', () => {
 // 実際の worldSet(content/world.ts)の町に経歴碑が入った状態のテスト
 describe('spotAt (実際の worldSet — 経歴碑)', () => {
   it('経歴碑(2×2)の真下の 2 マスのどちらからでも話しかけられる', () => {
-    expect(spotAt(realTown, { x: 13, y: 5 })?.id).toBe('monument')
-    expect(spotAt(realTown, { x: 14, y: 5 })?.id).toBe('monument')
+    expect(spotAt(realTown, { x: 16, y: 4 })?.id).toBe('monument')
+    expect(spotAt(realTown, { x: 17, y: 4 })?.id).toBe('monument')
   })
   it('既存の地点は経歴碑を加えても変わらず判定できる', () => {
     expect(spotAt(realTown, { x: 6, y: 6 })?.id).toBe('meishi')
@@ -227,21 +227,48 @@ describe('spotAt (実際の worldSet — 経歴碑)', () => {
   })
 })
 
+describe('北の出口', () => {
+  it('道の突き当たりは左右どちらの列でも到着地点になり、手前や木の壁では開かない', () => {
+    expect(spotAt(realTown, { x: 14, y: 0 })?.id).toBe('journey')
+    expect(spotAt(realTown, { x: 15, y: 0 })?.id).toBe('journey')
+    // 1マス手前(道は続く)と、道の左右の木
+    expect(spotAt(realTown, { x: 14, y: 1 })).toBeNull()
+    expect(spotAt(realTown, { x: 13, y: 0 })).toBeNull()
+    expect(spotAt(realTown, { x: 16, y: 0 })).toBeNull()
+    expect(allSpots(realWorldSet)).toHaveLength(5)
+  })
+
+  it('道だけが外周を抜け、左右は木の壁のまま残る', () => {
+    expect(realTown.tiles[0][14]).toBe('path')
+    expect(realTown.tiles[0][15]).toBe('path')
+    expect(realTown.tiles[0][13]).toBe('tree')
+    expect(realTown.tiles[0][16]).toBe('tree')
+  })
+
+  // 外周のマスは上に吹き出しの置き場が無い。上へ出すと枠の外で切れるので下へ出す
+  it('建物を持たない出口の吹き出しは、範囲の中央から下へ出す', () => {
+    const journey = realTown.spots.find(spot => spot.id === 'journey')
+    if (journey === undefined) throw new Error('journey が無い')
+
+    expect(talkAnchor(realTown, journey)).toEqual({ x: 15, y: 1, place: 'below' })
+  })
+})
+
 // 吹き出しを付ける位置。x は物の中央、y は物の上辺。下を向く地点だけはプレイヤーの頭上
 describe('talkAnchor', () => {
   it('下を向く地点は、物ではなくプレイヤーの頭上(半マス上)に出す', () => {
-    expect(talkAnchor(field, field.spots[0])).toEqual({ x: 4.5, y: 1.5 })
+    expect(talkAnchor(field, field.spots[0])).toEqual({ x: 4.5, y: 1.5, place: 'above' })
   })
   it('上を向く地点は、テーブル(2×2)の中央・上辺に出す', () => {
     const spot: Spot = { id: 'below', structureId: 't', cell: { x: 4, y: 5 }, facing: 'up' }
-    expect(talkAnchor(field, spot)).toEqual({ x: 4, y: 3 })
+    expect(talkAnchor(field, spot)).toEqual({ x: 4, y: 3, place: 'above' })
   })
   it('横を向く地点でも、位置は同じ物の中央・上辺で変わらない', () => {
     const spot: Spot = { id: 'beside', structureId: 't', cell: { x: 5, y: 4 }, facing: 'left' }
-    expect(talkAnchor(field, spot)).toEqual({ x: 4, y: 3 })
+    expect(talkAnchor(field, spot)).toEqual({ x: 4, y: 3, place: 'above' })
   })
   it('机(3×2)は左上から 1.5 マス右が中央', () => {
-    expect(talkAnchor(room, room.spots[0])).toEqual({ x: 1.5, y: 0 })
+    expect(talkAnchor(room, room.spots[0])).toEqual({ x: 1.5, y: 0, place: 'above' })
   })
   it('建物は入口の列(幅 2)の中央・最下段の壁の上辺に出す', () => {
     const house: World = {
@@ -259,14 +286,14 @@ describe('talkAnchor', () => {
       ],
     }
     const spot: Spot = { id: 'house', structureId: 'h', cell: { x: 4, y: 4 }, facing: 'up' }
-    expect(talkAnchor(house, spot)).toEqual({ x: 5, y: 3 })
+    expect(talkAnchor(house, spot)).toEqual({ x: 5, y: 3, place: 'above' })
   })
   it('物が見つからない地点は、向いている 1 マスの中央・上辺に出す', () => {
     const spot: Spot = { id: 'ghost', structureId: 'missing', cell: { x: 4, y: 2 }, facing: 'up' }
-    expect(talkAnchor(field, spot)).toEqual({ x: 4.5, y: 1 })
+    expect(talkAnchor(field, spot)).toEqual({ x: 4.5, y: 1, place: 'above' })
   })
   it('物が見つからなくても、下を向く地点はプレイヤーの頭上のまま', () => {
     const spot: Spot = { id: 'ghost', structureId: 'missing', cell: { x: 4, y: 2 }, facing: 'down' }
-    expect(talkAnchor(field, spot)).toEqual({ x: 4.5, y: 1.5 })
+    expect(talkAnchor(field, spot)).toEqual({ x: 4.5, y: 1.5, place: 'above' })
   })
 })

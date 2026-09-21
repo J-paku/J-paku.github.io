@@ -99,6 +99,19 @@ export const village: VillageText = {
         target: { kind: 'external', url: 'mailto:pjhrecr@gmail.com' },
       },
     },
+    journey: {
+      place: '次の旅',
+      title: '次の旅は、まだ決まっていません。',
+      claim: '次の旅を、ご一緒しませんか？',
+      proof: '新しいチームと、ともに取り組む課題に出会いたいと思っています。',
+      detail: '一緒に作りたいものがあれば、気軽にご連絡ください。',
+      hook: 'この道の先の物語を、一緒につないでいきましょう。',
+      next: '作品一覧を見る',
+      link: {
+        label: '次の旅について話す',
+        target: { kind: 'external', url: 'mailto:pjhrecr@gmail.com' },
+      },
+    },
     monument: {
       place: '経歴碑',
       title: 'これまでの道',

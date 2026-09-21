@@ -1,7 +1,7 @@
 // 村の建物と設置物を文字マトリクスで描く
 import { compose, mirrorX, recolor, TILE } from './art'
 import type { PixelArt } from './art'
-import { litMailbox } from './mailbox-led'
+import { mailboxWithLeds } from './mailbox-led'
 
 type StructureKey =
   | 'roof-red-l'
@@ -358,39 +358,41 @@ const campfire: PixelArt = [
   'xSSxxssxxssxxSSx',
 ]
 
-// 経歴碑 2×2(32×32)。石の台座に金の星と月桂樹、中央に 2 社分の碑文の線。星は灯り用の文字(9)
+// 経歴碑 2×2(32×32)。石の二段台座に木の額を立て、頭に金の星、背に月桂樹と白い花を添える。
+// 額の中は人物・仕事・成果の印と碑文の行で、読める文字は入れない(16ドットでは潰れるため)。
+// 星だけは灯り用の文字(9)にして、夜は palette-phase.ts が発光色へ差し替える
 const monument: PixelArt = [
   '................................',
-  '..............xxxx..............',
-  '............xxhsSSxx............',
-  '...........xhss99sSSx...........',
-  '..........xhss9999sSSx..........',
-  '.........xhsss9999ssSSx.........',
-  '.........xh9999999999Sx.........',
-  '.........xhs999pp999SSx.........',
-  '.....xxxxxhss99999PsSSxxxxx.....',
-  '.....xhssssss99ss99sssssSSx.....',
-  '.....xhsssss99ssss9PssssSSx.....',
-  '.....xhsssssssssssssssssSSx.....',
-  '.....xhsssssssssssssssssSSx.....',
-  '.....xhssGssssssssssssGsSSx.....',
-  '.....xhsgGgssSSSSSSssgGgSSx.....',
-  '.....xhgtGtgsSSSSSSsgtGtgSx.....',
-  '.....xhsgGgsshhhhhhssgGgSSx.....',
-  '.....xhgtGtgssssssssgtGtgSx.....',
-  '.....xhsgGgssSSSSSSssgGgSSx.....',
-  '.....xhssGsssSSSSSSsssGsSSx.....',
-  '.....xhsssssshhhhhhsssssSSx.....',
-  '.....xhsssssssssssssssssSSx.....',
-  '.....xSSSSSSSSSSSSSSSSSSSSx.....',
-  '.....xhhhhhhhhhhhhhhhhhhhhx.....',
-  '...xhhhhhhhhhhhhhhhhhhhhhhhhx...',
-  '...xssssssssssssssssssssssssx...',
-  '...xHHHHHHHHHHHHHHHHHHHHHHHHx...',
-  '...xSSSSSSSSSSSSSSSSSSSSSSSSx...',
-  '.xhhhhhhhhhhhhhhhhhhhhhhhhhhhhx.',
+  '...............xx...............',
+  '..............x99x..............',
+  '.............x9999x.............',
+  '.........x999999999999x.........',
+  '..........x9999999999x..........',
+  '.....xtG...x99999999x...Gtx.....',
+  '....xttG...x99x..x99x...Gttx....',
+  '...xttGG...x99x..x99x...GGttx...',
+  '..xttGtGxxxxxxxxxxxxxxxxGtGttx..',
+  '...xGttGxEeeeeeeeeeeeeExGttGx...',
+  '..xttttGxePEPPPPPPPPPPexGttttx..',
+  '.xtthttGxeEEEPEEEEEEEEexGtthttx.',
+  '.xthFhtGxePPPPPPPPPPPPexGthFhtx.',
+  '.xtthttGxePEPPPPPPPPPPexGtthttx.',
+  '..xttttGxeEEEPEEEEEEEPexGttttx..',
+  '...xGttGxePPPPPPPPPPPPexGttGx...',
+  '..xttGtGxePPEPPPPPPPPPexGtGttx..',
+  '...xttGGxePEEPEEEEEEPPexGGttx...',
+  '....xttGxeEEEPPPPPPPPPexGttx....',
+  '.....xtGxEeeeeeeeeeeeeExGtx.....',
+  '........xxxxxxxxxxxxxxxx........',
+  '....xssssssssssssssssssssssx....',
+  '....xssssssssssssssssssssssx....',
+  '....xHHHHHHHHHHHHHHHHHHHHHHx....',
+  '....xHHHHHHHHHHHHHHHHHHHHHHx....',
+  '....xSSSSSSSSSSSSSSSSSSSSSSx....',
+  '.xssssssssssssssssssssssssssssx.',
   '.xssssssssssssssssssssssssssssx.',
   '.xHHHHHHHHHHHHHHHHHHHHHHHHHHHHx.',
+  '.xSSSSSSSSSSSSSSSSSSSSSSSSSSSSx.',
   '.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.',
 ]
 
@@ -717,7 +719,7 @@ export const structureArt: Record<StructureKey, PixelArt> = {
   'entrance-l': entranceLeft,
   'entrance-r': mirrorX(entranceLeft),
   robot,
-  mailbox,
+  mailbox: mailboxWithLeds(mailbox, false),
   campfire,
   'monument-tl': cut(monument, 0, 0),
   'monument-tr': cut(monument, 1, 0),
@@ -759,5 +761,5 @@ export const structureArt: Record<StructureKey, PixelArt> = {
 // 夜だけ差し替える絵。structureArt にすでにあるキーしか持てない型にする。
 // ここへ新しいキーを足すと 4 段階のシートでマスの並びがずれ、昼と夜で別のマスが出てしまう
 export const structureNightArt: Partial<Record<StructureKey, PixelArt>> = {
-  mailbox: litMailbox(mailbox),
+  mailbox: mailboxWithLeds(mailbox, true),
 }

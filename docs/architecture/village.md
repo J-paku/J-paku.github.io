@@ -41,6 +41,15 @@ last_reviewed: 2026-09-21
 `WorldSet` = 複数の `World`。現在は屋外の町と屋内の自室。`kind: 'exterior'` のワールドだけがミニマップと拡大地図を持つ。
 座標は左上原点の整数マス、`tiles[y][x]` で引く。型は `content/types/world.ts`。
 
+北の道だけは外周の木の壁を抜けて町の外へ続き、その突き当たりの `arrivalArea` に入ると
+「次の旅」の会話窓が開く。範囲内で横へ動いても開き直さず、一度道を戻って入り直すと再び開く。
+経歴碑は道の左右の木の手前に置く。どちらもコース外(`order` 無し)で、5か所の訪問数には
+含めない。配置の正本は `content/world.ts`。
+
+外周のマスは吹き出しの置き場が上に無い(吹き出しは指す点の上へ約2マス分を使う)。
+建物を持たない `arrivalArea` の地点は `talkAnchor` が `place: 'below'` を返し、
+範囲の中央・下辺から下へ吹き出しを出す。`TalkBubble` はこの値で尾の向きごと上下を入れ替える。
+
 ビルド時に `src/lib/content/validate-world.ts` が検査する上限(広さ・家の軒数・開始地点からの歩数)は
 [../product/business-rules.md](../product/business-rules.md) にまとめてある。**上限の数値の正本は `validate-world.ts` の定数。**
 

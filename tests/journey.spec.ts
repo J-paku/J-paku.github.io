@@ -54,12 +54,16 @@ const holdDown = async (page: Page, ms: number) => {
 const panelAtBottom = (panel: Locator) =>
   panel.evaluate(el => el.scrollTop + el.clientHeight >= el.scrollHeight - 1)
 
-// 本文を下端まで送る。焦点が動くのは「押した瞬間に下端だった」時だけなので、
-// 送り切る前にボタンへ飛び移ることはない(短くて送る必要が無ければ1度も押さずに抜ける)
+// 押し直さずに本文を送り切り、最初のリンク・ボタンへ焦点が渡るまで待つ
 const scrollPanelToBottom = async (page: Page, panel: Locator) => {
-  for (let i = 0; i < 20 && !(await panelAtBottom(panel)); i += 1) {
-    await holdDown(page, 300)
-  }
+  await page.keyboard.down('ArrowDown')
+  await expect(page.getByRole('dialog').locator('a[href], button').first()).toBeFocused({
+    timeout: 10_000,
+  })
+  await page.waitForTimeout(300)
+  await expect(page.getByRole('dialog').locator('a[href], button').first()).toBeFocused()
+  await page.keyboard.up('ArrowDown')
+  expect(await panelAtBottom(panel)).toBe(true)
 }
 
 // 保存された現在地(ワールドとマス)を読む。村は 2 ワールドなのでマスだけでは位置が決まらない
@@ -70,6 +74,20 @@ const readCell = (page: Page) =>
     const saved = JSON.parse(raw) as { worldId: string; cell: { x: number; y: number } }
     return { worldId: saved.worldId, cell: saved.cell }
   }, POS_KEY)
+
+// 要素が村の枠(overflow: hidden)の中へ収まっているか。外周のマスに立つと主人公の頭と
+// 吹き出しが枠の上へ出て切れるため、切れていないことをこの実測で確かめる
+const framedInside = async (page: Page, selector: string) => {
+  const frame = await page.locator('[data-village]').boundingBox()
+  const target = await page.locator(selector).boundingBox()
+  if (frame === null || target === null) return false
+  return (
+    target.y >= frame.y &&
+    target.y + target.height <= frame.y + frame.height &&
+    target.x >= frame.x &&
+    target.x + target.width <= frame.x + frame.width
+  )
+}
 
 // 訪問済み地点の id 一覧を読む
 const readVisited = (page: Page) =>
@@ -348,13 +366,14 @@ for (const { prefix, text, settings } of JOURNEYS) {
     test.setTimeout(60_000)
     await openVillage(page, prefix)
     await leaveRoom(page)
-    // 自宅前 (14,12) から左 3(x=11)・上 6(y=6)・右 2(x=13)・上 1(y=5) で経歴碑。
+    // 自宅前 (14,12) から左 3(x=11)・上 6(y=6)・右 5(x=16)・上 2(y=4) で経歴碑の前。
+    // 経歴碑は北の道の左右の木の手前 (16,2) に立つ。
     // 経路のマスは content/world.ts の道(path)と草地(grass/grass-alt)のみを通る
     await walk(page, 'ArrowLeft', 3)
     await walk(page, 'ArrowUp', 6)
-    await walk(page, 'ArrowRight', 2)
-    await walk(page, 'ArrowUp', 1)
-    expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 13, y: 5 } })
+    await walk(page, 'ArrowRight', 5)
+    await walk(page, 'ArrowUp', 2)
+    expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 16, y: 4 } })
     await page.keyboard.press('e')
     const dialog = page.getByRole('dialog')
     await expect(dialog.getByRole('heading', { name: monument.title })).toBeVisible()
@@ -377,8 +396,8 @@ for (const { prefix, text, settings } of JOURNEYS) {
       text.allSeen.replace('{list}', text.toList)
     )
     // 経歴碑から自宅前までの往路をそのまま逆にたどり、扉を抜けて自宅の会話起点(4,4)へ戻る
-    await walk(page, 'ArrowDown', 1)
-    await walk(page, 'ArrowLeft', 2)
+    await walk(page, 'ArrowDown', 2)
+    await walk(page, 'ArrowLeft', 5)
     await walk(page, 'ArrowDown', 6)
     await walk(page, 'ArrowRight', 3)
     await walk(page, 'ArrowUp', 1)
@@ -407,6 +426,49 @@ for (const { prefix, text, settings } of JOURNEYS) {
     await page.keyboard.press('Escape')
     await expect(dialog).toHaveCount(0)
     await expect(page.getByRole('status')).toContainText(
+      text.allSeen.replace('{list}', text.toList)
+    )
+  })
+
+  test(`北の道へ進むと次の旅の会話が開き、閉じて町へ戻れる (${label})`, async ({ page }) => {
+    await openVillage(page, prefix)
+    await leaveRoom(page)
+    await page.keyboard.press('m')
+    await page
+      .getByRole('button', { name: text.fastTravel.replace('{place}', monument.place) })
+      .click()
+    await expect.poll(() => readCell(page)).toEqual({ worldId: 'town', cell: { x: 16, y: 4 } })
+    // 経歴碑の前から道へ戻り、外周を抜ける突き当たり (14,0) まで上がる
+    await walk(page, 'ArrowLeft', 2)
+    await walk(page, 'ArrowUp', 4)
+    expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 14, y: 0 } })
+    const dialog = page.getByRole('dialog')
+    const journey = text.stops.journey
+    await expect(dialog.getByRole('heading', { name: journey.title })).toBeVisible()
+    await expect(dialog).toContainText(journey.claim)
+    await expect(dialog.getByRole('link', { name: journey.link?.label })).toHaveAttribute(
+      'href',
+      'mailto:pjhrecr@gmail.com'
+    )
+    await page.keyboard.press('Escape')
+    // 突き当たりの中で横へ動いても開き直さない
+    await walk(page, 'ArrowRight', 1)
+    await expect(dialog).toHaveCount(0)
+    expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 15, y: 0 } })
+    // 外周のマスは上に置き場が無いので、吹き出しは足元から下へ出て枠に収まる
+    await expect(page.locator('[data-village-bubble]')).toBeVisible()
+    expect(await framedInside(page, '[data-village-bubble]')).toBe(true)
+    // 範囲を出て入り直すと開く
+    await walk(page, 'ArrowDown', 1)
+    await expect(dialog).toHaveCount(0)
+    await walk(page, 'ArrowUp', 1)
+    await expect(dialog.getByRole('heading', { name: journey.title })).toBeVisible()
+    expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 15, y: 0 } })
+    await page.keyboard.press('Escape')
+    await walk(page, 'ArrowDown', 2)
+    await expect(dialog).toHaveCount(0)
+    expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 15, y: 2 } })
+    await expect(page.getByRole('status')).not.toContainText(
       text.allSeen.replace('{list}', text.toList)
     )
   })
@@ -454,8 +516,6 @@ for (const { prefix, text, settings } of JOURNEYS) {
       const panel = dialog.locator('[data-village-panel]')
       await scrollPanelToBottom(page, panel)
       expect(await panelAtBottom(panel)).toBe(true)
-      // 下端からもう一度下を押すと、送る先が無いので焦点が窓の最初のボタンへ移る
-      await holdDown(page, HOLD_MS)
       await expect(dialog.getByRole('button', { name: home.next })).toBeFocused()
       // 焦点の当たったボタンを A で押す。次の地点まで自動で歩き、名刺工房の会話が開く
       await page.getByRole('button', { name: text.buttonA }).tap()
@@ -482,11 +542,53 @@ for (const { prefix, text, settings } of JOURNEYS) {
       await scrollPanelToBottom(page, panel)
       expect(await panelAtBottom(panel)).toBe(true)
       // 焦点は DOM 順に渡る。ここは本文の中のリンクが操作ボタンより先にある地点なので、まずリンクへ
-      await holdDown(page, HOLD_MS)
       await expect(dialog.getByRole('link', { name: link.label })).toBeFocused()
       // もう一度下を押すと次へボタンへ。リンクは押すとページが移ってしまうのでここでは押さない
       await holdDown(page, HOLD_MS)
       await expect(dialog.getByRole('button', { name: meishi.next })).toBeFocused()
+    })
+
+    test(`スティックの左右で本文を送り、ボタンの焦点を往復する`, async ({ page }) => {
+      await openVillage(page, prefix)
+      await page.getByRole('button', { name: text.buttonA }).tap()
+      const dialog = page.getByRole('dialog')
+      const panel = dialog.locator('[data-village-panel]')
+      const title = dialog.getByRole('heading', { name: home.title })
+      await expect(title).toBeFocused()
+      const stick = await page.getByRole('application', { name: text.joystick }).boundingBox()
+      if (stick === null) throw new Error('スティックが無い')
+      const x = stick.x + stick.width / 2
+      const y = stick.y + stick.height / 2
+      await page.mouse.move(x, y)
+      await page.mouse.down()
+      await page.mouse.move(x + 30, y)
+      await expect.poll(() => panel.evaluate(el => el.scrollTop)).toBeGreaterThan(0)
+      await page.mouse.move(x - 30, y)
+      await expect.poll(() => panel.evaluate(el => el.scrollTop)).toBe(0)
+      await page.mouse.move(x + 30, y)
+      const next = dialog.getByRole('button', { name: home.next })
+      const close = dialog.getByRole('button', { name: text.close })
+      await expect(next).toBeFocused({ timeout: 10_000 })
+      await page.waitForTimeout(300)
+      await expect(next).toBeFocused()
+      await page.mouse.move(x, y)
+      await page.waitForTimeout(50)
+      await page.mouse.move(x + 30, y)
+      await expect(close).toBeFocused()
+      await page.mouse.move(x - 30, y)
+      await expect(next).toBeFocused()
+      await page.mouse.up()
+      await page.keyboard.down('ArrowRight')
+      await expect(close).toBeFocused()
+      await page.keyboard.up('ArrowRight')
+      await page.keyboard.down('ArrowLeft')
+      await expect(next).toBeFocused()
+      await page.keyboard.up('ArrowLeft')
+      await page.waitForTimeout(50)
+      await page.keyboard.down('ArrowLeft')
+      await expect(title).toBeFocused()
+      await expect.poll(() => panel.evaluate(el => el.scrollTop)).toBe(0)
+      await page.keyboard.up('ArrowLeft')
     })
   })
 

@@ -116,6 +116,7 @@ export function useVillageArrive({
         setDestination(null)
       }
       const spot = spotAt(here, cell)
+      const previousSpot = activeSpotRef.current
       activeSpotRef.current = spot
       setActiveSpot(spot)
       // 地点への呼びかけは物の上の吹き出しが出す。会話窓は目的地の案内か既定文
@@ -129,8 +130,12 @@ export function useVillageArrive({
           ? defaultSpeech(here, text, coarseRef.current)
           : text.headTo.replace('{place}', text.stops[goalSpot.id].place)
       )
-      // 次へボタンで歩いてきた到着なら、会話窓を自動で開く。利用者が自分で歩いた到着では開かない
-      if (autoTalkRef.current && goal !== null && goal.x === cell.x && goal.y === cell.y) {
+      // 出口の範囲に入った時、または次へで目的地に着いた時に開く。
+      // 閉じた後に同じ出口内で横へ動いても繰り返し開かない
+      if (
+        (spot?.arrivalArea !== undefined && previousSpot?.id !== spot.id) ||
+        (autoTalkRef.current && goal !== null && goal.x === cell.x && goal.y === cell.y)
+      ) {
         autoTalkRef.current = false
         if (spot !== null) actionsRef.current.onTalk()
       }

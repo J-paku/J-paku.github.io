@@ -21,7 +21,7 @@ type UseHeldScrollParams = {
   panelRef: RefObject<HTMLElement | null>
   // 本文へ戻す先。見出し(tabIndex -1)に焦点がある間が「本文を読んでいる」状態
   titleRef: RefObject<HTMLElement | null>
-  // 押しっぱなしの方向。ロック中(このモーダルが開いている間)の上下は本文スクロールに使う
+  // 押しっぱなしの方向。右・下で進み、左・上で戻る
   scrollHeldRef: RefObject<Direction | null>
 }
 
@@ -43,7 +43,7 @@ export function useHeldScroll({
     let previous: Direction | null = scrollHeldRef.current
     let frame: number
 
-    // pressed は「今フレームが押した瞬間か」。本文送りは毎フレーム、焦点送りは押した瞬間だけ
+    // pressed は「今フレームが押した瞬間か」。下端到達時以外の焦点送りは押した瞬間だけ
     const advance = (direction: 'up' | 'down', pressed: boolean) => {
       const panel = panelRef.current
       const dialog = dialogRef.current
@@ -61,27 +61,31 @@ export function useHeldScroll({
           focusables[Math.min(index + 1, focusables.length - 1)].focus()
           return
         }
-        // 先頭から上は本文へ戻す。見出しへ移せば、次の上からはまた本文が送られる。
+        // 先頭から上は本文へ戻す。押し続ければ次のフレームから本文が送られる。
         // preventScroll を付けないと見出しが見える位置まで本文が一気に巻き戻る
         if (index === 0) titleRef.current?.focus({ preventScroll: true })
         else focusables[index - 1].focus()
         return
       }
 
-      // 本文が下端(または短くて送る必要が無い)なら、下は焦点をボタンへ渡す。1回の押下で1つだけ
+      // 既に下端なら新しい押下だけで渡す。開く前から押されていた方向では飛ばさない
       if (direction === 'down' && isAtBottom(panel)) {
         if (pressed) focusables[0]?.focus()
         return
       }
 
       panel.scrollTop += direction === 'down' ? SCROLL_STEP : -SCROLL_STEP
+      // 押し直しを待たず、送り切ったフレームで最初の対象へ渡す
+      if (direction === 'down' && isAtBottom(panel)) focusables[0]?.focus()
     }
 
     const step = () => {
       const direction = scrollHeldRef.current
       const pressed = direction !== null && direction !== previous
       previous = direction
-      if (direction === 'up' || direction === 'down') advance(direction, pressed)
+      if (direction !== null) {
+        advance(direction === 'down' || direction === 'right' ? 'down' : 'up', pressed)
+      }
       frame = requestAnimationFrame(step)
     }
     frame = requestAnimationFrame(step)

@@ -57,6 +57,7 @@ VillageText(locale ごと)
 
 `World` は言語共通(`content/world.ts`)、文言だけが locale 別(`content/{ja,ko}/village.ts`)。
 地点を足すときは **world 側の `spots` と両言語の `stops` を同時に**足す。片方だけだとビルドが落ちる。
+建物の無い出口の地点は `structureId` の代わりに `arrivalArea` を持つ。その範囲への到着で会話窓を開く。
 
 構造物の種類ごとの寸法は `content/types/world.ts` の `Structure` のコメントに書いてある。
 ただし**通行判定の正本は `src/lib/village/collision.ts`**(家は `area` 全体が通行不可で、`solid` は見た目の境界にしか使わない)。

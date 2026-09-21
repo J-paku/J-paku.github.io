@@ -49,7 +49,8 @@ export type Structure =
 // order が無い地点はコース外(次の地点・訪問数・完走判定からは除くが、話しかけ・地図表示・地図からの移動はできる)
 export type Spot = {
   id: string
-  structureId: string
+  structureId?: string // 建物の無い道の出口は arrivalArea だけを持つ
+  arrivalArea?: Rect // この範囲に入ると会話窓を自動で開く
   cell: Cell
   facing: Direction
   order?: number

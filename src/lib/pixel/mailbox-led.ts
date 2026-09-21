@@ -1,4 +1,4 @@
-// 夜だけポストに点く LED の正本。structures.ts は「昼の絵を並べた表」のままにしておきたいので、
+// 昼夜のポストに付く LED の正本。structures.ts は「絵を並べた表」のままにしておきたいので、
 // 絵から別の絵を導く仕組みはこちらへ出す(ランタンの型紙と重ね方を lantern.ts へ集めたのと同じ形)。
 // 夜の絵として配るのは structures.ts の structureNightArt の 1 行だけで、鍵の集合と並び順は
 // あちらが持つ — sprites.ts は昼の index をそのまま夜のシートにも使うため、鍵がずれると
@@ -21,7 +21,7 @@ const LED_ROW = 6
 const LED_COLUMNS = [3, 5, 7, 9, 11] as const
 
 // 粒の色を表す文字。palette-phase.ts が夜だけ発光色へ差し替える光源文字で、
-// + が赤・* が緑・# が紫。昼の値は「消えている粒」の色なので、昼の絵には使わない
+// + が赤・* が緑・# が紫。昼は通常色のレンズに置き換え、朝夕にも発光させない
 type LedChar = '+' | '*' | '#'
 
 // 列の並びと同じ長さ・同じ形の色の並び。型引数を通すことで長さまで縛られるので、
@@ -30,14 +30,15 @@ type PerColumn<Columns extends readonly number[]> = { readonly [At in keyof Colu
 
 // 赤・緑・紫・赤・緑。3 色を順に繰り返すと 5 粒でも色がひと回りし、単色の点線に見えない
 const LED_COLORS: PerColumn<typeof LED_COLUMNS> = ['+', '*', '#', '+', '*']
+const UNLIT_COLORS: Record<LedChar, string> = { '+': 'R', '*': 'G', '#': 'U' }
 
 // 昼のポストの上辺 5 マスを LED の粒へ置き換える。重ね合わせ(透明な所へ描き足す)ではなく
 // 置き換えなのは、16 ドットのポストへ粒を外付けすると 4 倍表示でごみに見えるため。
-// 作るのは夜のコマだけで、渡された昼の絵は書き換えない(行を組み直して返す)
-export const litMailbox = (art: PixelArt): PixelArt => {
+// 昼夜とも同じ位置に粒を置き、夜だけ点灯色にする。元の絵は書き換えない
+export const mailboxWithLeds = (art: PixelArt, lit: boolean): PixelArt => {
   const rows = art.map(row => [...row])
   LED_COLUMNS.forEach((x, at) => {
-    rows[LED_ROW][x] = LED_COLORS[at]
+    rows[LED_ROW][x] = lit ? LED_COLORS[at] : UNLIT_COLORS[LED_COLORS[at]]
   })
   return rows.map(row => row.join(''))
 }
