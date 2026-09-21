@@ -22,7 +22,7 @@ export type FishingFloatProps = {
 // CSS 変数は CSSProperties に含まれないので、使う分だけを足した形で渡す
 type FloatStyle = SpriteStyle & { '--land-ms': string }
 
-// 段階ごとの絵。待機中と確認窓の間は水面に何も無いので持たない
+// 段階ごとの絵。待機中は水面に何も無いので持たない
 const FLOAT_ART: Partial<Record<FishingPhase, string>> = {
   casting: 'bobber',
   bite: 'bobber-bite',

@@ -125,13 +125,10 @@ export type ClockText = {
   cancelled: string // 結果: 設定を取消した
 }
 
-// 釣りの文言。確認窓・結果窓は StopModal(StopText)で出すので、その形へ写す元になる
+// 釣りの文言。水辺の吹き出しと結果窓に使う
 export type FishingText = {
-  place: string // 確認窓の場所名(池)
-  prompt: string // 確認窓の見出し「釣りをしてみますか?」
-  lure: string // 確認窓の一文(水面の様子)
-  go: string // 確認窓の次へボタン「釣る」
-  stop: string // 確認窓の閉じるボタン「やめる」
+  prompt: string // 水辺の吹き出し
+  go: string // 吹き出しのボタン「釣る」
   cast: string // 投げた直後の会話窓「……」
   bite: string // 「何かがかかった!」
   landed: string // 釣り上げた瞬間の会話窓「経験を釣り上げた!」

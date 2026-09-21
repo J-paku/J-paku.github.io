@@ -41,17 +41,6 @@ export const isCollectionComplete = (
   caughtNames: ReadonlySet<string>
 ): boolean => items.length > 0 && items.every(item => caughtNames.has(item.name))
 
-// 確認窓の StopText。根拠・補足・締めは出さないので空にする(StopModal が空文字の段落を描かない)
-export const confirmStop = (text: FishingText): StopText => ({
-  place: text.place,
-  title: text.prompt,
-  claim: text.lure,
-  proof: '',
-  hook: '',
-  next: text.go,
-  detail: '',
-})
-
 // 結果窓の StopText。釣り上げた機能を、地点の会話と同じ並び(主張・根拠・補足)へ写す
 export const catchToStop = (
   feature: CareerFeature,

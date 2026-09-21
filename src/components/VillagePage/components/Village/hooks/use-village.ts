@@ -1,6 +1,6 @@
 // 村の組み立て。ワールド・案内・移動ループ・重ね表示の各フックを順に繋ぎ、描画に要る値だけを返す。
 // フックを呼ぶ順(寸法→入力→復元→rAF→重ね表示)がそのまま effect の走る順になるので、並べ替えない
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import type { CareerFeature, CareerRole } from '@content/types/content'
 import type { Cell, Spot, StopText, VillageText, World, WorldSet } from '@content/types/world'
@@ -78,8 +78,8 @@ type UseVillage = {
   // 話せる相手がいない時の考え事の吹き出し。2.5 秒で消える。位置は hintRef が毎フレーム追従する
   hintText: string | null
   mode: 'walk' | 'talk' | 'map' | 'clock' | 'fishing'
-  // 釣りの進み具合と、確認窓・結果窓に出す文言、浮きを置く水のマス。出す物が無ければ stop は null
-  fishing: { phase: FishingPhase; stop: StopText | null; at: Cell | null; cast: () => void }
+  // 釣りの進み具合と、結果窓に出す文言、浮きを置く水のマス。出す物が無ければ stop は null
+  fishing: { phase: FishingPhase; stop: StopText | null; at: Cell | null }
   setHeld: VillageInput['setHeld']
   // 会話窓が開いている間の上下入力。StopModal が本文スクロールに読む
   scrollHeldRef: VillageInput['scrollHeldRef']
@@ -96,7 +96,7 @@ type UseVillage = {
   travel: (spotId: string) => void
   // 開いている窓に「次へ」があるか。A の「次へ」と窓の次へボタンが同じ値を読む
   hasNext: boolean
-  // その「次へ」の行き先。地点の会話なら次の地点、釣りの確認窓なら糸を投げる手
+  // その「次へ」の行き先
   onNext: () => void
   // A/B の行き先の正本。画面の A/B ボタンとキーボードの Z/X が同じものを呼ぶ
   pressA: () => void
@@ -157,6 +157,7 @@ export function useVillage({
   const buttonsRef = useRef<VillageButtons>(NO_BUTTONS)
   // 釣っている間だけ true。重ね表示側が書き、歩行ループが毎フレーム読んで竿のコマへ差し替える
   const fishingPoseRef = useRef(false)
+  const [fishingTarget, setFishingTarget] = useState<Cell | null>(null)
 
   const {
     heldRef,
@@ -222,6 +223,7 @@ export function useVillage({
     heldRef,
     fishingPoseRef,
     sprites: playerSprites,
+    onFishingTarget: setFishingTarget,
     reduceMotion,
     arrive,
     bump,
@@ -259,13 +261,9 @@ export function useVillage({
     })
 
   // A/B は重ね表示の手(openTalk・goNext・closeOverlay)を使うので、その後に置く。
-  // 「次へ」の行き先は窓の種類で変わる(地点の会話は次の地点、釣りの確認窓は糸を投げる手)ので
-  // ここで 1 組に決め、画面の A ボタン・キーボードの Z・窓の中の次へボタンが同じものを読む
-  const hasNext =
-    mode === 'talk'
-      ? activeSpot !== null && nextSpot(worldSet, activeSpot) !== null
-      : mode === 'fishing' && fishing.phase === 'confirm'
-  const onNext = mode === 'fishing' ? fishing.cast : goNext
+  // 画面の A・キーボードの Z・窓の次へボタンが同じ行き先を読む
+  const hasNext = mode === 'talk' && activeSpot !== null && nextSpot(worldSet, activeSpot) !== null
+  const onNext = goNext
   const pressA = useCallback(() => {
     // 話せる相手がいない時は openTalk 自身が「考え事」の一言を出す
     if (mode === 'walk') {
@@ -303,9 +301,18 @@ export function useVillage({
     [world, text]
   )
 
-  const talkAt = activeSpot === null ? null : talkAnchor(world, activeSpot)
-  const talkText = activeSpot === null ? null : arriveSpeech(text, activeSpot)
-  const talkLabel = activeSpot === null ? undefined : talkLabelOf(text, activeSpot)
+  const canFish =
+    mode === 'walk' && activeSpot === null && catches.length > 0 && fishingTarget !== null
+  const talkAt =
+    activeSpot !== null
+      ? talkAnchor(world, activeSpot)
+      : canFish
+        ? { x: playerCell.x + 0.5, y: playerCell.y - 0.5 }
+        : null
+  const talkText =
+    activeSpot !== null ? arriveSpeech(text, activeSpot) : canFish ? text.fishing.prompt : null
+  const talkLabel =
+    activeSpot !== null ? talkLabelOf(text, activeSpot) : canFish ? text.fishing.go : undefined
 
   return {
     rootRef,
@@ -332,7 +339,7 @@ export function useVillage({
     talkAt,
     talkText,
     talkLabel,
-    hintText,
+    hintText: canFish ? null : hintText,
     mode,
     fishing,
     setHeld,

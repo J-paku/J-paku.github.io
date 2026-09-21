@@ -49,11 +49,8 @@ export const village: VillageText = {
     cancelled: '설정을 취소했습니다.',
   },
   fishing: {
-    place: '연못',
-    prompt: '낚시를 해볼까요?',
-    lure: '수면이 잔잔하게 흔들린다.',
+    prompt: '낚시를 해볼까…?',
     go: '낚는다',
-    stop: '그만둔다',
     cast: '……',
     bite: '뭔가 걸렸다!',
     landed: '경험을 낚아 올렸다!',

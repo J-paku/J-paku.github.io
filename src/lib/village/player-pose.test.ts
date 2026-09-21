@@ -49,7 +49,7 @@ describe('playerPose', () => {
   })
   it('釣っている間は向きごとの竿コマを使い、歩いていても歩行コマへ戻らない', () => {
     for (const facing of ['up', 'down', 'right'] as const) {
-      expect(playerPose({ ...state, facing, motion, stride: 1 }, false, true)).toEqual({
+      expect(playerPose({ ...state, facing, motion, stride: 1 }, false, true, 360)).toEqual({
         key: `player-fish-${facing}`,
         flip: false,
       })
@@ -57,10 +57,29 @@ describe('playerPose', () => {
   })
   it('釣っている左向きは右向きの竿コマを反転して作る', () => {
     // 竿コマも歩行コマと同じで、左向きの絵は持たない
-    expect(playerPose({ ...state, facing: 'left', stride: 0 }, false, true)).toEqual({
+    expect(playerPose({ ...state, facing: 'left', stride: 0 }, false, true, 360)).toEqual({
       key: 'player-fish-right',
       flip: true,
     })
+  })
+  it('投げ始めだけ振りかぶりと投げるコマを順に出し、その後は待機する', () => {
+    for (const facing of ['up', 'down', 'left', 'right'] as const) {
+      const direction = facing === 'left' ? 'right' : facing
+      for (const [elapsed, suffix] of [
+        [0, '-backswing'],
+        [179, '-backswing'],
+        [180, '-cast'],
+        [359, '-cast'],
+        [360, ''],
+        [5000, ''],
+      ] as const) {
+        expect(playerPose({ ...state, facing }, false, true, elapsed)).toEqual({
+          key: `player-fish-${direction}${suffix}`,
+          flip: facing === 'left',
+        })
+      }
+      expect(playerPose({ ...state, facing }, true, true, 0).key).toBe(`player-fish-${direction}`)
+    }
   })
   it('釣っていなければ今まで通りの歩行コマを返す', () => {
     expect(playerPose({ ...state, facing: 'down', motion, stride: 0 }, false, false)).toEqual({

@@ -49,11 +49,8 @@ export const village: VillageText = {
     cancelled: '設定を取り消しました。',
   },
   fishing: {
-    place: '池',
-    prompt: '釣りをしてみますか?',
-    lure: '水面が静かに揺れている。',
+    prompt: '釣りをしてみようかな…?',
     go: '釣る',
-    stop: 'やめる',
     cast: '……',
     bite: '何かがかかった!',
     landed: '経験を釣り上げた!',

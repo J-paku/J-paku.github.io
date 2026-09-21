@@ -29,7 +29,7 @@ last_reviewed: 2026-09-21
 | `tests/layout.spec.ts` | 舞台の寸法。PC・縦持ち・横持ち・タブレットで操作帯の配置が崩れないか |
 | `tests/day-night.spec.ts` | 時計を4段階に固定した空と、Open-Meteo の応答を差し替えた雨の有無 |
 | `tests/clock.spec.ts` | 自室の卓上時計。決めた時刻が空の段階と夜の灯りへ効くか、町へ出ても続き再読み込みで実時刻へ戻るか |
-| `tests/fishing.spec.ts` | 池での釣り。確認窓 → 浮き → 巻物 → 経験の会話窓と、投げている間の移動の止め方 |
+| `tests/fishing.spec.ts` | 池での釣り。吹き出しから直接投げる → 浮き → 巻物 → 経験の会話窓と、投げている間の移動の止め方 |
 
 E2E は `out/` を配る。**先に `npm run build` を済ませる。**
 
