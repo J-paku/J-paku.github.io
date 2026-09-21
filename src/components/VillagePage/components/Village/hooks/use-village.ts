@@ -116,6 +116,12 @@ export function useVillage({
   roleLabels,
   playerSprites,
 }: VillageOptions): UseVillage {
+  // 眠っている歩行ループを起こす手。ループの本体は useWalkLoop が持ち、ここへ今の手を入れる。
+  // ワールド・入力・重ね表示はループより先(または外)で呼ぶので、この ref 越しに届ける。
+  // ref と手を作るだけで effect は持たないので、フックの呼び順(AGENTS.md 2)には関わらない
+  const wakeLoopRef = useRef<() => void>(() => {})
+  const wakeLoop = useCallback(() => wakeLoopRef.current(), [])
+
   const {
     startWorld,
     world,
@@ -132,7 +138,7 @@ export function useVillage({
     playerCell,
     setPlayerCell,
     enterWorld,
-  } = useVillageWorld(worldSet)
+  } = useVillageWorld(worldSet, wakeLoop)
 
   const frameRef = useRef<HTMLDivElement>(null)
   // カメラで動く層。この中にだけ地面・人物・目印を入れ、会話窓とミニマップは枠に残す
@@ -176,7 +182,12 @@ export function useVillage({
     pointerTargetRef,
     onPointerMove,
     onPointerUp,
-  } = useVillageInput({ actions: actionsRef, buttons: buttonsRef, locked: lockedRef })
+  } = useVillageInput({
+    actions: actionsRef,
+    buttons: buttonsRef,
+    locked: lockedRef,
+    wake: wakeLoop,
+  })
 
   const {
     visitedRef,
@@ -234,6 +245,7 @@ export function useVillage({
     tapped,
     consumeTap,
     pointerTargetRef,
+    wakeRef: wakeLoopRef,
   })
 
   const { mode, openTalk, openMap, closeOverlay, goNext, travel, hintText, announce, fishing } =
@@ -262,6 +274,7 @@ export function useVillage({
       actionsRef,
       heldRef,
       fishingPoseRef,
+      wake: wakeLoop,
     })
 
   // A/B は重ね表示の手(openTalk・goNext・closeOverlay)を使うので、その後に置く。
@@ -309,7 +322,7 @@ export function useVillage({
     mode === 'walk' && activeSpot === null && catches.length > 0 && fishingTarget !== null
   const talkAt =
     activeSpot !== null
-      ? talkAnchor(world, activeSpot)
+      ? talkAnchor(world, activeSpot, playerCell)
       : canFish
         ? { x: playerCell.x + 0.5, y: playerCell.y - 0.5 }
         : null

@@ -51,6 +51,9 @@ export type VillageInputOptions = {
   buttons: RefObject<VillageButtons>
   // モーダル・地図が開いている間は true。移動入力とタップを捨てる
   locked: RefObject<boolean>
+  // 歩行ループを起こす手。ループは止まっている間は次のフレームを頼まないので、
+  // 移動の入力(押した向き・ポインタの下のマス)を書いたら呼ぶ。呼ばないと最初の入力が読まれない
+  wake: () => void
 }
 
 type UseVillageInput = {
@@ -83,6 +86,7 @@ export function useVillageInput({
   actions,
   buttons,
   locked,
+  wake,
 }: VillageInputOptions): UseVillageInput {
   const heldRef = useRef<Direction | null>(null)
   const scrollHeldRef = useRef<Direction | null>(null)
@@ -107,8 +111,9 @@ export function useVillageInput({
       }
       scrollHeldRef.current = null
       heldRef.current = direction
+      wake()
     },
-    [locked]
+    [locked, wake]
   )
 
   const onKeyDown = useCallback(
@@ -150,6 +155,7 @@ export function useVillageInput({
       if (direction !== undefined) {
         event.preventDefault()
         heldRef.current = direction
+        wake()
         return
       }
       if (TALK_CODES.includes(event.code)) {
@@ -157,7 +163,7 @@ export function useVillageInput({
         actions.current.onTalk()
       }
     },
-    [actions, buttons, locked]
+    [actions, buttons, locked, wake]
   )
 
   const onKeyUp = useCallback((event: KeyboardEvent<HTMLDivElement>) => {
@@ -186,10 +192,11 @@ export function useVillageInput({
       setTapped({ x, y })
       pointerTargetRef.current = { x, y }
       activePointerIdRef.current = event.pointerId
+      wake()
       // 枠の外へ出ても move/up を受け取り続けるために捕捉する
       event.currentTarget.setPointerCapture(event.pointerId)
     },
-    [locked]
+    [locked, wake]
   )
 
   const onPointerMove = useCallback(
@@ -200,8 +207,9 @@ export function useVillageInput({
       const current = pointerTargetRef.current
       if (current !== null && current.x === x && current.y === y) return
       pointerTargetRef.current = { x, y }
+      wake()
     },
-    [locked]
+    [locked, wake]
   )
 
   const onPointerUp = useCallback((event: PointerEvent<HTMLDivElement>) => {

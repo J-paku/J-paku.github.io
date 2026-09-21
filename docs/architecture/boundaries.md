@@ -48,7 +48,8 @@ utils ← lib ← hooks ← components ← app
 既定はサーバコンポーネント。`'use client'` は**ブラウザの入力・アニメーション・保存・DOM 実測が必要な島**にだけ置く。
 
 現在クライアントなのは、村の操作系(`src/components/VillagePage/components/Boot/` と `src/components/VillagePage/components/Village/` 配下)、一覧の `WorkCard`、
-作品ストーリーのモーダル・ポップオーバー・場面再生(`src/components/Story/` 配下と `src/components/ui/ScenePlayer/` `src/components/ui/SettingsMenu/`)。
+作品ストーリーのモーダル・ポップオーバー・場面再生(`src/components/Story/` 配下と `src/components/ui/ScenePlayer/` `src/components/ui/SettingsMenu/`)、
+全ページ共通のアクセス計測(`src/components/ui/PageviewCounter/`。pathname の変化を見て送るだけで何も描かない)。
 
 線を引くときの基準:
 

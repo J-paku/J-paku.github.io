@@ -1,7 +1,8 @@
 // 押しっぱなしの方向を毎フレーム読み、本文(パネル)のスクロール位置へ直接書く。
 // React state を経由させない(押している間ずっと再レンダーになる)。
 // 本文を下端まで送り切った後の「下」は送る先が無いので、代わりに窓の中のボタン・リンクへ
-// 焦点を1つずつ渡す。送り先の割り振りは1フレームに1つの判断なので、この1本のループで持つ
+// 焦点を1つずつ渡す。送り先の割り振りは1フレームに1つの判断なので、この1本のループで持つ。
+// 離している間は次のフレームを頼まずに眠り、キー・ポインタの入力で起きる
 import { useEffect } from 'react'
 import type { RefObject } from 'react'
 
@@ -48,7 +49,8 @@ export function useHeldScroll({
     // 戻る向きで最後に焦点を移した rAF 時刻。押した瞬間の移動で置き、離す・向きを変えると空に戻す。
     // 空の間は押しっぱなしでも遡らない(開く前から押されていた向きでは動かさない)
     let backMovedAt: number | null = null
-    let frame: number
+    // 頼んである次のフレーム。null は眠っている
+    let frame: number | null = null
 
     // pressed は「今フレームが押した瞬間か」。下端到達時以外の前への焦点送りは押した瞬間だけ。
     // now は rAF の時刻(ms)で、戻る焦点送りを繰り返す間隔を測る
@@ -91,17 +93,38 @@ export function useHeldScroll({
     }
 
     const step = (now: number) => {
+      frame = null
       const direction = scrollHeldRef.current
       const pressed = direction !== null && direction !== previous
       // 離した・向きを変えたら繰り返しの起点を捨て、次は押した瞬間から数え直す
       if (direction !== previous) backMovedAt = null
       previous = direction
-      if (direction !== null) {
-        advance(direction === 'down' || direction === 'right' ? 'down' : 'up', pressed, now)
-      }
+      // 離しているフレームは離したことだけ覚えて眠る。押されたら下の wake が回し直す
+      if (direction === null) return
+      advance(direction === 'down' || direction === 'right' ? 'down' : 'up', pressed, now)
       frame = requestAnimationFrame(step)
     }
+
+    // 押した向きは村の入力(キー・スティック)が ref へ書くだけで、ここへ知らせは来ない。
+    // どの向きもキー・ポインタの入力から始まるので、それを合図に 1 フレーム回して ref を読み直す。
+    // 読むのは入力を配り終えた後の rAF なので、書く側のハンドラより先にここが呼ばれても取りこぼさない
+    const wake = (event: Event) => {
+      if (frame !== null) return
+      // ボタンを押していないポインタ(マウスを動かしただけ)では向きは変わらない
+      if (event instanceof PointerEvent && event.buttons === 0) return
+      frame = requestAnimationFrame(step)
+    }
+    // 捕捉段で受ける。途中で伝播を止められても合図を取りこぼさない
+    window.addEventListener('keydown', wake, true)
+    window.addEventListener('pointerdown', wake, true)
+    window.addEventListener('pointermove', wake, true)
+    // 開く前から押されていた向きがあれば、開いた直後から送る(離していれば最初のフレームで眠る)
     frame = requestAnimationFrame(step)
-    return () => cancelAnimationFrame(frame)
+    return () => {
+      if (frame !== null) cancelAnimationFrame(frame)
+      window.removeEventListener('keydown', wake, true)
+      window.removeEventListener('pointerdown', wake, true)
+      window.removeEventListener('pointermove', wake, true)
+    }
   }, [dialogRef, panelRef, scrollHeldRef, titleRef])
 }

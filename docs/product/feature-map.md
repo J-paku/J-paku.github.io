@@ -49,7 +49,8 @@ last_reviewed: 2026-09-21
 
 ## 画面をまたぐ部品 — `src/components/ui/`
 
-`DeviceFrame`(iPhone 枠)・`Logo`・`Navigation`・`PhraseText`(日本語の文節改行)・`PlaybackIcon`・
+`DeviceFrame`(iPhone 枠)・`Logo`・`Navigation`・`PageviewCounter`(アプリ内の移動を計測へ送る。何も描かない)・
+`PhraseText`(日本語の文節改行)・`PlaybackIcon`・
 `PlaybackPulse`(再生切り替えのパルスと停止中の印)・`ScenePlayer`・`SettingsMenu`(言語とテーマ)・
 `TechTag`。
 

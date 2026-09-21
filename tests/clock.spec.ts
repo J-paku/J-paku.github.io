@@ -3,12 +3,13 @@
 // 決めた時刻が村の段階(data-phase)と夜の灯りに本当に効くこと・取消しと Escape では
 // 何も変わらないこと・画面の A/B と同じ Z/X でも決定と取りやめができること・
 // 町へ出ても続くのに再読み込みでは実時刻へ戻ることを ja/ko 双方で見る
-import { expect, test, type Locator, type Page } from '@playwright/test'
+import { expect, type Locator, type Page } from '@playwright/test'
 import type { ClockText, VillageText } from '@content/types/world'
 import { village as villageJa } from '@content/ja/village'
 import { village as villageKo } from '@content/ko/village'
-// 村を開く手順・歩きの間合い・描画待ちは journey.spec / day-night.spec と共用。正本は village.helpers.ts
-import { HOLD_MS, SETTLE_MS, focusVillage, openVillage, settleRender } from './village.helpers'
+// 村を開く手順・歩く walk(1 マスごとに到着を待つ)・既定で晴れを敷く test は他の村の spec と共用。
+// 正本は village.helpers.ts。天気はこの spec の対象外なので、その既定の晴れのまま実ネットワークへ出さない
+import { focusVillage, openVillage, test, walk } from './village.helpers'
 
 type Journey = { prefix: string; text: VillageText }
 
@@ -33,29 +34,6 @@ const PLAYER_LIGHT = '[data-village-light="player"]'
 // UTC の瞬間だけを固定すれば足りる。これは JST 2026-09-20 12:00 = 昼の帯(7時〜17時)。
 // どのテストもここから始め、「昼から変わったか」を段階で見る
 const NOON_JST = '2026-09-20T03:00:00Z'
-
-const OPEN_METEO = 'https://api.open-meteo.com/**'
-// 降っていない応答。天気はこの spec の対象外だが、実ネットワークへ出さないために必ず敷く。
-// day-night.spec の stubWeather は spec の中の定義で import できないため、必要な形だけを写す
-const stubWeather = (page: Page) =>
-  page.route(OPEN_METEO, route =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ current: { precipitation: 0, snowfall: 0 } }),
-    })
-  )
-
-// 方向キーを 1 マス分だけ押し、到着まで待ってから次の 1 マスへ進む(journey.spec の walk と同じ間合い)
-const walk = async (page: Page, key: string, cells: number) => {
-  for (let i = 0; i < cells; i += 1) {
-    await page.keyboard.down(key)
-    await page.waitForTimeout(HOLD_MS)
-    await page.keyboard.up(key)
-    await page.waitForTimeout(SETTLE_MS)
-    await settleRender(page)
-  }
-}
 
 // 部屋の開始マス (4,4) から時計の前 (7,3) へ。右 3 マスは PC 机(3〜5列・2〜3行)の下、
 // テーブル(6〜7列・5〜6行)の上を通る行なので素通りでき、最後の上 1 マスで卓上時計 (7,2) と向き合う
@@ -112,7 +90,6 @@ const expectPicked = async (clockWindow: Locator, hour: string, minute: string) 
 
 // 時計の前まで歩いて昼から始める。どのテストも同じ出発点に揃える
 const startAtClock = async (page: Page, prefix: string, clock: ClockText) => {
-  await stubWeather(page)
   await page.clock.setFixedTime(new Date(NOON_JST))
   await openVillage(page, prefix)
   await expect(page.locator(VILLAGE_ROOT), '出発は実時刻の昼').toHaveAttribute('data-phase', 'day')

@@ -1,7 +1,7 @@
 // 村をタッチ操作するための仮想ジョイスティック
 'use client'
 
-import { useRef, useState, type PointerEvent } from 'react'
+import { useRef, type CSSProperties, type PointerEvent } from 'react'
 
 import type { Direction } from '@content/types/world'
 
@@ -23,12 +23,26 @@ const CENTER: Position = { x: 0, y: 0 }
 const RADIUS_RATIO = 28 / 88
 const DEAD_ZONE = 10
 
+const knobTransform = ({ x, y }: Position): string => `translate(${x}px, ${y}px)`
+// 初回描画の土台。以後の位置は pointer の処理が DOM へ直接書く。
+// 同じ参照を渡し続けるので、親の再レンダーで React が書いた位置を中央へ戻すことはない
+const KNOB_START_STYLE: CSSProperties = { transform: knobTransform(CENTER) }
+
 export function Joystick({ label, onHold }: JoystickProps) {
-  const [position, setPosition] = useState<Position>(CENTER)
+  // 倒した位置は pointermove ごとに変わるので state にせず、つまみの transform を ref で直接書く
+  // (指が動くたびに React のコミットを起こさない。親への向きの通知は変わった時だけ)
+  const knobRef = useRef<HTMLDivElement>(null)
   const originRef = useRef<Position | null>(null)
   const activePointerIdRef = useRef<number | null>(null)
   const lastDirectionRef = useRef<Direction | null>(null)
   const maxRadiusRef = useRef<number>(88 * RADIUS_RATIO)
+
+  const moveKnob = (position: Position) => {
+    const knob = knobRef.current
+    if (knob === null) return
+
+    knob.style.transform = knobTransform(position)
+  }
 
   const updateDirection = (direction: Direction | null) => {
     if (lastDirectionRef.current === direction) return
@@ -37,10 +51,11 @@ export function Joystick({ label, onHold }: JoystickProps) {
     onHold(direction)
   }
 
+  // 指を離す・取り消し・捕捉喪失はすべてここを通り、つまみを必ず中央へ戻す
   const reset = () => {
     originRef.current = null
     activePointerIdRef.current = null
-    setPosition(CENTER)
+    moveKnob(CENTER)
     updateDirection(null)
   }
 
@@ -52,7 +67,7 @@ export function Joystick({ label, onHold }: JoystickProps) {
     activePointerIdRef.current = event.pointerId
     // 縦持ちタッチは CSS で base が120pxへ広がるため、押した瞬間の実測幅から倒せる距離を出し直す
     maxRadiusRef.current = event.currentTarget.clientWidth * RADIUS_RATIO
-    setPosition(CENTER)
+    moveKnob(CENTER)
     event.currentTarget.setPointerCapture(event.pointerId)
   }
 
@@ -67,7 +82,7 @@ export function Joystick({ label, onHold }: JoystickProps) {
     const distance = Math.hypot(deltaX, deltaY)
     const scale = distance > maxRadius ? maxRadius / distance : 1
 
-    setPosition({ x: deltaX * scale, y: deltaY * scale })
+    moveKnob({ x: deltaX * scale, y: deltaY * scale })
 
     if (distance < DEAD_ZONE) {
       updateDirection(null)
@@ -99,11 +114,7 @@ export function Joystick({ label, onHold }: JoystickProps) {
       onPointerCancel={handlePointerEnd}
       onLostPointerCapture={handlePointerEnd}
     >
-      <div
-        className={styles.knob}
-        aria-hidden='true'
-        style={{ transform: `translate(${position.x}px, ${position.y}px)` }}
-      />
+      <div ref={knobRef} className={styles.knob} aria-hidden='true' style={KNOB_START_STYLE} />
     </div>
   )
 }

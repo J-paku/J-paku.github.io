@@ -55,6 +55,8 @@ export type VillageOverlayOptions = {
   heldRef: RefObject<Direction | null>
   // 釣っている間だけ true にする印。歩行ループが毎フレーム読んで竿を持つコマへ差し替える
   fishingPoseRef: RefObject<boolean>
+  // 眠っている歩行ループを起こす手。錠を外した・竿の印を変えた・経路を置いた後に呼ぶ
+  wake: () => void
 }
 
 type UseVillageOverlay = {
@@ -98,6 +100,7 @@ export function useVillageOverlay({
   actionsRef,
   heldRef,
   fishingPoseRef,
+  wake,
 }: VillageOverlayOptions): UseVillageOverlay {
   const [mode, setMode] = useState<Mode>('walk')
   const { hintText, showHint, clearHint } = useVillageHint({ world })
@@ -116,20 +119,24 @@ export function useVillageOverlay({
   // 「5 か所すべて話した」の演出は一度だけ出す。再訪の度に一覧へ焦点を奪わない
   const celebratedRef = useRef(false)
 
-  // モーダル・地図が開いている間は移動入力を捨てる
+  // モーダル・地図が開いている間は移動入力を捨てる。
+  // 錠が外れたら、開いている間眠っていた歩行ループを起こす(途中だった歩き・カメラの追従を続ける)
   useEffect(() => {
     lockedRef.current = mode !== 'walk'
     if (mode !== 'walk') heldRef.current = null
-  }, [mode, heldRef, lockedRef])
+    else wake()
+  }, [mode, heldRef, lockedRef, wake])
 
-  // 投げてから結果窓を閉じるまでは竿を持つ
+  // 投げてから結果窓を閉じるまでは竿を持つ。
+  // 竿を振るコマは時間で進むので、印を変えたら眠っている歩行ループを起こす
   useEffect(() => {
     fishingPoseRef.current =
       fishingPhase === 'casting' ||
       fishingPhase === 'bite' ||
       fishingPhase === 'landing' ||
       fishingPhase === 'caught'
-  }, [fishingPhase, fishingPoseRef])
+    wake()
+  }, [fishingPhase, fishingPoseRef, wake])
 
   const openTalk = useCallback(() => {
     if (lockedRef.current) return
@@ -200,6 +207,8 @@ export function useVillageOverlay({
       setSpeech(defaultSpeech(worldRef.current, text, coarse))
     }
     lockedRef.current = false
+    // 開いている間眠っていた歩行ループを起こす。竿を下ろしたコマもここで描き直させる
+    wake()
     setMode('walk')
     // コース外の地点(経歴碑など)を先に話しても size は増えるが完走にはならないため、
     // visited に含まれるコース地点の数で判定する
@@ -228,6 +237,7 @@ export function useVillageOverlay({
     fishingPoseRef,
     worldRef,
     coarse,
+    wake,
   ])
 
   // M は開閉の切り替え。会話中は無視
@@ -259,6 +269,7 @@ export function useVillageOverlay({
     arrive,
     closeOverlay,
     openTalk,
+    wake,
   })
 
   useEffect(() => {

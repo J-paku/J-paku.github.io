@@ -4,7 +4,7 @@ read_when:
   - テストを足す・直すとき
   - どのテストを走らせるか決めるとき
 source_of_truth: true
-last_reviewed: 2026-09-21
+last_reviewed: 2026-09-22
 ---
 
 # テスト
@@ -32,6 +32,12 @@ last_reviewed: 2026-09-21
 | `tests/fishing.spec.ts` | 池での釣り。吹き出しから直接投げる → 浮き → 巻物 → 経験の会話窓と、竿先から浮きへの糸(振っている間は隠す・左向きの反転)、投げている間の移動の止め方、全部釣り上げた後の考え事の吹き出し |
 
 E2E は `out/` を配る。**先に `npm run build` を済ませる。**
+
+### 村の E2E の共通の約束
+
+- **ファイルの中まで並列に走る**(`fullyParallel`、手元は 4 ワーカーまで)。テストは自分の context だけで村を開き、順番や他のテストが残した状態に頼らない
+- **天気は既定で晴れ。** `@playwright/test` ではなく `tests/village.helpers.ts` の `test` を使うと、context に晴れの応答が敷かれ、実際の天気を待たない。雨や取得失敗を確かめるテストは `stubWeather(page, 'rain')` で上書きする(page の route が context の route より先に効く)。axe と日本語改行の検査スクリプトも同じ形の応答に差し替えて測る
+- **歩くのは `walk(page, key, cells)`。** 1 マスごとに保存位置(sessionStorage)が変わるまで待ち、変わらない回(ぶつかった・向きだけ変えた)は `SETTLE_MS` で見切る。戻り値は到着したマス数
 
 ## 新しい検査は必ず一度落とす
 

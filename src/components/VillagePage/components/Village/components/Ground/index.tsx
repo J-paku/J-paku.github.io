@@ -38,15 +38,17 @@ const Terrain = memo(function Terrain({ world, sprites }: Omit<GroundProps, 'des
     [world, sprites]
   )
 
+  // 動かないマスは 1 枚の箱にまとめ、毎フレーム動く人物・灯りと同じ親の直下に並べない。
+  // data-village-terrain は E2E が先頭の地形マスを掴むための取っ手(クラス名はビルドごとに変わる)
   return (
-    <>
+    <div className={styles.terrain} data-village-terrain aria-hidden='true'>
       {tiles.map(tile => (
         <div key={tile.key} className={styles.sprite} style={tile.style} aria-hidden='true' />
       ))}
       {facade.map(cell => (
         <div key={cell.key} className={styles.sprite} style={cell.style} aria-hidden='true' />
       ))}
-    </>
+    </div>
   )
 })
 

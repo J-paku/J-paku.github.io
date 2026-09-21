@@ -24,6 +24,8 @@ type VillageTravelOptions = {
   arrive: (cell: Cell) => void
   closeOverlay: () => void
   openTalk: () => void
+  // 眠っている歩行ループを起こす手。経路を置いたら呼ぶ
+  wake: () => void
 }
 
 type UseVillageTravel = {
@@ -48,6 +50,7 @@ export function useVillageTravel({
   arrive,
   closeOverlay,
   openTalk,
+  wake,
 }: VillageTravelOptions): UseVillageTravel {
   // 次の地点までは自動で歩く。到着したら会話窓を自動で開く(地図移動では開かない)。
   // 別ワールドの地点なら、そこへ通じる扉まで歩いて出る(目的地は扉を出た所で立てる)
@@ -77,6 +80,7 @@ export function useVillageTravel({
       autoTalkRef.current = true
       destinationRef.current = next.spot.cell
       setDestination(next.spot.cell)
+      wake()
       return
     }
     setSpeech(text.headTo.replace('{place}', text.stops[next.spot.id].place))
@@ -86,6 +90,7 @@ export function useVillageTravel({
     pendingFastRef.current = true
     autoTalkRef.current = true
     pendingGoalRef.current = next
+    wake()
   }, [
     closeOverlay,
     worldSet,
@@ -102,6 +107,7 @@ export function useVillageTravel({
     autoTalkRef,
     setDestination,
     openTalk,
+    wake,
   ])
 
   // 地図からの移動は経路を高速で消費する。地図は屋外だけなので探索も今のワールドでよい
@@ -125,6 +131,7 @@ export function useVillageTravel({
       destinationRef.current = spot.cell
       setDestination(spot.cell)
       setSpeech(text.headTo.replace('{place}', text.stops[spot.id].place))
+      wake()
     },
     [
       closeOverlay,
@@ -138,6 +145,7 @@ export function useVillageTravel({
       destinationRef,
       setDestination,
       setSpeech,
+      wake,
     ]
   )
 

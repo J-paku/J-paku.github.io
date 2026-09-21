@@ -52,8 +52,9 @@ content/ja/*.ts  content/ko/*.ts  content/world.ts
 - **失敗は全部 `'none'` に丸める。** タイムアウト(5秒)・ネットワーク障害・応答形の不一致・オフライン、どれでも雨は降らないだけで、村の描画も操作も止めない
 - 雨が出ないのはバグではなくフォールバック。E2E は応答を差し替えて両方を確かめる(`tests/day-night.spec.ts`)
 
-アクセス計測は GoatCounter。計測タグの読み込みは `src/app/html-shell.tsx`、送信を包む関数は `src/lib/analytics.ts` にあるが、
-**この関数は現在どこからも呼ばれていない**(タグの自動計測だけが動いている)。Cookie は使わない。計測が落ちても画面は動く。
+アクセス計測は GoatCounter。計測タグの読み込みは `src/app/html-shell.tsx` で、ページ読み込み時の1件はタグが自動で送る。
+next/link による移動はタグから見えないため、`src/components/ui/PageviewCounter/` が pathname の変わるたびに `src/lib/analytics.ts` の送信関数を呼ぶ
+(マウント時は送らず、読み込み時の1件と二重にしない)。Cookie は使わない。計測が落ちても画面は動く。
 
 ## 外の世界に触れてよい場所
 

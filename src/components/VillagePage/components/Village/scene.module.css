@@ -44,6 +44,17 @@
   left: 0;
   will-change: transform;
 }
+/* 地形マスと建物の正面(Ground の Terrain)だけを囲う箱。.world と同じ大きさで重ねる。
+   町で 680 枚ほどあるマスを、毎フレーム動く人物・灯りと同じ親の直下に並べていた頃より、
+   この箱で囲った方が歩いている間の Paint とスタイル再計算が約 4 割少ない(デスクトップの実測)。
+   z-index は付けない(auto)。箱は world 層の先頭の子なので、灯り・目的地の印(1)・主人公(2)の下のまま。
+   isolation はこの箱にだけ置く。灯り(lighting.module.css の .layer)は隔離してはいけない側で、
+   この箱の外の兄弟として残るので、screen の合成相手(下に描かれたタイル)は変わらない */
+.terrain {
+  position: absolute;
+  inset: 0;
+  isolation: isolate;
+}
 /* シートは横1列なので、--i 番目だけを背景位置で見せる。
    background-image(data URI)は Village が <style> の規則 1 本で当てる。
    カスタムプロパティ経由にすると要素ごとに URI を再解析し、町の 684 要素で約 1 秒止まる(実測) */
