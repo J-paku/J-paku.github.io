@@ -1,11 +1,12 @@
 // 村ページの本文(サーバ)。画面いっぱいの黒い舞台に枠を置き、文字は名前だけ見せる。
 // 紹介文・作品リンク・切替リンクは JS 無しでも HTML に入っている(視覚的には隠す)。
 // スプライトシートと地点リンクはここで一度だけ作り、クライアントの Village へ渡す
-import type { CareerRole, Locale } from '@content/types/content'
+import type { Locale } from '@content/types/content'
 import type { Sheet, SheetLayout } from '@/lib/pixel/art'
 import { readContent, readVillageText, readWorldSet, listStorySlugs } from '@/lib/content/read'
 import { buildWeatherSprites, sheetFileName, sheetOf, SHEET_DIR } from '@/lib/pixel/sprites'
 import type { SheetKind } from '@/lib/pixel/sprites'
+import { careerRoleLabels } from '@/utils/career-role-labels'
 import { dayPhaseAt, DAY_PHASES, type DayPhase } from '@/utils/day-phase'
 import { toHref } from '@/utils/locale-path'
 import Logo from '@/components/ui/Logo'
@@ -115,11 +116,7 @@ function VillagePage({ locale }: VillagePageProps) {
   // (文字列は content の中だけで持ち、Village 側は受け取った物を並べるだけにする)
   const catches =
     content.profile.careers.find(c => c.id === 'current')?.detail?.features?.items ?? []
-  const roleLabels: Record<CareerRole, string> = {
-    design: content.ui.career.roleDesign,
-    build: content.ui.career.roleBuild,
-    release: content.ui.career.roleRelease,
-  }
+  const roleLabels = careerRoleLabels(content.ui)
 
   return (
     <main id='main' className={styles.stage}>
