@@ -1,4 +1,4 @@
-// ゲームボーイ風の A/B ボタン。A は話す/次へ、B は閉じる — 状態(mode)で行き先を切り替える
+// ゲームボーイ風の A/B ボタン。A は話す/次へ、B は閉じる — 行き先は use-village の A/B が状態(mode)から決め、ここは呼ぶだけ
 'use client'
 
 import type { PointerEvent } from 'react'
@@ -6,50 +6,15 @@ import type { PointerEvent } from 'react'
 import styles from './action-buttons.module.css'
 
 export type ActionButtonsProps = {
-  mode: 'walk' | 'talk' | 'map'
-  hasNext: boolean
   labels: { a: string; b: string }
-  onTalk: () => void
-  onNext: () => void
-  onClose: () => void
+  onA: () => void
+  onB: () => void
 }
 
 // マップのblurが押下を消さないよう、ポインターによるフォーカス移動を防ぐ(DPad と同じ理由)
 const preventFocusSteal = (event: PointerEvent<HTMLButtonElement>) => event.preventDefault()
 
-export function ActionButtons({
-  mode,
-  hasNext,
-  labels,
-  onTalk,
-  onNext,
-  onClose,
-}: ActionButtonsProps) {
-  const handleA = () => {
-    // 話せる相手がいない時は onTalk 自身が「考え事」の一言を出す(openTalk が処理)
-    if (mode === 'walk') {
-      onTalk()
-      return
-    }
-    if (mode !== 'talk') return
-    // 会話窓の中のボタン・リンクへ焦点が移っていれば、そこを押す。
-    // スティックで本文を送り切った先(次へ・閉じる・本文のリンク)を A で決定できるようにする。
-    // A/B 自身は押下でフォーカスを奪わない(preventFocusSteal)ので、ここには入らない
-    const active = document.activeElement
-    if (
-      (active instanceof HTMLButtonElement || active instanceof HTMLAnchorElement) &&
-      active.closest('[role="dialog"]') !== null
-    ) {
-      active.click()
-      return
-    }
-    if (hasNext) onNext()
-  }
-
-  const handleB = () => {
-    if (mode === 'talk' || mode === 'map') onClose()
-  }
-
+export function ActionButtons({ labels, onA, onB }: ActionButtonsProps) {
   return (
     <div className={styles.buttons} role='group'>
       <button
@@ -58,7 +23,7 @@ export function ActionButtons({
         aria-label={labels.b}
         data-village-action='b'
         onPointerDown={preventFocusSteal}
-        onClick={handleB}
+        onClick={onB}
       >
         <span aria-hidden='true'>B</span>
       </button>
@@ -68,7 +33,7 @@ export function ActionButtons({
         aria-label={labels.a}
         data-village-action='a'
         onPointerDown={preventFocusSteal}
-        onClick={handleA}
+        onClick={onA}
       >
         <span aria-hidden='true'>A</span>
       </button>

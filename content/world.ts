@@ -7,7 +7,8 @@ const N = 'wall' as const
 const L = 'floor' as const
 const M = 'mat' as const
 
-// 自分の部屋(10×8)。上 2 行は壁。下端 (4,7) のマットが出口。PC 机の前 (4,4) が「自宅」地点
+// 自分の部屋(10×8)。上 2 行は壁。下端 (4,7) のマットが出口。PC 机の前 (4,4) が「自宅」地点。
+// 卓上時計(clock)は小机ごと 1 マス (7,2)、話しかけ位置は手前の (7,3) — コース外で、会話窓ではなく時間設定の窓が開く
 export const room: World = {
   id: 'room',
   kind: 'interior',
@@ -29,8 +30,13 @@ export const room: World = {
     { id: 'desk', kind: 'desk', cell: { x: 3, y: 2 } },
     { id: 'bed', kind: 'bed', cell: { x: 0, y: 5 } },
     { id: 'table', kind: 'table', cell: { x: 6, y: 5 } },
+    { id: 'clock', kind: 'clock', cell: { x: 7, y: 2 } },
   ],
-  spots: [{ id: 'home', structureId: 'desk', cell: { x: 4, y: 4 }, facing: 'up', order: 1 }],
+  spots: [
+    { id: 'home', structureId: 'desk', cell: { x: 4, y: 4 }, facing: 'up', order: 1 },
+    // コース外(order 無し)。action があるので会話窓ではなく時間設定の窓が開く
+    { id: 'clock', structureId: 'clock', cell: { x: 7, y: 3 }, facing: 'up', action: 'clock' },
+  ],
   // マットは 1 マス。乗ると町の自宅前へ出る
   warps: [
     {

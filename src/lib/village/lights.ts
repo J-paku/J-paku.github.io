@@ -72,13 +72,14 @@ const GLOW: Record<GlowKind, Glow> = {
 // 暗がりが薄れ、村を照らす 4 つ(街灯・焚き火・家の窓・ポストの LED)との区別も付かなくなる。
 // ロボットはゴーグルのレンズが光るが、後光はすぐ隣の焚き火が受け持つ。同じ場所を 2 つの光源で
 // 照らすと、そこだけ二重に明るくなって焚き火の存在が読めなくなる。
+// 卓上時計も液晶の数字だけが光る小さな灯りで、置き場は屋外の光源を持たない自室。ここへ後光を敷くと
+// 屋内だけ夜の暗がりが崩れる。
 // 灯りと無縁な種類(ポスト・ベッド・テーブルなど)は書かない — 発光する絵を持つものだけを並べる表。
 // この表と GLOW の両方から漏れた発光素材は lights.test.ts の不変条件が落として知らせる
-export const NO_GLOW: readonly Extract<Structure['kind'], 'monument' | 'desk' | 'robot'>[] = [
-  'monument',
-  'desk',
-  'robot',
-]
+export const NO_GLOW: readonly Extract<
+  Structure['kind'],
+  'monument' | 'desk' | 'robot' | 'clock'
+>[] = ['monument', 'desk', 'robot', 'clock']
 
 // 種類から表を引けるかの判定。灯りを持たない種類(机・ロボットなど)では false になる。
 // in ではなく Object.hasOwn を使う — in は継承した性質にも当たるので、'constructor' や

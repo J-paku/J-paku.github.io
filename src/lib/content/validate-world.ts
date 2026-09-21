@@ -167,11 +167,14 @@ export const validateWorldSet = (set: WorldSet): string[] => {
   return issues
 }
 
-// 文言の stops キーが全ワールドの spot id 集合と完全一致するか(片方だけの追加・削除を落とす)
+// 文言の stops キーが全ワールドの spot id 集合と完全一致するか(片方だけの追加・削除を落とす)。
+// action を持つ地点は会話窓を開かないので stops には入れない — 文言は専用の欄(卓上時計なら text.clock)が持つ
 export const validateVillageText = (set: WorldSet, text: VillageText, locale: Locale): string[] => {
   const issues: string[] = []
   const keys = new Set(Object.keys(text.stops))
-  const spots = Object.values(set.worlds).flatMap(w => w.spots)
+  const spots = Object.values(set.worlds)
+    .flatMap(w => w.spots)
+    .filter(s => s.action === undefined)
   for (const spot of spots) {
     if (!keys.has(spot.id)) issues.push(`${locale}: 地点 "${spot.id}" の文言が無い`)
   }

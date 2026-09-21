@@ -1,11 +1,11 @@
 // 村の組み立て。ワールド・案内・移動ループ・重ね表示の各フックを順に繋ぎ、描画に要る値だけを返す。
 // フックを呼ぶ順(寸法→入力→復元→rAF→重ね表示)がそのまま effect の走る順になるので、並べ替えない
-import { useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import type { RefObject } from 'react'
 import type { Cell, Spot, VillageText, World, WorldSet } from '@content/types/world'
 import type { SheetLayout } from '@/lib/pixel/art'
-import { talkAnchor } from '@/lib/village/spot'
-import { useVillageInput, type VillageActions } from './use-village-input'
+import { nextSpot, talkAnchor } from '@/lib/village/spot'
+import { useVillageInput, type VillageActions, type VillageButtons } from './use-village-input'
 import { cameraOffset, useStageScale, VIEW_COLS, VIEW_ROWS } from './use-stage-scale'
 import { useVillageGuide } from './use-village-guide/use-village-guide'
 import { useVillageOverlay } from './use-village-overlay/use-village-overlay'
@@ -13,10 +13,21 @@ import { useVillageWorld } from './use-village-world'
 import { useWalkLoop } from './use-walk-loop'
 
 const NO_ACTIONS: VillageActions = { onTalk: () => {}, onMap: () => {}, onEscape: () => {} }
+const NO_BUTTONS: VillageButtons = { onA: () => {}, onB: () => {} }
+
+// 地点の文言の引き先。時計のような action を持つ地点は会話窓を開かないので stops ではなく専用の欄を見る
+const placeName = (text: VillageText, spot: Spot): string =>
+  spot.action === 'clock' ? text.clock.place : text.stops[spot.id].place
 
 // 地点に立った時の呼びかけ。地点ごとの文言があればそれ、無ければ arriveAt に場所名を入れる
-const arriveSpeech = (text: VillageText, spotId: string): string =>
-  text.stops[spotId].arrive ?? text.arriveAt.replace('{place}', text.stops[spotId].place)
+const arriveSpeech = (text: VillageText, spot: Spot): string =>
+  spot.action === 'clock'
+    ? text.clock.arrive
+    : (text.stops[spot.id].arrive ?? text.arriveAt.replace('{place}', placeName(text, spot)))
+
+// 吹き出しの行動ボタン(A)の文言
+const talkLabelOf = (text: VillageText, spot: Spot): string =>
+  spot.action === 'clock' ? text.clock.talk : (text.stops[spot.id].talk ?? text.talk)
 
 // 入力フックが返す手はそのまま枠へ渡すだけなので、型もそちらから引く
 type VillageInput = ReturnType<typeof useVillageInput>
@@ -61,7 +72,7 @@ type UseVillage = {
   talkLabel: string | undefined
   // 話せる相手がいない時の考え事の吹き出し。2.5 秒で消える。位置は hintRef が毎フレーム追従する
   hintText: string | null
-  mode: 'walk' | 'talk' | 'map'
+  mode: 'walk' | 'talk' | 'map' | 'clock'
   setHeld: VillageInput['setHeld']
   // 会話窓が開いている間の上下入力。StopModal が本文スクロールに読む
   scrollHeldRef: VillageInput['scrollHeldRef']
@@ -76,6 +87,13 @@ type UseVillage = {
   closeOverlay: () => void
   goNext: () => void
   travel: (spotId: string) => void
+  // 今の地点の次があるか。A の「次へ」と会話窓の次へボタンが同じ値を読む(地点が無ければ false)
+  hasNext: boolean
+  // A/B の行き先の正本。画面の A/B ボタンとキーボードの Z/X が同じものを呼ぶ
+  pressA: () => void
+  pressB: () => void
+  // 会話窓(role='status')の一言を差し替える手。時計の設定窓が結果を伝えるのに使う
+  announce: (message: string) => void
 }
 
 export function useVillage({ worldSet, text, playerSprites }: VillageOptions): UseVillage {
@@ -121,6 +139,7 @@ export function useVillage({ worldSet, text, playerSprites }: VillageOptions): U
   const loadingRef = useRef<HTMLDivElement>(null)
   const lockedRef = useRef(false)
   const actionsRef = useRef<VillageActions>(NO_ACTIONS)
+  const buttonsRef = useRef<VillageButtons>(NO_BUTTONS)
 
   const {
     heldRef,
@@ -135,7 +154,7 @@ export function useVillage({ worldSet, text, playerSprites }: VillageOptions): U
     pointerTargetRef,
     onPointerMove,
     onPointerUp,
-  } = useVillageInput({ actions: actionsRef, locked: lockedRef })
+  } = useVillageInput({ actions: actionsRef, buttons: buttonsRef, locked: lockedRef })
 
   const {
     visitedRef,
@@ -193,37 +212,71 @@ export function useVillage({ worldSet, text, playerSprites }: VillageOptions): U
     pointerTargetRef,
   })
 
-  const { mode, openTalk, openMap, closeOverlay, goNext, travel, hintText } = useVillageOverlay({
-    worldSet,
-    text,
-    world,
-    worldRef,
-    worldKeyRef,
-    stateRef,
-    destinationRef,
-    pendingRouteRef,
-    pendingFastRef,
-    pendingGoalRef,
-    autoTalkRef,
-    setDestination,
-    visitedRef,
-    setVisited,
-    activeSpotRef,
-    setSpeech,
-    arrive,
-    lockedRef,
-    actionsRef,
-    heldRef,
-  })
+  const { mode, openTalk, openMap, closeOverlay, goNext, travel, hintText, announce } =
+    useVillageOverlay({
+      worldSet,
+      text,
+      world,
+      worldRef,
+      worldKeyRef,
+      stateRef,
+      destinationRef,
+      pendingRouteRef,
+      pendingFastRef,
+      pendingGoalRef,
+      autoTalkRef,
+      setDestination,
+      visitedRef,
+      setVisited,
+      activeSpotRef,
+      setSpeech,
+      arrive,
+      lockedRef,
+      actionsRef,
+      heldRef,
+    })
+
+  // A/B は重ね表示の手(openTalk・goNext・closeOverlay)を使うので、その後に置く
+  const hasNext = activeSpot !== null && nextSpot(worldSet, activeSpot) !== null
+  const pressA = useCallback(() => {
+    // 話せる相手がいない時は openTalk 自身が「考え事」の一言を出す
+    if (mode === 'walk') {
+      openTalk()
+      return
+    }
+    if (mode === 'map') return
+    // 会話窓・時計の設定窓の中のボタン・リンクへ焦点が移っていれば、そこを押す。
+    // スティックで本文を送り切った先(次へ・閉じる・本文のリンク)を A で決定できるようにする。
+    // 画面の A/B ボタン自身は押下でフォーカスを奪わない(preventFocusSteal)ので、ここには入らない
+    const active = document.activeElement
+    if (
+      (active instanceof HTMLButtonElement || active instanceof HTMLAnchorElement) &&
+      active.closest('[role="dialog"]') !== null
+    ) {
+      active.click()
+      return
+    }
+    if (mode === 'talk' && hasNext) goNext()
+  }, [mode, hasNext, openTalk, goNext])
+
+  // 歩いている時以外は重ね表示が開いているので、B はそれを閉じる
+  const pressB = useCallback(() => {
+    if (mode !== 'walk') closeOverlay()
+  }, [mode, closeOverlay])
+
+  // キーボードの Z/X は ref 越しに呼ぶので、A/B が作り直されたら入れ替える
+  useEffect(() => {
+    buttonsRef.current = { onA: pressA, onB: pressB }
+  }, [pressA, pressB])
 
   const placeNames = useMemo<Record<string, string>>(
-    () => Object.fromEntries(world.spots.map(s => [s.id, text.stops[s.id].place])),
+    () => Object.fromEntries(world.spots.map(s => [s.id, placeName(text, s)])),
     [world, text]
   )
 
   const talkAt = activeSpot === null ? null : talkAnchor(world, activeSpot)
-  const talkText = activeSpot === null ? null : arriveSpeech(text, activeSpot.id)
-  const talkLabel = activeSpot === null ? undefined : (text.stops[activeSpot.id].talk ?? text.talk)
+  const talkText = activeSpot === null ? null : arriveSpeech(text, activeSpot)
+  const talkLabel = activeSpot === null ? undefined : talkLabelOf(text, activeSpot)
 
   return {
     rootRef,
@@ -265,5 +318,9 @@ export function useVillage({ worldSet, text, playerSprites }: VillageOptions): U
     closeOverlay,
     goNext,
     travel,
+    hasNext,
+    pressA,
+    pressB,
+    announce,
   }
 }

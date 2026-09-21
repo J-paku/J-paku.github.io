@@ -5,8 +5,8 @@ import type { ReactNode } from 'react'
 import type { Locale } from '@content/types/content'
 import type { VillageText, WorldSet } from '@content/types/world'
 import type { SheetLayout } from '@/lib/pixel/art'
-import { nextSpot } from '@/lib/village/spot'
 import ActionButtons from './components/ActionButtons'
+import ClockModal from './components/ClockModal'
 import Joystick from './components/Joystick'
 import Lighting from './components/Lighting'
 import Minimap from './components/Minimap'
@@ -95,6 +95,10 @@ function Village({
     closeOverlay,
     goNext,
     travel,
+    hasNext,
+    pressA,
+    pressB,
+    announce,
   } = useVillage({ worldSet, text, playerSprites })
 
   const {
@@ -220,10 +224,20 @@ function Village({
               external={stopExternal[activeSpot.id] ?? false}
               lang={lang}
               closeLabel={text.close}
-              hasNext={nextSpot(worldSet, activeSpot) !== null}
+              hasNext={hasNext}
               listHref={listHref}
               scrollHeldRef={scrollHeldRef}
               onNext={goNext}
+              onClose={closeOverlay}
+              returnTo={frameRef}
+            />
+          ) : null}
+          {/* 卓上時計の設定窓。会話窓と同じく枠の中に重ね、結果は会話窓の一言として伝える */}
+          {mode === 'clock' ? (
+            <ClockModal
+              text={text.clock}
+              lang={lang}
+              announce={announce}
               onClose={closeOverlay}
               returnTo={frameRef}
             />
@@ -248,14 +262,7 @@ function Village({
           <div className={styles.joystick}>
             <Joystick label={text.joystick} onHold={setHeld} />
           </div>
-          <ActionButtons
-            mode={mode}
-            hasNext={activeSpot !== null && nextSpot(worldSet, activeSpot) !== null}
-            labels={{ a: text.buttonA, b: text.buttonB }}
-            onTalk={openTalk}
-            onNext={goNext}
-            onClose={closeOverlay}
-          />
+          <ActionButtons labels={{ a: text.buttonA, b: text.buttonB }} onA={pressA} onB={pressB} />
         </div>
       </div>
       {mode === 'map' && outdoors ? (

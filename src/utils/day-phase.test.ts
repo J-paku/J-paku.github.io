@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dayPhaseAt } from './day-phase'
+import { dayPhaseAt, dayPhaseAtHour } from './day-phase'
 
 // UTC時刻(時・分)から2026-09-20のDateを作る。日付自体は判定に影響しない
 const utc = (hour: number, minute = 0): Date => new Date(Date.UTC(2026, 8, 20, hour, minute))
@@ -20,5 +20,23 @@ describe('dayPhaseAt', () => {
 
   it('日付をまたぐ深夜(UTC15:00 = JST00:00)はnight', () => {
     expect(dayPhaseAt(utc(15))).toBe('night')
+  })
+})
+
+describe('dayPhaseAtHour', () => {
+  // しきい値の前後を対で並べる。境界の等号(以上・未満)がずれたらどちらかが落ちる
+  it.each([
+    [4, 'night'],
+    [5, 'dawn'],
+    [6, 'dawn'],
+    [7, 'day'],
+    [16, 'day'],
+    [17, 'dusk'],
+    [18, 'dusk'],
+    [19, 'night'],
+    [23, 'night'],
+    [0, 'night'],
+  ] as const)('%i時 → %s', (hour, expected) => {
+    expect(dayPhaseAtHour(hour)).toBe(expected)
   })
 })

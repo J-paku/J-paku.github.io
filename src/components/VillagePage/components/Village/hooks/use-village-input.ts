@@ -39,8 +39,16 @@ export type VillageActions = {
   onEscape: () => void
 }
 
+// A/B の行き先。判断は use-village が持ち、画面の A/B ボタンと同じものが入る
+export type VillageButtons = {
+  onA: () => void
+  onB: () => void
+}
+
 export type VillageInputOptions = {
   actions: RefObject<VillageActions>
+  // キーボードの Z/X が呼ぶ A/B。actions は重ね表示が丸ごと差し替えるので別の ref で受ける
+  buttons: RefObject<VillageButtons>
   // モーダル・地図が開いている間は true。移動入力とタップを捨てる
   locked: RefObject<boolean>
 }
@@ -71,7 +79,11 @@ type UseVillageInput = {
   onPointerUp: (event: PointerEvent<HTMLDivElement>) => void
 }
 
-export function useVillageInput({ actions, locked }: VillageInputOptions): UseVillageInput {
+export function useVillageInput({
+  actions,
+  buttons,
+  locked,
+}: VillageInputOptions): UseVillageInput {
   const heldRef = useRef<Direction | null>(null)
   const scrollHeldRef = useRef<Direction | null>(null)
   const [tapped, setTapped] = useState<Cell | null>(null)
@@ -112,6 +124,18 @@ export function useVillageInput({ actions, locked }: VillageInputOptions): UseVi
         actions.current.onMap()
         return
       }
+      // Z/X は画面の A/B と同じ。会話窓が開いている間も受け付け(地図は焦点が枠の外なので届かない)、
+      // 行き先は onA/onB 側が決める。
+      // 押しっぱなしの自動反復は捨てる(A が連打になって次の地点が続けて送られないように)
+      if (event.code === 'KeyZ' || event.code === 'KeyX') {
+        // Ctrl・Cmd・Alt 付きは取り消し・切り取りなどの操作なので A/B にせず、既定の動作のまま流す
+        if (event.ctrlKey || event.metaKey || event.altKey) return
+        event.preventDefault()
+        if (event.repeat) return
+        if (event.code === 'KeyZ') buttons.current.onA()
+        else buttons.current.onB()
+        return
+      }
       if (locked.current) {
         heldRef.current = null
         const scrollDirection = CODE_TO_DIRECTION[event.code]
@@ -133,7 +157,7 @@ export function useVillageInput({ actions, locked }: VillageInputOptions): UseVi
         actions.current.onTalk()
       }
     },
-    [actions, locked]
+    [actions, buttons, locked]
   )
 
   const onKeyUp = useCallback((event: KeyboardEvent<HTMLDivElement>) => {
