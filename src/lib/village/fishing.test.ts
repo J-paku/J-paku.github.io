@@ -1,9 +1,9 @@
-// 釣りの規則 isFishingSpot・pickCatch・isCollectionComplete・confirmStop・catchToStop のテスト
+// 釣りの規則 isFishingSpot・pickCatch・isCollectionComplete・catchToStop のテスト
 import { vi } from 'vitest'
 import type { CareerFeature, CareerRole } from '@content/types/content'
 import type { Cell, FishingText, World } from '@content/types/world'
 import { isWalkable } from './collision'
-import { isFishingSpot, pickCatch, isCollectionComplete, confirmStop, catchToStop } from './fishing'
+import { isFishingSpot, pickCatch, isCollectionComplete, catchToStop } from './fishing'
 
 // server-only は Next.js のビルド境界専用ガードで、vitest(node 環境)では無条件に例外を投げる。
 // テストでは中身を持たない mock に差し替え、読み込み専用の @/lib/content/read を素通しにする
@@ -112,11 +112,8 @@ describe('isCollectionComplete', () => {
 })
 
 const text: FishingText = {
-  place: '池',
   prompt: '釣りをしてみますか?',
-  lure: '水面が静かに揺れている。',
   go: '釣る',
-  stop: 'やめる',
   cast: '……',
   bite: '何かがかかった!',
   landed: '経験を釣り上げた!',
@@ -128,20 +125,6 @@ const text: FishingText = {
   caughtHook: 'もう一度投げてみてください。',
   caughtNext: '作品一覧へ',
 }
-
-describe('confirmStop', () => {
-  it('確認窓は場所・見出し・一文と次へだけを持ち、残りは空文字', () => {
-    expect(confirmStop(text)).toEqual({
-      place: '池',
-      title: '釣りをしてみますか?',
-      claim: '水面が静かに揺れている。',
-      proof: '',
-      hook: '',
-      next: '釣る',
-      detail: '',
-    })
-  })
-})
 
 const roleLabels: Record<CareerRole, string> = {
   design: '設計',

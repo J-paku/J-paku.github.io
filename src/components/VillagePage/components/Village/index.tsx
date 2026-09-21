@@ -122,7 +122,6 @@ function Village({
 
   // 会話窓に出す中身。地点の会話か釣りの窓かをここで 1 つに決め、StopModal は 1 か所だけで描く。
   // 「次へ」の有無と行き先(hasNext・onNext)は A ボタンと共用するので use-village が持つ。
-  // 釣りの確認窓は閉じるが「やめる」になる(結果窓は地点と同じ文言)
   const dialog =
     mode === 'talk' && activeSpot !== null
       ? {
@@ -136,7 +135,7 @@ function Village({
             stop: fishing.stop,
             href: null,
             external: false,
-            closeLabel: fishing.phase === 'confirm' ? text.fishing.stop : text.close,
+            closeLabel: text.close,
           }
         : null
 
@@ -226,7 +225,10 @@ function Village({
                 lang={lang}
                 at={talkAt}
                 actionLabel={talkLabel}
-                onAction={openTalk}
+                onAction={() => {
+                  frameRef.current?.focus()
+                  openTalk()
+                }}
               />
             ) : null}
             {hintText !== null ? (

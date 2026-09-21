@@ -43,7 +43,13 @@ describe('時刻ごとのシート', () => {
   })
 
   it('昼の主人公シートは 1 バイトも変わらない', () => {
-    const sheet = buildPlayerSprites('day')
+    // 追加した投げ動作を外して、既存の歩行・待機コマの同一性を守る。
+    const arts = Object.fromEntries(
+      Object.entries(PLAYER_ARTS).filter(
+        ([key]) => !key.endsWith('-backswing') && !key.endsWith('-cast')
+      )
+    )
+    const sheet = buildSheet(arts, phasePalette(palette, 'day'), 24)
 
     expect(sheet.count).toBe(PLAYER_BASELINE.count)
     expect(sheet.uri).toHaveLength(PLAYER_BASELINE.length)

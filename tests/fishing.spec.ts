@@ -1,4 +1,4 @@
-// 釣りの E2E。池のほとりで A(E)を押すと確認窓が出て、投げると水面に浮きが出て
+// 釣りの E2E。池の吹き出しから直接投げると水面に浮きが出て
 // 会話窓が「……」→「何かがかかった!」→「経験を釣り上げた!」と変わり、巻物が跳ねてから
 // 現職の機能が結果窓に出ることを ja/ko 双方で確かめる。
 // 併せて「投げている間は歩けない」「水に背を向けていれば釣れない」「池の中へは踏み込めない」を見る。
@@ -68,7 +68,7 @@ for (const { prefix, text } of JOURNEYS) {
   const label = prefix === '' ? '/' : prefix
   const fishing = text.fishing
 
-  test(`池のほとりで確認窓が出て、投げると経験が釣れる (${label})`, async ({ page }) => {
+  test(`池の吹き出しから直接投げると経験が釣れる (${label})`, async ({ page }) => {
     // 部屋から池まで 13 マス歩いたうえで、投げてからかかるまでの間合いも待つ
     test.setTimeout(45_000)
     await openVillage(page, prefix)
@@ -82,18 +82,33 @@ for (const { prefix, text } of JOURNEYS) {
     // 水面に出る 1 枚(浮き → 巻物)と、竿を持つコマに変わる主人公
     const float = page.locator('[data-village-float]')
     const player = page.locator('[data-village-player]')
-    await page.keyboard.press('e')
-    await expect(dialog.getByRole('heading', { name: fishing.prompt })).toBeVisible()
-    await expect(dialog).toContainText(fishing.lure)
-    // 確認窓の間はまだ何も投げていないので水面は空のまま
-    await expect(float).toHaveCount(0)
-    // 確認窓の「次へ」が釣り糸を投げる手
-    await dialog.getByRole('button', { name: fishing.go }).click()
+    const bubble = page.locator('[data-village-bubble]').filter({ hasText: fishing.prompt })
+    await expect(bubble).toBeVisible()
     await expect(dialog).toHaveCount(0)
+    await expect(float).toHaveCount(0)
+    // 短いモーションも取りこぼさず、実際に描かれたコマを記録する
+    await player.evaluate(element => {
+      element.setAttribute('data-observed-poses', '')
+      new MutationObserver(() => {
+        const pose = element.getAttribute('data-sprite') ?? ''
+        const seen = element.getAttribute('data-observed-poses') ?? ''
+        if (!seen.split(',').includes(pose))
+          element.setAttribute('data-observed-poses', `${seen},${pose}`)
+      }).observe(element, { attributes: true, attributeFilter: ['data-sprite'] })
+    })
+    // キーボードの Z と吹き出しのボタンで直接投げる
+    if (prefix === '') await page.keyboard.press('z')
+    else await bubble.getByRole('button', { name: fishing.go }).click()
+    await expect(dialog).toHaveCount(0)
+    await expect(bubble).toHaveCount(0)
     await expect(speech).toContainText(fishing.cast)
     // 投げた先の水のマスに浮きが出て、主人公は歩行コマから竿を持つコマへ変わる
     await expect(float).toHaveAttribute('data-float-phase', 'casting')
     await expect(player).toHaveAttribute('data-sprite', 'player-fish-down')
+    await expect(player).toHaveAttribute(
+      'data-observed-poses',
+      /player-fish-down-backswing,player-fish-down-cast,player-fish-down/
+    )
     // 投げている間は窓が無くても移動が止まる(押しても保存された位置が変わらない)
     await walk(page, 'ArrowUp', 1)
     expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 5, y: 13 } })
@@ -128,11 +143,14 @@ for (const { prefix, text } of JOURNEYS) {
     await openVillage(page, prefix)
     await leaveRoom(page)
     // 右隣 (6,13) を経由してほとり (5,13) へ入る。立つマスは同じで、向きだけ水面から外れる。
-    // 隣が水というだけで釣れてしまう作りなら、ここで確認窓が出て落ちる
+    // 隣が水というだけでは吹き出しも釣りも始まらない
     await walk(page, 'ArrowLeft', 8)
     await walk(page, 'ArrowDown', 1)
     await walk(page, 'ArrowLeft', 1)
     expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 5, y: 13 } })
+    await expect(
+      page.locator('[data-village-bubble]').filter({ hasText: fishing.prompt })
+    ).toHaveCount(0)
     await page.keyboard.press('e')
     // 話せる相手がいない時の一言が出てから、窓が出ていないことを見る(順を逆にすると
     // 窓が描かれる前に数えてしまい、出ていても通ってしまう)
@@ -157,3 +175,36 @@ for (const { prefix, text } of JOURNEYS) {
     expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 6, y: 15 } })
   })
 }
+
+test.describe('タッチ操作の釣り', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true })
+
+  test('画面の A で直接投げ、B で中断して再び投げられる', async ({ page }) => {
+    test.setTimeout(45_000)
+    await openVillage(page, '/ko')
+    await goToPondShore(page)
+    const bubble = page
+      .locator('[data-village-bubble]')
+      .filter({ hasText: villageKo.fishing.prompt })
+    const float = page.locator('[data-village-float]')
+    await expect(bubble).toBeVisible()
+    await page.getByRole('button', { name: villageKo.buttonA, exact: true }).click()
+    await expect(float).toHaveAttribute('data-float-phase', 'casting')
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+    await page.getByRole('button', { name: villageKo.buttonB, exact: true }).click()
+    await expect(float).toHaveCount(0)
+    await expect(bubble).toBeVisible()
+    await page.waitForTimeout(FISHING_CAST_MS + FISHING_BITE_MS + FISHING_LAND_MS)
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+    await page.getByRole('button', { name: villageKo.buttonA, exact: true }).click()
+    await expect(float).toHaveAttribute('data-float-phase', 'casting')
+    await page.getByRole('button', { name: villageKo.buttonB, exact: true }).click()
+    // 歩かず水面へ向き直った時も吹き出しを更新する
+    await expect(bubble).toBeVisible()
+    await page.locator('[data-village]').focus()
+    await page.keyboard.press('ArrowRight', { delay: 40 })
+    await expect(bubble).toHaveCount(0)
+    await page.keyboard.press('ArrowDown', { delay: 40 })
+    await expect(bubble).toBeVisible()
+  })
+})

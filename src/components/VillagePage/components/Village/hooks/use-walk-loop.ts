@@ -5,6 +5,8 @@ import type { Cell, Direction, World } from '@content/types/world'
 import type { SheetLayout } from '@/lib/pixel/art'
 import { step, type MoveState } from '@/lib/village/movement'
 import { playerPose } from '@/lib/village/player-pose'
+import { isFishingSpot } from '@/lib/village/fishing'
+import { facedCell } from '@/lib/village/spot'
 import { findPath } from '@/lib/village/path'
 import { spriteIndex } from '../sprite-style'
 import { approachCamera, cameraOffset, VIEW_COLS } from './use-stage-scale'
@@ -44,6 +46,7 @@ export type WalkLoopOptions = {
   heldRef: RefObject<Direction | null>
   // 釣っている間だけ true。歩行コマの代わりに竿を持つコマを出す
   fishingPoseRef: RefObject<boolean>
+  onFishingTarget: (cell: Cell | null) => void
   sprites: SheetLayout
   reduceMotion: boolean
   arrive: (cell: Cell) => void
@@ -71,6 +74,7 @@ export function useWalkLoop({
   lockedRef,
   heldRef,
   fishingPoseRef,
+  onFishingTarget,
   sprites,
   reduceMotion,
   arrive,
@@ -80,6 +84,8 @@ export function useWalkLoop({
   pointerTargetRef,
 }: WalkLoopOptions): void {
   const spriteKeyRef = useRef('')
+  const fishingSinceRef = useRef<number | null>(null)
+  const fishingTargetRef = useRef<Cell | null>(null)
   // 新しいワールドの DOM を待ち始めた時刻。null は待っていない
   const waitSinceRef = useRef<number | null>(null)
   // ワープ直後に押しっぱなしの方向をそのまま食べると、向かい合う扉へ即座に吸い込まれて往復する。
@@ -108,7 +114,15 @@ export function useWalkLoop({
     if (player === null) return
     // 最初の paint より前は位置がまだ決まっていない。空の shift を書くと左上へ飛ぶので触らない
     if (shiftRef.current === '') return
-    const { key, flip } = playerPose(stateRef.current, reduceMotion, fishingPoseRef.current)
+    const now = performance.now()
+    if (!fishingPoseRef.current) fishingSinceRef.current = null
+    else if (fishingSinceRef.current === null) fishingSinceRef.current = now
+    const { key, flip } = playerPose(
+      stateRef.current,
+      reduceMotion,
+      fishingPoseRef.current,
+      fishingSinceRef.current === null ? 0 : now - fishingSinceRef.current
+    )
     const transform = `${shiftRef.current}${flip ? ' scaleX(-1)' : ''}`
     if (lastTransformRef.current !== transform) {
       lastTransformRef.current = transform
@@ -128,6 +142,14 @@ export function useWalkLoop({
       if (frame === null || player === null) return
       const state = stateRef.current
       const world = worldRef.current
+      // 向きだけ変えた時も判定する。対象が変わった時だけ React へ知らせる
+      const fishingTarget =
+        state.motion === null && isFishingSpot(world, state) ? facedCell(state) : null
+      const previousTarget = fishingTargetRef.current
+      if (previousTarget?.x !== fishingTarget?.x || previousTarget?.y !== fishingTarget?.y) {
+        fishingTargetRef.current = fishingTarget
+        onFishingTarget(fishingTarget)
+      }
       const layer = worldLayerRef.current
       // ワープ直後は React がまだ前のワールドのタイルを描いている。ここで新しい原点へ飛ばすと
       // 前のワールドが枠の外へ押し出されて黒画面だけが残る(町の描画待ちで実測約1秒)。
@@ -189,6 +211,7 @@ export function useWalkLoop({
       hintRef,
       playerLightRef,
       loadingRef,
+      onFishingTarget,
     ]
   )
 

@@ -68,8 +68,8 @@ type UseVillageOverlay = {
   hintText: string | null
   // 会話窓(role='status')の一言を差し替える手。時計の設定窓が結果を伝えるのに使う
   announce: (message: string) => void
-  // 釣りの進み具合と、確認窓・結果窓に出す文言、浮きを置く水のマス。出す物が無ければ stop は null
-  fishing: { phase: FishingPhase; stop: StopText | null; at: Cell | null; cast: () => void }
+  // 釣りの進み具合と、結果窓に出す文言、浮きを置く水のマス。出す物が無ければ stop は null
+  fishing: { phase: FishingPhase; stop: StopText | null; at: Cell | null }
 }
 
 export function useVillageOverlay({
@@ -105,7 +105,6 @@ export function useVillageOverlay({
     stop: fishingStop,
     at: fishingAt,
     start: startFishing,
-    cast: castFishing,
     reset: resetFishing,
   } = useVillageFishing({ text, catches, roleLabels, world, setSpeech })
   // コース地点(order を持つ地点)の id 一覧。一度だけ作り、visited との突き合わせに使う
@@ -121,7 +120,7 @@ export function useVillageOverlay({
     if (mode !== 'walk') heldRef.current = null
   }, [mode, heldRef, lockedRef])
 
-  // 竿を持つコマにするのは実際に投げてから。確認窓(まだ釣ると決めていない)の間は普段の立ち姿のまま
+  // 投げてから結果窓を閉じるまでは竿を持つ
   useEffect(() => {
     fishingPoseRef.current =
       fishingPhase === 'casting' ||
@@ -132,9 +131,10 @@ export function useVillageOverlay({
 
   const openTalk = useCallback(() => {
     if (lockedRef.current) return
+    if (stateRef.current.motion !== null) return
     const spot = activeSpotRef.current
     if (spot === null) {
-      // 水辺を向いているなら釣りの確認窓を開く。会話地点と同じく、開いている間は移動を止める。
+      // 水辺を向いているなら直接投げる。釣っている間は移動を止める。
       // 釣れる中身が 1 つも無い時は開かない — 開くと結果窓が出ないまま移動だけ止まってしまう
       if (catches.length > 0 && isFishingSpot(worldRef.current, stateRef.current)) {
         clearHint()
@@ -268,6 +268,6 @@ export function useVillageOverlay({
     travel,
     hintText,
     announce: setSpeech,
-    fishing: { phase: fishingPhase, stop: fishingStop, at: fishingAt, cast: castFishing },
+    fishing: { phase: fishingPhase, stop: fishingStop, at: fishingAt },
   }
 }

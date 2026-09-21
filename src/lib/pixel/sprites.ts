@@ -23,6 +23,7 @@ type PlayerSpriteKey =
   | 'player-fish-up'
   | 'player-fish-down'
   | 'player-fish-right'
+  | `player-fish-${'up' | 'down' | 'right'}-${'backswing' | 'cast'}`
 
 export type SpriteKey =
   keyof typeof terrainArt | keyof typeof structureArt | keyof typeof fishingArt
@@ -54,7 +55,7 @@ const mergeNightArt = <Key extends string>(
   return { ...base, ...overrides }
 }
 
-// 主人公の 11 コマをシート用の平らな辞書へ並べる。昼と夜で同じ関数を通すので、
+// 主人公のコマをシート用の平らな辞書へ並べる。昼と夜で同じ関数を通すので、
 // 鍵の集合・並び順・コマ数は構造的に一致する(夜だけコマが増減することが起こり得ない)
 const playerSpriteArts = (frames: PlayerFrames): Record<PlayerSpriteKey, PixelArt> => ({
   'player-up-0': frames.up[0],
@@ -68,6 +69,12 @@ const playerSpriteArts = (frames: PlayerFrames): Record<PlayerSpriteKey, PixelAr
   'player-fish-up': frames.fish[0],
   'player-fish-down': frames.fish[1],
   'player-fish-right': frames.fish[2],
+  'player-fish-up-backswing': frames.backswing[0],
+  'player-fish-down-backswing': frames.backswing[1],
+  'player-fish-right-backswing': frames.backswing[2],
+  'player-fish-up-cast': frames.cast[0],
+  'player-fish-down-cast': frames.cast[1],
+  'player-fish-right-cast': frames.cast[2],
 })
 
 // 釣りの小物は昼夜で絵が変わらないので、地形・建物と同じ 16×16 のシートへ並べるだけでよい

@@ -13,6 +13,8 @@ type PlayerFrames = {
   right: [PixelArt, PixelArt]
   // 釣っている間の静止コマ。並びは上・下・右(左は右の反転)
   fish: [PixelArt, PixelArt, PixelArt]
+  backswing: [PixelArt, PixelArt, PixelArt]
+  cast: [PixelArt, PixelArt, PixelArt]
 }
 
 // 描画の空行。頭上の余白に使う
@@ -215,6 +217,66 @@ const rightRod: PixelArt = [
   '................',
 ]
 
+// 振りかぶる竿と、頭上をしならせて投げる竿。手も一緒に上げ、待機コマと輪郭を変える。
+// 下半身とランタンの席は固定し、横向きの反転用に左右の端は空ける。
+const backswingRod: PixelArt = [
+  '....Eee.........',
+  '...e...e........',
+  '..e.....e.......',
+  '..h......e......',
+  '..h.......e.....',
+  '..R.......e.....',
+  '..h........e....',
+  '...........e....',
+  '...........e....',
+  '...........e....',
+  '..........VEE...',
+  '..........VSe...',
+  '...........e....',
+  '...........V....',
+  '..........MM....',
+  '..........MM....',
+  BLANK,
+  BLANK,
+  BLANK,
+  BLANK,
+  BLANK,
+  BLANK,
+  BLANK,
+  BLANK,
+]
+const castRod: PixelArt = [
+  '....hhhhhh......',
+  '..hh......hh....',
+  '.h.Eeee.....h...',
+  '...e...ee....h..',
+  '....e....e....h.',
+  '.....e....e...h.',
+  '......e....e..h.',
+  '.......e....e...',
+  '........e....e..',
+  '.........e......',
+  '..........e.....',
+  '..........V.....',
+  '.........VEE....',
+  '..........S.....',
+  '..........V.....',
+  '.........MM.....',
+  BLANK,
+  BLANK,
+  BLANK,
+  BLANK,
+  BLANK,
+  BLANK,
+  BLANK,
+  BLANK,
+]
+const throwFrames = (rod: PixelArt): [PixelArt, PixelArt, PixelArt] => [
+  overlayRod(stand(upBody, upFeet), rod),
+  overlayRod(stand(downBody, downFeet), rod.map(mirrorArt)),
+  overlayRod(stand(rightBody, rightFeet), rod),
+]
+
 export const playerArt: PlayerFrames = {
   up: [
     stand(upBody, upFeet),
@@ -232,6 +294,8 @@ export const playerArt: PlayerFrames = {
     overlayRod(stand(downBody, downFeet), downRod),
     overlayRod(stand(rightBody, rightFeet), rightRod),
   ],
+  backswing: throwFrames(backswingRod),
+  cast: throwFrames(castRod),
 }
 
 // ここから下は夜だけ使う差分。昼のコマへ灯りを重ねるだけなので、体と服のドットは昼と 1 ドットも変わらない。
@@ -265,5 +329,15 @@ export const playerNightArt: PlayerFrames = {
     standLit(playerArt.fish[0], backLantern),
     standLit(playerArt.fish[1], frontLantern),
     standLit(playerArt.fish[2], sideLantern),
+  ],
+  backswing: [
+    standLit(playerArt.backswing[0], backLantern),
+    standLit(playerArt.backswing[1], frontLantern),
+    standLit(playerArt.backswing[2], sideLantern),
+  ],
+  cast: [
+    standLit(playerArt.cast[0], backLantern),
+    standLit(playerArt.cast[1], frontLantern),
+    standLit(playerArt.cast[2], sideLantern),
   ],
 }
