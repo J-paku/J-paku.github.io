@@ -7,6 +7,7 @@ import type {
 } from '@content/types/content'
 import PhraseText from '@/components/ui/PhraseText'
 import TechTag from '@/components/ui/TechTag'
+import { careerRoleLabels } from '@/utils/career-role-labels'
 import styles from '../../career-detail.module.css'
 
 type FeaturesProps = {
@@ -21,11 +22,7 @@ type FeaturesProps = {
 const ROLE_ORDER: CareerRole[] = ['design', 'build', 'release']
 
 function Features({ features, ui, locale }: FeaturesProps) {
-  const roleLabels: Record<CareerRole, string> = {
-    design: ui.career.roleDesign,
-    build: ui.career.roleBuild,
-    release: ui.career.roleRelease,
-  }
+  const roleLabels = careerRoleLabels(ui)
 
   return (
     <section className={styles.block}>

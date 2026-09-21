@@ -21,13 +21,15 @@ last_reviewed: 2026-09-21
 - 純粋関数に切り出せる計算は切り出してから単体テストを書く。`src/lib/village/` と `src/lib/pixel/` がその形になっている
 - フィクスチャは `*.fixture.ts`(Vitest の対象から外れる名前)
 
-## E2E の3本
+## E2E の5本
 
 | ファイル | 見るもの |
 |---|---|
 | `tests/journey.spec.ts` | 村の導線。会話 → 扉 → 作品 → 一覧、地図の高速移動、位置と訪問の保存、テーマ、当たり判定を ja/ko 双方で |
 | `tests/layout.spec.ts` | 舞台の寸法。PC・縦持ち・横持ち・タブレットで操作帯の配置が崩れないか |
 | `tests/day-night.spec.ts` | 時計を4段階に固定した空と、Open-Meteo の応答を差し替えた雨の有無 |
+| `tests/clock.spec.ts` | 自室の卓上時計。決めた時刻が空の段階と夜の灯りへ効くか、町へ出ても続き再読み込みで実時刻へ戻るか |
+| `tests/fishing.spec.ts` | 池での釣り。確認窓 → 浮き → 巻物 → 経験の会話窓と、投げている間の移動の止め方 |
 
 E2E は `out/` を配る。**先に `npm run build` を済ませる。**
 

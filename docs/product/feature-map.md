@@ -20,7 +20,7 @@ last_reviewed: 2026-09-21
 | 規則 | `src/lib/village/` |
 | 絵 | `src/lib/pixel/` |
 | コンテンツ | `content/world.ts`(地形)・`content/{ja,ko}/village.ts`(文言) |
-| E2E | `tests/journey.spec.ts`(導線)・`tests/layout.spec.ts`(舞台の寸法)・`tests/day-night.spec.ts`(昼夜と天気) |
+| E2E | `tests/journey.spec.ts`(導線)・`tests/layout.spec.ts`(舞台の寸法)・`tests/day-night.spec.ts`(昼夜と天気)・`tests/clock.spec.ts`(自室の卓上時計)・`tests/fishing.spec.ts`(池での釣り) |
 
 詳細は [../architecture/village.md](../architecture/village.md)。
 
