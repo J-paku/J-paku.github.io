@@ -92,24 +92,26 @@ for (const { prefix, text } of JOURNEYS) {
     await expect(dialog).toHaveCount(0)
     await expect(speech).toContainText(fishing.cast)
     // 投げた先の水のマスに浮きが出て、主人公は歩行コマから竿を持つコマへ変わる
-    await expect(float).toHaveAttribute('data-phase', 'casting')
+    await expect(float).toHaveAttribute('data-float-phase', 'casting')
     await expect(player).toHaveAttribute('data-sprite', 'player-fish-down')
     // 投げている間は窓が無くても移動が止まる(押しても保存された位置が変わらない)
     await walk(page, 'ArrowUp', 1)
     expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 5, y: 13 } })
     // かかると浮きが沈む絵へ差し替わる
     await expect(speech).toContainText(fishing.bite, { timeout: FISHING_CAST_MS + SLACK_MS })
-    await expect(float).toHaveAttribute('data-phase', 'bite')
+    await expect(float).toHaveAttribute('data-float-phase', 'bite')
     // そのあと巻物が水から跳ね、浮いている間だけ会話窓が「釣り上げた」に変わる。
-    // 機能は複数あるので 1 匹目で全部は揃わない(揃った時だけ complete が出る)
-    await expect(float).toHaveAttribute('data-phase', 'landing', {
+    // 機能は複数あるので 1 匹目で全部は揃わない(揃った時だけ complete が出る)。
+    // landing は FISHING_LAND_MS しか続かないので、遅いランナーでは caught まで進んだ後に
+    // 数えることがある。跳ねる絵が出たことだけを見て、どちらでも通す
+    await expect(float).toHaveAttribute('data-float-phase', /landing|caught/, {
       timeout: FISHING_BITE_MS + SLACK_MS,
     })
     await expect(speech).toContainText(fishing.landed)
     // 釣れた中身は機能一覧から選ぶので題は決まらない。場所名で結果窓だと分かる。
     // 巻物は窓の裏に残したままにする
     await expect(dialog).toContainText(fishing.caughtPlace, { timeout: FISHING_LAND_MS + SLACK_MS })
-    await expect(float).toHaveAttribute('data-phase', 'caught')
+    await expect(float).toHaveAttribute('data-float-phase', 'caught')
     await dialog.getByRole('button', { name: text.close }).click()
     await expect(dialog).toHaveCount(0)
     // 閉じれば水面が片付き、主人公も歩行コマ(下向きの待ち)へ戻る
@@ -121,6 +123,8 @@ for (const { prefix, text } of JOURNEYS) {
   })
 
   test(`水に向いていなければ釣れない (${label})`, async ({ page }) => {
+    // 池まで 10 マス歩く。1 マスごとに描画待ちを挟むので既定の制限では足りない
+    test.setTimeout(45_000)
     await openVillage(page, prefix)
     await leaveRoom(page)
     // 右隣 (6,13) を経由してほとり (5,13) へ入る。立つマスは同じで、向きだけ水面から外れる。
@@ -139,6 +143,8 @@ for (const { prefix, text } of JOURNEYS) {
   })
 
   test(`池の中へは踏み込めない (${label})`, async ({ page }) => {
+    // 池のほとりまで歩いたうえで、岸を回り込む分だけ余計に歩く
+    test.setTimeout(45_000)
     await openVillage(page, prefix)
     await goToPondShore(page)
     await walk(page, 'ArrowDown', 1)
