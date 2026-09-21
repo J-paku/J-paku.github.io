@@ -42,14 +42,14 @@ export function FishingFloat({ at, phase, sprites }: FishingFloatProps) {
 
   return (
     // data-village-float は E2E がこの 1 枚を掴むための取っ手。クラス名は CSS Modules が
-    // ビルドごとにハッシュへ変えるので使えない。data-phase は動きの出し分けも兼ねる
-    // (day-night.spec は村の根を '[data-phase]' 1 本で指すが、この 1 枚は釣っている間しか
-    //  出ないので、向こうの取り合いにはならない)
+    // ビルドごとにハッシュへ変えるので使えない。data-float-phase は動きの出し分けも兼ねる。
+    // 名前を data-phase にしないのは、村の根(昼夜の段階)が既にその名前を持っていて、
+    // '[data-phase]' 1 本で根を指す E2E がこの 1 枚まで掴んでしまうため
     <div
       className={`${sceneStyles.sprite} ${styles.float}`}
       style={style}
       data-village-float
-      data-phase={phase}
+      data-float-phase={phase}
       aria-hidden='true'
     />
   )

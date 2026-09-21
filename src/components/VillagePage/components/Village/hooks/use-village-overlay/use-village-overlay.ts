@@ -134,8 +134,9 @@ export function useVillageOverlay({
     if (lockedRef.current) return
     const spot = activeSpotRef.current
     if (spot === null) {
-      // 水辺を向いているなら釣りの確認窓を開く。会話地点と同じく、開いている間は移動を止める
-      if (isFishingSpot(worldRef.current, stateRef.current)) {
+      // 水辺を向いているなら釣りの確認窓を開く。会話地点と同じく、開いている間は移動を止める。
+      // 釣れる中身が 1 つも無い時は開かない — 開くと結果窓が出ないまま移動だけ止まってしまう
+      if (catches.length > 0 && isFishingSpot(worldRef.current, stateRef.current)) {
         clearHint()
         lockedRef.current = true
         heldRef.current = null
@@ -178,15 +179,18 @@ export function useVillageOverlay({
     showHint,
     worldRef,
     stateRef,
+    catches,
     startFishing,
   ])
 
   const closeOverlay = useCallback(() => {
     // 完走の演出は会話窓を閉じた時だけ。時計の設定窓・地図はここを通っても数えない
     const wasTalk = mode === 'talk'
-    // 釣りを閉じた時は途中のタイマーごと捨て、会話窓を既定文へ戻す(「……」を残さない)
+    // 釣りを閉じた時は途中のタイマーごと捨て、会話窓を既定文へ戻す(「……」を残さない)。
+    // 竿の印は effect を待たずにここでも下ろす — 次の 1 フレームだけ竿を持ったまま残るのを防ぐ
     if (mode === 'fishing') {
       resetFishing()
+      fishingPoseRef.current = false
       setSpeech(defaultSpeech(worldRef.current, text, coarse))
     }
     lockedRef.current = false
@@ -215,6 +219,7 @@ export function useVillageOverlay({
     setSpeech,
     text,
     resetFishing,
+    fishingPoseRef,
     worldRef,
     coarse,
   ])

@@ -8,18 +8,18 @@
 }
 /* 釣り上げた巻物は水面より少し上で止まる。跳ね上がりの終点もここと同じ位置で、
    動きを控える設定では最初からこの位置に出る */
-.float[data-phase='landing'],
-.float[data-phase='caught'] {
+.float[data-float-phase='landing'],
+.float[data-float-phase='caught'] {
   transform: translateY(calc(var(--cell) * -0.4));
 }
 @media (prefers-reduced-motion: no-preference) {
   /* かかった合図。浮きが 2 度沈む。steps(1) で中間を作らず、ドット絵と同じ粗さで動かす */
-  .float[data-phase='bite'] {
+  .float[data-float-phase='bite'] {
     animation: village-float-bite 0.3s steps(1) 2;
   }
   /* 水の中から跳ね上がって浮き上がるまで。長さは FISHING_LAND_MS と同じにするため、
      秒数はここに書かず FishingFloat が --land-ms で渡す(lib 側と二重に持たない) */
-  .float[data-phase='landing'] {
+  .float[data-float-phase='landing'] {
     animation: village-float-land var(--land-ms) ease-out both;
   }
 }

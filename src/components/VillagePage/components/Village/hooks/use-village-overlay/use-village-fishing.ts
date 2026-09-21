@@ -87,8 +87,9 @@ export function useVillageFishing({
   )
 
   const cast = useCallback(() => {
-    // 「釣る」は確認窓からだけ。投げている最中の連打は捨てる
-    if (phase !== 'confirm') return
+    // 「釣る」は確認窓からだけ。連打は捨てる — phase は再描画までしか更新されないので、
+    // 同じフレームで 2 度押されてもタイマーが二重に走らないよう ref も見る
+    if (phase !== 'confirm' || castTimerRef.current !== null) return
     setPhase('casting')
     setSpeech(text.fishing.cast)
     castTimerRef.current = setTimeout(() => {

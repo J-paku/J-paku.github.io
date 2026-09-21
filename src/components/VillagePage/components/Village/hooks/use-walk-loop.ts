@@ -97,14 +97,23 @@ export function useWalkLoop({
   const paintedWorldRef = useRef<World | null>(null)
   // 直前に書いた人物の位置。止まっている間も同じ位置のまま向きと反転だけ書き直すため覚えておく
   const shiftRef = useRef('')
+  // 直前に書いた人物の transform。釣りで止めている間は毎フレーム同じ値になるので、
+  // 変わった時だけ書いて CSSOM への書き込みを空振りさせない
+  const lastTransformRef = useRef('')
 
   // 人物のコマ(向き・歩き・竿)と反転を DOM へ書く。位置は直前のまま使うので、
   // 歩行が止まっている間でも呼べる。同じコマならシートの添字は書き換えない
   const applyPose = useCallback(() => {
     const player = playerRef.current
     if (player === null) return
+    // 最初の paint より前は位置がまだ決まっていない。空の shift を書くと左上へ飛ぶので触らない
+    if (shiftRef.current === '') return
     const { key, flip } = playerPose(stateRef.current, reduceMotion, fishingPoseRef.current)
-    player.style.transform = `${shiftRef.current}${flip ? ' scaleX(-1)' : ''}`
+    const transform = `${shiftRef.current}${flip ? ' scaleX(-1)' : ''}`
+    if (lastTransformRef.current !== transform) {
+      lastTransformRef.current = transform
+      player.style.transform = transform
+    }
     if (spriteKeyRef.current === key) return
     spriteKeyRef.current = key
     player.dataset.sprite = key
@@ -143,6 +152,9 @@ export function useWalkLoop({
       // 家や町へ移った瞬間は追従させない。差が1.5マス以内の切替でもスライドさせず切る
       const switched = paintedWorldRef.current !== world
       paintedWorldRef.current = world
+      // ワールドが替わると React が人物の style を開始マスの値で書き直すので、覚えている
+      // transform は当てにならない。次の applyPose で必ず書き直させる
+      if (switched) lastTransformRef.current = ''
       const previous = smoothedCamRef.current
       const cam = previous === null || switched ? target : approachCamera(previous, target, dtMs)
       smoothedCamRef.current = cam
