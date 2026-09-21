@@ -100,6 +100,19 @@ export const village: VillageText = {
         target: { kind: 'external', url: 'mailto:pjhrecr@gmail.com' },
       },
     },
+    journey: {
+      place: '다음 여정',
+      title: '다음 여정은 아직 정해지지 않았습니다.',
+      claim: '다음 여정을 함께하시지 않겠습니까?',
+      proof: '새로운 팀과 함께 풀어갈 문제를 만나고 싶습니다.',
+      detail: '함께 만들고 싶은 것이 있다면 편하게 연락해 주세요.',
+      hook: '이 길 너머의 이야기를 함께 이어가요.',
+      next: '작품 목록 보기',
+      link: {
+        label: '다음 여정 이야기하기',
+        target: { kind: 'external', url: 'mailto:pjhrecr@gmail.com' },
+      },
+    },
     monument: {
       place: '경력비',
       title: '지금까지의 길',

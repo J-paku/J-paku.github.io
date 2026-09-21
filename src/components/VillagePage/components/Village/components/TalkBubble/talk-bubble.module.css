@@ -25,6 +25,26 @@
   transform: translate(calc(-50% + var(--shift, 0px)), -100%);
 }
 
+/* 指す点の上に置き場が無いとき(外周のマスなど)は下へ出す。尾も上下を入れ替える */
+.bubble[data-village-bubble-place='below'] {
+  top: calc(var(--cell) * var(--by) + 12px);
+  transform: translate(calc(-50% + var(--shift, 0px)), 0);
+}
+
+.bubble[data-village-bubble-place='below']::before {
+  top: -19px;
+  bottom: auto;
+  border-top-color: transparent;
+  border-bottom-color: #181818;
+}
+
+.bubble[data-village-bubble-place='below']::after {
+  top: -14px;
+  bottom: auto;
+  border-top-color: transparent;
+  border-bottom-color: #fff;
+}
+
 /* thought(考え中)は点線枠にして、話しかけ相手が居ないことを吹き出しの形でも示す */
 .bubble[data-village-bubble-kind='thought'] {
   border-style: dotted;

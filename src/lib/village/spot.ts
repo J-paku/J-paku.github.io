@@ -31,17 +31,37 @@ const talkTarget = (world: World, spot: Spot): Rect => {
   return structureRect(structure)
 }
 
-// 吹き出しを付ける位置(マス単位・小数)。x は物の中央、y は物の上辺。
-// 物がプレイヤーより下(下を向く地点)なら吹き出しが人物を隠すので、プレイヤーの頭上に出す。
-// 主人公の頭はマスの上へ半マスはみ出すので、その分だけ上に付ける
-export const talkAnchor = (world: World, spot: Spot): { x: number; y: number } => {
-  if (spot.facing === 'down') return { x: spot.cell.x + 0.5, y: spot.cell.y - 0.5 }
+// 吹き出しを付ける位置(マス単位・小数)と、指す点の上下どちらへ置くか。
+// x は物の中央、y は物の上辺。物がプレイヤーより下(下を向く地点)なら吹き出しが人物を隠すので、
+// プレイヤーの頭上に出す。主人公の頭はマスの上へ半マスはみ出すので、その分だけ上に付ける
+export type TalkAnchor = { x: number; y: number; place: 'above' | 'below' }
+
+export const talkAnchor = (world: World, spot: Spot): TalkAnchor => {
+  // 建物を持たない出口(arrivalArea だけの地点)は指す物が無く、外周のマスだと上に置き場も無い。
+  // 吹き出しの高さは 2 マス弱あるので、上に出すと枠(overflow: hidden)の外で切れる。
+  // 範囲の中央・下辺から下へ出し、尾で主人公を指す
+  const area = spot.arrivalArea
+  if (spot.structureId === undefined && area !== undefined) {
+    return { x: area.x + area.w / 2, y: area.y + area.h, place: 'below' }
+  }
+  if (spot.facing === 'down') {
+    return { x: spot.cell.x + 0.5, y: spot.cell.y - 0.5, place: 'above' }
+  }
   const target = talkTarget(world, spot)
-  return { x: target.x + target.w / 2, y: target.y }
+  return { x: target.x + target.w / 2, y: target.y, place: 'above' }
 }
 
 export const spotAt = (world: World, cell: Cell): Spot | null => {
   if (!isWalkable(world, cell)) return null
+  const arrival = world.spots.find(
+    ({ arrivalArea: area }) =>
+      area !== undefined &&
+      cell.x >= area.x &&
+      cell.x < area.x + area.w &&
+      cell.y >= area.y &&
+      cell.y < area.y + area.h
+  )
+  if (arrival !== undefined) return arrival
   // 既存の案内先が重なる場合は、明示された立ち位置を優先する
   const exact = world.spots.find(s => s.cell.x === cell.x && s.cell.y === cell.y)
   if (exact !== undefined) return exact

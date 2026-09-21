@@ -16,8 +16,8 @@ import { charsOf, litKeys, sampler } from './sprites.fixture'
 import { DAY_PHASES } from '@/utils/day-phase'
 
 describe('時刻ごとのシート', () => {
-  // 灯り用の文字へ置き換える前(57314e2)に測った昼のシート。街灯 2 枚と焚き火は新設なので外して比べる
-  const BASELINE = { count: 53, length: 3318, sha256: '6852db7f3bd8b941' }
+  // 経歴碑を木の額へ描き直した後の昼のシート。街灯 2 枚と焚き火は従来通り外して比べる
+  const BASELINE = { count: 53, length: 3330, sha256: '562833d73c0da9b7' }
 
   // 主人公の昼のシートを焼いて取った実測値。主人公にも夜の双子ができたので、地形・建物と同じく
   // バイト同一性で留める。夜の差し替えが昼の絵へ漏れれば枚数・長さ・指紋のどれかが動く。
@@ -25,7 +25,7 @@ describe('時刻ごとのシート', () => {
   // ここが動くときは配る URL も変わる = 古い PNG を掴んだままの利用者が出ない
   const PLAYER_BASELINE = { count: 8, length: 1166, sha256: 'acefcbace650ec3f' }
 
-  it('昼のシートは文字置換の前と 1 バイトも変わらない', () => {
+  it('昼のシートは消灯レンズと経歴碑を含む基準画像と一致する', () => {
     const arts = Object.fromEntries(
       Object.entries(SPRITE_ARTS).filter(
         ([key]) => key !== 'lamp-t' && key !== 'lamp-b' && key !== 'campfire'
@@ -73,7 +73,7 @@ describe('時刻ごとのシート', () => {
       { label: '窓ガラスの明るい側', key: 'window', x: 6, y: 4, day: '#a0d0f8', night: '#fff0c0' },
       { label: '窓ガラス', key: 'window', x: 7, y: 4, day: '#78c0e8', night: '#f8d878' },
       { label: 'ロボットのレンズ', key: 'robot', x: 3, y: 8, day: '#6d90ba', night: '#78e0ff' },
-      { label: '経歴碑の星', key: 'monument-tl', x: 11, y: 6, day: '#f8e060', night: '#fff0a0' },
+      { label: '経歴碑の星', key: 'monument-tl', x: 12, y: 6, day: '#f8e060', night: '#fff0a0' },
       { label: '街灯のガラス', key: 'lamp-t', x: 5, y: 9, day: '#f8e060', night: '#fff0a0' },
       { label: 'モニターの画面', key: 'desk-tm', x: 9, y: 2, day: '#78c0e8', night: '#a8e8ff' },
       { label: 'モニターの光', key: 'desk-tm', x: 10, y: 2, day: '#f0e8d0', night: '#ffffff' },

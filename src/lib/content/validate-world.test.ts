@@ -148,16 +148,28 @@ describe('validateWorldSet', () => {
   it('実際の worldSet は問題なし', () => {
     expect(validateWorldSet(worldSet)).toEqual([])
   })
+  it('建物の無い到着範囲を認め、代表地点の範囲外は拒む', () => {
+    const spot = {
+      id: 'exit',
+      cell: { x: 2, y: 2 },
+      facing: 'up' as const,
+      arrivalArea: { x: 2, y: 2, w: 2, h: 1 },
+    }
+    expect(validateWorldSet(townSet({ spots: [spot] }))).toEqual([])
+    expect(validateWorldSet(townSet({ spots: [{ ...spot, cell: { x: 1, y: 2 } }] }))).toContain(
+      'ワールド "town": 地点 "exit" の arrivalArea が不正'
+    )
+  })
   it('経歴碑(monument)が実際の町に 2×2 の構造物として登録されている', () => {
     const monument = worldSet.worlds.town.structures.find(s => s.id === 'monument')
-    expect(monument).toEqual({ id: 'monument', kind: 'monument', cell: { x: 13, y: 3 } })
+    expect(monument).toEqual({ id: 'monument', kind: 'monument', cell: { x: 16, y: 2 } })
   })
   it('経歴碑の会話地点は order を持たず、コース外の地点として登録されている', () => {
     const spot = worldSet.worlds.town.spots.find(s => s.id === 'monument')
     expect(spot).toEqual({
       id: 'monument',
       structureId: 'monument',
-      cell: { x: 13, y: 5 },
+      cell: { x: 16, y: 4 },
       facing: 'up',
     })
   })

@@ -178,6 +178,15 @@ describe('夜だけ差し替える素材', () => {
       { y: 6, x: 9, char: '+' },
       { y: 6, x: 11, char: '*' },
     ])
+    // 消灯している朝昼夕も、同じ位置に色付きのレンズが残る
+    expect(changed.map(({ x, y }) => dayArt[y][x])).toEqual(['R', 'G', 'U', 'R', 'G'])
+    for (const phase of ['dawn', 'day', 'dusk'] as const) {
+      const read = pixelSampler(buildSprites(phase))
+      const colors = phasePalette(palette, phase)
+      for (const { x, y } of changed) {
+        expect(read('mailbox', x, y)).toEqual({ hex: colors[dayArt[y][x]], alpha: 255 })
+      }
+    }
 
     // どの粒も夜には発光色になる(1 つでも普通の色だと、そこだけ消えた粒に見える)
     const night = phasePalette(palette, 'night')

@@ -69,11 +69,12 @@ const expandBlocks = (rows: readonly (readonly Block[])[]): Tile[][] =>
     row.flatMap(b => [BLOCK_TILES[b][2], BLOCK_TILES[b][3]]),
   ])
 
-// 町のブロック地図(15×10)。外周1ブロック=2マス分が木の壁で四辺を閉じる
+// 町のブロック地図(15×10)。外周1ブロック=2マス分が木の壁で四辺を閉じるが、
+// 北の中央だけは 2マス幅の道が外周を抜けて町の外へ続く
 const TOWN_BLOCKS: readonly (readonly Block[])[] = [
-  [T, T, T, T, T, T, T, T, T, T, T, T, T, T, T],
-  [T, G, G, G, G, g, G, F, G, G, G, G, G, G, T],
-  [T, G, G, G, G, G, g, G, G, G, G, G, G, G, T],
+  [T, T, T, T, T, T, T, P, T, T, T, T, T, T, T],
+  [T, G, G, G, G, g, G, P, G, G, G, G, G, G, T],
+  [T, G, G, G, G, G, g, P, G, G, G, G, G, G, T],
   [T, G, P, P, P, P, P, P, P, P, P, P, P, P, T],
   [T, g, G, F, G, P, G, G, G, P, G, G, g, G, T],
   [T, G, G, G, G, P, G, G, G, P, G, g, G, G, T],
@@ -85,7 +86,10 @@ const TOWN_BLOCKS: readonly (readonly Block[])[] = [
 
 // 町(30×20)。横道は y6-7 と y12-13、縦道は x10-11 と x18-19。
 // 池は x2-5/y14-17、広場は x22-27/y14-17。自宅前(14,12)から各地点まで16歩以内。
-// 経歴碑(monument)は上寄り中央 (13,3)、話しかけ位置は (13,5) — コース外(order 無し)
+// 北の道は x14-15/y0-5 で、外周を抜けて町の外へ出る。道の左右 x12-13・x16-17 の y0-1 は木。
+// 経歴碑はその木の手前 (16,2)、話しかけ位置は道に面した (16,4) — コース外
+// 次の旅(journey)は道の突き当たり x14-15/y0 に着くと開く。外周のマスなので吹き出しの置き場が
+// 上に無く、talkAnchor が足元から下へ出す(建物を持たない地点の扱い。spot.ts 参照)
 // 郵便ポスト(mailbox)は広場の北端 (24,14)、話しかけ位置は道に面した (24,13)
 // 焚き火(campfire)はロボット (8,15) の東隣 (9,15) の草地に 1 マス、通行不可。
 // ロボットの話しかけ位置 (8,14) とその周りの道は塞がない
@@ -128,7 +132,7 @@ export const town: World = {
     { id: 'robot', kind: 'robot', cell: { x: 8, y: 15 } },
     { id: 'campfire', kind: 'campfire', cell: { x: 9, y: 15 } },
     { id: 'mailbox', kind: 'mailbox', cell: { x: 24, y: 14 } },
-    { id: 'monument', kind: 'monument', cell: { x: 13, y: 3 } },
+    { id: 'monument', kind: 'monument', cell: { x: 16, y: 2 } },
     { id: 'lamp-west', kind: 'lamp', cell: { x: 9, y: 8 } },
     { id: 'lamp-east', kind: 'lamp', cell: { x: 20, y: 8 } },
     { id: 'lamp-plaza', kind: 'lamp', cell: { x: 20, y: 14 } },
@@ -139,7 +143,13 @@ export const town: World = {
     { id: 'robot', structureId: 'robot', cell: { x: 8, y: 14 }, facing: 'down', order: 4 },
     { id: 'mailbox', structureId: 'mailbox', cell: { x: 24, y: 13 }, facing: 'down', order: 5 },
     // コース外(order 無し)。話しかけ・地図表示・地図からの移動はできるが、次の地点・訪問数・完走判定には数えない
-    { id: 'monument', structureId: 'monument', cell: { x: 13, y: 5 }, facing: 'up' },
+    { id: 'monument', structureId: 'monument', cell: { x: 16, y: 4 }, facing: 'up' },
+    {
+      id: 'journey',
+      cell: { x: 14, y: 0 },
+      facing: 'up',
+      arrivalArea: { x: 14, y: 0, w: 2, h: 1 },
+    },
   ],
   warps: [
     {

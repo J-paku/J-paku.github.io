@@ -9,8 +9,9 @@ import styles from './talk-bubble.module.css'
 export type TalkBubbleProps = {
   text: string
   lang: Locale
-  // 吹き出しを付ける位置(ワールド座標・マス単位)。x は中央、y は上辺。尾はこの点を指す
-  at: { x: number; y: number }
+  // 吹き出しを付ける位置(ワールド座標・マス単位)。x は中央、y は上辺。尾はこの点を指す。
+  // place は指す点の上下どちらへ本体を置くか。外周のマスでは上に置き場が無いので下へ出す
+  at: { x: number; y: number; place?: 'above' | 'below' }
   actionLabel?: string
   onAction?: () => void
   // speech は台詞(尾・ボタンあり)、thought は考え中の一言(点線・丸い点・ボタン無し)
@@ -66,7 +67,7 @@ export function TalkBubble({
       window.clearTimeout(settle)
       window.removeEventListener('resize', clamp)
     }
-  }, [text, at.x, at.y, kind])
+  }, [text, at.x, at.y, at.place, kind])
 
   const style: BubbleStyle = { '--bx': at.x, '--by': at.y }
   return (
@@ -77,6 +78,7 @@ export function TalkBubble({
       lang={lang}
       data-village-bubble
       data-village-bubble-kind={kind}
+      data-village-bubble-place={at.place ?? 'above'}
     >
       <span className={styles.text}>{text}</span>
       {kind === 'speech' && actionLabel ? (

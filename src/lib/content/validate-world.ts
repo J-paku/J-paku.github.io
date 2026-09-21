@@ -93,8 +93,20 @@ const validateWorld = (set: WorldSet, worldId: string, world: World): string[] =
 
   const structureIds = new Set(world.structures.map(s => s.id))
   for (const spot of world.spots) {
-    if (!structureIds.has(spot.structureId))
+    if (
+      (spot.structureId !== undefined && !structureIds.has(spot.structureId)) ||
+      (spot.structureId === undefined && spot.arrivalArea === undefined)
+    )
       issues.push(at(`地点 "${spot.id}" の structureId "${spot.structureId}" が無い`))
+    const area = spot.arrivalArea
+    if (
+      area !== undefined &&
+      (area.w < 1 ||
+        area.h < 1 ||
+        !rectInBounds(world, area) ||
+        !containsRect(area, { ...spot.cell, w: 1, h: 1 }))
+    )
+      issues.push(at(`地点 "${spot.id}" の arrivalArea が不正`))
     if (!isWalkable(world, spot.cell)) issues.push(at(`地点 "${spot.id}" の立ち位置が通行不可`))
   }
   if (!isWalkable(world, world.start)) issues.push(at('開始セルが通行不可'))

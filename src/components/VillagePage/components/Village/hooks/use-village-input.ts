@@ -1,7 +1,7 @@
 // キー・タップ・十字キー・押しっぱなしポインタの入力だけを集める。移動判定と村の処理は外に置き、
 // ここは「今どの向きが押されているか」「どのマスがタップ/押しっぱなしされているか」と行動キーの通知を持つ
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { KeyboardEvent, PointerEvent, RefObject } from 'react'
+import type { FocusEvent, KeyboardEvent, PointerEvent, RefObject } from 'react'
 import type { Cell, Direction } from '@content/types/world'
 
 // event.code で引くので IME やキー配列の影響を受けない
@@ -48,13 +48,13 @@ export type VillageInputOptions = {
 type UseVillageInput = {
   heldRef: RefObject<Direction | null>
   setHeld: (direction: Direction | null) => void
-  // 会話窓が開いている間(locked)の上下入力。移動には使わず、StopModal が本文スクロールに読む
+  // 会話窓が開いている間(locked)の方向入力。StopModal が本文送り・焦点移動に読む
   scrollHeldRef: RefObject<Direction | null>
   tapped: Cell | null
   consumeTap: () => void
   onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void
   onKeyUp: (event: KeyboardEvent<HTMLDivElement>) => void
-  onBlur: () => void
+  onBlur: (event: FocusEvent<HTMLDivElement>) => void
   // origin は表示枠の左上が指すワールド座標(マス単位)。カメラの分だけタップ位置をずらす
   onPointerDown: (
     event: PointerEvent<HTMLDivElement>,
@@ -89,8 +89,8 @@ export function useVillageInput({ actions, locked }: VillageInputOptions): UseVi
           scrollHeldRef.current = null
           return
         }
-        // 会話窓が開いている間の上下入力は本文のスクロールに回す
-        if (direction === 'up' || direction === 'down') scrollHeldRef.current = direction
+        // 会話窓が開いている間は全方向を本文送り・焦点移動に回す
+        scrollHeldRef.current = direction
         return
       }
       scrollHeldRef.current = null
@@ -115,8 +115,8 @@ export function useVillageInput({ actions, locked }: VillageInputOptions): UseVi
       if (locked.current) {
         heldRef.current = null
         const scrollDirection = CODE_TO_DIRECTION[event.code]
-        // 会話窓が開いている間の上下入力は本文のスクロールに回す
-        if (scrollDirection === 'up' || scrollDirection === 'down') {
+        // 会話窓が開いている間は全方向を本文送り・焦点移動に回す
+        if (scrollDirection !== undefined) {
           event.preventDefault()
           scrollHeldRef.current = scrollDirection
         }
@@ -144,9 +144,10 @@ export function useVillageInput({ actions, locked }: VillageInputOptions): UseVi
   }, [])
 
   // フォーカスを失ったら押しっぱなし状態を捨てる(キーを押したまま別要素へ移った場合)
-  const onBlur = useCallback(() => {
+  const onBlur = useCallback((event: FocusEvent<HTMLDivElement>) => {
     heldRef.current = null
-    scrollHeldRef.current = null
+    // 窓の中で焦点が移っても方向入力は継続し、村の外へ出た時だけ解除する
+    if (!event.currentTarget.contains(event.relatedTarget)) scrollHeldRef.current = null
     pointerTargetRef.current = null
     activePointerIdRef.current = null
   }, [])
