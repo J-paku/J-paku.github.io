@@ -1,10 +1,12 @@
-// rAFで移動を1フレームずつ進め、結果をDOMへ直接書く。タップされたマスは経路にして次のステップへ渡す
+// rAFで移動を1フレームずつ進め、結果をDOMへ直接書く。タップされたマスは経路にして次のステップへ渡す。
+// 入力も経路も無く描き終えたら次のフレームを頼まずに眠り、入力・ワールド移動・窓を閉じる・
+// 枠の大きさの変化で wakeRef から起こされる
 import { useCallback, useEffect, useRef } from 'react'
 import type { RefObject } from 'react'
 import type { Cell, Direction, World } from '@content/types/world'
 import type { SheetLayout } from '@/lib/pixel/art'
 import { step, type MoveState } from '@/lib/village/movement'
-import { playerPose } from '@/lib/village/player-pose'
+import { FISHING_SWING_MS, playerPose } from '@/lib/village/player-pose'
 import { isFishingSpot } from '@/lib/village/fishing'
 import { facedCell } from '@/lib/village/spot'
 import { findPath } from '@/lib/village/path'
@@ -21,6 +23,13 @@ const visualCell = (state: MoveState, reduceMotion: boolean): { x: number; y: nu
 // ワールド切替後、この時間を超えても新しいタイルが DOM に載らなければ読み込み中の覆いを出す。
 // 通常は 1〜2 フレームで載るので(実測 5〜15ms)、覆いは遅い端末でしか見えない
 export const LOADING_DELAY_MS = 100
+
+// ループが回っているか眠っているかを枠の data-village-loop に出す。E2E が眠りを確かめる取っ手で、
+// 止まらない・起きない不具合を DevTools で追う手掛かりにもなる。変わった時だけ書く
+const markLoop = (frame: HTMLElement | null, state: 'running' | 'idle') => {
+  if (frame === null || frame.dataset.villageLoop === state) return
+  frame.dataset.villageLoop = state
+}
 
 export type WalkLoopOptions = {
   frameRef: RefObject<HTMLDivElement | null>
@@ -55,6 +64,9 @@ export type WalkLoopOptions = {
   consumeTap: () => void
   // 押されている間、ポインタの下にあるマス。離すと null。毎フレーム読んで経路を作り直す
   pointerTargetRef: RefObject<Cell | null>
+  // 眠っているループを起こす手の置き場。use-village が作り、ここが今のループの手を入れる。
+  // 入力・復元・重ね表示はこのフックより先(または外)で呼ばれるので、この ref 越しに起こす
+  wakeRef: RefObject<() => void>
 }
 
 export function useWalkLoop({
@@ -82,6 +94,7 @@ export function useWalkLoop({
   tapped,
   consumeTap,
   pointerTargetRef,
+  wakeRef,
 }: WalkLoopOptions): void {
   const spriteKeyRef = useRef('')
   const fishingSinceRef = useRef<number | null>(null)
@@ -106,40 +119,49 @@ export function useWalkLoop({
   // 直前に書いた人物の transform。釣りで止めている間は毎フレーム同じ値になるので、
   // 変わった時だけ書いて CSSOM への書き込みを空振りさせない
   const lastTransformRef = useRef('')
+  // 枠の幅(px)。ResizeObserver が大きさの変わった時だけ書き、描く側はこれを読む。null はまだ測っていない
+  const frameWidthRef = useRef<number | null>(null)
 
   // 人物のコマ(向き・歩き・竿)と反転を DOM へ書く。位置は直前のまま使うので、
-  // 歩行が止まっている間でも呼べる。同じコマならシートの添字は書き換えない
-  const applyPose = useCallback(() => {
+  // 歩行が止まっている間でも呼べる。同じコマならシートの添字は書き換えない。
+  // 竿を振っている間はコマが時間で変わるので true を返し、ループを眠らせない
+  const applyPose = useCallback((): boolean => {
     const player = playerRef.current
-    if (player === null) return
+    if (player === null) return false
     // 最初の paint より前は位置がまだ決まっていない。空の shift を書くと左上へ飛ぶので触らない
-    if (shiftRef.current === '') return
+    if (shiftRef.current === '') return false
     const now = performance.now()
     if (!fishingPoseRef.current) fishingSinceRef.current = null
     else if (fishingSinceRef.current === null) fishingSinceRef.current = now
+    const fishingElapsed = fishingSinceRef.current === null ? 0 : now - fishingSinceRef.current
     const { key, flip } = playerPose(
       stateRef.current,
       reduceMotion,
       fishingPoseRef.current,
-      fishingSinceRef.current === null ? 0 : now - fishingSinceRef.current
+      fishingElapsed
     )
     const transform = `${shiftRef.current}${flip ? ' scaleX(-1)' : ''}`
     if (lastTransformRef.current !== transform) {
       lastTransformRef.current = transform
       player.style.transform = transform
     }
-    if (spriteKeyRef.current === key) return
-    spriteKeyRef.current = key
-    player.dataset.sprite = key
-    player.style.setProperty('--i', String(spriteIndex(sprites, key)))
+    if (spriteKeyRef.current !== key) {
+      spriteKeyRef.current = key
+      player.dataset.sprite = key
+      player.style.setProperty('--i', String(spriteIndex(sprites, key)))
+    }
+    // 振り終えた後の竿のコマは時間で変わらない。釣りの残り(かかる・釣り上げる)の間は眠ってよい
+    return fishingPoseRef.current && fishingElapsed < FISHING_SWING_MS
   }, [sprites, reduceMotion, playerRef, stateRef, fishingPoseRef])
 
-  // 毎フレームの書き込みは DOM 直更新。React の state は到着時だけ動かす
+  // 毎フレームの書き込みは DOM 直更新。React の state は到着時だけ動かす。
+  // 描き終えて時間で変わるものが残っていなければ true を返す
+  // (新しいワールドのタイルが載り、カメラが目標に追い付き、竿も振り終えた)
   const paint = useCallback(
-    (dtMs: number) => {
+    (dtMs: number): boolean => {
       const frame = frameRef.current
       const player = playerRef.current
-      if (frame === null || player === null) return
+      if (frame === null || player === null) return false
       const state = stateRef.current
       const world = worldRef.current
       // 向きだけ変えた時も判定する。対象が変わった時だけ React へ知らせる
@@ -162,12 +184,14 @@ export function useWalkLoop({
         if (loading !== null && now - waitSinceRef.current > LOADING_DELAY_MS) {
           loading.dataset.show = ''
         }
-        return
+        return false
       }
       waitSinceRef.current = null
       if (loading !== null) delete loading.dataset.show
-      // マスの実寸は表示枠(10列)基準。ワールドが広くてもマスの大きさは変えない
-      const px = frame.clientWidth / VIEW_COLS
+      // マスの実寸は表示枠(10列)基準。ワールドが広くてもマスの大きさは変えない。
+      // 幅は覚えた値を使う。毎フレーム clientWidth を読むと、直前のスタイル変更(CSS アニメーション・
+      // React のコミット)の再計算をその場で強いる。測る前(最初のフレーム)だけ直接読む
+      const px = (frameWidthRef.current ?? frame.clientWidth) / VIEW_COLS
       const v = visualCell(state, reduceMotion)
       // 目標はプレイヤーの補間座標。1:1で貼り付けると歩行の揺れがそのまま画面全体に出る
       const target = cameraOffset(world, v)
@@ -187,7 +211,7 @@ export function useWalkLoop({
         layer.style.transform = `translate(${-Math.round(cam.x * px)}px, ${-Math.round(cam.y * px)}px)`
       const shift = `translate(${v.x * px}px, ${v.y * px}px)`
       shiftRef.current = shift
-      applyPose()
+      const swinging = applyPose()
       // 目印は反転させず、プレイヤーと同じ位置に重ねる(上への持ち上げは CSS 側)
       const locator = locatorRef.current
       if (locator !== null) locator.style.transform = shift
@@ -197,6 +221,8 @@ export function useWalkLoop({
       // 主人公が持つ灯りも同じ位置へ。光は左右対称なので向きが変わっても反転させない
       const playerLight = playerLightRef.current
       if (playerLight !== null) playerLight.style.transform = shift
+      // approachCamera は残差が半 px を切ると目標そのものを返すので、追い付けば等号で揃う
+      return !swinging && cam.x === target.x && cam.y === target.y
     },
     [
       applyPose,
@@ -216,19 +242,19 @@ export function useWalkLoop({
   )
 
   useEffect(() => {
-    let raf = 0
+    // 頼んである次のフレーム。null は眠っている(またはフレームの処理中)
+    let raf: number | null = null
+    // フレームの処理中か。処理中に起こされた時は(到着でワールドが替わった等)眠るのを 1 回見送る
+    let inFrame = false
+    let wokenInFrame = false
     let last = performance.now()
-    const loop = (now: number) => {
-      // 長いフレーム(タブ復帰など)で一気に進まないよう上限を置く
-      const elapsed = Math.min(now - last, 250)
-      last = now
+
+    // 1 フレーム分進めて描く。まだ時間で変わるもの・読むべき入力が残っていれば true
+    const tick = (elapsed: number): boolean => {
       // 会話・地図を開いた間は歩行の進捗と経路もその場で止める。
-      // ただし釣りは止めている間に竿を持つコマへ変わるので、位置は据え置きでコマだけ書き直す
-      if (lockedRef.current) {
-        applyPose()
-        raf = window.requestAnimationFrame(loop)
-        return
-      }
+      // ただし釣りは止めている間に竿を持つコマへ変わるので、位置は据え置きでコマだけ書き直す。
+      // 竿を振り終えれば止めている間に変わるものは無いので眠る(閉じる時に起こされる)
+      if (lockedRef.current) return applyPose()
       if (enteredWorldRef.current !== worldRef.current) {
         enteredWorldRef.current = worldRef.current
         // 初回(起動時)は押しっぱなしではないので捨てる必要がない
@@ -280,11 +306,63 @@ export function useWalkLoop({
       if (result.arrived !== null) arrive(result.arrived)
       // 経路の最後の1歩で扉へぶつかるのは到着と同じフレーム。到着でワールドが変わっていたら古い衝突なので捨てる
       if (result.bumped !== null && worldRef.current === before) bump(result.bumped)
-      paint(elapsed)
-      raf = window.requestAnimationFrame(loop)
+      const settled = paint(elapsed)
+      // 押しっぱなしの向き・ポインタは、ワープ直後に捨てている間も生の ref で見る。
+      // 離したのを見届けて(捨てる印を下ろして)から眠る
+      const s = stateRef.current
+      const resting =
+        heldRef.current === null &&
+        pointerTargetRef.current === null &&
+        pendingRouteRef.current === null &&
+        s.motion === null &&
+        s.route.length === 0 &&
+        s.turnRemainingMs === 0
+      return !(resting && settled)
     }
+
+    const loop = (now: number) => {
+      raf = null
+      // 長いフレーム(タブ復帰など)で一気に進まないよう上限を置く。
+      // 起こした直後は起こした時刻から数えるので、同じフレームの中で起こされると負になりうる
+      const elapsed = Math.min(Math.max(now - last, 0), 250)
+      last = now
+      inFrame = true
+      wokenInFrame = false
+      let busy = true
+      try {
+        busy = tick(elapsed)
+      } finally {
+        // 途中で投げても、次に起こされた時に回り直せるようにする
+        inFrame = false
+      }
+      if (busy || wokenInFrame) {
+        raf = window.requestAnimationFrame(loop)
+        return
+      }
+      markLoop(frameRef.current, 'idle')
+    }
+
+    // 眠っていれば次のフレームを頼む。回っている間は何もしない
+    const wake = () => {
+      if (inFrame) {
+        wokenInFrame = true
+        return
+      }
+      if (raf !== null) return
+      // 眠っていた間を 1 フレームの経過として数えない
+      last = performance.now()
+      raf = window.requestAnimationFrame(loop)
+      markLoop(frameRef.current, 'running')
+    }
+
+    wakeRef.current = wake
+    markLoop(frameRef.current, 'running')
     raf = window.requestAnimationFrame(loop)
-    return () => window.cancelAnimationFrame(raf)
+    return () => {
+      if (raf !== null) window.cancelAnimationFrame(raf)
+      // 外したループを起こさない。後始末の後に届いた入力で、描く先の無いループが回り出すのを防ぐ
+      if (wakeRef.current === wake) wakeRef.current = () => {}
+    }
   }, [
     heldRef,
     arrive,
@@ -298,7 +376,22 @@ export function useWalkLoop({
     pendingFastRef,
     autoTalkRef,
     pointerTargetRef,
+    frameRef,
+    wakeRef,
   ])
+
+  // 枠の幅を覚え、変わったらループを起こして新しいマス寸法で描き直させる。
+  // 幅を読むのは大きさが変わった時だけで、描く側は毎フレーム覚えた値を使う
+  useEffect(() => {
+    const frame = frameRef.current
+    if (frame === null) return
+    const observer = new ResizeObserver(() => {
+      frameWidthRef.current = frame.clientWidth
+      wakeRef.current()
+    })
+    observer.observe(frame)
+    return () => observer.disconnect()
+  }, [frameRef, wakeRef])
 
   // タップ → 経路を作って次のステップへ渡す。通れない場所は無視
   useEffect(() => {
@@ -309,7 +402,17 @@ export function useWalkLoop({
       pendingFastRef.current = false
       // 利用者の入力で経路が捨てられたら自動で開くのも取り消す
       autoTalkRef.current = false
+      wakeRef.current()
     }
     consumeTap()
-  }, [tapped, consumeTap, worldRef, stateRef, pendingRouteRef, pendingFastRef, autoTalkRef])
+  }, [
+    tapped,
+    consumeTap,
+    worldRef,
+    stateRef,
+    pendingRouteRef,
+    pendingFastRef,
+    autoTalkRef,
+    wakeRef,
+  ])
 }

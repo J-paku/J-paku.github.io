@@ -22,6 +22,8 @@ type ShotProps = {
   isFullyVisible: boolean
   videoRef: RefObject<HTMLVideoElement | null>
   showVideo: boolean
+  // 動画の src を付けてよいか。カードが画面に入った(リビールした)後だけ true
+  shouldLoadVideo: boolean
   showReel: boolean
   storyScenes: WorkStoryScene[] | undefined
   activeReelIndex: number
@@ -36,7 +38,7 @@ type ShotProps = {
 
 function Shot(props: ShotProps) {
   const { work, locale, ui, shotRef, slotClassName, isFullyVisible } = props
-  const { videoRef, showVideo, showReel, storyScenes, activeReelIndex } = props
+  const { videoRef, showVideo, shouldLoadVideo, showReel, storyScenes, activeReelIndex } = props
   const { isMotionPaused, pulseKey, hasMotion, isFinePointer, handleToggleMotion } = props
   const { isLinksOpen, setIsLinksOpen } = props
 
@@ -59,17 +61,22 @@ function Shot(props: ShotProps) {
     <div ref={shotRef} className={`${slotClassName} ${shotClassName}`} data-glyph={work.glyph}>
       {showVideo ? (
         /* 実操作デモ動画。装飾専用(既存の img alt='' と同等の扱い)なので aria-hidden で読み上げから外す。
-           停止手段は下の全面トグル(デスクトップ)/オーバーレイ内トグル(タッチ)が別途担う(WCAG 2.2.2) */
+           停止手段は下の全面トグル(デスクトップ)/オーバーレイ内トグル(タッチ)が別途担う(WCAG 2.2.2)。
+           src はカードが画面に入るまで付けない — src を HTML に書くと自動再生のため画面外でも読み込み開始
+           直後に動画を取りに行く(モバイルでは1画面目の下にある)。付くまでは poster の静止画を出す。
+           リビール前のカードは opacity: 0 なので、付ける時点より前の動画は元から見えていない。
+           autoPlay を一時停止中だけ外すのは、src を付けると読み込み手順が自動再生の許可を戻すため —
+           付く前に停止を押されていたら再生を始めず、停止ボタンの状態と食い違わせない */
         <video
           ref={videoRef}
           className={styles.video}
-          src={work.video}
+          src={shouldLoadVideo ? work.video : undefined}
           poster={work.thumbnail}
-          autoPlay
+          autoPlay={!isMotionPaused}
           muted
           loop
           playsInline
-          preload='metadata'
+          preload='none'
           aria-hidden='true'
         />
       ) : showReel && storyScenes !== undefined ? (

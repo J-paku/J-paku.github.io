@@ -5,7 +5,7 @@
 // 「東の岸から左の水面へ投げると糸が左右反転する」
 // 「全部釣り上げた後は考え事の吹き出しに替わり、もう投げない」を見る。
 // 既存の地点(経歴碑など)の回帰は journey.spec が持つので、ここでは繰り返さない
-import { expect, test, type Locator, type Page } from '@playwright/test'
+import { expect, type Locator, type Page } from '@playwright/test'
 import type { Profile } from '@content/types/content'
 import type { VillageText } from '@content/types/world'
 import { worldSet } from '@content/world'
@@ -17,8 +17,9 @@ import { village as villageKo } from '@content/ko/village'
 import { FISHING_BITE_MS, FISHING_CAST_MS, FISHING_LAND_MS } from '@/lib/village/fishing'
 // 竿を振る長さ(その間は糸を隠す)も同じく lib 側の定数が正本
 import { FISHING_SWING_MS } from '@/lib/village/player-pose'
-// 村を開く手順・歩きの間合い・描画待ちは journey.spec と共用。正本は village.helpers.ts
-import { HOLD_MS, SETTLE_MS, openVillage, settleRender } from './village.helpers'
+// 村を開く手順・歩く walk(1 マスごとに到着を待つ)・描画待ち・既定で晴れを敷く test は
+// 他の村の spec と共用。正本は village.helpers.ts
+import { openVillage, settleRender, test, walk } from './village.helpers'
 
 type Journey = { prefix: string; text: VillageText; profile: Profile }
 
@@ -67,20 +68,10 @@ const recordLineMounts = (world: Locator) =>
     }).observe(element, { childList: true })
   })
 
-// walk・readCell・leaveRoom は journey.spec にも同じ物がある。spec から import すると
-// 向こうの test() ごと読み込まれて二重に登録されるので、共有せずここへ写している
-// (village.helpers.ts は test() を持たないので import してよい)
-
-// 方向キーを 1 マス分だけ押し、到着まで待ってから次の 1 マスへ進む
-const walk = async (page: Page, key: string, cells: number) => {
-  for (let i = 0; i < cells; i += 1) {
-    await page.keyboard.down(key)
-    await page.waitForTimeout(HOLD_MS)
-    await page.keyboard.up(key)
-    await page.waitForTimeout(SETTLE_MS)
-    await settleRender(page)
-  }
-}
+// readCell・leaveRoom は journey.spec にも同じ物がある。spec から import すると
+// 向こうの test() ごと読み込まれて二重に登録されるので、共有せずここへ写している。
+// 歩く walk は village.helpers.ts から読む(helpers は test を extend して渡すだけで
+// test() を呼ばないので import してよい)
 
 // 保存された現在地(ワールドとマス)を読む。村は 2 ワールドなのでマスだけでは位置が決まらない。
 // 保存は到着したマスでだけ走るので、通れない所へぶつかった時はここの値が変わらない

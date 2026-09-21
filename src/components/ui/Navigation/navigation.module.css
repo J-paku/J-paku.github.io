@@ -9,7 +9,8 @@
   border-radius: 999px;
   background: var(--ground);
   color: var(--ink);
-  font: 600 14px/1 var(--f-label);
+  /* Noto Sans は可変フォントで取る(src/app/html-shell.tsx の FONT_HREF)ので、以前 700 で描かれていた見た目を保つため 600 ではなく 700 を指定する */
+  font: 700 14px/1 var(--f-label);
   text-decoration: none;
 }
 .switch:focus-visible {

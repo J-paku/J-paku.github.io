@@ -20,7 +20,7 @@ last_reviewed: 2026-09-21
 ## 訪問者の情報を集めない
 
 - 天気の取得で送るのは**固定の緯度経度だけ**。訪問者の位置情報は扱わず、応答も保存しない
-- アクセス計測(GoatCounter)は Cookie を使わない。計測タグは `src/app/html-shell.tsx` が読み込む(送信を包む `src/lib/analytics.ts` は現在どこからも呼ばれていない)
+- アクセス計測(GoatCounter)は Cookie を使わない。計測タグは `src/app/html-shell.tsx` が読み込み、ページ読み込み時の1件はタグが送る。アプリ内の移動(next/link)は `src/components/ui/PageviewCounter/` が `src/lib/analytics.ts` 経由で送る
 - ブラウザに残すのはテーマと村の進行だけ。窓口は `src/lib/preferences.ts` → [../architecture/data-flow.md](../architecture/data-flow.md)
 
 ## リポジトリに秘密を置かない

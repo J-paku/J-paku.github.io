@@ -2,14 +2,14 @@
 // 夜の灯りがともって主人公に付いて回ること・昼は同じ要素が描かれないことを確かめ、
 // Open-Meteo の応答を差し替えて雨の層が出る/出ないを確かめ、最後に段階と天気が載っても
 // 5か所のコースが今までどおり完走することを ja/ko 双方で見る
-import { expect, test, type Page } from '@playwright/test'
+import { expect, type Page } from '@playwright/test'
 import type { VillageText } from '@content/types/world'
 import { village as villageJa } from '@content/ja/village'
 import { village as villageKo } from '@content/ko/village'
 import { DAY_PHASES, type DayPhase } from '@/utils/day-phase'
-// 村を開く手順・歩きの間合い(旋回だけで終わらせない押下時間と、到着を待つ時間)・描画待ちは
-// journey.spec と共用。正本は village.helpers.ts
-import { HOLD_MS, SETTLE_MS, openVillage, settleRender } from './village.helpers'
+// 村を開く手順・歩く walk(1 マスごとに到着を待つ)・天気の差し替え(stubWeather)と、
+// 既定で晴れを敷く test は他の村の spec と共用。正本は village.helpers.ts
+import { openVillage, stubWeather, test, walk } from './village.helpers'
 
 type Journey = { prefix: string; text: VillageText }
 
@@ -33,9 +33,10 @@ const PHASE_CLOCKS: Record<DayPhase, string> = {
 
 // 村の根要素。data-phase に今の段階が載る
 const VILLAGE_ROOT = '[data-phase]'
-// 地面の層の先頭の子 = 最初の地形マス。Ground が world 層の先頭に並べるので、
-// 主人公より前に来る。CSS Modules のクラス名は毎ビルド変わるので位置で指す
-const GROUND_SPRITE = '[data-world] > div'
+// 地形の箱(data-village-terrain)の先頭の子 = 最初の地形マス。Ground は地形マスをこの箱に
+// まとめて world 層へ置くので、world 層の直下を指すと先頭は背景を持たない箱そのものになる。
+// CSS Modules のクラス名は毎ビルド変わるので、箱の data 属性から位置で指す
+const GROUND_SPRITE = '[data-village-terrain] > div'
 // 雨・雪の層。Weather が層ごとに data-weather を置き、値に降水の種類を載せる。
 // 層は world 層ではなく表示枠(枠は視野ぶんしかないので描き替える面積が小さい)の子なので、
 // world 層を起点にすると掴めない。クラス名は CSS Modules が毎ビルド変えるので使わない
@@ -71,44 +72,14 @@ const TOWN_LIGHT_TOTAL = Object.values(TOWN_LIGHTS).reduce((sum, count) => sum +
 // use-stage-scale.ts の下限(CELL_MIN = 12px)を下回ることはないので、1px の許容とは取り違えようがない
 const LIGHT_GAP_TOLERANCE_PX = 1
 
-const OPEN_METEO = 'https://api.open-meteo.com/**'
-// 降っていない応答。段階だけを見たいテストでもこれを敷いて実ネットワークへ出さない
-const DRY = { precipitation: 0, snowfall: 0 }
-const RAINING = { precipitation: 2.4, snowfall: 0 }
-
-type WeatherStub = { calls: () => number }
-
-// Open-Meteo をテストの外へ出さない。current が null の時は失敗応答(500)を返す。
-// 戻り値の calls() で「実際に問い合わせが起きたか」を数え、応答前の空振り判定を防ぐ
-const stubWeather = async (
-  page: Page,
-  current: { precipitation: number; snowfall: number } | null
-): Promise<WeatherStub> => {
-  let calls = 0
-  await page.route(OPEN_METEO, route => {
-    calls += 1
-    if (current === null) {
-      return route.fulfill({ status: 500, contentType: 'application/json', body: '{}' })
-    }
-    return route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ current }),
-    })
-  })
-  return { calls: () => calls }
-}
+// 天気は helpers の test が context へ既定で晴れを敷くので、段階だけを見たいテストは何も敷かない。
+// 雨と取得失敗を確かめるテストだけが stubWeather(page, ...) で page へ敷いて上書きする
+// (page の route は context の route より先に効く)
 
 // 村は自室(屋内)から始まる。天気は屋外にしか降らないので、雨を数えるテストは必ず町へ出てから測る。
 // 自室の下端 (4,7) のマットへ乗ると町の自宅前 (14,12) へ出る。開始マス (4,4) から下へ 3 マス
 const leaveRoom = async (page: Page) => {
-  for (let i = 0; i < 3; i += 1) {
-    await page.keyboard.down('ArrowDown')
-    await page.waitForTimeout(HOLD_MS)
-    await page.keyboard.up('ArrowDown')
-    await page.waitForTimeout(SETTLE_MS)
-  }
-  await settleRender(page)
+  await walk(page, 'ArrowDown', 3)
   // 数える前に「今いるのは屋外」を確定させる。屋内のままだと天気は常に 0 枚で、
   // 雨が出ていようと出ていまいと素通りするテストになってしまう
   await expect(page.locator('[data-world]')).toHaveAttribute('data-world', 'town')
@@ -213,7 +184,6 @@ for (const { prefix, text } of JOURNEYS) {
   // 書けばこの網羅テストが自動で1本増える
   for (const phase of DAY_PHASES) {
     test(`時計を ${phase} の帯に固定すると村がその段階になる (${label})`, async ({ page }) => {
-      await stubWeather(page, DRY)
       await page.clock.setFixedTime(new Date(PHASE_CLOCKS[phase]))
       await openVillage(page, prefix)
 
@@ -222,7 +192,6 @@ for (const { prefix, text } of JOURNEYS) {
   }
 
   test(`夜は属性だけでなく焼いたシートそのものが昼と入れ替わる (${label})`, async ({ page }) => {
-    await stubWeather(page, DRY)
     await page.clock.setFixedTime(new Date(PHASE_CLOCKS.day))
     await openVillage(page, prefix)
     await expect(page.locator(VILLAGE_ROOT)).toHaveAttribute('data-phase', 'day')
@@ -245,7 +214,6 @@ for (const { prefix, text } of JOURNEYS) {
   })
 
   test(`夜の町は灯りがともり、主人公の灯りは歩いても離れない (${label})`, async ({ page }) => {
-    await stubWeather(page, DRY)
     await page.clock.setFixedTime(new Date(PHASE_CLOCKS.night))
     await openVillage(page, prefix)
     await expect(page.locator(VILLAGE_ROOT)).toHaveAttribute('data-phase', 'night')
@@ -269,12 +237,8 @@ for (const { prefix, text } of JOURNEYS) {
     if (before === null) throw new Error('主人公か主人公の灯りが描かれていない')
 
     // 自宅前 (14,12) から右へ1マス(journey.spec が通れることを押さえている道)。
-    // 押す・離す・到着を待つ間合いは leaveRoom と同じ
-    await page.keyboard.down('ArrowRight')
-    await page.waitForTimeout(HOLD_MS)
-    await page.keyboard.up('ArrowRight')
-    await page.waitForTimeout(SETTLE_MS)
-    await settleRender(page)
+    // walk は保存位置が変わる(= 歩き終えた)まで待ってから戻る
+    await walk(page, 'ArrowRight', 1)
 
     const after = await playerLightGap(page)
     if (after === null) throw new Error('歩いた後に主人公か主人公の灯りが消えた')
@@ -293,7 +257,6 @@ for (const { prefix, text } of JOURNEYS) {
   })
 
   test(`昼は灯りの要素が残ったまま一つも描かれない (${label})`, async ({ page }) => {
-    await stubWeather(page, DRY)
     await page.clock.setFixedTime(new Date(PHASE_CLOCKS.day))
     await openVillage(page, prefix)
     await expect(page.locator(VILLAGE_ROOT)).toHaveAttribute('data-phase', 'day')
@@ -307,7 +270,7 @@ for (const { prefix, text } of JOURNEYS) {
   })
 
   test(`大阪が雨なら雨の層が出て、読み上げからは外れる (${label})`, async ({ page }) => {
-    const weather = await stubWeather(page, RAINING)
+    const weather = await stubWeather(page, 'rain')
     await page.clock.setFixedTime(new Date(PHASE_CLOCKS.day))
     await openVillage(page, prefix)
 
@@ -326,7 +289,7 @@ for (const { prefix, text } of JOURNEYS) {
   })
 
   test(`天気の取得が失敗したら何も降らせず村は動く (${label})`, async ({ page }) => {
-    const weather = await stubWeather(page, null)
+    const weather = await stubWeather(page, 'error')
     await page.clock.setFixedTime(new Date(PHASE_CLOCKS.day))
     await openVillage(page, prefix)
 
@@ -350,7 +313,7 @@ for (const { prefix, text } of JOURNEYS) {
   test(`夜で雨でも5か所のコースは最後まで通る (${label})`, async ({ page }) => {
     // 10s 待ちを4回連ねるので既定の30sを超える(journey.spec の完走テストと同じ理由)
     test.setTimeout(60_000)
-    await stubWeather(page, RAINING)
+    await stubWeather(page, 'rain')
     await page.clock.setFixedTime(new Date(PHASE_CLOCKS.night))
     await openVillage(page, prefix)
     await expect(page.locator(VILLAGE_ROOT)).toHaveAttribute('data-phase', 'night')

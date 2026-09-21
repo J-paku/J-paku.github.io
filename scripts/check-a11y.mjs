@@ -29,6 +29,15 @@ if (!baseUrl || targetPaths.length === 0) {
 
 const axeSource = readFileSync(path.join(ROOT_DIR, 'node_modules/axe-core/axe.min.js'), 'utf-8')
 
+// 村は表示後に Open-Meteo へ大阪の天気を問い合わせる(src/lib/weather.ts)。実際の応答を待つと
+// networkidle が外部 API の速さで伸び、結果も検査した時刻の天気で変わるので、応答を固定する。
+// 雨にしておくのは、天気の層が描かれる状態(屋外)まで検査が広がった時に層も含めて測るため。
+// 今測る村の初期状態は自室(屋内)なので、層そのものはまだ描かれない。
+// 応答の形は src/lib/weather.ts の isOpenMeteoResponse に合わせる(tests/village.helpers.ts の rain と同じ値)。
+// Google Fonts は差し替えない — 実際の書体で描いた画面を測るのがこの検査の前提
+const OPEN_METEO = 'https://api.open-meteo.com/**'
+const RAINING_BODY = JSON.stringify({ current: { precipitation: 2.4, snowfall: 0 } })
+
 // 現在のページに対して axe を1回実行し、WCAG 違反と best-practice 違反に分けて返す
 async function runAxe(page) {
   const result = await page.evaluate(
@@ -56,6 +65,9 @@ async function runAxe(page) {
 // 従来どおり初期状態のみを検査する
 async function auditPath(browser, targetPath) {
   const page = await browser.newPage()
+  await page.route(OPEN_METEO, route =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: RAINING_BODY })
+  )
   // Home のスタガーリビールが opacity:0 から始まるため、モーションを止めた状態で計測しないと
   // 合成色で color-contrast が誤検出される(実測45〜51件 → 0件。05-pipeline.md)
   await page.emulateMedia({ reducedMotion: 'reduce' })

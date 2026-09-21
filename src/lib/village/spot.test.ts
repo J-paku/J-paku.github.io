@@ -1,7 +1,7 @@
 // 会話地点 spotAt・allSpots・nextSpot・spotWorldId・talkAnchor のテスト
 import { vi } from 'vitest'
 import type { Spot, World, WorldSet } from '@content/types/world'
-import { spotAt, allSpots, nextSpot, spotWorldId, talkAnchor } from './spot'
+import { spotAt, allSpots, nextSpot, spotWorldId, talkAnchor, type TalkAnchor } from './spot'
 
 // server-only は Next.js のビルド境界専用ガードで、vitest(node 環境)では無条件に例外を投げる。
 // テストでは中身を持たない mock に差し替え、読み込み専用の @/lib/content/read を素通しにする
@@ -250,25 +250,38 @@ describe('北の出口', () => {
     const journey = realTown.spots.find(spot => spot.id === 'journey')
     if (journey === undefined) throw new Error('journey が無い')
 
-    expect(talkAnchor(realTown, journey)).toEqual({ x: 15, y: 1, place: 'below' })
+    expect(talkAnchor(realTown, journey, journey.cell)).toEqual({ x: 15, y: 1, place: 'below' })
   })
 })
 
-// 吹き出しを付ける位置。x は物の中央、y は物の上辺。下を向く地点だけはプレイヤーの頭上
+// 吹き出しを付ける位置。主人公が実際に立つマスで決める(地点の正規の会話マス spot.cell ではない)。
+// 主人公が物より上に立つ時だけ主人公の頭上、下・横に立つ時は物の中央・上辺
 describe('talkAnchor', () => {
-  it('下を向く地点は、物ではなくプレイヤーの頭上(半マス上)に出す', () => {
-    expect(talkAnchor(field, field.spots[0])).toEqual({ x: 4.5, y: 1.5, place: 'above' })
+  it('物より上に立つと、物ではなく主人公の頭上(半マス上)に出す', () => {
+    const spot = field.spots[0]
+    expect(talkAnchor(field, spot, spot.cell)).toEqual({ x: 4.5, y: 1.5, place: 'above' })
   })
   it('上を向く地点は、テーブル(2×2)の中央・上辺に出す', () => {
     const spot: Spot = { id: 'below', structureId: 't', cell: { x: 4, y: 5 }, facing: 'up' }
-    expect(talkAnchor(field, spot)).toEqual({ x: 4, y: 3, place: 'above' })
+    expect(talkAnchor(field, spot, spot.cell)).toEqual({ x: 4, y: 3, place: 'above' })
   })
   it('横を向く地点でも、位置は同じ物の中央・上辺で変わらない', () => {
     const spot: Spot = { id: 'beside', structureId: 't', cell: { x: 5, y: 4 }, facing: 'left' }
-    expect(talkAnchor(field, spot)).toEqual({ x: 4, y: 3, place: 'above' })
+    expect(talkAnchor(field, spot, spot.cell)).toEqual({ x: 4, y: 3, place: 'above' })
+  })
+  it('正規の会話マスが物の上でも、物の下・横に立って話しかけたら物の中央・上辺に出す', () => {
+    // field の地点は (4,2) で下を向く。spotAt は物を囲む全方向のマスでこの地点を拾う
+    const spot = field.spots[0]
+    expect(talkAnchor(field, spot, { x: 4, y: 5 })).toEqual({ x: 4, y: 3, place: 'above' })
+    expect(talkAnchor(field, spot, { x: 2, y: 3 })).toEqual({ x: 4, y: 3, place: 'above' })
+  })
+  it('正規の会話マスが物の下でも、物の上に立って話しかけたら主人公の頭上に出す', () => {
+    const spot: Spot = { id: 'below', structureId: 't', cell: { x: 4, y: 5 }, facing: 'up' }
+    expect(talkAnchor(field, spot, { x: 3, y: 2 })).toEqual({ x: 3.5, y: 1.5, place: 'above' })
   })
   it('机(3×2)は左上から 1.5 マス右が中央', () => {
-    expect(talkAnchor(room, room.spots[0])).toEqual({ x: 1.5, y: 0, place: 'above' })
+    const spot = room.spots[0]
+    expect(talkAnchor(room, spot, spot.cell)).toEqual({ x: 1.5, y: 0, place: 'above' })
   })
   it('建物は入口の列(幅 2)の中央・最下段の壁の上辺に出す', () => {
     const house: World = {
@@ -286,14 +299,56 @@ describe('talkAnchor', () => {
       ],
     }
     const spot: Spot = { id: 'house', structureId: 'h', cell: { x: 4, y: 4 }, facing: 'up' }
-    expect(talkAnchor(house, spot)).toEqual({ x: 5, y: 3, place: 'above' })
+    expect(talkAnchor(house, spot, spot.cell)).toEqual({ x: 5, y: 3, place: 'above' })
   })
   it('物が見つからない地点は、向いている 1 マスの中央・上辺に出す', () => {
     const spot: Spot = { id: 'ghost', structureId: 'missing', cell: { x: 4, y: 2 }, facing: 'up' }
-    expect(talkAnchor(field, spot)).toEqual({ x: 4.5, y: 1, place: 'above' })
+    expect(talkAnchor(field, spot, spot.cell)).toEqual({ x: 4.5, y: 1, place: 'above' })
   })
-  it('物が見つからなくても、下を向く地点はプレイヤーの頭上のまま', () => {
+  it('物が見つからなくても、向いている 1 マスより上に立つ(下を向く)なら主人公の頭上のまま', () => {
     const spot: Spot = { id: 'ghost', structureId: 'missing', cell: { x: 4, y: 2 }, facing: 'down' }
-    expect(talkAnchor(field, spot)).toEqual({ x: 4.5, y: 1.5, place: 'above' })
+    expect(talkAnchor(field, spot, spot.cell)).toEqual({ x: 4.5, y: 1.5, place: 'above' })
+  })
+})
+
+// 実際の町のポスト (24,14)。正規の会話マスは上の (24,13) だが、spotAt は上下左右どこからでも拾う。
+// 下から話しかけた時に正規の会話マスの頭上へ付くと、主人公より 2 マス余り上へ浮き、
+// 縦持ちのスマートフォンでは枠の上で切れていた
+describe('talkAnchor (実際の worldSet — ポスト)', () => {
+  it.each([
+    { from: '上(正規の会話マス)', player: { x: 24, y: 13 }, anchor: { x: 24.5, y: 12.5 } },
+    { from: '下', player: { x: 24, y: 15 }, anchor: { x: 24.5, y: 14 } },
+    { from: '横', player: { x: 23, y: 14 }, anchor: { x: 24.5, y: 14 } },
+  ])('$from から話しかける', ({ player, anchor }) => {
+    const mailbox = realTown.spots.find(spot => spot.id === 'mailbox')
+    if (mailbox === undefined) throw new Error('mailbox が無い')
+    // 実際に立てて、この地点を拾うマスであること
+    expect(spotAt(realTown, player)?.id).toBe('mailbox')
+    expect(talkAnchor(realTown, mailbox, player)).toEqual({ ...anchor, place: 'above' })
+  })
+})
+
+// 正規の会話マス(spot.cell)に立つ時の位置は、主人公のマスを受け取る前の talkAnchor(world, spot) と同じ。
+// 表の値は変更前の実装が返していたもの。地点を足したら、ここへも 1 行足して位置を確かめる
+const CANONICAL_ANCHORS: Record<string, TalkAnchor> = {
+  'room/home': { x: 4.5, y: 2, place: 'above' },
+  'room/clock': { x: 7.5, y: 2, place: 'above' },
+  'town/meishi': { x: 6.5, y: 5, place: 'above' },
+  'town/lab': { x: 24, y: 5, place: 'above' },
+  'town/robot': { x: 8.5, y: 13.5, place: 'above' },
+  'town/mailbox': { x: 24.5, y: 12.5, place: 'above' },
+  'town/monument': { x: 17, y: 2, place: 'above' },
+  'town/journey': { x: 15, y: 1, place: 'below' },
+}
+
+describe('talkAnchor (実際の worldSet — 正規の会話マス)', () => {
+  const realSpots = Object.entries(realWorldSet.worlds).flatMap(([worldId, world]) =>
+    world.spots.map(spot => ({ key: `${worldId}/${spot.id}`, world, spot }))
+  )
+  it('表は全ワールドの地点を過不足なく並べている', () => {
+    expect(new Set(realSpots.map(ref => ref.key))).toEqual(new Set(Object.keys(CANONICAL_ANCHORS)))
+  })
+  it.each(realSpots)('$key', ({ key, world, spot }) => {
+    expect(talkAnchor(world, spot, spot.cell)).toEqual(CANONICAL_ANCHORS[key])
   })
 })

@@ -3,13 +3,14 @@ status: active
 read_when:
   - 村の描画が重い・入力が落ちるとき
   - 画像やスプライトの持ち方を変えるとき
+  - 依存や書体の読み込み方を変えるとき
 source_of_truth: true
 last_reviewed: 2026-09-21
 ---
 
 # 性能
 
-このサイトで実際に問題になったのは**描画コストと転送量**の2つだけで、どちらも村で起きた。
+このサイトで実際に問題になったのは**描画コストと転送量**の2つだけ。描画コストは村で、転送量は村のシートと全ページ共通の束・書体の CSS で起きた。
 
 ## 数百要素で共有する背景画像に SVG の data URI を使わない
 
@@ -39,3 +40,9 @@ E2E で入力を送る前は `document.fonts.ready` と rAF 2回を待つ(書体
 ## 書体
 
 Google Fonts から配信し、`unicode-range` で分割済み。**コンテンツに文字を足してもフォント側の作業は発生しない。**
+Noto Sans の太さは `wght@400..700` の範囲で要求する(正本は `src/app/html-shell.tsx`)。可変フォントなので `400;500;700` と列挙しても届くファイルは同じで、描画を止める CSS だけが太さの数だけ膨らむ。
+
+## 全ページ共通の束にサーバ用の依存を入れない
+
+BudouX(`src/utils/ja-phrase.ts`)が import する linkedom(サーバ用の DOM 実装)は、`next.config.ts` の alias でブラウザ向けの束からだけ `src/utils/linkedom-browser-stub.ts` に差し替えている。
+budoux の `browser` フィールドを Turbopack も webpack も当てないため、この差し替えを外すと linkedom 一式が全ルート共通の束に戻る。

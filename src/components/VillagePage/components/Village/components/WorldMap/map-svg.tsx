@@ -1,5 +1,7 @@
 'use client'
 // 縮尺だけを変えて共用する村全体の単純図形地図
+import { memo } from 'react'
+
 import { structureRect } from '@/lib/village/collision'
 
 import type { Cell, Structure, Tile, World } from '@content/types/world'
@@ -90,7 +92,8 @@ type SpotMarkerProps = {
   visited: boolean
 }
 
-function SpotMarker({ cell, scale, visited }: SpotMarkerProps) {
+// 印の中身は地点のマス・縮尺・訪問済みかだけで決まる。歩くたびの再描画では作り直さない
+const SpotMarker = memo(function SpotMarker({ cell, scale, visited }: SpotMarkerProps) {
   // 1 ドットの辺。縮尺 4 なら 1px(字 7px・下敷き 9px)、縮尺 16 なら 3px(字 21px・下敷き 27px)
   const dot = Math.max(1, Math.round(scale / 5))
   const glyphSize = GLYPH_CELLS * dot
@@ -131,21 +134,18 @@ function SpotMarker({ cell, scale, visited }: SpotMarkerProps) {
       )}
     </g>
   )
+})
+
+type MapTerrainProps = {
+  world: World
+  scale: number
 }
 
-export function MapSvg({ world, scale, visited, player, destination, spotIds }: MapSvgProps) {
-  const visibleSpotIds = new Set(spotIds)
-  const width = world.width * scale
-  const height = world.height * scale
-
+// 地形と建物はワールドと縮尺だけで決まる(町 30×20 ではタイルだけで 600 枚の rect)。
+// 主人公が 1 マス進むたびにミニマップが描き直されても、ここは React の比較ごと飛ばす
+const MapTerrain = memo(function MapTerrain({ world, scale }: MapTerrainProps) {
   return (
-    <svg
-      width={width}
-      height={height}
-      viewBox={`0 0 ${width} ${height}`}
-      shapeRendering='crispEdges'
-      aria-hidden='true'
-    >
+    <>
       {world.tiles.flatMap((row, y) =>
         row.map((tile, x) => (
           <rect
@@ -186,6 +186,24 @@ export function MapSvg({ world, scale, visited, player, destination, spotIds }: 
           />
         )
       })}
+    </>
+  )
+})
+
+export function MapSvg({ world, scale, visited, player, destination, spotIds }: MapSvgProps) {
+  const visibleSpotIds = new Set(spotIds)
+  const width = world.width * scale
+  const height = world.height * scale
+
+  return (
+    <svg
+      width={width}
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+      shapeRendering='crispEdges'
+      aria-hidden='true'
+    >
+      <MapTerrain world={world} scale={scale} />
       {world.spots
         .filter(spot => visibleSpotIds.has(spot.id))
         .map(spot => (

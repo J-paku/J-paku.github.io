@@ -4,6 +4,14 @@ import { defineConfig, devices } from '@playwright/test'
 export default defineConfig({
   testDir: 'tests',
   timeout: 30_000,
+  // 1 ファイルの中のテストも別々のワーカーへ配る。どのテストも自分の context で村を開き、
+  // beforeAll・serial・テストをまたぐ可変状態を持たないので順番に依存しない。
+  // 配らないと 5 分かかる journey.spec が 1 ワーカーで直列に走り、全体の所要がそこで決まる
+  fullyParallel: true,
+  // 手元の既定(論理コア数の半分)は 16 スレッドの機械で 8 本になる。村の E2E は歩く間合いを実時間で
+  // 刻む(150ms 押して 256ms で 1 マス)ので、ブラウザを並べすぎて詰まらせないよう手元は 4 本で止める。
+  // CI はランナーの既定のまま(同時に走る本数は配り方を変える前と同じ)
+  workers: process.env.CI ? undefined : 4,
   // CI では test.only の混入を落とし、フレーキーな失敗は1回だけ再試行する
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,

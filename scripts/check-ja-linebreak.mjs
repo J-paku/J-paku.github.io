@@ -31,6 +31,17 @@ const targetPaths = argPaths.length > 0 ? argPaths : DEFAULT_PATHS
 // 実機で使われる代表的な論理幅。iPhone SE(320) から Pro Max(430) まで
 const WIDTHS = [320, 360, 375, 390, 414, 430]
 
+// 同時に開く組(経路 × 幅)の数。組ごとに context を作り直すので、組どうしは状態を共有しない。
+// 1 組ずつ開くと 6 経路 × 6 幅の読み込み待ちが直列に積み上がる
+const CONCURRENCY = 4
+
+// 村は表示後に Open-Meteo へ大阪の天気を問い合わせる(src/lib/weather.ts)。実際の応答を待つと
+// networkidle が外部 API の速さで伸びるので、降らない応答に固定する。
+// 応答の形は src/lib/weather.ts の isOpenMeteoResponse に合わせる(tests/village.helpers.ts の clear と同じ値)。
+// Google Fonts は差し替えない — 実際の書体の幅で改行位置を測るのがこの検査の前提
+const OPEN_METEO = 'https://api.open-meteo.com/**'
+const CLEAR_BODY = JSON.stringify({ current: { precipitation: 0, snowfall: 0 } })
+
 // フォントが無いと全角文字が .notdef へ落ち、実際より狭い幅で測られて改行が起きなくなる。
 // 「改行が無い」は PASS 方向の誤りなので、測定前に必ず止める(03-pitfalls.md #5)
 function countFontsForLang(lang) {
@@ -251,6 +262,79 @@ async function measurePage(page) {
   })
 }
 
+// items を同時 limit 本までで task に通し、結果を items と同じ順で返す。
+// 1 本でも失敗したら新しい仕事は取らず、最初の失敗を投げる
+async function mapWithConcurrency(items, limit, task) {
+  const results = new Array(items.length)
+  let nextIndex = 0
+  let failed = false
+  const runner = async () => {
+    while (!failed && nextIndex < items.length) {
+      const index = nextIndex
+      nextIndex += 1
+      try {
+        results[index] = await task(items[index])
+      } catch (error) {
+        failed = true
+        throw error
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, runner))
+  return results
+}
+
+// 1 組(経路 × 幅)を開き、初期状態と経歴トリガーを 1 つずつ開いた状態を測って { label, measurement } の列で返す。
+// 集計(recordMeasurement)は並列の外で組の順に行うので、出力の並びは 1 組ずつ測っていた頃と変わらない
+async function measureCombo(browser, targetPath, width) {
+  // 幅を変えるたびに context を作り直す(=ページを開き直す)ので、経歴トグルの
+  // 開閉状態はここで確実に初期化される
+  const context = await browser.newContext({ viewport: { width, height: 900 } })
+  try {
+    await context.route(OPEN_METEO, route =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: CLEAR_BODY })
+    )
+    const page = await context.newPage()
+    const url = new URL(targetPath, baseUrl).toString()
+    const response = await page.goto(url, { waitUntil: 'networkidle' })
+    // 消えた経路を検査対象に残すと 404 ページを測って通ってしまう(03-pitfalls.md #11)。
+    // 静的配信は存在しない経路に 404 を返すので、応答コードで先に落とす
+    if (response === null || !response.ok()) {
+      throw new Error(
+        `${targetPath}: HTTP ${response?.status() ?? '(応答なし)'} — 経路が存在しない`
+      )
+    }
+    // 静的エクスポートは本文が HTML に入っているのでマウント待ちは不要。
+    // 村ページだけはブートの覆い(#boot)が外れるまで待つ
+    await page.waitForFunction(() => document.querySelector('#boot') === null)
+    // 配信CSSの書体が載り切るまで待つ。載る前に測ると代替書体の幅で測ってしまう
+    await page.evaluate(() => document.fonts.ready)
+
+    const measurements = [
+      { label: `${targetPath} @${width}px`, measurement: await measurePage(page) },
+    ]
+
+    // 左列の経歴トリガーを1つずつ開き、その都度計測する。経歴どうしは排他
+    // (1つ開くと前の状態は消える)なので、開いてから毎回そのまま計測すればよい。
+    // トリガーが無い経路(作品ストーリーページ等)はループが空になり、従来どおり初期状態のみになる
+    const careerTriggers = await page.$$('button[aria-controls="panel-career"]:not([role="tab"])')
+    for (const [index, trigger] of careerTriggers.entries()) {
+      await trigger.click()
+      await page.waitForFunction(() => {
+        const panel = document.querySelector('#panel-career')
+        return panel !== null && !panel.hasAttribute('hidden')
+      })
+      measurements.push({
+        label: `${targetPath} (経歴${index + 1}) @${width}px`,
+        measurement: await measurePage(page),
+      })
+    }
+    return measurements
+  } finally {
+    await context.close()
+  }
+}
+
 async function main() {
   const browser = await chromium.launch()
   let failures = 0
@@ -302,48 +386,11 @@ async function main() {
   }
 
   try {
-    for (const targetPath of targetPaths) {
-      for (const width of WIDTHS) {
-        // 幅を変えるたびに context を作り直す(=ページを開き直す)ので、経歴トグルの
-        // 開閉状態はここで確実に初期化される
-        const context = await browser.newContext({ viewport: { width, height: 900 } })
-        const page = await context.newPage()
-        const url = new URL(targetPath, baseUrl).toString()
-        const response = await page.goto(url, { waitUntil: 'networkidle' })
-        // 消えた経路を検査対象に残すと 404 ページを測って通ってしまう(03-pitfalls.md #11)。
-        // 静的配信は存在しない経路に 404 を返すので、応答コードで先に落とす
-        if (response === null || !response.ok()) {
-          throw new Error(
-            `${targetPath}: HTTP ${response?.status() ?? '(応答なし)'} — 経路が存在しない`
-          )
-        }
-        // 静的エクスポートは本文が HTML に入っているのでマウント待ちは不要。
-        // 村ページだけはブートの覆い(#boot)が外れるまで待つ
-        await page.waitForFunction(() => document.querySelector('#boot') === null)
-        // 配信CSSの書体が載り切るまで待つ。載る前に測ると代替書体の幅で測ってしまう
-        await page.evaluate(() => document.fonts.ready)
-
-        const label = `${targetPath} @${width}px`
-        recordMeasurement(label, await measurePage(page))
-
-        // 左列の経歴トリガーを1つずつ開き、その都度計測する。経歴どうしは排他
-        // (1つ開くと前の状態は消える)なので、開いてから毎回そのまま計測すればよい。
-        // トリガーが無い経路(作品ストーリーページ等)はループが空になり、従来どおり初期状態のみになる
-        const careerTriggers = await page.$$(
-          'button[aria-controls="panel-career"]:not([role="tab"])'
-        )
-        for (const [index, trigger] of careerTriggers.entries()) {
-          await trigger.click()
-          await page.waitForFunction(() => {
-            const panel = document.querySelector('#panel-career')
-            return panel !== null && !panel.hasAttribute('hidden')
-          })
-          recordMeasurement(`${targetPath} (経歴${index + 1}) @${width}px`, await measurePage(page))
-        }
-
-        await context.close()
-      }
-    }
+    const combos = targetPaths.flatMap(targetPath => WIDTHS.map(width => ({ targetPath, width })))
+    const measured = await mapWithConcurrency(combos, CONCURRENCY, ({ targetPath, width }) =>
+      measureCombo(browser, targetPath, width)
+    )
+    for (const { label, measurement } of measured.flat()) recordMeasurement(label, measurement)
   } finally {
     await browser.close()
   }

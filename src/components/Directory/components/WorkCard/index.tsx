@@ -28,6 +28,7 @@ type WorkCardProps = {
 }
 
 function WorkCard({ work, index, locale, ui }: WorkCardProps) {
+  // isRevealed はカードのフェードインの合図で、動画の src を付けてよい合図も兼ねる
   const { ref, isRevealed } = useReveal()
   // 画面に丸ごと収まっている間だけ写真の色を戻す。縁に掛かっている間は灰色のまま
   const { ref: shotRef, isFullyVisible } = useFullyVisible<HTMLDivElement>()
@@ -141,6 +142,7 @@ function WorkCard({ work, index, locale, ui }: WorkCardProps) {
         isFullyVisible={isFullyVisible}
         videoRef={videoRef}
         showVideo={showVideo}
+        shouldLoadVideo={isRevealed}
         showReel={showReel}
         storyScenes={storyScenes}
         activeReelIndex={activeReelIndex}

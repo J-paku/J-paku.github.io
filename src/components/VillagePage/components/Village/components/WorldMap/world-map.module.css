@@ -28,7 +28,8 @@
 .title {
   min-height: 32px;
   margin: 0 88px 14px 0;
-  font: 600 20px/1.4 var(--f-label);
+  /* 以前 700 で描かれていた見た目を保つため 700(Noto Sans は可変で取るので 600 だと細くなる) */
+  font: 700 20px/1.4 var(--f-label);
 }
 
 .close {

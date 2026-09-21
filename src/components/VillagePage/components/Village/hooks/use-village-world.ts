@@ -31,7 +31,8 @@ type UseVillageWorld = {
   enterWorld: EnterWorld
 }
 
-export function useVillageWorld(worldSet: WorldSet): UseVillageWorld {
+// wake は眠っている歩行ループを起こす手。ワールドを移ったら新しい場面を描き直させる
+export function useVillageWorld(worldSet: WorldSet, wake: () => void): UseVillageWorld {
   const startWorld = worldSet.worlds[worldSet.startWorldId]
   const [worldId, setWorldId] = useState<string>(worldSet.startWorldId)
   const world = findWorld(worldSet, worldId) ?? startWorld
@@ -50,18 +51,23 @@ export function useVillageWorld(worldSet: WorldSet): UseVillageWorld {
   const [destination, setDestination] = useState<Cell | null>(null)
   const [playerCell, setPlayerCell] = useState<Cell>(startWorld.start)
 
-  // ワールドの移動は ref と state を同時に置き換える。持ち越した経路と目的地は捨てる
-  const enterWorld = useCallback((id: string, next: World, cell: Cell, facing: Direction) => {
-    worldRef.current = next
-    worldKeyRef.current = id
-    stateRef.current = { ...createMoveState(next), cell, facing }
-    pendingRouteRef.current = null
-    pendingFastRef.current = false
-    destinationRef.current = null
-    setDestination(null)
-    setWorldId(id)
-    setPlayerCell(cell)
-  }, [])
+  // ワールドの移動は ref と state を同時に置き換える。持ち越した経路と目的地は捨てる。
+  // 歩行ループは新しいタイルが DOM に載るのを待って描き直すので、眠っていれば起こす
+  const enterWorld = useCallback(
+    (id: string, next: World, cell: Cell, facing: Direction) => {
+      worldRef.current = next
+      worldKeyRef.current = id
+      stateRef.current = { ...createMoveState(next), cell, facing }
+      pendingRouteRef.current = null
+      pendingFastRef.current = false
+      destinationRef.current = null
+      setDestination(null)
+      setWorldId(id)
+      setPlayerCell(cell)
+      wake()
+    },
+    [wake]
+  )
 
   return {
     startWorld,

@@ -148,7 +148,8 @@
 
 .title {
   margin: 4px 0 14px;
-  font: 600 22px/1.3 var(--f-label);
+  /* 以前 700 で描かれていた見た目を保つため 700(Noto Sans は可変で取るので 600 だと細くなる) */
+  font: 700 22px/1.3 var(--f-label);
 }
 
 .title:focus {

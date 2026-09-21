@@ -1,14 +1,15 @@
 // 村の導線 E2E。部屋の会話 → 扉で町へ → 作品と一覧、地図の高速移動、位置と訪問の保存、
 // テーマ、家具の当たり判定を ja/ko 双方で確認する
-import { expect, test, type Locator, type Page } from '@playwright/test'
+import { expect, type Locator, type Page } from '@playwright/test'
 import type { VillageText } from '@content/types/world'
 import { worldSet } from '@content/world'
 import { village as villageJa } from '@content/ja/village'
 import { village as villageKo } from '@content/ko/village'
 import { ui as uiJa } from '@content/ja/ui'
 import { ui as uiKo } from '@content/ko/ui'
-// 村を開く手順・歩きの間合い・描画待ちは day-night.spec と共用。正本は village.helpers.ts
-import { HOLD_MS, SETTLE_MS, focusVillage, openVillage, settleRender } from './village.helpers'
+// 村を開く手順・歩く walk(1 マスごとに到着を待つ)・押下と到着待ちの間合い・既定で晴れを敷く test は
+// 他の村の spec と共用。正本は village.helpers.ts
+import { HOLD_MS, SETTLE_MS, focusVillage, openVillage, test, walk } from './village.helpers'
 
 type SettingsLabels = { menu: string; light: string; dark: string }
 type Journey = { prefix: string; text: VillageText; settings: SettingsLabels }
@@ -30,17 +31,6 @@ const JOURNEYS: Journey[] = [
 const POS_KEY = `village:${worldSet.id}:pos`
 const VISITED_KEY = `village:${worldSet.id}:visited`
 const WORK_SLUG = 'meishi-cross-platform'
-
-// 方向キーを 1 マス分だけ押し、到着まで待ってから次の 1 マスへ進む
-const walk = async (page: Page, key: string, cells: number) => {
-  for (let i = 0; i < cells; i += 1) {
-    await page.keyboard.down(key)
-    await page.waitForTimeout(HOLD_MS)
-    await page.keyboard.up(key)
-    await page.waitForTimeout(SETTLE_MS)
-    await settleRender(page)
-  }
-}
 
 // 会話窓の本文は押している間フレーム単位で送られるので、押した瞬間だけの press では
 // 1フレームも挟まらず届かない。押してから離すまでの長さで送る量が決まる
@@ -263,11 +253,15 @@ for (const { prefix, text, settings } of JOURNEYS) {
 
   test(`部屋の机で歩みが止まる (${label})`, async ({ page }) => {
     await openVillage(page, prefix)
-    // 位置は到着時にだけ保存されるので、往復 1 マスで (4,4) を保存させてから壁に当てる
-    await walk(page, 'ArrowRight', 1)
-    await walk(page, 'ArrowLeft', 1)
+    // 位置は到着時にだけ保存されるので、往復 1 マスで (4,4) を保存させてから壁に当てる。
+    // walk の戻り値(到着したマス数)はここで確かめる。他のテストは戻り値を見ないので、
+    // 到着の判定が壊れて常に 0 や常に cells を返すようになっても、ここ以外では気付けない
+    expect(await walk(page, 'ArrowRight', 1), '床へは 1 マス進める').toBe(1)
+    expect(await walk(page, 'ArrowLeft', 1), '戻りも 1 マス').toBe(1)
     expect(await readCell(page)).toEqual({ worldId: 'room', cell: { x: 4, y: 4 } })
-    // (4,4) の上は PC 机。押し続けても進まず、ページも動かない
+    // (4,4) の上は PC 机。1 回押しても向きが変わるだけで、到着は 0 マス
+    expect(await walk(page, 'ArrowUp', 1), '机へは踏み込めない').toBe(0)
+    // 押し続けても進まず、ページも動かない
     await page.keyboard.down('ArrowUp')
     await page.waitForTimeout(700)
     await page.keyboard.up('ArrowUp')
@@ -362,20 +356,30 @@ for (const { prefix, text, settings } of JOURNEYS) {
   test(`町の経歴碑でロゴ付きの職歴一覧を確認でき、完走判定には数えない (${label})`, async ({
     page,
   }) => {
-    // 経歴碑の確認に続けて残り5か所も巡るので、次へ連鎖の待ちが重なり既定の30秒を超える
+    // 経歴碑の確認に続けて残り4か所も次へ連鎖で巡るので、連鎖の待ち(1 回 10s まで)が重なり
+    // 既定の30秒を超えうる
     test.setTimeout(60_000)
     await openVillage(page, prefix)
-    await leaveRoom(page)
-    // 自宅前 (14,12) から左 3(x=11)・上 6(y=6)・右 5(x=16)・上 2(y=4) で経歴碑の前。
-    // 経歴碑は北の道の左右の木の手前 (16,2) に立つ。
-    // 経路のマスは content/world.ts の道(path)と草地(grass/grass-alt)のみを通る
-    await walk(page, 'ArrowLeft', 3)
-    await walk(page, 'ArrowUp', 6)
-    await walk(page, 'ArrowRight', 5)
-    await walk(page, 'ArrowUp', 2)
-    expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 16, y: 4 } })
-    await page.keyboard.press('e')
     const dialog = page.getByRole('dialog')
+    // 先に自宅(4,4)で話しておき、コースの自宅と名刺工房の間に経歴碑を挟む
+    await page.keyboard.press('e')
+    await expect(dialog.getByRole('heading', { name: home.title })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(dialog).toHaveCount(0)
+    await leaveRoom(page)
+    // 町の中は地図で高速移動する(町を歩いて通れることは他のテストが確かめる)。
+    // 経歴碑は北の道の左右の木の手前 (16,2) に立ち、話しかけるマスはその 2 つ下 (16,4)
+    await page.keyboard.press('m')
+    await dialog
+      .getByRole('button', { name: text.fastTravel.replace('{place}', monument.place) })
+      .click()
+    await expect(dialog).toHaveCount(0)
+    await expect.poll(() => readCell(page)).toEqual({ worldId: 'town', cell: { x: 16, y: 4 } })
+    // 地図からの移動では会話窓が開かない。着いた吹き出しが出てから話しかける
+    await expect(page.locator('[data-village-bubble]')).toContainText(
+      monument.arrive ?? text.arriveAt.replace('{place}', monument.place)
+    )
+    await page.keyboard.press('e')
     await expect(dialog.getByRole('heading', { name: monument.title })).toBeVisible()
     const entries = monument.entries
     if (entries === undefined) throw new Error('経歴碑の entries が無い')
@@ -395,22 +399,20 @@ for (const { prefix, text, settings } of JOURNEYS) {
     await expect(page.getByRole('status')).not.toContainText(
       text.allSeen.replace('{list}', text.toList)
     )
-    // 経歴碑から自宅前までの往路をそのまま逆にたどり、扉を抜けて自宅の会話起点(4,4)へ戻る
-    await walk(page, 'ArrowDown', 2)
-    await walk(page, 'ArrowLeft', 5)
-    await walk(page, 'ArrowDown', 6)
-    await walk(page, 'ArrowRight', 3)
-    await walk(page, 'ArrowUp', 1)
-    await walk(page, 'ArrowUp', 2)
-    expect(await readCell(page)).toEqual({ worldId: 'room', cell: { x: 4, y: 4 } })
-    // ここから先は「5 か所すべて話すと案内が変わり一覧のボタンへ焦点が移る」と同じ次へ連鎖で
-    // 残り4か所(コース地点)を巡り、経歴碑を挟んでも完走判定が数え漏れなく動くことを確認する
+    // 名刺工房 (6,6) へも地図で移る。ここから先は「5 か所すべて話すと案内が変わり一覧のボタンへ
+    // 焦点が移る」と同じ次へ連鎖で残り4か所(コース地点)を巡り、経歴碑を挟んでも完走判定が
+    // 数え漏れなく動くことを確認する
+    await page.keyboard.press('m')
+    await dialog
+      .getByRole('button', { name: text.fastTravel.replace('{place}', meishi.place) })
+      .click()
+    await expect(dialog).toHaveCount(0)
+    await expect.poll(() => readCell(page)).toEqual({ worldId: 'town', cell: { x: 6, y: 6 } })
+    await expect(page.locator('[data-village-bubble]')).toContainText(
+      text.arriveAt.replace('{place}', meishi.place)
+    )
     await page.keyboard.press('e')
-    await expect(dialog.getByRole('heading', { name: home.title })).toBeVisible()
-    await dialog.getByRole('button', { name: home.next }).click()
-    await expect(dialog.getByRole('heading', { name: meishi.title })).toBeVisible({
-      timeout: 10_000,
-    })
+    await expect(dialog.getByRole('heading', { name: meishi.title })).toBeVisible()
     await dialog.getByRole('button', { name: meishi.next }).click()
     await expect(dialog.getByRole('heading', { name: lab.title })).toBeVisible({
       timeout: 10_000,
@@ -745,3 +747,43 @@ for (const { prefix, text, settings } of JOURNEYS) {
     expect(await readCell(page)).toEqual({ worldId: 'room', cell: { x: 4, y: 4 } })
   })
 }
+
+// ポストの正規の会話マスは上の (24,13) だが、下の (24,15) からも話しかけられる。
+// 吹き出しを正規の会話マスの頭上に付けていた頃は主人公より 2 マス余り上へ浮き、
+// iPhone 13 の縦持ちで枠(overflow: hidden)の上へ 16px はみ出して切れた。
+// 吹き出しを付ける位置は言語で変わらないので ja だけ見る。
+// devices[] は defaultBrowserType を含み describe 内で使えないため、iPhone 13 の寸法と入力種別だけ指定する
+test.describe('ポストの下から話しかける (/)', () => {
+  test.use({
+    viewport: { width: 390, height: 664 },
+    isMobile: true,
+    hasTouch: true,
+    deviceScaleFactor: 3,
+  })
+
+  test('吹き出しが枠の上で切れない', async ({ page }) => {
+    const mailbox = villageJa.stops.mailbox
+    // 再読み込みは位置を戻さないので、保存を差し込まずに歩いて行く
+    await openVillage(page, '')
+    await leaveRoom(page)
+    // 自宅前 (14,12) から右 9・下 3・右 1 で (24,15)。上を押すとポストに阻まれて向きだけ変わる
+    await walk(page, 'ArrowRight', 9)
+    await walk(page, 'ArrowDown', 3)
+    await walk(page, 'ArrowRight', 1)
+    await walk(page, 'ArrowUp', 1)
+    expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 24, y: 15 } })
+    const bubble = page.locator('[data-village-bubble]')
+    await expect(bubble).toContainText(
+      mailbox.arrive ?? villageJa.arriveAt.replace('{place}', mailbox.place)
+    )
+    const tops = await bubble.evaluate(el => {
+      const frame = el.closest('[data-village]')
+      if (frame === null) throw new Error('吹き出しが枠の中に無い')
+      return {
+        frame: frame.getBoundingClientRect().top,
+        bubble: el.getBoundingClientRect().top,
+      }
+    })
+    expect(tops.bubble).toBeGreaterThanOrEqual(tops.frame)
+  })
+})

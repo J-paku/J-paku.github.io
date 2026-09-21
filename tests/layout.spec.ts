@@ -1,12 +1,15 @@
 // 村の舞台レイアウト E2E。PC は原寸 640×576 で中央、縦持ちは幅いっぱい + 画面最下端の帯にスティックと A/B、
 // 横持ち・タブレットは枠の左右に150px以上のガターが空けば左右のガターへ、空かなければ枠の左右上に重ねる。
 // useStageScale が --cell(と data-gutters)を実測で書いてから測る
-import { expect, test, type Page } from '@playwright/test'
+import { expect, type Page } from '@playwright/test'
 import {
   CELL_MIN,
   cellMax,
   computeCell,
 } from '../src/components/VillagePage/components/Village/hooks/use-stage-scale'
+// 村の E2E で共用する test。context に既定で晴れの応答を敷き、舞台を開いた時の天気の問い合わせを
+// 実ネットワークへ出さない。正本は village.helpers.ts
+import { test } from './village.helpers'
 
 // ブート演出が消え、useStageScale が舞台の実測を --cell に書き込むまで待つ。
 // CSS の既定値だけでも近い寸法になるため、インライン変数の有無で JS 側の実行を確かめる
