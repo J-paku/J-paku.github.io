@@ -68,8 +68,9 @@ type UseVillageOverlay = {
   hintText: string | null
   // 会話窓(role='status')の一言を差し替える手。時計の設定窓が結果を伝えるのに使う
   announce: (message: string) => void
-  // 釣りの進み具合と、結果窓に出す文言、浮きを置く水のマス。出す物が無ければ stop は null
-  fishing: { phase: FishingPhase; stop: StopText | null; at: Cell | null }
+  // 釣りの進み具合と、結果窓に出す文言、浮きを置く水のマス、全部を釣り上げたか。
+  // 出す物が無ければ stop は null
+  fishing: { phase: FishingPhase; stop: StopText | null; at: Cell | null; exhausted: boolean }
 }
 
 export function useVillageOverlay({
@@ -104,6 +105,7 @@ export function useVillageOverlay({
     phase: fishingPhase,
     stop: fishingStop,
     at: fishingAt,
+    exhausted: fishingExhausted,
     start: startFishing,
     reset: resetFishing,
   } = useVillageFishing({ text, catches, roleLabels, world, setSpeech })
@@ -137,6 +139,9 @@ export function useVillageOverlay({
       // 水辺を向いているなら直接投げる。釣っている間は移動を止める。
       // 釣れる中身が 1 つも無い時は開かない — 開くと結果窓が出ないまま移動だけ止まってしまう
       if (catches.length > 0 && isFishingSpot(worldRef.current, stateRef.current)) {
+        // 全部を釣り上げた後は何もしない。水辺の考え事の吹き出しがもう釣れないと伝えているので、
+        // 窓も「……」も noTarget の一言も出さず、移動も止めない
+        if (fishingExhausted) return
         clearHint()
         lockedRef.current = true
         heldRef.current = null
@@ -181,6 +186,7 @@ export function useVillageOverlay({
     stateRef,
     catches,
     startFishing,
+    fishingExhausted,
   ])
 
   const closeOverlay = useCallback(() => {
@@ -268,6 +274,11 @@ export function useVillageOverlay({
     travel,
     hintText,
     announce: setSpeech,
-    fishing: { phase: fishingPhase, stop: fishingStop, at: fishingAt },
+    fishing: {
+      phase: fishingPhase,
+      stop: fishingStop,
+      at: fishingAt,
+      exhausted: fishingExhausted,
+    },
   }
 }

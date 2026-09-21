@@ -23,7 +23,8 @@ export const isFishingSpot = (world: World, at: Facing): boolean => {
 }
 
 // 空なら null。まだ釣っていない(name が caughtNames に無い)機能を優先して 1 件選ぶ。
-// 全部釣り終えた後も投げ続けられるよう、未取得が無くなったら元の列へ戻す
+// 未取得が無くなったら元の列から選ぶ。村は全部を釣り上げた後は投げないのでこの分岐を通らないが、
+// 空でない列には必ず 1 件返す約束として残す
 export const pickCatch = <T extends { name: string }>(
   items: readonly T[],
   caughtNames: ReadonlySet<string>,
@@ -41,17 +42,29 @@ export const isCollectionComplete = (
   caughtNames: ReadonlySet<string>
 ): boolean => items.length > 0 && items.every(item => caughtNames.has(item.name))
 
+// 水辺の吹き出しの文言・ボタン・形をここ 1 か所で決める。
+// 全部を釣り上げた後は「釣る」ボタンを出さず、考え事の吹き出し(thought)に切り替える
+export const waterBubble = (
+  text: FishingText,
+  exhausted: boolean
+): { text: string; label: string | undefined; kind: 'speech' | 'thought' } =>
+  exhausted
+    ? { text: text.exhausted, label: undefined, kind: 'thought' }
+    : { text: text.prompt, label: text.go, kind: 'speech' }
+
 // 結果窓の StopText。釣り上げた機能を、地点の会話と同じ並び(主張・根拠・補足)へ写す
 export const catchToStop = (
   feature: CareerFeature,
   text: FishingText,
-  roleLabels: Record<CareerRole, string>
+  roleLabels: Record<CareerRole, string>,
+  last = false
 ): StopText => ({
   place: text.caughtPlace,
   title: feature.name,
   claim: text.caughtClaim.replace('{date}', feature.date),
   proof: text.caughtTech.replace('{tech}', feature.tech.join(' / ')),
-  hook: text.caughtHook,
+  // last は全部が揃う最後の 1 つ。もう投げないので「もう一度投げて」の一言を空にして描かせない
+  hook: last ? '' : text.caughtHook,
   next: text.caughtNext,
   detail: text.caughtRoles.replace('{roles}', feature.roles.map(r => roleLabels[r]).join('・')),
 })

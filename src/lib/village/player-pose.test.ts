@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { MoveState } from './movement'
-import { playerPose } from './player-pose'
+import { FISHING_SWING_MS, playerPose } from './player-pose'
 
 describe('playerPose', () => {
   const state: MoveState = {
@@ -49,7 +49,9 @@ describe('playerPose', () => {
   })
   it('釣っている間は向きごとの竿コマを使い、歩いていても歩行コマへ戻らない', () => {
     for (const facing of ['up', 'down', 'right'] as const) {
-      expect(playerPose({ ...state, facing, motion, stride: 1 }, false, true, 360)).toEqual({
+      expect(
+        playerPose({ ...state, facing, motion, stride: 1 }, false, true, FISHING_SWING_MS)
+      ).toEqual({
         key: `player-fish-${facing}`,
         flip: false,
       })
@@ -57,7 +59,9 @@ describe('playerPose', () => {
   })
   it('釣っている左向きは右向きの竿コマを反転して作る', () => {
     // 竿コマも歩行コマと同じで、左向きの絵は持たない
-    expect(playerPose({ ...state, facing: 'left', stride: 0 }, false, true, 360)).toEqual({
+    expect(
+      playerPose({ ...state, facing: 'left', stride: 0 }, false, true, FISHING_SWING_MS)
+    ).toEqual({
       key: 'player-fish-right',
       flip: true,
     })
@@ -67,10 +71,10 @@ describe('playerPose', () => {
       const direction = facing === 'left' ? 'right' : facing
       for (const [elapsed, suffix] of [
         [0, '-backswing'],
-        [179, '-backswing'],
-        [180, '-cast'],
-        [359, '-cast'],
-        [360, ''],
+        [FISHING_SWING_MS / 2 - 1, '-backswing'],
+        [FISHING_SWING_MS / 2, '-cast'],
+        [FISHING_SWING_MS - 1, '-cast'],
+        [FISHING_SWING_MS, ''],
         [5000, ''],
       ] as const) {
         expect(playerPose({ ...state, facing }, false, true, elapsed)).toEqual({

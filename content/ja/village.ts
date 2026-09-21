@@ -51,6 +51,7 @@ export const village: VillageText = {
   fishing: {
     prompt: '釣りをしてみようかな…?',
     go: '釣る',
+    exhausted: 'もうここでは釣れそうにないな…。次の経験は、一緒に作ってみませんか?',
     cast: '……',
     bite: '何かがかかった!',
     landed: '経験を釣り上げた!',

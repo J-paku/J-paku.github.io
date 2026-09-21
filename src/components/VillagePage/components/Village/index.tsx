@@ -86,6 +86,7 @@ function Village({
     talkAt,
     talkText,
     talkLabel,
+    talkKind,
     hintText,
     mode,
     fishing,
@@ -194,9 +195,16 @@ function Village({
                 昼夜の出し分けは Lighting 側の [data-phase='night'] が受け持つ */}
             <Lighting world={world} playerLightRef={playerLightRef} startShift={startShift} />
             {/* 水面の浮きと釣り上げた巻物。灯りの上・主人公(z 2)の下に置く。
-                釣っていない間は置くマスが決まらない(at が null)ので何も描かない */}
+                釣っていない間は置くマスが決まらない(at が null)ので何も描かない。
+                糸は主人公の立つマス(from)から浮きまで渡す。
+                釣っている間は歩けないので、立つマスは playerCell のままでよい */}
             {fishing.at !== null ? (
-              <FishingFloat at={fishing.at} phase={fishing.phase} sprites={sprites} />
+              <FishingFloat
+                at={fishing.at}
+                from={playerCell}
+                phase={fishing.phase}
+                sprites={sprites}
+              />
             ) : null}
             <div
               ref={playerRef}
@@ -229,6 +237,7 @@ function Village({
                   frameRef.current?.focus()
                   openTalk()
                 }}
+                kind={talkKind}
               />
             ) : null}
             {hintText !== null ? (
