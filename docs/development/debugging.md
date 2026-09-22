@@ -14,7 +14,7 @@ last_reviewed: 2026-09-21
 実際に測定器の側が壊れていた事例である。
 
 実行するコマンドそのものは [commands.md](commands.md)、どこまで走らせるかは [../agents/verification.md](../agents/verification.md)、
-E2E の5本が何を見ているかは [../quality/test-strategy.md](../quality/test-strategy.md) にある。
+E2E の6本が何を見ているかは [../quality/test-strategy.md](../quality/test-strategy.md) にある。
 
 ## 直したのに変わらない
 
