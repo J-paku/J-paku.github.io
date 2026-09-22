@@ -1,12 +1,14 @@
 // 夜だけ差し替える素材を検証する。鍵の集合と並び順が昼と揃っていること、
 // 主人公のランタンとポストの LED が夜にだけ灯ること
 import { describe, expect, it } from 'vitest'
+import type { PixelArt } from './art'
 import { LANTERN_GLASS, LANTERN_SHINE } from './lantern'
 import { palette } from './palette'
 import { phasePalette } from './palette-phase'
 import {
   buildPlayerSprites,
   buildSprites,
+  FISHING_MOTIONS,
   PLAYER_ARTS,
   PLAYER_NIGHT_ARTS,
   SPRITE_ARTS,
@@ -195,11 +197,39 @@ describe('夜だけ差し替える素材', () => {
   })
 
   it('横向きの夜のコマも反転してずれないよう 1〜14 列に収まる', () => {
-    for (const key of ['player-right-0', 'player-right-1', 'player-fish-right'] as const) {
-      for (const row of PLAYER_NIGHT_ARTS[key]) {
+    // 釣りの動きのコマも含めて横向きは全部見る。静止・歩行の 2 枚、待つ 1 枚、動きの場面の数だけある
+    const rights = Object.entries(PLAYER_NIGHT_ARTS).filter(([key]) => key.includes('-right'))
+    expect(rights).toHaveLength(2 + 1 + FISHING_MOTIONS.length)
+    for (const [key, art] of rights) {
+      for (const row of art) {
         expect(row[0], key).toBe('.')
         expect(row[15], key).toBe('.')
       }
     }
+  })
+
+  it('釣りのコマはどれも、その向きの静止コマと同じランタンを同じ所に提げる', () => {
+    // 昼と夜で違う升(位置と文字)がランタンそのもの。体を動かしても灯りは手元から動かさないので、
+    // 静止コマと 1 升も違わなければ、面の取り違えも高さのずれも欠けも無い
+    const litCells = (day: PixelArt, night: PixelArt): string[] =>
+      night.flatMap((row, y) =>
+        [...row].flatMap((ch, x) => (ch === day[y][x] ? [] : [`${x},${y},${ch}`]))
+      )
+    const FACINGS = ['up', 'down', 'right'] as const
+    // 向き → 静止コマのランタンの升
+    const standLit: Record<string, string[]> = Object.fromEntries(
+      FACINGS.map(facing => [
+        facing,
+        litCells(PLAYER_ARTS[`player-${facing}-0`], PLAYER_NIGHT_ARTS[`player-${facing}-0`]),
+      ])
+    )
+    const nightArts: Record<string, PixelArt> = PLAYER_NIGHT_ARTS
+    // 釣りの鍵は player-fish-{向き} と player-fish-{向き}-{場面}
+    const fishing = Object.entries(PLAYER_ARTS).filter(([key]) => key.startsWith('player-fish-'))
+    expect(fishing).toHaveLength(FACINGS.length * (1 + FISHING_MOTIONS.length))
+
+    expect(
+      Object.fromEntries(fishing.map(([key, day]) => [key, litCells(day, nightArts[key])]))
+    ).toEqual(Object.fromEntries(fishing.map(([key]) => [key, standLit[key.split('-')[2]]])))
   })
 })

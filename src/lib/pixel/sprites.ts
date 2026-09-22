@@ -11,6 +11,21 @@ import { terrainArt } from './terrain'
 import { weatherArt } from './weather-art'
 import type { DayPhase } from '@/utils/day-phase'
 
+// 糸を垂らして待つコマ(player-fish-{向き})の前後に使う釣りの動き。並びは使う時間の順。
+// 鍵の型はこの組から導くので、場面を足して下の playerSpriteArts へ書き忘れると型検査で落ちる。
+// テストも同じ組を回して、足した場面が足元・体の動き・糸の検査から漏れないようにする
+export const FISHING_MOTIONS = [
+  'windup',
+  'backswing',
+  'cast',
+  'follow',
+  'tense',
+  'bite',
+  'pull',
+  'hoist',
+] as const
+type FishingMotion = (typeof FISHING_MOTIONS)[number]
+
 type PlayerSpriteKey =
   | 'player-up-0'
   | 'player-up-1'
@@ -23,7 +38,7 @@ type PlayerSpriteKey =
   | 'player-fish-up'
   | 'player-fish-down'
   | 'player-fish-right'
-  | `player-fish-${'up' | 'down' | 'right'}-${'backswing' | 'cast'}`
+  | `player-fish-${'up' | 'down' | 'right'}-${FishingMotion}`
 
 export type SpriteKey =
   keyof typeof terrainArt | keyof typeof structureArt | keyof typeof fishingArt
@@ -69,12 +84,30 @@ const playerSpriteArts = (frames: PlayerFrames): Record<PlayerSpriteKey, PixelAr
   'player-fish-up': frames.fish[0],
   'player-fish-down': frames.fish[1],
   'player-fish-right': frames.fish[2],
+  'player-fish-up-windup': frames.windup[0],
+  'player-fish-down-windup': frames.windup[1],
+  'player-fish-right-windup': frames.windup[2],
   'player-fish-up-backswing': frames.backswing[0],
   'player-fish-down-backswing': frames.backswing[1],
   'player-fish-right-backswing': frames.backswing[2],
   'player-fish-up-cast': frames.cast[0],
   'player-fish-down-cast': frames.cast[1],
   'player-fish-right-cast': frames.cast[2],
+  'player-fish-up-follow': frames.follow[0],
+  'player-fish-down-follow': frames.follow[1],
+  'player-fish-right-follow': frames.follow[2],
+  'player-fish-up-tense': frames.tense[0],
+  'player-fish-down-tense': frames.tense[1],
+  'player-fish-right-tense': frames.tense[2],
+  'player-fish-up-bite': frames.bite[0],
+  'player-fish-down-bite': frames.bite[1],
+  'player-fish-right-bite': frames.bite[2],
+  'player-fish-up-pull': frames.pull[0],
+  'player-fish-down-pull': frames.pull[1],
+  'player-fish-right-pull': frames.pull[2],
+  'player-fish-up-hoist': frames.hoist[0],
+  'player-fish-down-hoist': frames.hoist[1],
+  'player-fish-right-hoist': frames.hoist[2],
 })
 
 // 釣りの小物は昼夜で絵が変わらないので、地形・建物と同じ 16×16 のシートへ並べるだけでよい

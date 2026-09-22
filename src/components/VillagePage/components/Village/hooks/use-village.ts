@@ -6,6 +6,7 @@ import type { CareerFeature, CareerRole } from '@content/types/content'
 import type { Cell, Spot, StopText, VillageText, World, WorldSet } from '@content/types/world'
 import type { SheetLayout } from '@/lib/pixel/art'
 import { waterBubble } from '@/lib/village/fishing'
+import type { FishingPose } from '@/lib/village/player-pose'
 import { nextSpot, talkAnchor } from '@/lib/village/spot'
 import { useVillageInput, type VillageActions, type VillageButtons } from './use-village-input'
 import { cameraOffset, useStageScale, VIEW_COLS, VIEW_ROWS } from './use-stage-scale'
@@ -165,8 +166,9 @@ export function useVillage({
   const lockedRef = useRef(false)
   const actionsRef = useRef<VillageActions>(NO_ACTIONS)
   const buttonsRef = useRef<VillageButtons>(NO_BUTTONS)
-  // 釣っている間だけ true。重ね表示側が書き、歩行ループが毎フレーム読んで竿のコマへ差し替える
-  const fishingPoseRef = useRef(false)
+  // 釣っている間だけ段階とその段階に入った時刻を持つ(釣っていなければ null)。
+  // 重ね表示側が書き、歩行ループが毎フレーム読んで段階と経過から竿のコマを選ぶ
+  const fishingPoseRef = useRef<FishingPose | null>(null)
   const [fishingTarget, setFishingTarget] = useState<Cell | null>(null)
 
   const {

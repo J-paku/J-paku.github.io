@@ -2,8 +2,8 @@
 // 方向キー・スティック・タップの最初の 1 回、会話窓を閉じた後の入力、画面の大きさの変化で起きて
 // 描き直すことを見る。会話窓を開いている間は本文送りのループも押すまで眠る。
 // ループの眠り方は言語に依らないので ja だけで見る。
-// 竿を振る間(FISHING_SWING_MS)は眠らずにコマを進め切ることは fishing.spec が見ている
-// (振りかぶり → 振り → 構えのコマが順に描かれ、構えのコマで止まる)。池までの 13 マスをここで繰り返さない
+// 釣りのコマが時間で替わる間(投げる・かかった合図・引き上げ)は眠らずにコマを進め切り、動き終えれば眠ることは
+// fishing.spec が時計を止めて見ている。池までの 13 マスをここで繰り返さない
 import { expect, type Page } from '@playwright/test'
 import { worldSet } from '@content/world'
 import { village } from '@content/ja/village'

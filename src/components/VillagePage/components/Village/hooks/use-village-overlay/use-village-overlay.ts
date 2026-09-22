@@ -15,6 +15,7 @@ import type {
 } from '@content/types/world'
 import { isFishingSpot } from '@/lib/village/fishing'
 import type { MoveState } from '@/lib/village/movement'
+import type { FishingPose } from '@/lib/village/player-pose'
 import { allSpots, facedCell, type SpotRef } from '@/lib/village/spot'
 import { writeVisited } from '@/lib/preferences'
 import type { VillageActions } from '../use-village-input'
@@ -53,8 +54,9 @@ export type VillageOverlayOptions = {
   lockedRef: RefObject<boolean>
   actionsRef: RefObject<VillageActions>
   heldRef: RefObject<Direction | null>
-  // 釣っている間だけ true にする印。歩行ループが毎フレーム読んで竿を持つコマへ差し替える
-  fishingPoseRef: RefObject<boolean>
+  // 釣っている間だけ段階とその段階に入った時刻(performance.now())を入れる印。釣っていなければ null。
+  // 歩行ループが毎フレーム読んで竿を持つコマを選ぶ
+  fishingPoseRef: RefObject<FishingPose | null>
   // 眠っている歩行ループを起こす手。錠を外した・竿の印を変えた・経路を置いた後に呼ぶ
   wake: () => void
 }
@@ -127,14 +129,13 @@ export function useVillageOverlay({
     else wake()
   }, [mode, heldRef, lockedRef, wake])
 
-  // 投げてから結果窓を閉じるまでは竿を持つ。
-  // 竿を振るコマは時間で進むので、印を変えたら眠っている歩行ループを起こす
+  // 投げてから結果窓を閉じるまでは竿を持つ。竿のコマはその段階に入ってからの経過で進むので、
+  // 始まりの時刻は段階が変わった時だけ書く(同じ段階のまま effect が回り直しても時計を巻き戻さない)。
+  // 歩行ループはその段階のコマが進み切ると眠っているので、印を変えたら起こす
   useEffect(() => {
-    fishingPoseRef.current =
-      fishingPhase === 'casting' ||
-      fishingPhase === 'bite' ||
-      fishingPhase === 'landing' ||
-      fishingPhase === 'caught'
+    if (fishingPhase === 'idle') fishingPoseRef.current = null
+    else if (fishingPoseRef.current?.phase !== fishingPhase)
+      fishingPoseRef.current = { phase: fishingPhase, since: performance.now() }
     wake()
   }, [fishingPhase, fishingPoseRef, wake])
 
@@ -200,10 +201,11 @@ export function useVillageOverlay({
     // 完走の演出は会話窓を閉じた時だけ。時計の設定窓・地図はここを通っても数えない
     const wasTalk = mode === 'talk'
     // 釣りを閉じた時は途中のタイマーごと捨て、会話窓を既定文へ戻す(「……」を残さない)。
-    // 竿の印は effect を待たずにここでも下ろす — 次の 1 フレームだけ竿を持ったまま残るのを防ぐ
+    // 竿の印は effect を待たずにここでも下ろす — 次の 1 フレームだけ竿を持ったまま残るのを防ぐ。
+    // ここで空にしておくので、すぐ投げ直しても次の casting は必ず新しい時刻から数える
     if (mode === 'fishing') {
       resetFishing()
-      fishingPoseRef.current = false
+      fishingPoseRef.current = null
       setSpeech(defaultSpeech(worldRef.current, text, coarse))
     }
     lockedRef.current = false

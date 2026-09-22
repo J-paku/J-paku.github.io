@@ -8,6 +8,7 @@ import { phasePalette } from './palette-phase'
 import {
   buildPlayerSprites,
   buildSprites,
+  FISHING_MOTIONS,
   PLAYER_ARTS,
   SPRITE_ARTS,
   SPRITE_NIGHT_ARTS,
@@ -49,10 +50,11 @@ describe('時刻ごとのシート', () => {
   })
 
   it('昼の主人公シートは 1 バイトも変わらない', () => {
-    // 追加した投げ動作を外して、既存の歩行・待機コマの同一性を守る。
+    // 後から足した釣りの動き(投げ・当たり・釣り上げ)のコマを外して、既存の歩行・待機コマの同一性を守る。
+    // 動きの場面は FISHING_MOTIONS から外すので、場面を足してもこの基準を焼き直さずに済む
     const arts = Object.fromEntries(
       Object.entries(PLAYER_ARTS).filter(
-        ([key]) => !key.endsWith('-backswing') && !key.endsWith('-cast')
+        ([key]) => !FISHING_MOTIONS.some(motion => key.endsWith(`-${motion}`))
       )
     )
     const sheet = buildSheet(arts, phasePalette(palette, 'day'), 24)
