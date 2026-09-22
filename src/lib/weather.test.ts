@@ -41,6 +41,15 @@ describe('fetchOsakaPrecipitation', () => {
     expect(await fetchOsakaPrecipitation()).toBe('rain')
   })
 
+  it('降雪が0で降水がごく弱い(0.1)ときも rain を返す', async () => {
+    // 基準値0のすぐ上の値にしておくと、判定の基準値が0.1以上へずれたときに落ちる
+    fetchMock.mockResolvedValueOnce(
+      fakeResponse(200, { current: { precipitation: 0.1, snowfall: 0 } })
+    )
+
+    expect(await fetchOsakaPrecipitation()).toBe('rain')
+  })
+
   it('降雪も降水も0なら none を返す', async () => {
     fetchMock.mockResolvedValueOnce(
       fakeResponse(200, { current: { precipitation: 0, snowfall: 0 } })
