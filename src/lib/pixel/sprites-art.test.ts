@@ -5,7 +5,13 @@ import type { PixelArt } from './art'
 import { PLAYER_HEIGHT } from './actors'
 import { FISHING_LINES } from './fishing-art'
 import { palette } from './palette'
-import { buildPlayerSprites, buildSprites, PLAYER_ARTS, SPRITE_ARTS } from './sprites'
+import {
+  buildPlayerSprites,
+  buildSprites,
+  FISHING_MOTIONS,
+  PLAYER_ARTS,
+  SPRITE_ARTS,
+} from './sprites'
 import { charsOf, stitch } from './sprites.fixture'
 import type { Direction } from '@content/types/world'
 
@@ -152,11 +158,14 @@ describe('PLAYER_ARTS', () => {
   })
 
   it('横向きは反転してもずれないよう 1〜14 列に収まる', () => {
-    // 竿のコマも左向きは scaleX(-1) で作るので、同じ掟が要る
-    for (const key of ['player-right-0', 'player-right-1', 'player-fish-right'] as const) {
-      for (const row of PLAYER_ARTS[key]) {
-        expect(row[0]).toBe('.')
-        expect(row[15]).toBe('.')
+    // 竿のコマも左向きは scaleX(-1) で作るので、同じ掟が要る。釣りの動きのコマも含めて横向きは全部見る
+    const rights = Object.entries(PLAYER_ARTS).filter(([key]) => key.includes('-right'))
+    // 静止・歩行の 2 枚、糸を垂らして待つ 1 枚、動きの場面の数だけ
+    expect(rights).toHaveLength(2 + 1 + FISHING_MOTIONS.length)
+    for (const [key, art] of rights) {
+      for (const row of art) {
+        expect(row[0], key).toBe('.')
+        expect(row[15], key).toBe('.')
       }
     }
   })
@@ -166,12 +175,80 @@ describe('PLAYER_ARTS', () => {
   })
 })
 
+describe('釣りの体の動き', () => {
+  const FACINGS = ['up', 'down', 'right'] as const
+  const STAND: Record<string, PixelArt> = Object.fromEntries(
+    FACINGS.map(facing => [facing, PLAYER_ARTS[`player-${facing}-0`]])
+  )
+  // 糸を垂らして待つコマ。動きのコマはこれと比べる
+  const HOLD: Record<string, PixelArt> = Object.fromEntries(
+    FACINGS.map(facing => [facing, PLAYER_ARTS[`player-fish-${facing}`]])
+  )
+  // 釣りの鍵は player-fish-{向き} と player-fish-{向き}-{場面}
+  const facingOf = (key: string): string => key.split('-')[2]
+  const fishing = Object.entries(PLAYER_ARTS).filter(([key]) => key.startsWith('player-fish-'))
+  const motions = fishing.filter(([key]) => key.split('-').length === 4)
+
+  // 竿・糸・浮きの文字。静止コマの体には 1 つも使っていない(最初の検査で確かめる)ので、
+  // これが載っている升を除けば、残りは体のドットになる
+  const ROD = new Set(['e', 'E', 'S', 's', 'h', 'R'])
+
+  it('3 向きぶんの待つコマと動きのコマがそろっている', () => {
+    // 鍵の拾い漏れがあると、下の検査が黙って少ないコマだけを見て通ってしまう
+    expect(fishing).toHaveLength(FACINGS.length * (1 + FISHING_MOTIONS.length))
+    expect(motions).toHaveLength(FACINGS.length * FISHING_MOTIONS.length)
+  })
+
+  it('静止コマの体は竿の文字を使わない', () => {
+    // ここが崩れると、竿として除いた升に体のドットが混じり、動いた足や動いていない体を見逃す
+    for (const facing of FACINGS) {
+      const rodChars = [...charsOf(STAND[facing])].filter(ch => ROD.has(ch))
+      expect(rodChars, facing).toEqual([])
+    }
+  })
+
+  it('どの釣りのコマも腰から下と足元の 3 行は静止コマのまま(竿が前を横切るだけ)', () => {
+    // 釣りの間は主人公の位置をロジック側で動かさないので、足の接地点がそのまま村の座標になる。
+    // 竿の升は静止コマの升として読み、それ以外の升が 1 つでも違えば腰や足が動いている
+    const LEGS = [PLAYER_HEIGHT - 3, PLAYER_HEIGHT - 2, PLAYER_HEIGHT - 1]
+    const legsOf = (art: PixelArt, stand: PixelArt): string[] =>
+      LEGS.map(y => [...art[y]].map((ch, x) => (ROD.has(ch) ? stand[y][x] : ch)).join(''))
+
+    expect(
+      Object.fromEntries(fishing.map(([key, art]) => [key, legsOf(art, STAND[facingOf(key)])]))
+    ).toEqual(
+      Object.fromEntries(fishing.map(([key]) => [key, LEGS.map(y => STAND[facingOf(key)][y])]))
+    )
+  })
+
+  it('投げ・当たり・釣り上げのコマは、待つコマから体そのものが動く', () => {
+    // 竿の升はどちらのコマでも数えず、体のドットが待つコマから何升変わったかを数える。
+    // 静止コマへ竿と手を描き替えただけのコマ(以前の投げの 2 場面)は 10 升に届かず、
+    // 頭を 1 行動かすと輪郭と顔がまるごと入れ替わって 90 升を超える。その間を取って 40 升を下限にする
+    const MIN_BODY_CHANGE = 40
+    const changedIn = (row: string, before: string): number =>
+      [...row].filter((ch, x) => !ROD.has(ch) && !ROD.has(before[x]) && ch !== before[x]).length
+    const bodyChange = (art: PixelArt, hold: PixelArt): number =>
+      art.reduce((sum, row, y) => sum + changedIn(row, hold[y]), 0)
+    const changes = motions.map(([key, art]) => ({
+      key,
+      change: bodyChange(art, HOLD[facingOf(key)]),
+    }))
+
+    expect(changes.filter(({ change }) => change < MIN_BODY_CHANGE)).toEqual([])
+  })
+})
+
 describe('釣り糸', () => {
   // 竿を構えたコマ・浮き・糸の 3 枚を、村と同じ置き方でドットの座標へ並べて確かめる。
   // 座標は主人公が立つマスの左上を (0, 0) とするドット。主人公の絵は頭が半マス(8 行)上へはみ出し、
   // 左向きは右向きの絵を scaleX(-1) で反転する(scene.module.css の .player と use-walk-loop.ts)。
   // 重なりは下から糸・浮き・主人公の順(FishingFloat は糸を浮きより先に同じ高さで置き、
-  // 主人公はそれより上の高さ)なので、竿や体の下、浮きの下へ入った糸のドットは見えない
+  // 主人公はそれより上の高さ)なので、竿や体の下、浮きの下へ入った糸のドットは見えない。
+  // 糸が見えている間、主人公は待つコマと当たりの 2 コマ(-tense・-bite)を行き来する。
+  // 糸の絵は向きごとに 1 枚なので、3 コマとも同じ穂先でその糸につながっていなければならない
+  const FRAMES = ['', '-tense', '-bite'] as const
+
   const FACED: Record<Direction, { x: number; y: number }> = {
     up: { x: 0, y: -1 },
     down: { x: 0, y: 1 },
@@ -212,8 +289,13 @@ describe('釣り糸', () => {
       .filter(near => near !== dot)
   }
 
-  const inspect = (facing: Direction, float: 'bobber' | 'bobber-bite', sink: number) => {
-    const pose = PLAYER_ARTS[`player-fish-${facing === 'left' ? 'right' : facing}`]
+  const inspect = (
+    facing: Direction,
+    frame: (typeof FRAMES)[number],
+    float: 'bobber' | 'bobber-bite',
+    sink: number
+  ) => {
+    const pose = PLAYER_ARTS[`player-fish-${facing === 'left' ? 'right' : facing}${frame}`]
     const player = placeDots(pose, 0, -8, facing === 'left')
     const bobber = placeDots(
       SPRITE_ARTS[float],
@@ -247,6 +329,7 @@ describe('釣り糸', () => {
     }
     return {
       facing,
+      frame,
       float,
       sink,
       // 見えている糸と浮きの糸が、穂先から途切れずに 1 本でつながる
@@ -266,16 +349,21 @@ describe('釣り糸', () => {
     }
   }
 
-  it('4 向きとも、投げた浮きにもかかった浮きにも、沈んだ瞬間にも穂先から途切れずにつながる', () => {
+  it('4 向きとも、待つ・身構える・引き込まれるどのコマでも、投げた浮きにもかかった浮きにも、沈んだ瞬間にも穂先から途切れずにつながる', () => {
     const cases = (['up', 'down', 'left', 'right'] as const).flatMap(facing =>
-      (['bobber', 'bobber-bite'] as const).flatMap(float =>
-        SINKS.map(sink => ({ facing, float, sink }))
+      FRAMES.flatMap(frame =>
+        (['bobber', 'bobber-bite'] as const).flatMap(float =>
+          SINKS.map(sink => ({ facing, frame, float, sink }))
+        )
       )
     )
 
-    expect(cases.map(({ facing, float, sink }) => inspect(facing, float, sink))).toEqual(
-      cases.map(({ facing, float, sink }) => ({
+    expect(
+      cases.map(({ facing, frame, float, sink }) => inspect(facing, frame, float, sink))
+    ).toEqual(
+      cases.map(({ facing, frame, float, sink }) => ({
         facing,
+        frame,
         float,
         sink,
         connected: true,

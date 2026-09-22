@@ -1,12 +1,12 @@
 // rAFで移動を1フレームずつ進め、結果をDOMへ直接書く。タップされたマスは経路にして次のステップへ渡す。
 // 入力も経路も無く描き終えたら次のフレームを頼まずに眠り、入力・ワールド移動・窓を閉じる・
-// 枠の大きさの変化で wakeRef から起こされる
+// 釣りの段階の切り替わり・枠の大きさの変化で wakeRef から起こされる
 import { useCallback, useEffect, useRef } from 'react'
 import type { RefObject } from 'react'
 import type { Cell, Direction, World } from '@content/types/world'
 import type { SheetLayout } from '@/lib/pixel/art'
 import { step, type MoveState } from '@/lib/village/movement'
-import { FISHING_SWING_MS, playerPose } from '@/lib/village/player-pose'
+import { playerPose, type FishingPose } from '@/lib/village/player-pose'
 import { isFishingSpot } from '@/lib/village/fishing'
 import { facedCell } from '@/lib/village/spot'
 import { findPath } from '@/lib/village/path'
@@ -53,8 +53,9 @@ export type WalkLoopOptions = {
   autoTalkRef: RefObject<boolean>
   lockedRef: RefObject<boolean>
   heldRef: RefObject<Direction | null>
-  // 釣っている間だけ true。歩行コマの代わりに竿を持つコマを出す
-  fishingPoseRef: RefObject<boolean>
+  // 釣っている間だけ段階とその段階に入った時刻を持つ。null は釣っていない。
+  // 歩行コマの代わりに、段階と経過から選んだ竿を持つコマを出す
+  fishingPoseRef: RefObject<FishingPose | null>
   onFishingTarget: (cell: Cell | null) => void
   sprites: SheetLayout
   reduceMotion: boolean
@@ -97,7 +98,6 @@ export function useWalkLoop({
   wakeRef,
 }: WalkLoopOptions): void {
   const spriteKeyRef = useRef('')
-  const fishingSinceRef = useRef<number | null>(null)
   const fishingTargetRef = useRef<Cell | null>(null)
   // 新しいワールドの DOM を待ち始めた時刻。null は待っていない
   const waitSinceRef = useRef<number | null>(null)
@@ -124,21 +124,20 @@ export function useWalkLoop({
 
   // 人物のコマ(向き・歩き・竿)と反転を DOM へ書く。位置は直前のまま使うので、
   // 歩行が止まっている間でも呼べる。同じコマならシートの添字は書き換えない。
-  // 竿を振っている間はコマが時間で変わるので true を返し、ループを眠らせない
+  // 釣りの段階の中でまだコマが時間で変わる間(投げる・かかった合図・引き上げ)は true を返し、
+  // ループを眠らせない。いつまで変わるかは playerPose の時間表だけが知っていて、ここでは数えない
   const applyPose = useCallback((): boolean => {
     const player = playerRef.current
     if (player === null) return false
     // 最初の paint より前は位置がまだ決まっていない。空の shift を書くと左上へ飛ぶので触らない
     if (shiftRef.current === '') return false
-    const now = performance.now()
-    if (!fishingPoseRef.current) fishingSinceRef.current = null
-    else if (fishingSinceRef.current === null) fishingSinceRef.current = now
-    const fishingElapsed = fishingSinceRef.current === null ? 0 : now - fishingSinceRef.current
-    const { key, flip } = playerPose(
+    // 経過は重ね表示がその段階へ入った時に書いた時刻から数える
+    const fishing = fishingPoseRef.current
+    const { key, flip, animating } = playerPose(
       stateRef.current,
       reduceMotion,
-      fishingPoseRef.current,
-      fishingElapsed
+      fishing?.phase ?? null,
+      fishing === null ? 0 : performance.now() - fishing.since
     )
     const transform = `${shiftRef.current}${flip ? ' scaleX(-1)' : ''}`
     if (lastTransformRef.current !== transform) {
@@ -150,13 +149,13 @@ export function useWalkLoop({
       player.dataset.sprite = key
       player.style.setProperty('--i', String(spriteIndex(sprites, key)))
     }
-    // 振り終えた後の竿のコマは時間で変わらない。釣りの残り(かかる・釣り上げる)の間は眠ってよい
-    return fishingPoseRef.current && fishingElapsed < FISHING_SWING_MS
+    // その段階のコマが進み切った後(振り終えた構え・合図の後の力み・掲げた後)は時間で変わらないので眠ってよい
+    return animating
   }, [sprites, reduceMotion, playerRef, stateRef, fishingPoseRef])
 
   // 毎フレームの書き込みは DOM 直更新。React の state は到着時だけ動かす。
   // 描き終えて時間で変わるものが残っていなければ true を返す
-  // (新しいワールドのタイルが載り、カメラが目標に追い付き、竿も振り終えた)
+  // (新しいワールドのタイルが載り、カメラが目標に追い付き、竿のコマもその段階の分を進み切った)
   const paint = useCallback(
     (dtMs: number): boolean => {
       const frame = frameRef.current
@@ -211,7 +210,7 @@ export function useWalkLoop({
         layer.style.transform = `translate(${-Math.round(cam.x * px)}px, ${-Math.round(cam.y * px)}px)`
       const shift = `translate(${v.x * px}px, ${v.y * px}px)`
       shiftRef.current = shift
-      const swinging = applyPose()
+      const posing = applyPose()
       // 目印は反転させず、プレイヤーと同じ位置に重ねる(上への持ち上げは CSS 側)
       const locator = locatorRef.current
       if (locator !== null) locator.style.transform = shift
@@ -222,7 +221,7 @@ export function useWalkLoop({
       const playerLight = playerLightRef.current
       if (playerLight !== null) playerLight.style.transform = shift
       // approachCamera は残差が半 px を切ると目標そのものを返すので、追い付けば等号で揃う
-      return !swinging && cam.x === target.x && cam.y === target.y
+      return !posing && cam.x === target.x && cam.y === target.y
     },
     [
       applyPose,
@@ -252,8 +251,9 @@ export function useWalkLoop({
     // 1 フレーム分進めて描く。まだ時間で変わるもの・読むべき入力が残っていれば true
     const tick = (elapsed: number): boolean => {
       // 会話・地図を開いた間は歩行の進捗と経路もその場で止める。
-      // ただし釣りは止めている間に竿を持つコマへ変わるので、位置は据え置きでコマだけ書き直す。
-      // 竿を振り終えれば止めている間に変わるものは無いので眠る(閉じる時に起こされる)
+      // ただし釣りは止めている間も段階と経過で竿のコマが変わるので、位置は据え置きでコマだけ書き直す。
+      // その段階のコマが進み切れば止めている間に変わるものは無いので眠る
+      // (次の段階へ移る時は重ね表示が、閉じる時は closeOverlay が起こす)
       if (lockedRef.current) return applyPose()
       if (enteredWorldRef.current !== worldRef.current) {
         enteredWorldRef.current = worldRef.current
