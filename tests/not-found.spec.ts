@@ -19,10 +19,22 @@ const JA_SECTION = 'section[lang="ja"]'
 const KO_SECTION = 'section[lang="ko"]'
 
 // 404 から戻る導線。区画ごとに行き先が違うので、区画を指定してから辿る。
-// 文言ではなく href で指すのは、404.html のリンク文言が content/ に無い(この1枚だけの文字列)ため
+// 利用者が見るのは文言なので、リンクは文言(アクセシブルネーム)で指し、行き先の href は別に突き合わせる。
+// href で指すと、文言の取り違え(一覧と村の入れ替わり)を見逃し、行き先の誤りはクリック待ちの
+// タイムアウトでしか落ちない。文言は content/ に無い(404.html だけの文字列)ので、ここに写しを置く
 const RETURNS = [
-  { section: JA_SECTION, locale: 'ja', village: '/', list: '/list/' },
-  { section: KO_SECTION, locale: 'ko', village: '/ko/', list: '/ko/list/' },
+  {
+    section: JA_SECTION,
+    locale: 'ja',
+    village: { name: 'マップで見る', href: '/' },
+    list: { name: '一覧で見る', href: '/list/' },
+  },
+  {
+    section: KO_SECTION,
+    locale: 'ko',
+    village: { name: '마을로 보기', href: '/ko/' },
+    list: { name: '웹으로 보기', href: '/ko/list/' },
+  },
 ] as const
 
 // 遷移先の経路。toHaveURL へ素の文字列を渡すと '/' が '/list/' にも当たってしまうので、
@@ -54,22 +66,30 @@ for (const target of MISSING_PATHS) {
 for (const { section, locale, village, list } of RETURNS) {
   test(`404 の ${locale} の案内からマップへ戻ると村が開く`, async ({ page }) => {
     await page.goto('/no-such-page/')
-    await page.locator(`${section} a[href="${village}"]`).click()
+    const link = page.locator(section).getByRole('link', { name: village.name, exact: true })
+    // 文言と行き先の組を押す前に確かめる。入れ替わりや別の言語への行き先はここで名前付きで落ちる
+    await expect(link, 'マップへ戻るリンクがマップの経路を指す').toHaveAttribute(
+      'href',
+      village.href
+    )
+    await link.click()
 
     // ブート演出が終わるところまで見る。経路が合っていても村が立ち上がらなければ戻れていない
     await focusVillage(page)
     await expect(page.locator('[data-village]')).toBeVisible()
     // 言語の取り違え(ko の案内から ja の村へ出てしまう等)をここで落とす
     await expect(page.locator('html'), 'その言語の村へ着く').toHaveAttribute('lang', locale)
-    expect(pathnameOf(page.url()), 'マップの経路へ移る').toBe(village)
+    expect(pathnameOf(page.url()), 'マップの経路へ移る').toBe(village.href)
   })
 
   test(`404 の ${locale} の案内から一覧へ戻ると作品一覧が開く`, async ({ page }) => {
     await page.goto('/no-such-page/')
-    await page.locator(`${section} a[href="${list}"]`).click()
+    const link = page.locator(section).getByRole('link', { name: list.name, exact: true })
+    await expect(link, '一覧へ戻るリンクが一覧の経路を指す').toHaveAttribute('href', list.href)
+    await link.click()
 
     await expect(page.locator('#works'), '作品一覧が出る').toBeVisible()
     await expect(page.locator('html'), 'その言語の一覧へ着く').toHaveAttribute('lang', locale)
-    expect(pathnameOf(page.url()), '一覧の経路へ移る').toBe(list)
+    expect(pathnameOf(page.url()), '一覧の経路へ移る').toBe(list.href)
   })
 }

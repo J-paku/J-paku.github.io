@@ -60,7 +60,8 @@ describe('天気のシート', () => {
 
     for (const kind of ['rain', 'snow'] as const) {
       sheets[kind].forEach((sheet, frame) => {
-        // 1 粒も点いていなければ、色の比較が空同士で通ってしまう
+        // 期待色は空でないので、1 粒も点いていなければ色の比較だけでも落ちる。点灯数を先に見るのは、
+        // そのとき色の食い違いではなく「何も描かれていない」と分かる形で落とすため
         expect(litCount(sheet.uri), `${kind}-${frame}`).toBeGreaterThan(0)
         expect(litColors(sheet.uri), `${kind}-${frame}`).toEqual(DAY_COLORS[kind])
       })

@@ -100,6 +100,35 @@ const bubbleAnchor = async (page: Page, selector: string) => {
   }
 }
 
+// 1マス歩く間、吹き出しと人物の位置の関係を毎フレーム記録する。walk より先に呼び、walk の後に待つ。
+// 記録は押してから到着・描き直しまでを覆う長さ(押下 150ms + 1マス 256ms に余裕を足した分)で止める
+const SAMPLE_MS = 800
+const sampleBubbleDuringStep = (page: Page, selector: string) =>
+  page.evaluate(
+    ([sel, ms]) =>
+      new Promise<{ offsetX: number; overHead: number; playerX: number }[]>(resolve => {
+        const samples: { offsetX: number; overHead: number; playerX: number }[] = []
+        const start = performance.now()
+        const tick = () => {
+          const bubble = document.querySelector(sel)?.getBoundingClientRect()
+          const player = document.querySelector('[data-village-player]')?.getBoundingClientRect()
+          const layer = document.querySelector('[data-world]')?.getBoundingClientRect()
+          if (bubble !== undefined && player !== undefined && layer !== undefined) {
+            samples.push({
+              offsetX: bubble.x + bubble.width / 2 - (player.x + player.width / 2),
+              overHead: bubble.y + bubble.height - player.y,
+              // ワールド層の中での人物の位置。カメラが人物を追うので画面上の位置では歩みが見えない
+              playerX: player.x - layer.x,
+            })
+          }
+          if (performance.now() - start < ms) requestAnimationFrame(tick)
+          else resolve(samples)
+        }
+        requestAnimationFrame(tick)
+      }),
+    [selector, SAMPLE_MS] as const
+  )
+
 // 訪問済み地点の id 一覧を読む
 const readVisited = (page: Page) =>
   page.evaluate(key => {
@@ -164,8 +193,29 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
     expect(Math.abs(before.offsetX)).toBeLessThanOrEqual(1)
     expect(before.overHead).toBeLessThanOrEqual(0)
     // 一言は2.5秒で消えるタイマー付きなので、消える前に1マス歩いて追従するか確認する。
-    // 見えているだけでは、吹き出しを人物と切り離しても通ってしまうので位置の関係まで見る
+    // 見えているだけでは、吹き出しを人物と切り離しても通ってしまうので位置の関係まで見る。
+    // 着いた後だけ測ると、到着で React が吹き出しを新しいマスへ描き直すので、歩行ループの
+    // 毎フレームの追従を外しても通ってしまう。歩いている最中もフレームごとに差を記録しておく
+    const sampling = sampleBubbleDuringStep(page, '[data-village-bubble-kind="thought"]')
     await walk(page, 'ArrowRight', 1)
+    const samples = await sampling
+    const startX = samples[0].playerX
+    const endX = samples[samples.length - 1].playerX
+    // 人物がマスとマスの間にいたフレームだけを見る(両端から 2px 以上離れている)
+    const midStep = samples.filter(
+      s => s.playerX > Math.min(startX, endX) + 2 && s.playerX < Math.max(startX, endX) - 2
+    )
+    expect(midStep.length, '歩いている途中のフレームを測れている').toBeGreaterThan(0)
+    for (const s of midStep) {
+      expect(
+        Math.abs(s.offsetX - before.offsetX),
+        '歩いている途中も横に付いて回る'
+      ).toBeLessThanOrEqual(2)
+      expect(
+        Math.abs(s.overHead - before.overHead),
+        '歩いている途中も頭上に付いて回る'
+      ).toBeLessThanOrEqual(2)
+    }
     await expect(bubble).toBeVisible()
     expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 16, y: 12 } })
     const after = await bubbleAnchor(page, '[data-village-bubble-kind="thought"]')

@@ -51,7 +51,8 @@ node scripts/check-ja-linebreak.mjs http://localhost:4173 / /ko/ /list/ /ko/list
 
 - 必須ページ(両言語のトップ・一覧・作品ストーリー・`404.html`)が実在する
 - HTML が参照する css / js が同じツリーに実在する。**参照が0件なら「全部揃っている」ではなく「検査できていない」として落とす**
-- `next build` が上書きしてしまう `out/404.html` を `public/404.html`(二言語版)から戻し、中身が二言語であることを確かめる
+- `next build` が上書きしてしまう `out/404.html` を `public/404.html`(二言語版)から戻し、中身が二言語で村の画面を含まないことを確かめる。`out/404/index.html` も noindex で村の画面を含まないか見る
+- HTML が参照する同一オリジンの静的ファイル(`public/` のロゴ・画像・favicon など拡張子付きのもの)が `out/` に実在し空でない
 
 ## 反映されない・戻したい
 

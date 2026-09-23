@@ -173,6 +173,18 @@ describe('preferences', () => {
     expect(readPosition('overflow')).toBeNull()
   })
 
+  it('y だけが有限でない座標も null を返す', () => {
+    // x は正常にしておき、y の有限判定が抜けたときだけ落ちるようにする
+    const storage = createMemoryStorage()
+    storage.setItem(
+      'village:overflow-y:pos',
+      '{"worldId":"room","cell":{"x":0,"y":-1e999},"facing":"up"}'
+    )
+    vi.stubGlobal(SESSION_STORAGE, storage)
+
+    expect(readPosition('overflow-y')).toBeNull()
+  })
+
   it('訪問済み地点の不正な JSON は空配列を返す', () => {
     const storage = createMemoryStorage()
     storage.setItem('village:malformed-visited:visited', '{')

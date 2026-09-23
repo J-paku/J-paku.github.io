@@ -14,7 +14,7 @@ last_reviewed: 2026-09-22
 | 層 | 置き場 | 対象 | 環境 |
 |---|---|---|---|
 | 単体(Vitest) | 対象ファイルの隣 `*.test.ts` | **純粋関数のみ** | `environment: 'node'`。DOM を持たない |
-| E2E(Playwright) | `tests/*.spec.ts` | 実際のクリック・キー操作 | `out/` を `:4173` で静的配信 |
+| E2E(Playwright) | `tests/**/*.spec.ts` | 実際のクリック・キー操作 | `out/` を `:4173` で静的配信 |
 
 - Vitest が拾うのは `src/**/*.test.ts` だけ(`vitest.config.ts`)。`content/` や `tests/` は対象外
 - **コンポーネントのレンダリングテストは無い。** 画面の確認は E2E が受け持つ
