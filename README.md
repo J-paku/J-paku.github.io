@@ -5,9 +5,7 @@
 
 # J-paku.github.io
 
-ポートフォリオのハブサイト。GitHub Pagesのユーザーサイトとして`https://j-paku.github.io/`に配信しています。
-
-トップは**歩いて回る小さな村**です。矢印キー・WASD・タップで動き、5か所の前に立つと会話窓が開きます。1分で「何を作ったか」より「どんな問題を解くか」が分かる構成にしています。村を飛ばしたい人のために、「作品一覧へ」から従来の一覧画面(`/list`)へいつでも行けます。
+ポートフォリオのハブサイト。GitHub Pagesのユーザーサイトとして`https://j-paku.github.io/`に配信しています。トップは**歩いて回る小さな村**です。1分で「何を作ったか」より「どんな問題を解くか」が分かる構成にしています。村を飛ばしたい人のために、「作品一覧へ」から従来の一覧画面(`/list/`)へいつでも行けます。
 
 **まずこの2つ。** どちらもブラウザだけで、そのまま触れます。
 
@@ -21,107 +19,77 @@
 > コードエージェント(Claude Code・Codex・Cursor など)で作業する場合は [AGENTS.md](AGENTS.md) から読んでください。
 > 設計・規約・検証の文書は [docs/](docs/README.md) にあります。
 
-## これは何か
+## このサイトが紹介している仕事
 
-seatmap-demo・ai-harness・名刺登録アプリなどの作品を1か所にまとめ、「何を作ったか」だけでなく**「なぜそう作ったか」**まで見せるためのサイトです。
+**ここは「紹介している中身」の節です。** seatmap-demo・ai-harness・名刺登録アプリを1か所にまとめ、「何を作ったか」だけでなく**「なぜそう作ったか」**まで見せるのがこのサイトの目的です。
+
+| 作品 | 文脈 | 触れる場所 |
+|---|---|---|
+| 座席マップデモ | 実務の再構成 — 社内座席管理ツールを業務データ抜きで | [デモ](https://j-paku.github.io/seatmap-demo/)・[リポジトリ](https://github.com/J-paku/seatmap-demo) |
+| チーム標準のAI開発基盤 | 技術アウトプット — 実務での自作ツール(社内配布・定着まで) | [ページ](https://j-paku.github.io/ai-harness/)・[リポジトリ](https://github.com/J-paku/ai-harness) |
+| 名刺登録アプリ | 実務の進行中案件 — 名刺管理のiOS化 | 社内アプリなので公開デモは無く、[作品ストーリー](https://j-paku.github.io/works/meishi-cross-platform/)として読める |
+
+## このリポジトリそのもの
+
+**ここから下はすべてこのサイト自身の作りです。** 上の3つの仕事とは切り離して読んでください。
 
 | 画面 | パス | 役割 |
 |---|---|---|
-| 村 | `/`・`/ko/` | レトロRPG風の一画面マップ。5か所(PC・名刺工房・インタラクション研究所・AIロボ・ポスト)で短い会話を読む |
-| 一覧 | `/list/`・`/ko/list/` | 経歴・作品カード・折りたたみ詳細(症状→原因→解決)。JSが無くても読める |
-| 作品ストーリー | `/works/<slug>/` | iPhone枠の中で画面が切り替わるスクロールストーリー(現在は名刺アプリの1本) |
+| 村 | `/`・`/ko/` | 自室と町の2ワールド。会話地点で短い会話を読む |
+| 一覧 | `/list/`・`/ko/list/` | 経歴の担当業務パネル・作品カード・折りたたみ詳細。経歴側はJSが無くても読める |
+| 作品ストーリー | `/works/<slug>/`・`/ko/works/<slug>/` | iPhone枠の中で画面が切り替わるスクロールストーリー |
 
-町の上寄り中央には、2×2マスの石碑「経歴碑」があります。話しかけると、在籍してきた2社のロゴ・会社名・在籍期間・担当した仕事の一言を一覧で読めます。
-5か所のコースには含めず、順序案内・訪問数・「5か所すべて見ました」の判定からは除外しています。地図からの移動と会話はできます。
+### 主な特徴
 
-## 主な特徴
-
-- **日本語/한국어の2言語対応** — 言語はURLパスだけで決まる(`/`=ja、`/ko`=ko)。ルートグループ`(ja)`と`(ko)/ko`の2本で同じサーバーコンポーネントを呼ぶ
-- **村はDOMだけで動く** — Canvas・WebGL・ゲームエンジン不使用。マス目はCSS Grid、キャラクターは`transform`1枚。移動・衝突・経路(BFS)・会話地点の判定は`src/lib/village/`の純粋関数で、React・DOMに依存しない
-- **ドット絵は自作、コードで描く** — `src/lib/pixel/`でタイルとキャラクターを文字マトリクスとして定義し、8×8部品4枚→16×16メタタイルの組み立て・左右反転・パレット差し替えでバリエーションを作る。ビルド時にPNGスプライトシートへ合成し、`background-position`で参照する(SVGだとマスごとに描画が走り、町の再描画1回に約200ms掛かるため)。焼くのは計12枚 — 地形・建物と主人公を時間帯4段階ぶんずつ(8枚)、それに雨と雪を2コマずつ(4枚)。CHRバンクで絵を管理していたゲーム機の作法を、メモリ制約ではなく一貫性と転送量のために採っている。原作ゲームの素材は一切使わない
-- **村の空は大阪の時刻で変わる** — 明け方5–7時・昼7–17時・夕方17–19時・夜19–5時の4段階。判定はJST(UTC+9固定)なので、どの国から見ても同じ時間帯の空になる。切り替えるのは村の根要素の`data-phase`だけで、シートは4段階ぶんビルド済み。夜は窓・街灯3基・ロボットのゴーグル・経歴碑の星・自室のモニターだけが光る
-- **小さく保つ** — 町(屋外)は30×20マス、自室(屋内)は10×8マス。家は3棟(自宅・名刺工房・インタラクション研究所)、上限は4棟。町の開始地点(自宅前)から屋外のどの会話地点も16歩以内。ビルド時の検証が上限を超えると落とす(訪問者を歩かせすぎない歯止め)
-- **アクセシビリティ** — 村を操作しなくても、スキップリンク「マップを飛ばして作品一覧へ」と作品ショートカットで同じ内容に到達できる。会話窓は`aria-live`、モーダルはフォーカストラップとEsc
-- **実キャプチャ不使用** — 業務データが写り込むため、画面はすべて自作SVG(図解・アニメーション)で再現
+- **日本語/한국어の2言語対応** — 言語はURLパスだけで決まる(`/`=ja、`/ko`=ko)
+- **村はDOMだけで動く** — Canvas・WebGL・ゲームエンジン不使用。移動・衝突・経路・会話地点・釣りの判定は`src/lib/village/`の純粋関数で、React・DOMに依存しない
+- **ドット絵は自作、コードで描く** — タイルとキャラクターを文字マトリクスとして定義し、ビルド時にPNGスプライトシートへ焼く
+- **村の空は大阪の時刻で4段階に変わる** — 雨と雪は実際の大阪の降水。卓上時計で村の時刻を動かせて、池では現職の機能を釣り上げられる
+- **小さく保つ** — 町(屋外)は30×20マス、自室(屋内)は10×8マス。画面に映るのは常に10×9マス
+- **アクセシビリティ** — スキップリンク「マップを飛ばして作品一覧へ」と作品ショートカットで同じ内容に到達できる。会話窓は`aria-live`、モーダルはフォーカストラップとEsc
 - **ライト/ダークテーマ** — 右上で切り替え。初回描画前にインラインスクリプトで保存値を適用し、ちらつきを避ける
 
-## 設計上の決定
+仕組みと理由は [docs/architecture/village.md](docs/architecture/village.md) と [docs/architecture/data-flow.md](docs/architecture/data-flow.md) にあります。
 
-- **Next.js App Routerの静的エクスポート。** Server Actions・ISR・Middlewareは使わない。`generateStaticParams`で作品ページを列挙し、`dynamicParams=false`で未知のslugは404にする
-- **既定はサーバーコンポーネント。** `'use client'`を置くのは、入力・アニメーション・保存が要る島だけ — 村の操作系、一覧の作品カード、作品ページのモーダルと場面再生、右上の設定メニュー。ページ本体とコンテンツの読み出しはサーバーに残す
+### 設計上の決定
+
+- **Next.js App Routerの静的エクスポート。** Server Actions・ISR・Middlewareは使わない
 - **localeは`pathname`だけで決める。** 自動リダイレクトも`?lang=`も設けず、URLを唯一の情報源にする
-- **表示文字列はすべて`content/`(ja・ko)に置き、コンポーネントへハードコードしない。** 両言語が同一の型を満たすため、翻訳キーの過不足は`tsc`が検出する。ko側の欠けをjaで黙って埋めることはせず、ビルドを失敗させる
-- **コンテンツはビルド時に検証する。** ja/koのslug・status・場面IDの一致、登録表とファイルの突き合わせは`src/lib/content/validate.ts`が、村の座標・ID重複・到達性・歩数上限は`src/lib/content/validate-world.ts`が確認する
-- **ブラウザ保存は`src/lib/preferences.ts`の1ファイルに集約する。** テーマは`localStorage`、村の位置と訪問記録は`sessionStorage`
-- **色は`src/styles/tokens.css`に集約する。** 例外は村の絵(スプライトと会話窓)で、ライト/ダークのテーマには連動しない。ただしテーマとは別の軸として、村の絵だけは時刻で4段階に変わる
-- **トップは訪問のたびに外部へ1回だけ問い合わせる。** 静的エクスポートの自己完結という原則の唯一の例外で、村の天気に実際の大阪の降水を使うためOpen-Meteo(APIキー不要)を村の表示後にクライアントから呼ぶ。応答が遅い・落ちる・形が違う・オフライン — どの失敗も静かに「降っていない」へ丸め、村の描画も操作も止めない。取得した値は保存せず、送るのは固定の緯度経度だけで訪問者の位置情報は扱わない
-- **書体はGoogle Fontsから配信する。** unicode-range分割済みのため、コンテンツに文字を足してもフォント側の作業は発生しない
+- **表示文字列は`content/`(ja・ko)に、ブラウザ保存は`src/lib/preferences.ts`に集約する。** 前者は両言語が同一の型を満たすので翻訳キーの過不足を`tsc`が検出し、後者はテーマが`localStorage`、村の位置と訪問記録が`sessionStorage`
+- **外部へ出る通信は4系統だけ。** Google Fonts・その書体ファイル・GoatCounterの計測タグ・Open-Meteoに限り、どれも失敗が村を止めない作りにしてある
 
-## 品質とCI
+境界の線引きは [docs/architecture/boundaries.md](docs/architecture/boundaries.md)、過去の判断の記録は [docs/decisions/README.md](docs/decisions/README.md) にあります。
 
-`main`へのpushでGitHub Actionsがビルドし、**配信物に対して**次の検査を実測してからPagesへ公開します。
+### 品質とCI
 
-| 検査 | 内容 |
-|---|---|
-| typecheck / lint / test | `tsc --noEmit` / ESLint(eslint-config-next)+Prettier / Vitest |
-| build | `next build`のあと`scripts/verify-export.mjs`が`out/`の必須ページとcss/js参照の実在、二言語404を確認 |
-| E2E | Playwrightで村→会話→作品→一覧の導線、壁の衝突、テーマ保存をja/koで実走 |
-| アクセシビリティ | 全ルートでaxeを実行し、WCAG違反0件を確認 |
-| 日本語改行 | BudouXの文節に沿った改行か・禁則を破っていないかを複数の画面幅で実測 |
+`main`へのpushでGitHub Actionsがビルドし、**配信物に対して**typecheck・lint・format・単体テスト・E2E・axe・日本語改行の検査を通してからPagesへ公開します。ローカルのPASSだけでは完了と見なさず、配信版でも同じ確認を繰り返す運用です。走らせ方は [docs/agents/verification.md](docs/agents/verification.md)、配信の仕組みは [docs/operations/deployment.md](docs/operations/deployment.md) にあります。
 
-ローカルのPASSだけでは完了と見なさず、配信版でも同じ確認を繰り返す運用です。
+### 技術スタック
 
-## 技術スタック
+Next.js App Routerの静的エクスポート・React・TypeScript・CSS Modules・zustand(村の時刻だけ)・BudouX(日本語改行)・Vitest・Playwrightで作っています。バージョンは`package.json`に載せています。
 
-`package.json`記載のバージョンをそのまま載せています。
-
-| 分類 | 技術 | バージョン |
-|---|---|---|
-| フレームワーク | Next.js(App Router・静的エクスポート) | 16.3.5 |
-| UI | React / React DOM | 19.2.8 |
-| 言語 | TypeScript | 6.0.2 |
-| スタイル | CSS Modules | - |
-| 日本語改行 | BudouX | 0.9.0 |
-| テスト | Vitest | 4.1.10 |
-| E2E | @playwright/test | 1.63.0 |
-| Lint / Format | ESLint 9(eslint-config-next 15)/ Prettier 3 | - |
-| CI/CD | GitHub Actions(`upload-pages-artifact`) | - |
-
-## ローカルでの実行
+### ローカルでの実行
 
 ```bash
 npm install
 npm run dev
 ```
 
-http://localhost:3000 で表示を確認できます。
+http://localhost:3000 で表示を確認できます(`dev`もスプライトを焼いてから立ち上がります)。
 
 ```bash
-npm run build       # next build + verify-export(out/を生成)
-npm run start       # out/をポート4173で配信
-npm run test        # vitest run
-npm run test:e2e    # playwright test(先に build)
-npm run typecheck   # tsc --noEmit
-npm run lint        # eslint .
-npm run docs:check  # 文書のリンク・参照先の実在
-npm run format      # prettier --write
+npm run build      # スプライトを焼く → next build → verify-export(out/を生成)
+npm run start      # out/をポート4173で配信
+npm run test       # vitest run
+npm run test:e2e   # playwright test(out/を配信して実走。buildは含まない)
+npm run typecheck  # tsc --noEmit
 ```
 
-## ディレクトリ
+`npm run test:e2e`はビルドしません。`out/`を`serve`で配信して実走するので、先に`npm run build`が必要です。残りのコマンドは [docs/development/commands.md](docs/development/commands.md) にあります。
 
-```
-content/            表示文字列と村の定義(ja/ko・world.ts)と、その型(types/)
-src/app/            ルート(ja)/(ko)/ko の2本
-src/components/     VillagePage(村)・Directory(一覧)・Story(作品)の3画面と、画面横断の部品 ui/
-src/hooks/          スクロール連動表示などの共通フック
-src/lib/village/    移動・衝突・経路・会話地点の純粋関数
-src/lib/pixel/      ドット絵エンジンと素材
-src/lib/content/    コンテンツの読み込みと検証
-src/styles/         共通スタイルとデザイントークン
-src/utils/          言語別パス・日本語改行などの補助関数
-scripts/            verify-export・axe・改行検査
-tests/              Playwright E2E
-```
+### ディレクトリ
+
+`content/`に表示文字列と村の定義、`src/`にアプリ本体、`scripts/`にビルドと検査、`tests/`にE2Eを置いています。単体テストは`tests/`ではなく`src`の中に対象と並べて置いています。設計文書は`docs/`で、どのファイルがどの画面に対応するかは [docs/product/feature-map.md](docs/product/feature-map.md) にあります。
 
 > 配信はSettings → Pages → Sourceを「GitHub Actions」にした状態で、`main`へのpushにより行われます。
 
