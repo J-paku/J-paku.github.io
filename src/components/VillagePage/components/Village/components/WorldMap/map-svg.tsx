@@ -172,6 +172,8 @@ const MapTerrain = memo(function MapTerrain({ world, scale }: MapTerrainProps) {
           )
         }
 
+        // 地図が描くのは通行不可のマス(structureRect)であって絵の範囲ではない。街灯は絵が縦 2 マスでも
+        // 塞ぐのは灯の 1 マスだけなので、ここが 1 マスで正しい — 絵と食い違って見えても不具合ではない
         const footprint = structureRect(structure)
         const widthInCells = footprint.w
 
