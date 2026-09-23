@@ -11,6 +11,7 @@ import {
 } from 'react'
 
 import type { Cell, World } from '@content/types/world'
+import type { DoorMarker } from '@/lib/village/door-marker'
 
 import { MapSvg } from './map-svg'
 import styles from './world-map.module.css'
@@ -21,6 +22,7 @@ export type WorldMapProps = {
   player: Cell
   destination: Cell | null
   placeNames: Record<string, string>
+  doors: readonly DoorMarker[]
   title: string
   fastTravelLabel: string
   closeLabel: string
@@ -51,6 +53,7 @@ export function WorldMap({
   player,
   destination,
   placeNames,
+  doors,
   title,
   fastTravelLabel,
   closeLabel,
@@ -131,6 +134,7 @@ export function WorldMap({
               player={player}
               destination={destination}
               spotIds={Object.keys(placeNames)}
+              doors={doors}
             />
             {world.spots.map((spot, index) => {
               const placeName = placeNames[spot.id]

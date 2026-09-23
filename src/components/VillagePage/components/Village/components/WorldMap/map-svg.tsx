@@ -3,6 +3,7 @@
 import { memo } from 'react'
 
 import { structureRect } from '@/lib/village/collision'
+import { isDoorVisited, type DoorMarker } from '@/lib/village/door-marker'
 
 import type { Cell, Structure, Tile, World } from '@content/types/world'
 
@@ -13,6 +14,8 @@ export type MapSvgProps = {
   player: Cell
   destination: Cell | null
   spotIds: readonly string[]
+  // 屋内の地点(自室の home など)の代わりに印を置く扉
+  doors: readonly DoorMarker[]
 }
 
 // 地図に出るのは屋外だけだが、型を全タイルで埋めるため屋内(floor・wall・mat)も持つ
@@ -193,7 +196,15 @@ const MapTerrain = memo(function MapTerrain({ world, scale }: MapTerrainProps) {
   )
 })
 
-export function MapSvg({ world, scale, visited, player, destination, spotIds }: MapSvgProps) {
+export function MapSvg({
+  world,
+  scale,
+  visited,
+  player,
+  destination,
+  spotIds,
+  doors,
+}: MapSvgProps) {
   const visibleSpotIds = new Set(spotIds)
   const width = world.width * scale
   const height = world.height * scale
@@ -212,6 +223,14 @@ export function MapSvg({ world, scale, visited, player, destination, spotIds }: 
         .map(spot => (
           <SpotMarker key={spot.id} cell={spot.cell} scale={scale} visited={visited.has(spot.id)} />
         ))}
+      {doors.map(door => (
+        <SpotMarker
+          key={`door-${door.id}`}
+          cell={door.cell}
+          scale={scale}
+          visited={isDoorVisited(door, visited)}
+        />
+      ))}
       {destination ? (
         <rect
           x={destination.x * scale}

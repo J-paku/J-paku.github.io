@@ -5,6 +5,7 @@ import type { RefObject } from 'react'
 import type { CareerFeature, CareerRole } from '@content/types/content'
 import type { Cell, Spot, StopText, VillageText, World, WorldSet } from '@content/types/world'
 import type { SheetLayout } from '@/lib/pixel/art'
+import { doorMarkers, type DoorMarker } from '@/lib/village/door-marker'
 import { waterBubble } from '@/lib/village/fishing'
 import type { FishingPose } from '@/lib/village/player-pose'
 import { nextSpot, talkAnchor } from '@/lib/village/spot'
@@ -76,6 +77,7 @@ type UseVillage = {
   reduceMotion: boolean
   locatorVisible: boolean
   placeNames: Record<string, string>
+  doors: DoorMarker[]
   // 話しかける物の位置(ワールド座標・マス単位)。x は物の中央、y は上に出すなら物の上辺、下に出すなら下辺。
   // 吹き出しは world 層に置くのでカメラを引かない
   talkAt: { x: number; y: number } | null
@@ -327,6 +329,8 @@ export function useVillage({
     () => Object.fromEntries(world.spots.map(s => [s.id, placeName(text, s)])),
     [world, text]
   )
+  // 屋内の地点は屋外の地図に載らないので、そこへ通じる扉に印を置く
+  const doors = useMemo(() => doorMarkers(worldSet, world), [worldSet, world])
 
   const canFish =
     mode === 'walk' && activeSpot === null && catches.length > 0 && fishingTarget !== null
@@ -367,6 +371,7 @@ export function useVillage({
     reduceMotion,
     locatorVisible,
     placeNames,
+    doors,
     talkAt,
     talkText,
     talkLabel,

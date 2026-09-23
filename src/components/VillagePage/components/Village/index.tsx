@@ -87,6 +87,7 @@ function Village({
     reduceMotion,
     locatorVisible,
     placeNames,
+    doors,
     talkAt,
     talkText,
     talkLabel,
@@ -301,6 +302,7 @@ function Village({
               player={playerCell}
               destination={destination}
               placeNames={placeNames}
+              doors={doors}
               label={text.openMap}
               onOpen={openMap}
             />
@@ -324,6 +326,7 @@ function Village({
           player={playerCell}
           destination={destination}
           placeNames={placeNames}
+          doors={doors}
           title={text.mapTitle}
           fastTravelLabel={text.fastTravel}
           closeLabel={text.closeMap}
