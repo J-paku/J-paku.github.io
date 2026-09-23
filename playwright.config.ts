@@ -3,6 +3,10 @@ import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
   testDir: 'tests',
+  // 走り出す前に、:4173 を配っているのが「このチェックアウトの out/」かどうかを 1 回だけ照合する。
+  // 下の reuseExistingServer は切らない(切ると他プロセスがポートを握っている間 E2E が走らない)代わりに、
+  // 別の worktree・別セッションのビルドを検査して全部緑になる事故をここで止める
+  globalSetup: './tests/global-setup.ts',
   timeout: 30_000,
   // 1 ファイルの中のテストも別々のワーカーへ配る。どのテストも自分の context で村を開き、
   // beforeAll・serial・テストをまたぐ可変状態を持たないので順番に依存しない。

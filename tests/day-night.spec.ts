@@ -1,7 +1,7 @@
-// 昼夜の空と天気の E2E。時計を4つの帯それぞれへ固定して村の段階と実シートを確かめ、
-// 夜の灯りがともって主人公に付いて回ること・昼は同じ要素が描かれないことを確かめ、
-// Open-Meteo の応答を差し替えて雨の層が出る/出ないを確かめ、最後に段階と天気が載っても
-// 5か所のコースが今までどおり完走することを ja/ko 双方で見る
+// 昼夜の空と天気の E2E。時計を4つの帯それぞれへ固定して村の段階と、4段階ぶんの実シートが
+// どれも別物であることを確かめ、夜の灯りがともって主人公に付いて回ること・昼は同じ要素が
+// 描かれないことを確かめ、Open-Meteo の応答を差し替えて雨・雪の層が出る/出ないを確かめ、
+// 最後に段階と天気が載っても5か所のコースが今までどおり完走することを ja/ko 双方で見る
 import { expect, type Page } from '@playwright/test'
 import type { VillageText } from '@content/types/world'
 import { village as villageJa } from '@content/ja/village'
@@ -9,7 +9,7 @@ import { village as villageKo } from '@content/ko/village'
 import { DAY_PHASES, type DayPhase } from '@/utils/day-phase'
 // 村を開く手順・歩く walk(1 マスごとに到着を待つ)・天気の差し替え(stubWeather)と、
 // 既定で晴れを敷く test は他の村の spec と共用。正本は village.helpers.ts
-import { openVillage, stubWeather, test, walk } from './village.helpers'
+import { focusVillage, openVillage, stubWeather, test, walk } from './village.helpers'
 
 type Journey = { prefix: string; text: VillageText }
 
@@ -42,6 +42,7 @@ const GROUND_SPRITE = '[data-village-terrain] > div'
 // world 層を起点にすると掴めない。クラス名は CSS Modules が毎ビルド変えるので使わない
 const WEATHER_LAYERS = '[data-weather]'
 const RAIN_LAYERS = '[data-weather="rain"]'
+const SNOW_LAYERS = '[data-weather="snow"]'
 // 降っている間に並ぶ層の枚数。2 コマを不透明度で交互に見せ消しする作りなので、出ているなら必ず 2 枚。
 // 1 枚しか無ければコマ送りが片側だけになっている状態で、「降っている」とは認めない
 const WEATHER_LAYER_COUNT = 2
@@ -172,6 +173,32 @@ const sheetDigest = (page: Page, selector: string) =>
       return { sheet: drawable, digest }
     }, SHEET_PATH.source)
 
+// 天気の層が敷くシートの指紋。地形・主人公と違って天気のシートは実ファイルではなく
+// data URI をカスタムプロパティ(--weather-sheet)で渡す作りなので、SHEET_PATH による
+// 名前の照合は使えない。URL の文字列を同じ畳み方で指紋にし、画像として実際に読めるかまで見る
+// (読めない URI でも文字列は取れるので、指紋の比較だけでは「両方壊れている」を取り逃がす)
+const weatherSheetDigest = (page: Page, selector: string, index: number) =>
+  page
+    .locator(selector)
+    .nth(index)
+    .evaluate(async element => {
+      const image = getComputedStyle(element).backgroundImage
+      let sum = 0
+      for (let i = 0; i < image.length; i += 1) sum = (sum * 31 + image.charCodeAt(i)) >>> 0
+      const digest = `${image.length}:${sum.toString(16)}`
+
+      // none・グラデーション・複数指定はここで落とす(url() 1本だけを認める)
+      const single = /^url\((['"]?)(.+)\1\)$/.exec(image)
+      if (single === null) return { drawable: false, digest }
+      const drawable = await new Promise<boolean>(resolve => {
+        const probe = new Image()
+        probe.onload = () => resolve(probe.naturalWidth > 0 && probe.naturalHeight > 0)
+        probe.onerror = () => resolve(false)
+        probe.src = single[2]
+      })
+      return { drawable, digest }
+    })
+
 for (const { prefix, text } of JOURNEYS) {
   const label = prefix === '' ? '/' : prefix
   const home = text.stops.home
@@ -191,26 +218,40 @@ for (const { prefix, text } of JOURNEYS) {
     })
   }
 
-  test(`夜は属性だけでなく焼いたシートそのものが昼と入れ替わる (${label})`, async ({ page }) => {
-    await page.clock.setFixedTime(new Date(PHASE_CLOCKS.day))
-    await openVillage(page, prefix)
-    await expect(page.locator(VILLAGE_ROOT)).toHaveAttribute('data-phase', 'day')
-    const dayGround = await sheetDigest(page, GROUND_SPRITE)
-    const dayPlayer = await sheetDigest(page, '[data-village-player]')
-    expect(dayGround.sheet, '昼の地形シートがサイト内の焼いたシートPNGである').toBe(true)
-    expect(dayPlayer.sheet, '昼の主人公シートがサイト内の焼いたシートPNGである').toBe(true)
+  // 明け方・夕方は data-phase の属性だけを見ていた頃、昼のシートを使い回すよう戻しても
+  // 素通りしていた。4段階ぶんの指紋を集めて総当たりで突き合わせ、どの2段階が同じになっても落とす
+  test(`4段階のどれも属性だけでなく焼いたシートそのものが入れ替わる (${label})`, async ({
+    page,
+  }) => {
+    // 4段階ぶん村を開き直すので既定の30秒では足りない
+    test.setTimeout(60_000)
 
-    await page.clock.setFixedTime(new Date(PHASE_CLOCKS.night))
-    await openVillage(page, prefix)
-    await expect(page.locator(VILLAGE_ROOT)).toHaveAttribute('data-phase', 'night')
-    const nightGround = await sheetDigest(page, GROUND_SPRITE)
-    const nightPlayer = await sheetDigest(page, '[data-village-player]')
-    expect(nightGround.sheet, '夜の地形シートがサイト内の焼いたシートPNGである').toBe(true)
-    expect(nightPlayer.sheet, '夜の主人公シートがサイト内の焼いたシートPNGである').toBe(true)
+    const grounds = new Map<DayPhase, string>()
+    const players = new Map<DayPhase, string>()
+    for (const phase of DAY_PHASES) {
+      await page.clock.setFixedTime(new Date(PHASE_CLOCKS[phase]))
+      await openVillage(page, prefix)
+      await expect(page.locator(VILLAGE_ROOT)).toHaveAttribute('data-phase', phase)
+      const ground = await sheetDigest(page, GROUND_SPRITE)
+      const player = await sheetDigest(page, '[data-village-player]')
+      expect(ground.sheet, `${phase} の地形シートがサイト内の焼いたシートPNGである`).toBe(true)
+      expect(player.sheet, `${phase} の主人公シートがサイト内の焼いたシートPNGである`).toBe(true)
+      grounds.set(phase, ground.digest)
+      players.set(phase, player.digest)
+    }
 
-    // 属性が変わっただけでなく、要素へ解決される背景画像そのものが別物になっている
-    expect(nightGround.digest, '地形シートが夜で入れ替わる').not.toBe(dayGround.digest)
-    expect(nightPlayer.digest, '主人公シートが夜で入れ替わる').not.toBe(dayPlayer.digest)
+    // 属性が変わっただけでなく、要素へ解決される背景画像そのものが段階ごとに別物になっている。
+    // 総当たりで見るのは、落ちたときにどの2段階が同じシートなのかをそのまま読めるようにするため
+    for (const [index, phase] of DAY_PHASES.entries()) {
+      for (const other of DAY_PHASES.slice(index + 1)) {
+        expect(grounds.get(other), `地形シートが ${phase} と ${other} で違う`).not.toBe(
+          grounds.get(phase)
+        )
+        expect(players.get(other), `主人公シートが ${phase} と ${other} で違う`).not.toBe(
+          players.get(phase)
+        )
+      }
+    }
   })
 
   test(`夜の町は灯りがともり、主人公の灯りは歩いても離れない (${label})`, async ({ page }) => {
@@ -286,6 +327,51 @@ for (const { prefix, text } of JOURNEYS) {
     // 2 枚とも読み上げから外れていること。片方だけだと支援技術に粒の層が残る
     await expect(layers.nth(0)).toHaveAttribute('aria-hidden', 'true')
     await expect(layers.nth(1)).toHaveAttribute('aria-hidden', 'true')
+  })
+
+  test(`大阪が雪なら雪の層が出て、雨とは別のシートになる (${label})`, async ({ page }) => {
+    // 雪で1回・雨で1回、自室から町まで歩いて測るので既定の30秒では足りない
+    test.setTimeout(60_000)
+    const weather = await stubWeather(page, 'snow')
+    await page.clock.setFixedTime(new Date(PHASE_CLOCKS.day))
+    await openVillage(page, prefix)
+
+    await expect.poll(() => weather.calls(), { timeout: 10_000 }).toBeGreaterThan(0)
+    // 雨と同じく、天井のある自室では降らせない
+    await expect(page.locator(WEATHER_LAYERS), '屋内では降らない').toHaveCount(0)
+
+    await leaveRoom(page)
+    const snowLayers = page.locator(SNOW_LAYERS)
+    await expect(snowLayers, '雪は 2 コマぶんの層が並ぶ').toHaveCount(WEATHER_LAYER_COUNT)
+    // 差し替えた応答は降水も 0 より大きい。降雪を先に見る判定が落ちればここが雨に化けるので、
+    // 「雨が 0 枚」まで見て初めて雪として降ったと言える
+    await expect(page.locator(RAIN_LAYERS), '雪の日に雨の層は出ない').toHaveCount(0)
+    // 2 枚とも読み上げから外れていること。片方だけだと支援技術に粒の層が残る
+    await expect(snowLayers.nth(0)).toHaveAttribute('aria-hidden', 'true')
+    await expect(snowLayers.nth(1)).toHaveAttribute('aria-hidden', 'true')
+
+    const snowFirst = await weatherSheetDigest(page, SNOW_LAYERS, 0)
+    const snowSecond = await weatherSheetDigest(page, SNOW_LAYERS, 1)
+    expect(snowFirst.drawable, '雪の1コマ目が画像として読める').toBe(true)
+    expect(snowSecond.drawable, '雪の2コマ目が画像として読める').toBe(true)
+    // 2 枚が同じ絵だと、見せ消ししても粒が動かない(コマ送りになっていない)
+    expect(snowSecond.digest, '雪の2枚は別のコマである').not.toBe(snowFirst.digest)
+
+    // 同じ村を雨へ差し替えて測り直す(同じ page に重ねた route は後から敷いた方が勝つ)。
+    // ここで雨を測るのは、属性の値が違うだけでなく敷かれるシートそのものが雨と雪で
+    // 別物だと確かめるため。読み込み直すと自室から始まる(位置は復元されない)ので、
+    // 降る場所までもう一度出てから数える
+    await stubWeather(page, 'rain')
+    await page.reload()
+    await focusVillage(page)
+    await leaveRoom(page)
+    await expect(page.locator(RAIN_LAYERS), '差し替えた後は雨の層に入れ替わる').toHaveCount(
+      WEATHER_LAYER_COUNT
+    )
+    await expect(page.locator(SNOW_LAYERS), '雨に変えたら雪の層は残らない').toHaveCount(0)
+    const rainFirst = await weatherSheetDigest(page, RAIN_LAYERS, 0)
+    expect(rainFirst.drawable, '雨の1コマ目が画像として読める').toBe(true)
+    expect(rainFirst.digest, '雪のシートは雨のシートと別物').not.toBe(snowFirst.digest)
   })
 
   test(`天気の取得が失敗したら何も降らせず村は動く (${label})`, async ({ page }) => {

@@ -100,6 +100,11 @@ describe('hasGutters', () => {
     // cell40・cols10で枠400、幅700なら片側150px
     expect(hasGutters(700, 40, VIEW_COLS)).toBe(true)
   })
+  it('境界のすぐ下(片側149.5px)は成立しない', () => {
+    // cell40・cols10で枠400、幅699なら片側149.5px。成立する側の値しか見ていないと
+    // GUTTER_MIN を下げた実装(150→120 など)でも全件通ってしまう
+    expect(hasGutters(699, 40, VIEW_COLS)).toBe(false)
+  })
 })
 
 describe('cameraOffset', () => {
@@ -162,6 +167,21 @@ describe('approachCamera', () => {
     // ワープ・地図移動。x が閾値を超えたら y も引きずらず一緒に飛ばす
     const far = { x: CAM_SNAP_CELLS + 0.5, y: 0.2 }
     expect(approachCamera({ x: 0, y: 0 }, far, 16)).toEqual(far)
+  })
+  it('差がちょうど CAM_SNAP_CELLS なら飛ばさず補間する', () => {
+    // 閾値は「超えたら」飛ばす。ちょうどの値は補間側に残るので、ここで即到達すると
+    // 判定が > から >= へ緩んだことになる(閾値+0.5 だけ見ていると気付けない)
+    const target = { x: CAM_SNAP_CELLS, y: -CAM_SNAP_CELLS }
+    const next = approachCamera({ x: 0, y: 0 }, target, 16)
+    const ratio = 1 - Math.exp(-16 / CAM_TAU)
+    expect(next.x).toBeCloseTo(CAM_SNAP_CELLS * ratio, 10)
+    expect(next.y).toBeCloseTo(-CAM_SNAP_CELLS * ratio, 10)
+    expect(next).not.toEqual(target)
+  })
+  it('経過時間0msなら1フレーム分も進まず現在位置のまま', () => {
+    // rAF が同じ時刻で二度呼ばれても位置が動かないことの保証。進む割合 1-exp(0) は 0
+    const current = { x: 3.25, y: 1.5 }
+    expect(approachCamera(current, { x: 4, y: 2 }, 0)).toEqual(current)
   })
   it('すでに目標なら値はそのまま動かない', () => {
     const target = { x: 11.6, y: 6.2 }

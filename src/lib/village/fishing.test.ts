@@ -1,9 +1,19 @@
-// 釣りの規則 isFishingSpot・pickCatch・isCollectionComplete・waterBubble・catchToStop のテスト
+// 釣りの規則 isFishingSpot・pickCatch・isCollectionComplete・waterBubble・catchToStop と
+// 待ち時間の定数のテスト
 import { vi } from 'vitest'
 import type { CareerFeature, CareerRole } from '@content/types/content'
-import type { Cell, FishingText, World } from '@content/types/world'
+import type { Cell, FishingText, StopText, World } from '@content/types/world'
 import { isWalkable } from './collision'
-import { isFishingSpot, pickCatch, isCollectionComplete, waterBubble, catchToStop } from './fishing'
+import {
+  isFishingSpot,
+  pickCatch,
+  isCollectionComplete,
+  waterBubble,
+  catchToStop,
+  FISHING_CAST_MS,
+  FISHING_BITE_MS,
+  FISHING_LAND_MS,
+} from './fishing'
 
 // server-only は Next.js のビルド境界専用ガードで、vitest(node 環境)では無条件に例外を投げる。
 // テストでは中身を持たない mock に差し替え、読み込み専用の @/lib/content/read を素通しにする
@@ -151,6 +161,18 @@ const roleLabels: Record<CareerRole, string> = {
   release: 'リリース',
 }
 
+// feature('単独') を last 無しで写した結果。自分自身と比べても何も守れないので、
+// 期待値を表としてここに書き下ろし、last の有無で hook だけが変わることを突き合わせる
+const singleStop: StopText = {
+  place: '釣り上げた経験',
+  title: '単独',
+  claim: '2025.03に着手した機能です。',
+  proof: '使った技術: TypeScript',
+  hook: 'もう一度投げてみてください。',
+  next: '作品一覧へ',
+  detail: '担当した工程: 実装',
+}
+
 describe('catchToStop', () => {
   it('{date} / {tech} / {roles} を機能の値で置き換える', () => {
     const caught: CareerFeature = {
@@ -177,16 +199,23 @@ describe('catchToStop', () => {
   })
   it('last を省けば hook は caughtHook のまま(false を渡したのと同じ)', () => {
     const caught = feature('単独')
-    expect(catchToStop(caught, text, roleLabels).hook).toBe('もう一度投げてみてください。')
-    expect(catchToStop(caught, text, roleLabels, false)).toEqual(
-      catchToStop(caught, text, roleLabels)
-    )
+    expect(catchToStop(caught, text, roleLabels)).toEqual(singleStop)
+    expect(catchToStop(caught, text, roleLabels, false)).toEqual(singleStop)
   })
   it('最後の 1 つ(last = true)は hook が空で、それ以外は普段と同じ', () => {
     const caught = feature('単独')
-    const stop = catchToStop(caught, text, roleLabels, true)
-    expect(stop.hook).toBe('')
-    expect({ ...stop, hook: text.caughtHook }).toEqual(catchToStop(caught, text, roleLabels))
+    expect(catchToStop(caught, text, roleLabels, true)).toEqual({ ...singleStop, hook: '' })
+  })
+})
+
+describe('釣りの待ち時間', () => {
+  it('絵・E2E と共有する長さは約束どおりの値を持つ', () => {
+    // 投げてから「……」を出している長さ
+    expect(FISHING_CAST_MS).toBe(1400)
+    // 「……」の後、かかるまでの間
+    expect(FISHING_BITE_MS).toBe(900)
+    // 釣り上げた巻物が水面の上に浮いている長さ
+    expect(FISHING_LAND_MS).toBe(500)
   })
 })
 

@@ -60,6 +60,19 @@ describe('useVillageTime', () => {
     expect(state.customHour).toBe(expectedHour)
     expect(state.customMinute).toBe(expectedMinute)
   })
+
+  // 方針を決めた記録ではなく、いまの動作をそのまま固定する単言。
+  // NaN は剰余の丸めを素通りして NaN のまま入り、段階はどのしきい値にも当たらず night になる。
+  // 時計 UI は数値しか渡さないので現状は表に出ないが、動作が変わったらここで気付ける
+  it('setCustomTime(NaN) は NaN のまま入り、段階は night になる(現在動作の固定)', () => {
+    useVillageTime.getState().setCustomTime(Number.NaN, Number.NaN)
+
+    const state = useVillageTime.getState()
+    expect(state.timeMode).toBe('custom')
+    expect(state.customHour).toBeNaN()
+    expect(state.customMinute).toBeNaN()
+    expect(villagePhase(state, noonJst)).toBe('night')
+  })
 })
 
 describe('villagePhase', () => {
@@ -68,6 +81,16 @@ describe('villagePhase', () => {
     useVillageTime.setState({ timeMode: 'custom', customHour: null, customMinute: null })
 
     expect(villagePhase(useVillageTime.getState(), noonJst)).toBe('day')
+  })
+
+  // 0時は「24時→0」の丸めで実際に踏む値。未設定(null)と 0 を混同する判定
+  // (customHour !== null を真偽値判定に替える等)だと、ここだけ実時刻の day へ落ちる
+  it('真夜中(0時)も机上時計の時刻として扱う(未設定と混同しない)', () => {
+    useVillageTime.getState().setCustomTime(0, 0)
+
+    const state = useVillageTime.getState()
+    expect(state.customHour).toBe(0)
+    expect(villagePhase(state, noonJst)).toBe('night')
   })
 
   it('custom の時刻はしきい値どおりに段階へ変わる', () => {

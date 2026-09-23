@@ -1,6 +1,6 @@
 // 村ワールドの構造・配置・id の整合性検査(validateWorldSet)のテスト
 import type { Structure, Tile } from '@content/types/world'
-import { validateWorldSet, MAX_HOUSES } from './validate-world'
+import { validateWorldSet, MAX_HOUSES, MAX_WORLD_HEIGHT, MAX_WORLD_WIDTH } from './validate-world'
 import { worldSet } from '@content/world'
 import { tinyTown, townSet, pairSet } from './validate-world.fixture'
 
@@ -19,6 +19,13 @@ describe('validateWorldSet', () => {
   it('tiles の行数・列数が width/height と違えば報告する', () => {
     expect(validateWorldSet(townSet({ height: 5 }))).toContain(
       'ワールド "town": tiles の行数が height と一致しない'
+    )
+  })
+  it('1 行だけ短い tiles でも列数の食い違いを報告する', () => {
+    // 行数は height と合っているので、列を見る検査が無ければ素通りしてしまう
+    const ragged = tinyTown().tiles.map((row, i) => (i === 0 ? row.slice(0, 4) : row))
+    expect(validateWorldSet(townSet({ tiles: ragged }))).toContain(
+      'ワールド "town": tiles の列数が width と一致しない'
     )
   })
   it('開始セルが通行不可なら報告する', () => {
@@ -46,6 +53,30 @@ describe('validateWorldSet', () => {
       tiles: tinyTown().tiles.map(row => [...row, ...Array<Tile>(26).fill('grass')]),
     })
     expect(validateWorldSet(big).some(m => m.includes('広さが上限'))).toBe(true)
+  })
+  it('高さだけが上限を超えても報告する', () => {
+    // 幅は上限内のまま高さだけ 1 マス超える。高さを見る側の条件が消えるとここが落ちる
+    const tall = townSet({
+      height: MAX_WORLD_HEIGHT + 1,
+      tiles: Array.from({ length: MAX_WORLD_HEIGHT + 1 }, () => Array<Tile>(5).fill('grass')),
+    })
+    expect(validateWorldSet(tall)).toContain(
+      `ワールド "town": 広さが上限 ${MAX_WORLD_WIDTH}x${MAX_WORLD_HEIGHT} を超えている(5x${MAX_WORLD_HEIGHT + 1})`
+    )
+  })
+  it('幅・高さ・軒数が上限ちょうどなら報告しない', () => {
+    // 上限そのものは許す。ここが無いと比較を > から >= へ取り違えても誰も気付けない
+    const base = tinyTown().structures[0]
+    if (base.kind !== 'house') throw new Error('fixture')
+    const edge = townSet({
+      width: MAX_WORLD_WIDTH,
+      height: MAX_WORLD_HEIGHT,
+      tiles: Array.from({ length: MAX_WORLD_HEIGHT }, () =>
+        Array<Tile>(MAX_WORLD_WIDTH).fill('grass')
+      ),
+      structures: Array.from({ length: MAX_HOUSES }, (_, i) => ({ ...base, id: `h${i + 1}` })),
+    })
+    expect(validateWorldSet(edge)).toEqual([])
   })
   it('家が MAX_HOUSES を超えれば報告する', () => {
     const house = (id: string): Structure => ({

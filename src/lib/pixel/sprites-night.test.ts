@@ -26,6 +26,20 @@ import {
 import type { Pixel } from './sprites.fixture'
 import type { DayPhase } from '@/utils/day-phase'
 
+// 夜のポストの LED が実際に出す赤。palette-phase.ts の NIGHT_LIGHTS から書き写す。
+// phasePalette から取ると、シートを焼いたのと同じ関数で期待値も作ることになり、
+// 発光色を黒へ書き換えても両辺が一緒に動いて素通りする(WHITE_METAL・WARM_GLASS と同じ考え)
+const LED_RED = '#ff5040'
+
+// 向きごとのランタンの升数。下向きは受け皿がいちばん広く写り、上向きは背中側へ半分隠れる
+const LANTERN_DOTS: Record<string, number> = { up: 11, down: 13, right: 12 }
+
+// 主人公のコマの鍵は player-{向き}-{番号} か player-fish-{向き}(-{場面})
+const facingOf = (key: string): string => {
+  const parts = key.split('-')
+  return parts[1] === 'fish' ? parts[2] : parts[1]
+}
+
 describe('夜だけ差し替える素材', () => {
   // 夜にできるのは差し替えだけ。鍵が増減・前後すると、UI が昼の index で夜の画像を引くため町中の絵がずれる
   it('夜の素材は昼と同じ鍵を同じ順序で持つ', () => {
@@ -58,10 +72,22 @@ describe('夜だけ差し替える素材', () => {
 
   it('主人公のランタンは夜だけ灯り、昼・明け方・夕方には無い', () => {
     const points = lanternPoints(PLAYER_ARTS, PLAYER_NIGHT_ARTS)
-    // 夜だけ灯る点が 1 つも無ければ、夜の絵がランタンを持っていない(差し替えが効いていない)
-    expect(points.length, '主人公に「昼は灯り文字でなく夜だけ灯る」点が無い').toBeGreaterThan(0)
+    // 「1 つ以上」だと、35 コマのうち 34 コマからランタンが消えても緑のまま通ってしまう。
+    // ポストの「上辺に 5 粒」と同じく、コマごとに何升灯るかを正確に数える
+    const perKey: Record<string, number> = Object.fromEntries(
+      Object.keys(PLAYER_ARTS).map(key => [key, 0])
+    )
+    for (const found of points) perKey[found.key] += 1
+    expect(perKey, '主人公のランタンの升数がコマごとに合わない').toEqual(
+      Object.fromEntries(Object.keys(PLAYER_ARTS).map(key => [key, LANTERN_DOTS[facingOf(key)]]))
+    )
 
     const point = points[0]
+    // 先頭の点は昼が透明な升で、夜だけ笠の明るい金物が現れる
+    expect({ dayChar: point.dayChar, nightChar: point.nightChar }).toEqual({
+      dayChar: '.',
+      nightChar: LANTERN_SHINE,
+    })
     // その座標に昼の絵が何を描くかは昼の素材だけで決まる。'.'(透明)ならアルファ 0、
     // 色付きならその文字を各段階のパレットへ通した色。夜の期待値だけが発光色になる
     const fromDayArt = (phase: DayPhase): Pixel =>
@@ -78,7 +104,9 @@ describe('夜だけ差し替える素材', () => {
       dawn: read('dawn'),
       dusk: read('dusk'),
     }).toEqual({
-      night: { hex: phasePalette(palette, 'night')[point.nightChar], alpha: 255 },
+      // 夜の期待値は焼き上がりの色をそのまま書く。phasePalette から取ると、
+      // シートを焼いたのと同じ関数で期待値も作ることになり、発光色を書き換えても両辺が一緒に動く
+      night: { hex: WHITE_METAL, alpha: 255 },
       day: fromDayArt('day'),
       dawn: fromDayArt('dawn'),
       dusk: fromDayArt('dusk'),
@@ -92,6 +120,7 @@ describe('夜だけ差し替える素材', () => {
 
     // 先頭の粒(上辺のいちばん左)で 4 段階ぶんの色を見る
     const point = points[0]
+    expect(point.nightChar, '先頭の粒は赤の LED').toBe('+')
     const fromDayArt = (phase: DayPhase): Pixel =>
       point.dayChar === '.'
         ? { hex: '#000000', alpha: 0 }
@@ -105,7 +134,8 @@ describe('夜だけ差し替える素材', () => {
       dawn: read('dawn'),
       dusk: read('dusk'),
     }).toEqual({
-      night: { hex: phasePalette(palette, 'night')[point.nightChar], alpha: 255 },
+      // 夜の期待値は焼き上がりの色をそのまま書く(phasePalette から取ると両辺が一緒に動く)
+      night: { hex: LED_RED, alpha: 255 },
       day: fromDayArt('day'),
       dawn: fromDayArt('dawn'),
       dusk: fromDayArt('dusk'),

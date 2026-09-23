@@ -167,6 +167,27 @@ describe('拡大した入口', () => {
       'wall-r',
     ])
   })
+  // house の area は x2-5。幅 1 の扉は doorX の列そのものしか当たらないので、
+  // doorX を area の外へ出しても壁行に届かず、はみ出しのガードを通らない。
+  // 幅 2 にして開口部の片側だけが area へ掛かる置き方にすると、ガードが単独で効く
+  it('開口部が右端からはみ出すなら、掛かっている列も扉にせず壁のままにする', () => {
+    // doorX=5 は area の中だが、幅 2 の右半分 x=6 が右端 5 を超える
+    expect(row({ ...house, doorX: 5, doorWidth: 2 }, 4)).toEqual([
+      'wall-l',
+      'wall-m',
+      'wall-m',
+      'wall-r',
+    ])
+  })
+  it('開口部が左端からはみ出すなら、掛かっている列も扉にせず壁のままにする', () => {
+    // doorX=1 は area の左端 2 より外。幅 2 の右半分 x=2 が壁行に掛かる
+    expect(row({ ...house, doorX: 1, doorWidth: 2 }, 4)).toEqual([
+      'wall-l',
+      'wall-m',
+      'wall-m',
+      'wall-r',
+    ])
+  })
 })
 
 describe('facadeCells (経歴碑 monument / 石碑 stele)', () => {

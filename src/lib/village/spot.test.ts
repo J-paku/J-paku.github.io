@@ -191,6 +191,50 @@ describe('spotAt (全方向)', () => {
   })
 })
 
+// 明示された立ち位置(spot.cell の完全一致)の枝。構造物への隣接判定とは別の入口で、
+// 隣接判定が同じマスを拾える時はそちらが優先されていないことまで見る
+describe('spotAt (明示された立ち位置)', () => {
+  it('構造物に隣接しないマスでも、spot.cell と一致すれば拾う', () => {
+    const lone: World = {
+      ...field,
+      // 構造物を持たない地点。テーブル (3,3) からも離れていて、隣接判定では絶対に拾えない
+      spots: [{ id: 'lone', cell: { x: 8, y: 6 }, facing: 'up' }],
+    }
+    expect(spotAt(lone, { x: 8, y: 6 })?.id).toBe('lone')
+    expect(spotAt(lone, { x: 8, y: 5 })).toBeNull()
+  })
+  it('隣接判定と重なるマスでは、明示された立ち位置の地点を優先する', () => {
+    const overlap: World = {
+      ...field,
+      // (2,3) はテーブル(3,3 から 2×2)の左隣。隣接判定だけなら 'table' を拾うマス
+      spots: [...field.spots, { id: 'sign', cell: { x: 2, y: 3 }, facing: 'right' }],
+    }
+    expect(spotAt(overlap, { x: 2, y: 3 })?.id).toBe('sign')
+    // 重なっていない辺は今まで通りテーブルの地点を拾う
+    expect(spotAt(overlap, { x: 5, y: 4 })?.id).toBe('table')
+  })
+})
+
+// 到着範囲の横の境界。実際の町の出口は範囲の左右が木で、通行判定に隠れて境界式が効いていない。
+// 左右とも草(通行可)の合成ワールドで、範囲の判定だけで外れることを見る
+describe('spotAt (到着範囲の境界)', () => {
+  const gate: World = {
+    ...field,
+    structures: [],
+    spots: [
+      { id: 'gate', cell: { x: 4, y: 0 }, facing: 'up', arrivalArea: { x: 4, y: 0, w: 2, h: 1 } },
+    ],
+  }
+  it('範囲の 2 マスはどちらでも開く', () => {
+    expect(spotAt(gate, { x: 4, y: 0 })?.id).toBe('gate')
+    expect(spotAt(gate, { x: 5, y: 0 })?.id).toBe('gate')
+  })
+  it('範囲の左右 1 マス外は、通行可でも開かない', () => {
+    expect(spotAt(gate, { x: 3, y: 0 })).toBeNull()
+    expect(spotAt(gate, { x: 6, y: 0 })).toBeNull()
+  })
+})
+
 // order の無い地点(経歴碑のようにコース外の地点)を加えても、既存の set 自体はそのまま使う
 describe('order の無い地点', () => {
   const monumentSpot: Spot = {

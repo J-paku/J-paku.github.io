@@ -1,9 +1,39 @@
-// 雨と雪のシートを検証する。1 コマ 1 枚であること、2 コマが平行移動でつながること
+// 雨と雪のシートを検証する。1 コマ 1 枚であること、2 コマが平行移動でつながること、
+// 時間帯で色が変わらないこと
 import { describe, expect, it } from 'vitest'
 import { TILE } from './art'
 import { buildWeatherSprites } from './sprites'
 import { charsOf, decode, shift } from './sprites.fixture'
 import { weatherArt } from './weather-art'
+
+// 焼き上がった粒の色。雨は明るい筋(v)と暗い筋(n)、雪は十字の雪片(N)と粉雪(O)で、
+// 値は palette.ts からの書き写し。palette を import して比べると、天気を phasePalette へ
+// 通す変更にも期待値が一緒に動いてしまい「時間帯で変えない」を検査できなくなる
+const DAY_COLORS: Record<'rain' | 'snow', readonly string[]> = {
+  rain: ['#78c0e8', '#a0d0f8'],
+  snow: ['#e5e5e5', '#fafafa'],
+}
+
+// 透明でないドットの色を重複なく昇順で返す
+const litColors = (uri: string): string[] => {
+  const image = decode(uri)
+  const colors = new Set<string>()
+  for (let at = 0; at < image.data.length; at += 4) {
+    if (image.data[at + 3] === 0) continue
+    colors.add(`#${[0, 1, 2].map(i => image.data[at + i].toString(16).padStart(2, '0')).join('')}`)
+  }
+  return [...colors].sort()
+}
+
+// 透明でないドットの数
+const litCount = (uri: string): number => {
+  const image = decode(uri)
+  let count = 0
+  for (let at = 0; at < image.data.length; at += 4) {
+    if (image.data[at + 3] !== 0) count += 1
+  }
+  return count
+}
 
 describe('天気のシート', () => {
   it('雨・雪ともコマごとに 16×16 ちょうどの 1 枚を返す', () => {
@@ -19,6 +49,21 @@ describe('天気のシート', () => {
         // コマ送りが「落ちる」ではなく「横へ 1 マスずれる」動きになってしまう
         expect([image.width, image.height], kind).toEqual([TILE, TILE])
       }
+    }
+  })
+
+  // AGENTS.md の掟「雨と雪のシートは時間帯で色を変えない」の見張り。寸法だけを見ていると
+  // weatherSheet を phasePalette(palette, 'night') で焼くよう変えても素通りし、
+  // 夜だけ雪が青黒く沈んでいることに単体テストが一切気付けない
+  it('降る粒は時間帯で色を変えず、昼のパレットの色のまま焼かれる', () => {
+    const sheets = buildWeatherSprites()
+
+    for (const kind of ['rain', 'snow'] as const) {
+      sheets[kind].forEach((sheet, frame) => {
+        // 1 粒も点いていなければ、色の比較が空同士で通ってしまう
+        expect(litCount(sheet.uri), `${kind}-${frame}`).toBeGreaterThan(0)
+        expect(litColors(sheet.uri), `${kind}-${frame}`).toEqual(DAY_COLORS[kind])
+      })
     }
   })
 

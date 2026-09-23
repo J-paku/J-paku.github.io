@@ -79,6 +79,18 @@ describe('step (連続歩行)', () => {
     expect(r2.state.motion).toBeNull()
     expect(r2.state.cell).toEqual({ x: 1, y: 0 })
   })
+  it('通れる次のマスへ繋ぐ長いフレームでも、持ち越した進捗は1マス分を超えない', () => {
+    const held = { held: 'up' as const, route: null, fast: false }
+    // (0,2) から上は (0,1)・(0,0) と 2 マス続けて通れる。連結先が通行不可だと余りが捨てられ、上限を通らない
+    const start: MoveState = { ...createMoveState(world), cell: { x: 0, y: 2 }, facing: 'up' }
+    const r1 = step(world, start, held, 16)
+    expect(r1.state.motion?.to).toEqual({ x: 0, y: 1 })
+    const r2 = step(world, r1.state, held, CELL_MS * 5)
+    expect(r2.arrived).toEqual({ x: 0, y: 1 })
+    expect(r2.state.motion?.to).toEqual({ x: 0, y: 0 })
+    // 余りは 4 マス分あるが、持ち越しは 1 マス分で頭打ち。超えると 1 フレームで壁を飛び越える
+    expect(r2.state.motion?.progress).toBeLessThanOrEqual(1)
+  })
   it('arrived は1マスにつき1回だけ返る', () => {
     const route = [
       { x: 0, y: 1 },
@@ -102,6 +114,11 @@ describe('directionTo', () => {
   it('隣接マスへの向きを返す', () => {
     expect(directionTo({ x: 1, y: 1 }, { x: 1, y: 0 })).toBe('up')
     expect(directionTo({ x: 1, y: 1 }, { x: 2, y: 1 })).toBe('right')
+  })
+  it('左・下も返す(4 方向すべて)', () => {
+    // right は判定が尽きた時の既定でもあるので、left を単独で押さえないと左判定の欠落に気付けない
+    expect(directionTo({ x: 1, y: 1 }, { x: 0, y: 1 })).toBe('left')
+    expect(directionTo({ x: 1, y: 1 }, { x: 1, y: 2 })).toBe('down')
   })
 })
 

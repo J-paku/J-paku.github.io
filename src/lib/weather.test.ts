@@ -12,6 +12,16 @@ function fakeResponse<T>(status: number, body: T): Response {
   } as Partial<Response> as Response
 }
 
+// 本文が JSON として読めない Response。障害時に HTML のエラーページが返る場合や
+// 途中で切れた応答のように、ok=true のまま json() が失敗する状況を模す
+function fakeUnparsableResponse(status: number, error: Error): Response {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: () => Promise.reject(error),
+  } as Partial<Response> as Response
+}
+
 let fetchMock: ReturnType<typeof vi.fn<typeof fetch>>
 
 beforeEach(() => {
@@ -86,13 +96,38 @@ describe('fetchOsakaPrecipitation', () => {
     expect(await fetchOsakaPrecipitation()).toBe('none')
   })
 
+  it('本文が JSON として読めない(json() が失敗する)なら none を返す', async () => {
+    fetchMock.mockResolvedValueOnce(
+      fakeUnparsableResponse(200, new SyntaxError('Unexpected token < in JSON at position 0'))
+    )
+
+    expect(await fetchOsakaPrecipitation()).toBe('none')
+  })
+
+  it('ok=true でも本文が空文字なら none を返す', async () => {
+    // 本文が object ですらない場合。形の検査を外すと例外になり、返り値では済まなくなる
+    fetchMock.mockResolvedValueOnce(fakeResponse(200, ''))
+
+    expect(await fetchOsakaPrecipitation()).toBe('none')
+  })
+
+  it('ok=true でも本文が HTML なら none を返す', async () => {
+    fetchMock.mockResolvedValueOnce(
+      fakeResponse(200, '<!doctype html><html><body>502 Bad Gateway</body></html>')
+    )
+
+    expect(await fetchOsakaPrecipitation()).toBe('none')
+  })
+
   it('呼び出し側が中断済みなら none を返し、未処理の reject を出さない', async () => {
     const unhandledRejection = vi.fn()
     process.on('unhandledRejection', unhandledRejection)
 
+    // 中断が届かなかったときは雨の応答が返る。結果が none か rain かで中断の有無が分かれる
+    // (本文を降水0にすると、中断が無視されても none になり何も確かめられない)
     fetchMock.mockImplementation((_input, init) => {
       if (init?.signal?.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'))
-      return Promise.resolve(fakeResponse(200, { current: { precipitation: 0, snowfall: 0 } }))
+      return Promise.resolve(fakeResponse(200, { current: { precipitation: 2.4, snowfall: 0 } }))
     })
     const controller = new AbortController()
     controller.abort()
@@ -105,6 +140,24 @@ describe('fetchOsakaPrecipitation', () => {
     expect(unhandledRejection).not.toHaveBeenCalled()
 
     process.off('unhandledRejection', unhandledRejection)
+  })
+
+  it('5秒のタイムアウトで中断されたら none を返す', async () => {
+    // vi.useFakeTimers() は AbortSignal.timeout の内部タイマーを動かせない(実測: 応答待ちのまま
+    // テストが時間切れになる)ため、タイムアウト用の signal 自体を中断済みのものへ差し替える
+    const timeoutSpy = vi.spyOn(AbortSignal, 'timeout').mockImplementation(() => {
+      const controller = new AbortController()
+      controller.abort(new DOMException('The operation timed out', 'TimeoutError'))
+      return controller.signal
+    })
+    // 中断が fetch に届かなければ雨の応答が返る。none か rain かで届いたかどうかが分かれる
+    fetchMock.mockImplementation((_input, init) => {
+      if (init?.signal?.aborted) return Promise.reject(init.signal.reason)
+      return Promise.resolve(fakeResponse(200, { current: { precipitation: 2.4, snowfall: 0 } }))
+    })
+
+    expect(await fetchOsakaPrecipitation()).toBe('none')
+    expect(timeoutSpy).toHaveBeenCalledWith(5000)
   })
 
   it('リクエストURLに大阪の緯度経度と現在値パラメータが含まれる', async () => {

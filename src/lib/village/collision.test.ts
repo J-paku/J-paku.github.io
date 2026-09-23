@@ -94,6 +94,24 @@ describe('isWalkable', () => {
     expect(isWalkable(edge, { x: edge.width, y: 0 })).toBe(false)
     expect(isWalkable(edge, { x: edge.width - 1, y: 0 })).toBe(true)
   })
+  it('下端の外(y === height)は不可、高さを超えた行がタイル的に通行可能でも弾く(境界のガード)', () => {
+    // tiles に height を超える余分な行を仕込み、範囲外ガードがタイル判定より先に効くか確認する。
+    // 行数と height が同じだと tiles[y] が undefined になり、ガードを外しても同じ結果になってしまう
+    const edge: World = {
+      id: 'edge-y',
+      kind: 'exterior',
+      width: 1,
+      height: 3,
+      start: { x: 0, y: 0 },
+      startFacing: 'down',
+      tiles: [['grass'], ['grass'], ['grass'], ['grass']],
+      structures: [],
+      spots: [],
+      warps: [],
+    }
+    expect(isWalkable(edge, { x: 0, y: edge.height })).toBe(false)
+    expect(isWalkable(edge, { x: 0, y: edge.height - 1 })).toBe(true)
+  })
   it('家は area 全体が不可(屋根行にも立てない)', () => {
     expect(isWalkable(world, { x: 1, y: 1 })).toBe(false)
     expect(isWalkable(world, { x: 1, y: 0 })).toBe(false)
@@ -119,6 +137,45 @@ describe('isWalkable', () => {
     expect(isWalkable(room, { x: 6, y: 1 })).toBe(false)
     expect(isWalkable(room, { x: 7, y: 2 })).toBe(false)
     expect(isWalkable(room, { x: 7, y: 3 })).toBe(true)
+  })
+})
+
+// 家具を左右に 1 マスずつ余白を空けて並べた部屋。占有矩形の「外側」が通れることだけを見る。
+// 上の room は机が左端・テーブルが右端に寄っていて、片側の外が地図外になり左右の対称を確かめられない
+const aisle: World = {
+  id: 'aisle',
+  kind: 'interior',
+  width: 14,
+  height: 4,
+  start: { x: 0, y: 3 },
+  startFacing: 'up',
+  tiles: Array.from({ length: 4 }, () => Array(14).fill('floor')),
+  structures: [
+    { id: 'd', kind: 'desk', cell: { x: 1, y: 1 } },
+    { id: 'bd', kind: 'bed', cell: { x: 5, y: 1 } },
+    { id: 'tb', kind: 'table', cell: { x: 7, y: 1 } },
+    { id: 'mon', kind: 'monument', cell: { x: 10, y: 1 } },
+  ],
+  spots: [],
+  warps: [],
+}
+
+describe('isWalkable (家具の左右の外側)', () => {
+  it('机(3×2)は x1-3 を塞ぎ、左右の隣の列は通行可', () => {
+    expect(isWalkable(aisle, { x: 0, y: 1 })).toBe(true)
+    expect(isWalkable(aisle, { x: 4, y: 1 })).toBe(true)
+  })
+  it('ベッド(1×2)は x5 だけを塞ぎ、左右の隣の列は通行可', () => {
+    expect(isWalkable(aisle, { x: 4, y: 2 })).toBe(true)
+    expect(isWalkable(aisle, { x: 6, y: 2 })).toBe(true)
+  })
+  it('テーブル(2×2)は x7-8 を塞ぎ、左右の隣の列は通行可', () => {
+    expect(isWalkable(aisle, { x: 6, y: 1 })).toBe(true)
+    expect(isWalkable(aisle, { x: 9, y: 1 })).toBe(true)
+  })
+  it('経歴碑(2×2)は x10-11 を塞ぎ、左右の隣の列は通行可', () => {
+    expect(isWalkable(aisle, { x: 9, y: 2 })).toBe(true)
+    expect(isWalkable(aisle, { x: 12, y: 2 })).toBe(true)
   })
 })
 
