@@ -2,6 +2,7 @@
 'use client'
 
 import type { Cell, World } from '@content/types/world'
+import type { DoorMarker } from '@/lib/village/door-marker'
 
 import { MapSvg } from '../WorldMap/map-svg'
 import styles from './minimap.module.css'
@@ -12,6 +13,7 @@ export type MinimapProps = {
   player: Cell
   destination: Cell | null
   placeNames: Record<string, string>
+  doors: readonly DoorMarker[]
   label: string
   onOpen: () => void
 }
@@ -22,6 +24,7 @@ export function Minimap({
   player,
   destination,
   placeNames,
+  doors,
   label,
   onOpen,
 }: MinimapProps) {
@@ -34,6 +37,7 @@ export function Minimap({
         player={player}
         destination={destination}
         spotIds={Object.keys(placeNames)}
+        doors={doors}
       />
     </button>
   )
