@@ -151,6 +151,10 @@ function VillagePage({ locale }: VillagePageProps) {
         sprites={sheetLayout(sprites)}
         playerSprites={sheetLayout(playerSprites)}
         weatherSprites={weatherSprites}
+        phaseSheets={DAY_PHASES.map(phase => ({
+          phase,
+          urls: [sheetUrl('sprite', phase), sheetUrl('player', phase)],
+        }))}
         exit={<ExitLink href={toHref('/list', locale)} label={text.toList} />}
         stopHrefs={stopHrefs}
         stopExternal={stopExternal}

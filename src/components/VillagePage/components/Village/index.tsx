@@ -19,7 +19,7 @@ import WorldMap from './components/WorldMap'
 import Ground from './components/Ground'
 import FishingFloat from './components/FishingFloat'
 import LampVeil from './components/LampVeil'
-import { useDayPhase } from './hooks/use-day-phase'
+import { useDayPhase, type PhaseSheets } from './hooks/use-day-phase'
 import { VIEW_COLS } from './hooks/use-stage-scale'
 import { useVillage } from './hooks/use-village'
 import { useWeather } from './hooks/use-weather'
@@ -35,6 +35,7 @@ type VillageProps = {
   // 主人公だけ 16×24 の別シート(頭がマスの上へ半マスはみ出す)の配置情報
   playerSprites: SheetLayout
   weatherSprites: WeatherSheets
+  phaseSheets: PhaseSheets
   // 一覧への出口リンク。縦持ちタッチでは枠のすぐ下に横長で置くので Village の中で描く
   exit: ReactNode
   // spot.id → 解決済みリンク。null はリンク無し
@@ -53,6 +54,7 @@ function Village({
   sprites,
   playerSprites,
   weatherSprites,
+  phaseSheets,
   exit,
   stopHrefs,
   stopExternal,
@@ -60,7 +62,7 @@ function Village({
   catches,
   roleLabels,
 }: VillageProps) {
-  const phase = useDayPhase()
+  const phase = useDayPhase(phaseSheets)
   const weather = useWeather()
   const {
     rootRef,
