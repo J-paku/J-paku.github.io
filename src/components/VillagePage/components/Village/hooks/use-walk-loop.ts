@@ -5,12 +5,13 @@ import { useCallback, useEffect, useRef } from 'react'
 import type { RefObject } from 'react'
 import type { Cell, Direction, World } from '@content/types/world'
 import type { SheetLayout } from '@/lib/pixel/art'
+import { lampVeilAt, type LampVeil } from '@/lib/village/lamp-veil'
 import { step, type MoveState } from '@/lib/village/movement'
 import { playerPose, type FishingPose } from '@/lib/village/player-pose'
 import { isFishingSpot } from '@/lib/village/fishing'
 import { facedCell } from '@/lib/village/spot'
 import { findPath } from '@/lib/village/path'
-import { spriteIndex } from '../sprite-style'
+import { spriteIndex, spriteStyle } from '../sprite-style'
 import { approachCamera, cameraOffset, VIEW_COLS } from './use-stage-scale'
 
 // 表示座標 = マス座標 + 移動中の補間。reduced motion では補間せず到着マスへ飛ぶ
@@ -31,6 +32,29 @@ const markLoop = (frame: HTMLElement | null, state: 'running' | 'idle') => {
   frame.dataset.villageLoop = state
 }
 
+// 主人公に重なった街灯を、主人公の上へ重ねる層(LampVeil)の席へ写す。
+// 席は 1 組ぶんしか無いので、返ってきたマスを頭から順に入れ、余った席は消す。
+// null(どの街灯にも重なっていない)なら全部の席を消す — 消さないと幽霊の街灯が残る。
+// 呼ぶのは重なりが変わったフレームだけ。markLoop と同じで、同じ値を書き直さない
+const applyLampVeil = (root: HTMLElement | null, veil: LampVeil | null, sprites: SheetLayout) => {
+  if (root === null) return
+  Array.from(root.children).forEach((slot, i) => {
+    if (!(slot instanceof HTMLElement)) return
+    if (veil === null || i >= veil.cells.length) {
+      delete slot.dataset.villageVeilOn
+      return
+    }
+    const { cell, key } = veil.cells[i]
+    // 置き場と添字の求め方は地形の層(Ground)と同じ 1 か所から取る。
+    // spriteStyle は React 用に CSSProperties を返すので、DOM へ書くときだけ文字列にする
+    const style = spriteStyle(cell.x, cell.y, spriteIndex(sprites, key))
+    slot.style.left = String(style.left)
+    slot.style.top = String(style.top)
+    slot.style.setProperty('--i', String(style['--i']))
+    slot.dataset.villageVeilOn = ''
+  })
+}
+
 export type WalkLoopOptions = {
   frameRef: RefObject<HTMLDivElement | null>
   // カメラで動く層。表示枠の中をこれごとずらしてワールドをスクロールさせる
@@ -43,6 +67,8 @@ export type WalkLoopOptions = {
   hintRef: RefObject<HTMLDivElement | null>
   // 夜に主人公が持つ灯り。吹き出しの土台と同じく人物と同じ transform を受けて付いて回る
   playerLightRef: RefObject<HTMLDivElement | null>
+  // 主人公に重なった街灯を主人公の上へ重ねる層(LampVeil)。子 1 つがマス 1 つぶんの席
+  lampVeilRef: RefObject<HTMLDivElement | null>
   // ワープ後に新しいワールドの描画を待つ間だけ出す覆い。閾値を超えた時だけ見せる
   loadingRef: RefObject<HTMLDivElement | null>
   worldRef: RefObject<World>
@@ -58,6 +84,8 @@ export type WalkLoopOptions = {
   fishingPoseRef: RefObject<FishingPose | null>
   onFishingTarget: (cell: Cell | null) => void
   sprites: SheetLayout
+  // ワールドのスプライトシート。街灯の添字を引くのに使う(主人公の 16×24 シートとは別物)
+  veilSprites: SheetLayout
   reduceMotion: boolean
   arrive: (cell: Cell) => void
   bump: (cell: Cell) => void
@@ -78,6 +106,7 @@ export function useWalkLoop({
   locatorRef,
   hintRef,
   playerLightRef,
+  lampVeilRef,
   loadingRef,
   worldRef,
   stateRef,
@@ -89,6 +118,7 @@ export function useWalkLoop({
   fishingPoseRef,
   onFishingTarget,
   sprites,
+  veilSprites,
   reduceMotion,
   arrive,
   bump,
@@ -121,6 +151,11 @@ export function useWalkLoop({
   const lastTransformRef = useRef('')
   // 枠の幅(px)。ResizeObserver が大きさの変わった時だけ書き、描く側はこれを読む。null はまだ測っていない
   const frameWidthRef = useRef<number | null>(null)
+  // 直前に街灯を調べたマス(ワールド id 込み)。同じマスに立っている間は調べ直さない
+  const veilCellRef = useRef('')
+  // 直前に重ねた街灯(ワールド id 込み。空文字はどれにも重なっていない)。
+  // 街灯が変わったフレームだけ層を書き換える
+  const veilIdRef = useRef('')
 
   // 人物のコマ(向き・歩き・竿)と反転を DOM へ書く。位置は直前のまま使うので、
   // 歩行が止まっている間でも呼べる。同じコマならシートの添字は書き換えない。
@@ -187,6 +222,19 @@ export function useWalkLoop({
       }
       waitSinceRef.current = null
       if (loading !== null) delete loading.dataset.show
+      // 主人公に重なった街灯を主人公の上へ重ねる。どの街灯に重なるかは規則の層が決め、
+      // ここは変わった時だけ DOM へ写す。立つマスが同じ間は判定も呼ばない。
+      // 置き場は calc(var(--cell) * マス) で書くので、枠の大きさが変わっても書き直さなくてよい
+      const veilCell = `${world.id}:${state.cell.x},${state.cell.y}`
+      if (veilCellRef.current !== veilCell) {
+        veilCellRef.current = veilCell
+        const veil = lampVeilAt(world, state.cell)
+        const veilId = veil === null ? '' : `${world.id}:${veil.id}`
+        if (veilIdRef.current !== veilId) {
+          veilIdRef.current = veilId
+          applyLampVeil(lampVeilRef.current, veil, veilSprites)
+        }
+      }
       // マスの実寸は表示枠(10列)基準。ワールドが広くてもマスの大きさは変えない。
       // 幅は覚えた値を使う。毎フレーム clientWidth を読むと、直前のスタイル変更(CSS アニメーション・
       // React のコミット)の再計算をその場で強いる。測る前(最初のフレーム)だけ直接読む
@@ -235,6 +283,8 @@ export function useWalkLoop({
       locatorRef,
       hintRef,
       playerLightRef,
+      lampVeilRef,
+      veilSprites,
       loadingRef,
       onFishingTarget,
     ]

@@ -51,12 +51,12 @@ describe('worldLights (町)', () => {
   it('街灯 3 本ぶんの灯りが出る', () => {
     expect(byKind(town, 'lamp')).toHaveLength(3)
   })
-  it('街灯の灯はマスの中央より少し下で、暖色の中くらいの灯りになる', () => {
-    // 街灯は cell(= 上のマス)が灯、その真下が柱
+  it('街灯の灯はマスの中ほどで、暖色の中くらいの灯りになる', () => {
+    // 街灯は cell(= 上のマス)が灯、その真下が柱の根元。灯はそのマスのガラスの位置
     const lamp = lightById(town, 'lamp-west')
     expect(lamp).toMatchObject({ kind: 'lamp', radius: 2.6, intensity: 0.3, color: '#ffe8a8' })
     expect(lamp.x).toBeCloseTo(9.5)
-    expect(lamp.y).toBeCloseTo(8.6)
+    expect(lamp.y).toBeCloseTo(8.5)
     expect(lamp.flicker).toBeUndefined()
   })
   it('ポストの LED は 1 つで、マスの中央を弱く照らす', () => {
