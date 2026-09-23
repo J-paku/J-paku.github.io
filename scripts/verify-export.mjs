@@ -1,4 +1,8 @@
-// out/ の自己整合性検査。HTML が参照する css/js が同じツリーに実在するかを見る。
+// out/ の自己整合性検査。二言語版 404 を out/404.html へ戻したうえで、次を見る:
+//   - 404 の中身(out/404.html は ja/ko の案内があり村の殻が無い、out/404/index.html は not-found の出力)
+//   - 必須ページの実在
+//   - HTML が参照する css/js・スプライトシート・同じオリジンの静的ファイル(public/ 由来)の実在と中身
+//   - 入口の本文に村の舞台が焼かれているか
 // 参照が0件なら「全部揃っている」ではなく「検査できていない」なので exit 1
 import { readdirSync, readFileSync, existsSync, statSync, copyFileSync } from 'node:fs'
 import path from 'node:path'
@@ -36,10 +40,42 @@ for (const [label, target] of [
   }
 }
 copyFileSync(NOT_FOUND_SRC, NOT_FOUND_DST)
+
+// 存在と大きさだけでは、入口の index.html を複製したような「404 のふりをした別ページ」が通る。
+// ここからは実際に配る中身を見る。out/404.html は上で複製した後の(= アップロードされる)ファイル。
+// 村の舞台(data-village-*)や Next の束(/_next/)を抱えていたら、404 ではなくアプリの殻を配っている
+const APP_SHELL_MARKERS = ['data-village', '/_next/']
+const NOT_FOUND_GUIDES = [
+  ['ja', '<section lang="ja">', 'ページが見つかりません'],
+  ['ko', '<section lang="ko">', '페이지를 찾을 수 없습니다'],
+]
 const notFoundHtml = readFileSync(NOT_FOUND_DST, 'utf-8')
-if (!notFoundHtml.includes('lang="ja"') || !notFoundHtml.includes('lang="ko"')) {
-  console.error('verify-export: out/404.html が二言語版になっていない')
-  process.exit(1)
+for (const [lang, section, heading] of NOT_FOUND_GUIDES) {
+  if (!notFoundHtml.includes(section) || !notFoundHtml.includes(heading)) {
+    console.error(`verify-export: out/404.html に ${lang} の案内が無い(${section} / ${heading})`)
+    failed = true
+  }
+}
+for (const marker of APP_SHELL_MARKERS) {
+  if (notFoundHtml.includes(marker)) {
+    console.error(`verify-export: out/404.html が 404 ではなくアプリの殻を含む: ${marker}`)
+    failed = true
+  }
+}
+// out/404/index.html は next build の not-found そのもの(英語の既定版)。Next は not-found に
+// robots noindex を必ず付けるので、それを「404 として出力された」印に使う。村の印があれば入口の複製
+if (existsSync(NOT_FOUND_ROUTE)) {
+  const routeHtml = readFileSync(NOT_FOUND_ROUTE, 'utf-8')
+  if (!/<meta name="robots" content="noindex"\/>/.test(routeHtml)) {
+    console.error(
+      'verify-export: out/404/index.html に robots noindex が無い。not-found の出力ではない'
+    )
+    failed = true
+  }
+  if (routeHtml.includes('data-village')) {
+    console.error('verify-export: out/404/index.html が村の舞台を含む。not-found の出力ではない')
+    failed = true
+  }
 }
 
 const walk = dir =>
@@ -120,6 +156,33 @@ if (spriteRefs.size === 0) {
   failed = true
 }
 
+// public/ から出る静的ファイル(ロゴ・スクリーンショット・favicon・OG 画像など)の参照。
+// HTML 属性だけでなく RSC ペイロード(\"/logos/…png\" のようにエスケープされた JSON 文字列)にも
+// 書かれ、村のモーダルはそちらから描くので、引用符の前の \\ を許して両方を拾う。
+// OG 画像は絶対 URL(src/lib/metadata.ts の SITE = https://j-paku.github.io)で書かれるので同じオリジンとして扱う。
+// 拡張子の無いページ経路(/list/ など)は対象外。同じオリジンに別リポジトリの Pages
+// (/seatmap-demo/ など)が載っており out/ には無いのが正しいため。ページは REQUIRED で見ている
+const STATIC_REF =
+  /\\?"(?:https:\/\/j-paku\.github\.io)?(\/(?!\/|_next\/)[^"\\\s<>?#]*\.[a-z0-9]+)(?:[?#][^"\\\s<>]*)?\\?"/g
+const staticRefs = new Map()
+for (const file of htmlFiles) {
+  const html = readFileSync(file, 'utf-8')
+  for (const [, ref] of html.matchAll(STATIC_REF)) {
+    if (!staticRefs.has(ref)) staticRefs.set(ref, path.relative(OUT, file))
+  }
+}
+for (const [ref, from] of staticRefs) {
+  const abs = path.join(OUT, decodeURIComponent(ref))
+  if (!existsSync(abs) || statSync(abs).size === 0) {
+    console.error(`verify-export: ${from} などが参照する ${ref} が out/ に無いか空`)
+    failed = true
+  }
+}
+if (staticRefs.size === 0) {
+  console.error('verify-export: 静的ファイルの参照が0件。検査が成立していない')
+  failed = true
+}
+
 // 参照の整合だけでは「中身が空の殻」を配っても全部通る。入口の本文に村の舞台が
 // 焼かれていることまで見る。静的エクスポートなので舞台は HTML の中に文字列として在る
 // (out/index.html を実際に読んで選んだ印。Village が枠・地形・主人公へ立てる data 属性)
@@ -138,5 +201,5 @@ for (const rel of ['index.html', 'ko/index.html']) {
 
 if (failed) process.exit(1)
 console.log(
-  `verify-export: OK (${htmlFiles.length} html, ${refs} refs, ${spriteRefs.size} sprite sheets)`
+  `verify-export: OK (${htmlFiles.length} html, ${refs} refs, ${spriteRefs.size} sprite sheets, ${staticRefs.size} static files)`
 )

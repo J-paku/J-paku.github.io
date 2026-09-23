@@ -104,8 +104,20 @@ describe('fetchOsakaPrecipitation', () => {
     expect(await fetchOsakaPrecipitation()).toBe('none')
   })
 
+  it('snowfall が数値でない応答は none を返す', async () => {
+    // 文字列 '0.4' も比較 > 0 では真になる。形の検査が無ければ snow に化けるので、
+    // snowfall の型を見る検査だけがこの入力を none に留めている
+    fetchMock.mockResolvedValueOnce(
+      fakeResponse(200, { current: { precipitation: 0, snowfall: '0.4' } })
+    )
+
+    expect(await fetchOsakaPrecipitation()).toBe('none')
+  })
+
   it('ok=true でも本文が空文字なら none を返す', async () => {
-    // 本文が object ですらない場合。形の検査を外すと例外になり、返り値では済まなくなる
+    // 本文が object ですらない場合。形の検査を外しても current の参照で例外になり catch が none に
+    // 丸めるので、この 2 件が見ているのは「例外が呼び出し側へ漏れず none で返る」ことだけ
+    // (形の検査そのものは、precipitation / snowfall が数値でない応答の 2 件が押さえる)
     fetchMock.mockResolvedValueOnce(fakeResponse(200, ''))
 
     expect(await fetchOsakaPrecipitation()).toBe('none')

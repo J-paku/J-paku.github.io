@@ -9,10 +9,13 @@
 //   3. 禁則     — 行頭に句読点・閉じ括弧・小書き仮名・長音符が来ていないか。行末に開き括弧が
 //                 来ていないか
 //   4. 孤立行   — 2行以上ある段落の最終行が1〜2文字だけになっていないか(報告のみ、既定では落とさない)
+//   5. 文節境界 — 日本語の文章に <wbr> が入っているか。2 の判定は <wbr> の位置を頼りにするので、
+//                 <wbr> が丸ごと消えると文全体が1語に見え、語中改行が全部「不可避」に化けて緑になる
 //
 // 使い方: node scripts/check-ja-linebreak.mjs <baseUrl> [--verbose] [path...]
 import { execSync } from 'node:child_process'
 import { chromium } from 'playwright'
+import { expectedDisclosureIds } from './expected-disclosures.mjs'
 
 const argv = process.argv.slice(2)
 const isVerbose = argv.includes('--verbose')
@@ -39,10 +42,21 @@ const hasDisclosures = targetPath => DISCLOSURE_PATHS.includes(targetPath.replac
 // 1 組(経路 × 幅)で測れていなければ「検査が成立していない」とみなす要素数の下限。
 // verify-export.mjs が参照0件を exit 1 にしているのと同じ考え方で、測れなかったことを
 // 「違反が無い」と読み替えないための床。
+// 数えるのは CJK(かな・漢字・ハングル)を含む要素だけ。ラテン文字だけの要素(英語の見出し・
+// 技術名・数字)はこの検査の対象外の組版なので、それで床を満たしても何も測ったことにならない。
+// ハングルも数えるのは、/ko 系の経路に日本語はほぼ無く、そこでは韓国語が測る対象だから。
 // 実測(2026-09-23、:4173 の out/):村 / と /ko/ が 9 要素、作品ページが 30 要素、
 // 一覧は初期状態で 209〜224 要素(折りたたみを開いたぶんはさらに増える)。
 // 一番少ない村でも半分近くまで減らないと踏まない 5 に置く
 const MIN_ELEMENTS_PER_COMBO = 5
+
+// 「枠より長い語だから語中で折るしかない(不可避)」と認める文節の、日本語(かな・漢字)の文字数の上限。
+// 文節は <wbr> で区切られた単位なので、<wbr> が抜ければ文全体が1語として測られ、
+// 語中改行が軒並み「不可避」(警告のみ)に化ける。本物の文節で日本語がこれより長いものは無い:
+// 実測(2026-09-24、全6経路 390px)で一番長いのは「大手エレベーターメーカー(2023.10」の12字、
+// 不可避の実例は「クロスプラットフォーム」の11字。ラテン文字は数えない(「UIImagePickerControllerに」は1字)。
+// これを超える日本語を抱えた「語」は文節ではなく、文節境界が抜けた文とみなして落とす
+const MAX_PHRASE_JA_CHARS = 16
 
 // 文節途中の判定をスキップした要素(word-break: normal)の割合の上限。
 // オプトアウトは狭い幅(@media max-width: 767px)の長文段落だけに掛かっており
@@ -93,7 +107,7 @@ const EXPECTED_STYLE = {
 }
 
 async function measurePage(page) {
-  return page.evaluate(() => {
+  return page.evaluate(maxPhraseJaChars => {
     // 行頭に来てはいけない文字(終わり括弧・句読点・小書き仮名・長音符・中黒)
     const FORBIDDEN_LINE_START =
       '、。，．・：；？！゛゜ヽヾゝゞ々ー’”)〕]｝〉》」』】〙〗〟｠»' +
@@ -127,6 +141,12 @@ async function measurePage(page) {
       }
       return { chars, allowedBreaks }
     }
+
+    // 日本語の文字(かな・漢字)。文節の長さと、日本語の本文かどうかの判定に使う
+    const JAPANESE = /[\p{sc=Hiragana}\p{sc=Katakana}\p{sc=Han}]/u
+    // 床(MIN_ELEMENTS_PER_COMBO)に数える文字。日本語に加えてハングル
+    const CJK = /[\p{sc=Hiragana}\p{sc=Katakana}\p{sc=Han}\p{sc=Hangul}]/u
+    const countJapanese = text => [...text].filter(char => JAPANESE.test(char)).length
 
     const results = []
     for (const element of document.querySelectorAll('body *')) {
@@ -197,6 +217,7 @@ async function measurePage(page) {
       const wordBreakSkipped = style.wordBreak === 'normal'
       const badBreaks = []
       const forcedBreaks = []
+      const missingPhraseBreaks = []
       if (!wordBreakSkipped) {
         // 枠より長い語は、どこかで折るしか手が無い。文節幅と要素の内容幅を実測して切り分ける
         const elementStyle = window.getComputedStyle(element)
@@ -237,7 +258,13 @@ async function measurePage(page) {
 
           const chunk = chunkAround(startIndex - 1)
           const label = `…${lines[index - 1].text.slice(-4)} / ${lines[index].text.slice(0, 4)}…`
-          if (widthOf(chunk) > contentWidth) {
+          const chunkJaChars = countJapanese(chunk)
+          if (widthOf(chunk) > contentWidth && chunkJaChars > maxPhraseJaChars) {
+            // 枠より長いのは「語」が文節ではなく文だから。不可避ではなく、<wbr> が抜けている
+            missingPhraseBreaks.push(
+              `${label} (日本語${chunkJaChars}字が1語扱い、上限${maxPhraseJaChars}字: "${chunk.slice(0, 20)}…")`
+            )
+          } else if (widthOf(chunk) > contentWidth) {
             forcedBreaks.push(
               `${label} (語幅${Math.round(widthOf(chunk))}px > 枠${Math.round(contentWidth)}px)`
             )
@@ -263,10 +290,15 @@ async function measurePage(page) {
       const lastLine = lines[lines.length - 1].text.trim()
       const isOrphan = lines.length >= 2 && lastLine.length > 0 && lastLine.length <= 2
 
+      const text = chars.map(entry => entry.char).join('')
       results.push({
         selector,
         lines: lines.map(line => line.text),
+        hasCjk: CJK.test(text),
+        // 直下の <wbr> の数。日本語の文書で全要素の合計が0なら、文節境界が丸ごと消えている
+        wbrCount: [...element.childNodes].filter(node => node.nodeName === 'WBR').length,
         badBreaks,
+        missingPhraseBreaks,
         kinsokuStart,
         kinsokuEnd,
         isOrphan,
@@ -278,6 +310,7 @@ async function measurePage(page) {
 
     const bodyStyle = window.getComputedStyle(document.body)
     return {
+      lang: document.documentElement.lang,
       style: {
         wordBreak: bodyStyle.wordBreak,
         overflowWrap: bodyStyle.overflowWrap,
@@ -285,7 +318,7 @@ async function measurePage(page) {
       },
       results,
     }
-  })
+  }, MAX_PHRASE_JA_CHARS)
 }
 
 // items を同時 limit 本までで task に通し、結果を items と同じ順で返す。
@@ -311,7 +344,7 @@ async function mapWithConcurrency(items, limit, task) {
 }
 
 // 1 組(経路 × 幅)を開き、初期状態と折りたたみを 1 つずつ開いた状態を測って
-// { targetPath, width, measurements, disclosureCount } で返す。
+// { targetPath, width, measurements, openedIds } で返す。openedIds は開けた折りたたみの id。
 // measurements は { label, measurement } の列。
 // 集計(recordMeasurement)は並列の外で組の順に行うので、出力の並びは 1 組ずつ測っていた頃と変わらない
 async function measureCombo(browser, targetPath, width) {
@@ -348,7 +381,7 @@ async function measureCombo(browser, targetPath, width) {
     // トグルは id を名指しせず「button[aria-controls]」という形で集める。個別の id
     // (かつて panel-career、今なら ai-harness-detail)を書くと、作品が入れ替わった日に
     // 一致するものが無くなり、検査は落ちずに空回りしたまま緑を出し続ける(03-pitfalls.md #11)
-    let disclosureCount = 0
+    const openedIds = new Set()
     if (hasDisclosures(targetPath)) {
       for (const trigger of await page.$$('button[aria-controls]')) {
         // 畳まれた中にいるトグルは押せない。見えているものだけを開く
@@ -360,14 +393,14 @@ async function measureCombo(browser, targetPath, width) {
         // 開き切る前に測ると、確定していない幅で改行位置を読むことになる
         await page.waitForFunction(el => el.getAttribute('aria-expanded') === 'true', trigger)
         await page.waitForSelector(`[id="${controls}"]`, { state: 'visible' })
-        disclosureCount += 1
+        openedIds.add(controls)
         measurements.push({
-          label: `${targetPath} (開閉${disclosureCount}) @${width}px`,
+          label: `${targetPath} (開閉${openedIds.size}) @${width}px`,
           measurement: await measurePage(page),
         })
       }
     }
-    return { targetPath, width, measurements, disclosureCount }
+    return { targetPath, width, measurements, openedIds }
   } finally {
     await context.close()
   }
@@ -385,6 +418,8 @@ async function main() {
   // 折りたたみの中は初期状態で hidden のため、開かないまま計測すると中の本文の改行が
   // 一度も測定対象に入らず、そこに潜む違反が PASS 方向に見えてしまう(03-pitfalls.md #5・#7 と同型)
   function recordMeasurement(label, { style, results }) {
+    let cjkElements = 0
+    let wbrCount = 0
     for (const [property, expected] of Object.entries(EXPECTED_STYLE)) {
       if (style[property] !== expected) {
         failures += 1
@@ -396,11 +431,18 @@ async function main() {
 
     for (const result of results) {
       measuredElements += 1
+      if (result.hasCjk) cjkElements += 1
+      wbrCount += result.wbrCount
       if (result.wordBreakSkipped) skippedElements += 1
       if (result.badBreaks.length > 0) {
         failures += 1
         console.error(`[NG] ${label} ${result.selector}: 文節の途中で改行`)
         for (const bad of result.badBreaks) console.error(`       ${bad}`)
+      }
+      if (result.missingPhraseBreaks.length > 0) {
+        failures += 1
+        console.error(`[NG] ${label} ${result.selector}: 文節の区切り(<wbr>)が無いまま語中で改行`)
+        for (const missing of result.missingPhraseBreaks) console.error(`       ${missing}`)
       }
       if (result.kinsokuStart.length > 0 || result.kinsokuEnd.length > 0) {
         failures += 1
@@ -424,8 +466,8 @@ async function main() {
       }
     }
 
-    // 組ごとの成立判定に使うので、この状態で数えた要素数を返す
-    return results.length
+    // 組ごとの成立判定に使うので、この状態で数えた CJK の要素数と <wbr> の数を返す
+    return { cjkElements, wbrCount }
   }
 
   try {
@@ -435,24 +477,44 @@ async function main() {
     )
     // 組ごとに数えるのは、経路が 404 に化けた・本文が描かれなかった回を「違反0件」で
     // 通さないため。合計だけを見ていると、よく測れた経路が空の経路を埋め合わせてしまう
-    for (const { targetPath, width, measurements, disclosureCount } of measured) {
+    for (const { targetPath, width, measurements, openedIds } of measured) {
       let comboElements = 0
+      let comboWbr = 0
       for (const { label, measurement } of measurements) {
-        comboElements += recordMeasurement(label, measurement)
+        const { cjkElements, wbrCount } = recordMeasurement(label, measurement)
+        comboElements += cjkElements
+        comboWbr += wbrCount
       }
-      // 折りたたみが0件のまま通ると、開いた中の改行を一度も測らずに「違反0件」になる
-      if (hasDisclosures(targetPath) && disclosureCount === 0) {
-        failures += 1
-        console.error(
-          `[NG] ${targetPath} @${width}px: 開閉トグル(button[aria-controls])が0件。` +
-            '折りたたみの中を一度も測っていない'
-        )
+      // 床を「1件以上」にすると、2件のうち1件が消えても中を測らないまま通る。
+      // 詳細を持つ作品を content から数え、その全部を開けたことを断言する(expected-disclosures.mjs)
+      if (hasDisclosures(targetPath)) {
+        const expectedIds = expectedDisclosureIds(targetPath)
+        const missingIds = expectedIds.filter(id => !openedIds.has(id))
+        if (expectedIds.length === 0 || missingIds.length > 0) {
+          failures += 1
+          console.error(
+            `[NG] ${targetPath} @${width}px: 開閉トグルを${openedIds.size}/${expectedIds.length}件しか開けていない` +
+              `(未測定: ${missingIds.join(', ') || 'content に詳細を持つ作品が0件'})。` +
+              '折りたたみの中を測っていない'
+          )
+        }
       }
       if (comboElements < MIN_ELEMENTS_PER_COMBO) {
         failures += 1
         console.error(
-          `[NG] ${targetPath} @${width}px: 測定できた要素が${comboElements}件` +
+          `[NG] ${targetPath} @${width}px: 測定できた CJK の要素が${comboElements}件` +
             `(下限${MIN_ELEMENTS_PER_COMBO}件)。検査が成立していない`
+        )
+      }
+      // 文節途中の判定は <wbr> の位置を頼りにする。日本語の文書で <wbr> が1つも無ければ、
+      // 判定は何も区切れないまま「不可避」に逃げる。折り返しが起きない幅でも気づけるよう数で見る。
+      // 実測(2026-09-24)で一番少ない村 / でも 4 個ある
+      const isJapaneseDocument = measurements[0].measurement.lang.startsWith('ja')
+      if (isJapaneseDocument && comboWbr === 0) {
+        failures += 1
+        console.error(
+          `[NG] ${targetPath} @${width}px: 日本語の文書なのに <wbr> が0個。` +
+            '文節境界が消えており、文節途中の改行を判定できない'
         )
       }
     }

@@ -20,6 +20,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
+import { expectedDisclosureIds } from './expected-disclosures.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = path.resolve(__dirname, '..')
@@ -192,20 +193,19 @@ async function openView(browser, targetPath, view) {
 // トグルは id を名指しせず「button[aria-controls]」という形で集める。
 // 個別の id(かつて panel-career、今なら ai-harness-detail)を書くと、作品が入れ替わった日に
 // 一致するものが無くなり、検査は落ちずに空回りしたまま [OK] を出し続ける(03-pitfalls.md #11)
-async function auditDisclosures(page, targetPath) {
+//
+// 見え方ごと(既定・縦持ち・ダーク)に開く。詳細の本文は開かないと hidden なので、既定でしか
+// 開かないと「ダークテーマでだけ薄い本文色」のような違反が一度も axe に掛からない
+async function auditDisclosures(page, targetPath, viewLabel) {
   const triggers = await page.$$('button[aria-controls]')
   // 畳まれた中にいるトグルは押せない。見えているものだけを対象にする
   const visibleTriggers = []
   for (const trigger of triggers) {
     if (await trigger.isVisible()) visibleTriggers.push(trigger)
   }
-  // 0件だと下の for が一度も回らず、中を一度も見ないまま [OK] が出る。
-  // 「開かなかった」を「違反が無かった」と読み替えないために、在るはずの経路では件数を断言する
-  if (visibleTriggers.length === 0 && hasDisclosures(targetPath)) {
-    failSetup(`${targetPath}: 開閉トグル(button[aria-controls])が0件。中身を一度も検査していない`)
-  }
 
   const reports = []
+  const openedIds = new Set()
   for (const [index, trigger] of visibleTriggers.entries()) {
     const controls = await trigger.getAttribute('aria-controls')
     // 既に開いているものを押すと畳んでしまう。閉じている時だけ押す
@@ -218,9 +218,10 @@ async function auditDisclosures(page, targetPath) {
       })
       await page.waitForSelector(`[id="${controls}"]`, { state: 'visible', timeout: 5_000 })
     } catch {
-      failSetup(`${targetPath}: トグル${index + 1}(aria-controls="${controls}")を押しても開かない`)
+      failSetup(`${viewLabel}: トグル${index + 1}(aria-controls="${controls}")を押しても開かない`)
       continue
     }
+    openedIds.add(controls)
     // 開いた後もスタイル再計算・ペイントが同フレームに乗り切らない場合があるため、2フレーム待って確定させる
     await page.evaluate(
       () =>
@@ -229,9 +230,25 @@ async function auditDisclosures(page, targetPath) {
         })
     )
     reports.push({
-      label: `${targetPath} (開閉${index + 1}: ${controls})`,
+      label: `${viewLabel} (開閉${index + 1}: ${controls})`,
       ...(await runAxe(page)),
     })
+  }
+
+  // 床を「1件以上」にすると、2件のうち1件が消えても中を検査しないまま通る。
+  // 詳細を持つ作品を content から数え、その全部を開けたことを断言する(expected-disclosures.mjs)
+  if (hasDisclosures(targetPath)) {
+    const expectedIds = expectedDisclosureIds(targetPath)
+    if (expectedIds.length === 0) {
+      failSetup(`${viewLabel}: content に詳細を持つ作品が0件。開閉トグルの期待値を数えられていない`)
+    }
+    const missingIds = expectedIds.filter(id => !openedIds.has(id))
+    if (missingIds.length > 0) {
+      failSetup(
+        `${viewLabel}: 開閉トグルを${openedIds.size}/${expectedIds.length}件しか開けていない` +
+          `(未検査: ${missingIds.join(', ')})。中身を検査していない詳細がある`
+      )
+    }
   }
   return reports
 }
@@ -262,7 +279,7 @@ async function auditVillageDialog(page, targetPath) {
 }
 
 // 1経路ぶんの axe 実行結果を返す。見え方(既定・縦持ち・ダーク)ごとに開き直し、
-// 既定の見え方では さらに折りたたみと村の会話窓という「開かないと見えない状態」も検査する
+// 折りたたみは見え方ごとに開いて検査する。村の会話窓は既定の見え方でだけ開く
 async function auditPath(browser, targetPath) {
   const reports = []
   for (const view of VIEWS) {
@@ -271,12 +288,14 @@ async function auditPath(browser, targetPath) {
       const label = view.name === '既定' ? targetPath : `${targetPath} (${view.name})`
       reports.push({ label, ...(await runAxe(page)) })
 
-      // 開いた状態は既定の見え方で1回ずつ。見え方の数だけ開き直すと、同じ本文を
+      // 折りたたみの中は本文の色・幅が見え方ごとに変わるので、見え方ごとに開く。
+      // 一覧2経路 × 詳細の件数 × 3 見え方ぶん axe が増える(実測は下の件数表示を参照)
+      if (hasDisclosures(targetPath)) {
+        reports.push(...(await auditDisclosures(page, targetPath, label)))
+      }
+      // 会話窓は既定の見え方で1回だけ。見え方の数だけ開き直すと、同じ本文を
       // 何度も測るために実行時間だけが伸びる
       if (view.name === '既定') {
-        if (hasDisclosures(targetPath)) {
-          reports.push(...(await auditDisclosures(page, targetPath)))
-        }
         if (isVillagePath(targetPath)) {
           reports.push(...(await auditVillageDialog(page, targetPath)))
         }

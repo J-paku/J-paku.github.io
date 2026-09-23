@@ -23,7 +23,8 @@ describe('validateWorldSet', () => {
   })
   it('1 行だけ短い tiles でも列数の食い違いを報告する', () => {
     // 行数は height と合っているので、列を見る検査が無ければ素通りしてしまう
-    const ragged = tinyTown().tiles.map((row, i) => (i === 0 ? row.slice(0, 4) : row))
+    // 短くするのは先頭でも末尾でもない途中の行。先頭行や末尾行だけを見る検査ではここを見逃す
+    const ragged = tinyTown().tiles.map((row, i) => (i === 2 ? row.slice(0, 4) : row))
     expect(validateWorldSet(townSet({ tiles: ragged }))).toContain(
       'ワールド "town": tiles の列数が width と一致しない'
     )
