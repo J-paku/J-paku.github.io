@@ -16,7 +16,7 @@ const realTownOrUndefined = readWorldSet().worlds.town
 if (realTownOrUndefined === undefined) throw new Error('worldSet に town が無い')
 const realTown: World = realTownOrUndefined
 
-// 北半分が草、南半分が水の野原。水際の東端に街灯を置き、灯のマス(通行不可)に立った場合も見る
+// 北半分が草、南半分が水の野原。東端に街灯を置き、柱の立つ水際のマス(通行不可)に立った場合も見る
 const pond: World = {
   id: 'pond',
   kind: 'exterior',
@@ -30,7 +30,8 @@ const pond: World = {
     ['water', 'water', 'water', 'water'],
     ['water', 'water', 'water', 'water'],
   ],
-  structures: [{ id: 'lp', kind: 'lamp', cell: { x: 3, y: 1 } }],
+  // 街灯の cell は灯(3,0)で、塞ぐのは柱が立つ真下の (3,1)
+  structures: [{ id: 'lp', kind: 'lamp', cell: { x: 3, y: 0 } }],
   spots: [],
   warps: [],
 }
@@ -46,8 +47,8 @@ describe('isFishingSpot', () => {
   it('水から 2 マス以上離れていれば釣れない', () => {
     expect(isFishingSpot(pond, { cell: { x: 1, y: 0 }, facing: 'down' })).toBe(false)
   })
-  it('立っているマスが通行不可(街灯の上)なら釣れない', () => {
-    // (3,1) は街灯の灯のマス(通行不可)。向いている先 (3,2) は水だが、そもそもそこには立てない
+  it('立っているマスが通行不可(街灯の柱)なら釣れない', () => {
+    // (3,1) は街灯の柱が立つマス(通行不可)。向いている先 (3,2) は水だが、そもそもそこには立てない
     expect(isWalkable(pond, { x: 3, y: 1 })).toBe(false)
     expect(isFishingSpot(pond, { cell: { x: 3, y: 1 }, facing: 'down' })).toBe(false)
   })

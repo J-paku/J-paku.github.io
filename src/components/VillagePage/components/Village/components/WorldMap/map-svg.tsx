@@ -172,16 +172,17 @@ const MapTerrain = memo(function MapTerrain({ world, scale }: MapTerrainProps) {
           )
         }
 
-        // 地図が描くのは通行不可のマス(structureRect)であって絵の範囲ではない。街灯は絵が縦 2 マスでも
-        // 塞ぐのは灯の 1 マスだけなので、ここが 1 マスで正しい — 絵と食い違って見えても不具合ではない
+        // 地図が描くのは通行不可のマス(structureRect)であって絵の範囲ではない。街灯は絵が縦 2 マスで、
+        // 塞ぐのは柱の立つ下の 1 マスだけ — cell(灯)とずれるので位置も structureRect から取る。
+        // 絵と食い違って見えても不具合ではない
         const footprint = structureRect(structure)
         const widthInCells = footprint.w
 
         return (
           <rect
             key={structure.id}
-            x={structure.cell.x * scale}
-            y={structure.cell.y * scale}
+            x={footprint.x * scale}
+            y={footprint.y * scale}
             width={widthInCells * scale}
             height={footprint.h * scale}
             fill={structureColor(structure)}

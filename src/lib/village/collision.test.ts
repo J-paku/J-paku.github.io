@@ -128,7 +128,8 @@ const plaza: World = {
   kind: 'exterior',
   width: 6,
   height: 6,
-  start: { x: 0, y: 5 },
+  // (0,5) は街灯の柱が立つマスで通行不可になったので、開始マスは空いている南東の角に置く
+  start: { x: 5, y: 5 },
   startFacing: 'up',
   tiles: Array.from({ length: 6 }, () => Array(6).fill('grass')),
   structures: [
@@ -154,11 +155,11 @@ describe('isWalkable (経歴碑・石碑)', () => {
     expect(isWalkable(plaza, { x: 4, y: 3 })).toBe(true)
     expect(isWalkable(plaza, { x: 5, y: 1 })).toBe(true)
   })
-  it('街灯は灯のある cell の 1 マスだけが不可', () => {
-    expect(isWalkable(plaza, { x: 0, y: 4 })).toBe(false)
-    expect(isWalkable(plaza, { x: 1, y: 4 })).toBe(true)
+  it('街灯は柱の立つマス(cell の真下)だけが不可', () => {
+    expect(isWalkable(plaza, { x: 0, y: 5 })).toBe(false)
+    expect(isWalkable(plaza, { x: 1, y: 5 })).toBe(true)
   })
-  it('街灯の真下(柱の根元が描かれるマス)は通行可', () => {
-    expect(isWalkable(plaza, { x: 0, y: 5 })).toBe(true)
+  it('街灯の灯のマス(cell そのもの)は灯笠の裏として通行可', () => {
+    expect(isWalkable(plaza, { x: 0, y: 4 })).toBe(true)
   })
 })

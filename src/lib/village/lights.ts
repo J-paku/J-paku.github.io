@@ -31,7 +31,7 @@ const WINDOW = '#ffeec8' // 室内から窓越しに漏れる白熱色
 // 紫へわずかに寄せて、電球色の街灯と並んだときに別物だと分かるようにする
 const LED = '#f2e8ff'
 
-// マスの中のどこが灯なのかを dx・dy で持つ。街灯なら上のマスの中ほどにあるガラスが灯になる
+// マスの中のどこが灯なのかを dx・dy で持つ。街灯なら上のマスの少し下寄りが灯になる
 type Glow = {
   kind: LightKind
   dx: number
@@ -51,9 +51,7 @@ type GlowKind = Extract<Structure['kind'], 'lamp' | 'campfire' | 'mailbox'>
 
 // 灯りを持つ構造物の表(種類を増やすときはここへ 1 行足す)
 const GLOW: Record<GlowKind, Glow> = {
-  // 街灯のガラスは上のマスの 5〜10 行目(16 行のうち)なので、縦の中心はマスの半分ちょうど。
-  // 絵を上へ寄せた(柱が下のマスをふさがなくなった)ぶん、灯も同じだけ上げる
-  lamp: { kind: 'lamp', dx: 0.5, dy: 0.5, radius: 2.6, intensity: 0.3, color: WARM },
+  lamp: { kind: 'lamp', dx: 0.5, dy: 0.6, radius: 2.6, intensity: 0.3, color: WARM },
   // ポストの LED は前面の上辺に横一列なので、灯は横の真ん中。にじみは 1 本きりなので縦は
   // 粒の高さまで上げず、胴まで掛かるマスの中ほどに置く。街灯より弱く狭い
   mailbox: { kind: 'mailbox', dx: 0.5, dy: 0.55, radius: 1.8, intensity: 0.22, color: LED },
