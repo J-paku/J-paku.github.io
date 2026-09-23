@@ -15,9 +15,10 @@ import StopModal from './components/StopModal'
 import TalkBubble from './components/TalkBubble'
 import Weather, { type WeatherSheets } from './components/Weather'
 import WorldMap from './components/WorldMap'
-// Ground・FishingFloatはscene.module.cssを読むので、CSSの出力順を変えないよう他の子より後に読み込む
+// Ground・FishingFloat・LampVeilはscene.module.cssを読むので、CSSの出力順を変えないよう他の子より後に読み込む
 import Ground from './components/Ground'
 import FishingFloat from './components/FishingFloat'
+import LampVeil from './components/LampVeil'
 import { useDayPhase } from './hooks/use-day-phase'
 import { VIEW_COLS } from './hooks/use-stage-scale'
 import { useVillage } from './hooks/use-village'
@@ -71,6 +72,7 @@ function Village({
     locatorRef,
     hintRef,
     playerLightRef,
+    lampVeilRef,
     loadingRef,
     camRef,
     world,
@@ -107,7 +109,7 @@ function Village({
     pressA,
     pressB,
     announce,
-  } = useVillage({ worldSet, text, playerSprites, catches, roleLabels })
+  } = useVillage({ worldSet, text, sprites, playerSprites, catches, roleLabels })
 
   const {
     outdoors,
@@ -214,6 +216,11 @@ function Village({
               style={playerStyle}
               aria-hidden='true'
             />
+            {/* 街灯の下のマス(柱の根元)は通れるので、そこに立つと主人公が街灯を塗り潰す。
+                重なった街灯 1 本ぶんを主人公(z 2)の上へ薄く重ねて、柱の向こうに主人公を透かす。
+                どの街灯に重なるかは規則の層が決め、書き込みは use-walk-loop が rAF の中で行う。
+                吹き出し(z 3)より先に置くので、会話の吹き出しはこの層より手前に出る */}
+            <LampVeil veilRef={lampVeilRef} />
             {locatorVisible ? (
               <div
                 ref={locatorRef}

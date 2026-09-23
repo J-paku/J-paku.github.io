@@ -17,7 +17,9 @@ const inRect = (r: Rect, c: Cell): boolean =>
   c.x >= r.x && c.x < r.x + r.w && c.y >= r.y && c.y < r.y + r.h
 
 // 構造物が占有する矩形。家は area 全体、机は 3×2、ベッドは縦 2、テーブル・経歴碑は 2×2、
-// 縦の経歴碑(stele)・街灯(lamp)は縦 2、その他は 1×1
+// 縦の経歴碑(stele)は縦 2、その他は 1×1。
+// 街灯(lamp)は絵が縦 2 マスでも塞ぐのは灯のある cell の 1 マスだけなので、
+// 既定の 1×1 に任せて分岐を持たない(持たせると同じ判定が二重になる)。下の柱の根元は歩いて通れる
 export const structureRect = (structure: Structure): Rect => {
   if (structure.kind === 'house') return structure.area
   const { x, y } = structure.cell
@@ -26,7 +28,6 @@ export const structureRect = (structure: Structure): Rect => {
   if (structure.kind === 'table') return { x, y, w: 2, h: 2 }
   if (structure.kind === 'monument') return { x, y, w: 2, h: 2 }
   if (structure.kind === 'stele') return { x, y, w: 1, h: 2 }
-  if (structure.kind === 'lamp') return { x, y, w: 1, h: 2 }
   return { x, y, w: 1, h: 1 }
 }
 

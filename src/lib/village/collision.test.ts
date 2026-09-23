@@ -154,9 +154,11 @@ describe('isWalkable (経歴碑・石碑)', () => {
     expect(isWalkable(plaza, { x: 4, y: 3 })).toBe(true)
     expect(isWalkable(plaza, { x: 5, y: 1 })).toBe(true)
   })
-  it('街灯は cell とその真下のマスだけが不可', () => {
+  it('街灯は灯のある cell の 1 マスだけが不可', () => {
     expect(isWalkable(plaza, { x: 0, y: 4 })).toBe(false)
-    expect(isWalkable(plaza, { x: 0, y: 5 })).toBe(false)
     expect(isWalkable(plaza, { x: 1, y: 4 })).toBe(true)
+  })
+  it('街灯の真下(柱の根元が描かれるマス)は通行可', () => {
+    expect(isWalkable(plaza, { x: 0, y: 5 })).toBe(true)
   })
 })

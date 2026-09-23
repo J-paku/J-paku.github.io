@@ -24,7 +24,7 @@ export type RoofColor = 'red' | 'blue'
 // robot: 1×1(AI 作業台の相棒ロボット)、mailbox: 1×1(郵便ポスト)
 // desk: cell から 3×2(PC 机)、bed: cell から 1×2、table: cell から 2×2 — いずれも通行不可
 // monument: cell(左上)から 2×2(経歴碑)、stele: cell(上のマス)から縦 1×2(コードのみ対応、現状は未設置) — いずれも通行不可
-// lamp: cell(上のマス = 灯)から縦 1×2(下は柱) — 上下 2 マスとも通行不可
+// lamp: 絵は cell(上のマス = 灯)から縦 1×2(下は柱)だが、通行不可は cell の 1 マスだけ(柱の足元は通れる)
 // campfire: 1×1(ロボットの隣の焚き火) — 通行不可
 // clock: 1×1(自室の小机に載せた卓上時計) — 通行不可
 export type Structure =

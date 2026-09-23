@@ -12,6 +12,9 @@
 5. 歩行ループ(`use-walk-loop.ts`)は rAF の中で **DOM へ直接書く**。React state を経由させない(再レンダーで駒が飛ぶ)
 6. `use-stage-scale.ts` は `--cell` と `--band` を実測で書く。重ね表示(会話窓・地図)は `--band` を超えて操作帯を覆わない
 7. 新しいモーダルはネイティブ `<dialog>` の `showModal()` を使う → [../../../docs/quality/accessibility.md](../../../docs/quality/accessibility.md)
+8. **街灯だけは主人公の上にも描く層がある** — `components/Village/components/LampVeil/`(`.world` の中・`.terrain` の外・z 3)。
+   街灯は上のマスだけが通行不可で、下のマス(柱の根元)に立つと主人公(z 2)が街灯を塗り潰すので、重なった 1 本を半透明で重ね直す。
+   どの街灯かは `src/lib/village/lamp-veil.ts` が決め、位置と表示は `use-walk-loop.ts` が重なりの変わった時だけ DOM へ書く
 
 ## UI の位置を変えるとき
 

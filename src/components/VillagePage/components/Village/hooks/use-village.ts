@@ -42,6 +42,8 @@ export type VillageOptions = {
   // 池で釣れる中身(今の会社の経歴の機能一覧)と、工程 id → 表示名
   catches: readonly CareerFeature[]
   roleLabels: Record<CareerRole, string>
+  // ワールドのスプライトシート。歩行ループが主人公に重なった街灯を重ねる時に添字を引く
+  sprites: SheetLayout
   // 主人公だけの 16×24 シート(歩行コマの添字に使う)
   playerSprites: SheetLayout
 }
@@ -59,6 +61,8 @@ type UseVillage = {
   hintRef: RefObject<HTMLDivElement | null>
   // 主人公が持つ灯り。吹き出しの土台と同じく、use-walk-loop が人物と同じ transform を毎フレーム書く
   playerLightRef: RefObject<HTMLDivElement | null>
+  // 主人公に重なった街灯を主人公の上へ重ねる層。use-walk-loop が重なりの変わった時だけ書き換える
+  lampVeilRef: RefObject<HTMLDivElement | null>
   loadingRef: RefObject<HTMLDivElement | null>
   camRef: RefObject<{ x: number; y: number }>
   world: World
@@ -115,6 +119,7 @@ export function useVillage({
   text,
   catches,
   roleLabels,
+  sprites,
   playerSprites,
 }: VillageOptions): UseVillage {
   // 眠っている歩行ループを起こす手。ループの本体は useWalkLoop が持ち、ここへ今の手を入れる。
@@ -162,6 +167,7 @@ export function useVillage({
   const locatorRef = useRef<HTMLDivElement>(null)
   const hintRef = useRef<HTMLDivElement>(null)
   const playerLightRef = useRef<HTMLDivElement>(null)
+  const lampVeilRef = useRef<HTMLDivElement>(null)
   const loadingRef = useRef<HTMLDivElement>(null)
   const lockedRef = useRef(false)
   const actionsRef = useRef<VillageActions>(NO_ACTIONS)
@@ -230,6 +236,7 @@ export function useVillage({
     locatorRef,
     hintRef,
     playerLightRef,
+    lampVeilRef,
     loadingRef,
     worldRef,
     stateRef,
@@ -240,6 +247,7 @@ export function useVillage({
     heldRef,
     fishingPoseRef,
     sprites: playerSprites,
+    veilSprites: sprites,
     onFishingTarget: setFishingTarget,
     reduceMotion,
     arrive,
@@ -346,6 +354,7 @@ export function useVillage({
     locatorRef,
     hintRef,
     playerLightRef,
+    lampVeilRef,
     loadingRef,
     camRef,
     world,
