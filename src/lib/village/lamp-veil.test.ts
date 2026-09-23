@@ -39,13 +39,13 @@ const westVeil = {
 }
 
 describe('lampVeilAt', () => {
-  it('柱のマス(lamp-b)に立つと、その街灯の id と上下 2 マスが返る', () => {
+  it('柱のマス(lamp-b)も絵のマスなので、その街灯の id と上下 2 マスが返る', () => {
     expect(lampVeilAt(town, { x: 2, y: 3 })).toEqual(westVeil)
   })
-  it('灯のマス(lamp-t)に立っても同じ結果が返る', () => {
+  it('主人公が立てる灯のマス(lamp-t = 笠の裏)でも同じ結果が返る', () => {
     expect(lampVeilAt(town, { x: 2, y: 2 })).toEqual(westVeil)
   })
-  it('街灯の真南の隣(柱のすぐ下)は重なりに数えず null', () => {
+  it('柱のすぐ下の隣(街灯の真南)は重なりに数えず null', () => {
     // ここでは主人公が街灯より手前に描かれる。頭が半マス上へ出ることを理由に重ねない
     expect(lampVeilAt(town, { x: 2, y: 4 })).toBeNull()
   })
@@ -62,7 +62,7 @@ describe('lampVeilAt', () => {
   it('何も無い草地では null', () => {
     expect(lampVeilAt(town, { x: 7, y: 7 })).toBeNull()
   })
-  it('街灯が複数あっても、立っている方の 1 本だけが返る', () => {
+  it('街灯が複数あっても、絵の重なった方の 1 本だけが返る', () => {
     expect(lampVeilAt(town, { x: 6, y: 3 })).toEqual({
       id: 'lamp-east',
       cells: [

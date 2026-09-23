@@ -748,27 +748,31 @@ for (const { prefix, text, settings } of JOURNEYS) {
   })
 }
 
-// 街灯は絵が縦 2 マス(上が灯・下が柱の根元)ある一方、通行不可なのは灯の 1 マスだけなので、
-// 柱の根元のマスには立てる。そこに立つ間だけ、主人公の上へ半透明の街灯 1 組(2 マス分)が重なる。
-// 重なりは立っているマスだけで決まり言語では変わらないので ja だけ見る
-test('街灯の柱の根元に立つと街灯が主人公の上に重なり、離れると消える (/)', async ({ page }) => {
+// 街灯は絵が縦 2 マス(上が灯・下が柱の根元)ある一方、通行不可なのは根元の 1 マスだけなので、
+// 灯のマスは歩いて通り抜けられる。その裏を通る間だけ、主人公の上へ半透明の街灯 1 組(2 マス分)が
+// 重なる。重なりは立っているマスだけで決まり言語では変わらないので ja だけ見る
+test('灯の裏を通り抜ける間だけ街灯が半透明で重なり、柱の根元は通れない (/)', async ({ page }) => {
   await openVillage(page, '')
   await leaveRoom(page)
   expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 14, y: 12 } })
-  // 自宅前 (14,12) から左 4・上 3・左 1 で西の街灯 (9,8) の柱の根元 (9,9)。
+  // 自宅前 (14,12) から左 4・上 4・左 1 で西の街灯の灯のマス (9,8)。
+  // 縦道 x10-11 は y8 まで続くので、北へ 4 マス上がれる。
   // 先に「本当にそのマスに立った」を押さえる。位置がずれたまま 0 枚を数えると、
   // 重なりが壊れたのか立ち位置を外したのか見分けが付かない
   expect(await walk(page, 'ArrowLeft', 4), '横道を西へ 4 マス').toBe(4)
-  expect(await walk(page, 'ArrowUp', 3), '縦道を北へ 3 マス').toBe(3)
-  expect(await walk(page, 'ArrowLeft', 1), '街灯の柱の根元へ 1 マス').toBe(1)
-  expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 9, y: 9 } })
+  expect(await walk(page, 'ArrowUp', 4), '縦道を北へ 4 マス').toBe(4)
+  expect(await walk(page, 'ArrowLeft', 1), '灯の裏へ 1 マス').toBe(1)
+  expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 9, y: 8 } })
   // 席はクラス名ではなく取っ手で指す(CSS Modules のクラス名は毎ビルド変わる)。
   // 重なっている間だけ席に data-village-veil-on が付き、灯と柱で 2 つ並ぶ
   const veiled = page.locator('[data-village-veil] > [data-village-veil-on]')
   await expect(veiled, '灯と柱の 2 マス分が主人公の上へ重なる').toHaveCount(2)
-  // 街灯の真南 (9,10) は絵の外。ここでは今までどおり主人公が街灯より手前に描かれる
-  expect(await walk(page, 'ArrowDown', 1), '街灯の真南へ 1 マス').toBe(1)
-  expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 9, y: 10 } })
+  // 真南 (9,9) は柱の根元で通行不可。下を押しても向きが変わるだけで 1 マスも進まない
+  expect(await walk(page, 'ArrowDown', 1), '柱の根元へは踏み込めない').toBe(0)
+  expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 9, y: 8 } })
+  // 縦道 (10,8) へ戻れば絵の外。ここでは今までどおり主人公が街灯より手前に描かれる
+  expect(await walk(page, 'ArrowRight', 1), '縦道へ 1 マス戻る').toBe(1)
+  expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 10, y: 8 } })
   await expect(veiled, '絵のマスを離れたら重ならない').toHaveCount(0)
 })
 

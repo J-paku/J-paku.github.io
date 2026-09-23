@@ -49,7 +49,7 @@ describe('SPRITE_ARTS', () => {
     expect(art[art.length - 1]).toBe(`.${'x'.repeat(TILE * 2 - 2)}.`)
   })
 
-  it('街灯 1×2 は継ぎ目で柱がつながる', () => {
+  it('街灯 1×2 は柱がつながり、周りは草を見せるため透明である', () => {
     const top = SPRITE_ARTS['lamp-t']
     const bottom = SPRITE_ARTS['lamp-b']
 
@@ -58,20 +58,12 @@ describe('SPRITE_ARTS', () => {
     expect(top[TILE - 1]).toMatch(/[^.]/)
     expect(bottom[0]).toBe(top[TILE - 1])
     expect(charsOf(top).has('.')).toBe(true)
+    expect(charsOf(bottom).has('.')).toBe(true)
     // 灯りの文字を持つのは上半分だけ
     expect(charsOf(top).has('9')).toBe(true)
     expect(charsOf(bottom).has('9')).toBe(false)
-  })
-
-  it('街灯の下半分は短い根元で終わり、その下は歩いて通れるよう透明である', () => {
-    const bottom = SPRITE_ARTS['lamp-b']
-    // 絵があるのは上の数行だけ。下のマスは通り道になるので、根元から下は 1 ドットも置かない
-    const last = bottom.findLastIndex(row => /[^.]/.test(row))
-
-    expect(last).toBeLessThanOrEqual(5)
-    // 根元は輪郭で閉じ、左右は草に溶ける
-    expect(bottom[last]).toBe(`....${'x'.repeat(8)}....`)
-    expect(bottom.slice(last + 1).join('')).toBe('.'.repeat((TILE - 1 - last) * TILE))
+    // 足元は輪郭で接地し、左右は草に溶ける
+    expect(bottom[TILE - 1]).toBe(`....${'x'.repeat(8)}....`)
   })
 
   it('縦長の碑 1×2 は 16×32 の 1 枚に戻る', () => {
