@@ -89,6 +89,7 @@ Z キー / 画面の A / 吹き出しのボタンで直接投げる(E キーも�
 - 時間帯は4段階(`dawn` / `day` / `dusk` / `night`)。判定は `src/utils/day-phase.ts` で、**JST 固定**(UTC+9)。どの国から見ても同じ空になる → [ADR 0006](../decisions/0006-jst-fixed-day-phase.md)
 - 段階の一覧 `DAY_PHASES` が唯一の正本。段階を足すと、シート焼き・CSS 規則・テストの網羅を手書き配列で持っている側が型エラーで落ちる
 - 切り替えるのは村の根要素の `data-phase` 1属性だけ。シートは4段階ぶんビルド済みで、初回ペイント前にインラインスクリプトが実際の段階を書き込む
+- 起動後に全段階のシートを先読みし、以後の時間帯の切替は地形・主人公の両画像が描けてから行う。取得失敗・遅延中は直前の段階を保ち、1分ごとに再試行する
 - 夜の灯りも Canvas を使わない偽物。光源1つにつき丸い div を1枚置き、にじみは放射グラデーション1本が描く。光源の表は `src/lib/village/lights.ts`、敷くのは `src/components/VillagePage/components/Village/components/Lighting/`。点けるのは `[data-phase='night']` のときだけの CSS で、rAF がするのは主人公のランタンへ人物と同じ transform を書く1行だけ
 - 天気は実行時に1回だけ外へ問い合わせる。失敗は全部「降っていない」に丸める → [data-flow.md](data-flow.md)
 
