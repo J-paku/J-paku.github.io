@@ -7,23 +7,29 @@ import { village as villageJa } from '@content/ja/village'
 import { village as villageKo } from '@content/ko/village'
 import { ui as uiJa } from '@content/ja/ui'
 import { ui as uiKo } from '@content/ko/ui'
+// 一覧に並ぶ作品カードの代表 1 枚(名刺工房から辿り着く作品)の題名。カードが 0 枚でも
+// #works 自体は見えるので、題名まで照らして一覧が本当に中身を持つことを確かめる
+import { meishiCrossPlatform as meishiWorkJa } from '@content/ja/works/meishi-cross-platform'
+import { meishiCrossPlatform as meishiWorkKo } from '@content/ko/works/meishi-cross-platform'
 // 村を開く手順・歩く walk(1 マスごとに到着を待つ)・押下と到着待ちの間合い・既定で晴れを敷く test は
 // 他の村の spec と共用。正本は village.helpers.ts
 import { HOLD_MS, SETTLE_MS, focusVillage, openVillage, test, walk } from './village.helpers'
 
 type SettingsLabels = { menu: string; light: string; dark: string }
-type Journey = { prefix: string; text: VillageText; settings: SettingsLabels }
+type Journey = { prefix: string; text: VillageText; settings: SettingsLabels; workTitle: string }
 
 const JOURNEYS: Journey[] = [
   {
     prefix: '',
     text: villageJa,
     settings: { menu: uiJa.settingsMenu.label, light: uiJa.theme.light, dark: uiJa.theme.dark },
+    workTitle: meishiWorkJa.title,
   },
   {
     prefix: '/ko',
     text: villageKo,
     settings: { menu: uiKo.settingsMenu.label, light: uiKo.theme.light, dark: uiKo.theme.dark },
+    workTitle: meishiWorkKo.title,
   },
 ]
 
@@ -79,6 +85,21 @@ const framedInside = async (page: Page, selector: string) => {
   )
 }
 
+// 吹き出しと人物の画面位置の関係。吹き出しは world 層の中に置かれ、付ける先のマスの真上に出る。
+// 町はワールドが表示枠より広くカメラが人物を追うので、追従が壊れると(押した時のマスに取り残されると)
+// 世界が流れた分だけ人物との差が開く。差を実測すれば「付いて回る」を目で見ずに確かめられる
+const bubbleAnchor = async (page: Page, selector: string) => {
+  const bubble = await page.locator(selector).boundingBox()
+  const player = await page.locator('[data-village-player]').boundingBox()
+  if (bubble === null || player === null) throw new Error('吹き出しか人物が描かれていない')
+  return {
+    // 人物の中心からの横ずれ(吹き出しは頭の真上に出るので 0 付近)
+    offsetX: bubble.x + bubble.width / 2 - (player.x + player.width / 2),
+    // 吹き出しの下端と人物の上端の差(頭より上に出ていれば 0 以下)
+    overHead: bubble.y + bubble.height - player.y,
+  }
+}
+
 // 訪問済み地点の id 一覧を読む
 const readVisited = (page: Page) =>
   page.evaluate(key => {
@@ -92,7 +113,7 @@ const leaveRoom = async (page: Page) => {
   await walk(page, 'ArrowDown', 3)
 }
 
-for (const { prefix, text, settings } of JOURNEYS) {
+for (const { prefix, text, settings, workTitle } of JOURNEYS) {
   const label = prefix === '' ? '/' : prefix
   const home = text.stops.home
   const meishi = text.stops.meishi
@@ -138,9 +159,18 @@ for (const { prefix, text, settings } of JOURNEYS) {
     await page.keyboard.press('e')
     const bubble = page.locator('[data-village-bubble][data-village-bubble-kind="thought"]')
     await expect(bubble).toContainText(text.noTarget)
-    // 一言は2.5秒で消えるタイマー付きなので、消える前に1マス歩いて追従するか確認する
+    // 出た直後は人物の頭の真上
+    const before = await bubbleAnchor(page, '[data-village-bubble-kind="thought"]')
+    expect(Math.abs(before.offsetX)).toBeLessThanOrEqual(1)
+    expect(before.overHead).toBeLessThanOrEqual(0)
+    // 一言は2.5秒で消えるタイマー付きなので、消える前に1マス歩いて追従するか確認する。
+    // 見えているだけでは、吹き出しを人物と切り離しても通ってしまうので位置の関係まで見る
     await walk(page, 'ArrowRight', 1)
     await expect(bubble).toBeVisible()
+    expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 16, y: 12 } })
+    const after = await bubbleAnchor(page, '[data-village-bubble-kind="thought"]')
+    expect(Math.abs(after.offsetX - before.offsetX)).toBeLessThanOrEqual(1)
+    expect(Math.abs(after.overHead - before.overHead)).toBeLessThanOrEqual(1)
   })
 
   test(`町の自宅の扉から部屋へ戻る (${label})`, async ({ page }) => {
@@ -176,6 +206,12 @@ for (const { prefix, text, settings } of JOURNEYS) {
     await page.locator(`a[href="${prefix}/list/"]`).first().click()
     await expect(page).toHaveURL(new RegExp(`${prefix}/list/$`))
     await expect(page.locator('#works')).toBeVisible()
+    // 入れ物が見えるだけではカードが 0 枚でも通る。枚数の下限(実ブラウザで数えた現在値は 3)と、
+    // いま辿ってきた作品のカードが題名付きで並ぶことまで確かめる
+    expect(await page.locator('#works article').count()).toBeGreaterThanOrEqual(3)
+    await expect(
+      page.locator(`#works article#${WORK_SLUG}`).getByRole('heading', { name: workTitle })
+    ).toBeVisible()
   })
 
   test(`一覧の「マップで見る」から村へ戻るとブートが正しく終わる (${label})`, async ({ page }) => {
@@ -271,7 +307,10 @@ for (const { prefix, text, settings } of JOURNEYS) {
   })
   test(`机の左・右・正面から会話できる (${label})`, async ({ page }) => {
     await openVillage(page, prefix)
-    const check = async () => {
+    // どのマスから話しているかを先に確かめる。立ち位置を見ないと、1 マスも歩けていない回も
+    // 「左・右・正面の 3 通りから話せた」で通ってしまう
+    const check = async (cell: { x: number; y: number }) => {
+      expect(await readCell(page)).toEqual({ worldId: 'room', cell })
       await expect(page.locator('[data-village-bubble]')).toBeVisible()
       await page.keyboard.press('e')
       await expect(
@@ -279,15 +318,19 @@ for (const { prefix, text, settings } of JOURNEYS) {
       ).toBeVisible()
       await page.keyboard.press('Escape')
     }
-    await check()
+    // 位置は到着時にだけ保存されるので、往復 1 マスで正面のマス (4,4) を保存させてから見る
+    expect(await walk(page, 'ArrowRight', 1), '床へは 1 マス進める').toBe(1)
+    expect(await walk(page, 'ArrowLeft', 1), '戻りも 1 マス').toBe(1)
+    await check({ x: 4, y: 4 })
     await walk(page, 'ArrowLeft', 2)
     await walk(page, 'ArrowUp', 1)
-    await check()
+    await check({ x: 2, y: 3 })
     await walk(page, 'ArrowDown', 1)
     await walk(page, 'ArrowRight', 4)
     await walk(page, 'ArrowUp', 1)
-    await check()
+    await check({ x: 6, y: 3 })
     await walk(page, 'ArrowRight', 2)
+    expect(await readCell(page)).toEqual({ worldId: 'room', cell: { x: 8, y: 3 } })
     await expect(page.locator('[data-village-bubble]')).toHaveCount(0)
   })
 
@@ -310,8 +353,14 @@ for (const { prefix, text, settings } of JOURNEYS) {
     const dialog = page.getByRole('dialog')
     await expect(dialog.getByRole('heading', { name: home.title })).toBeVisible()
     await dialog.getByRole('button', { name: home.next }).click()
+    // 割り込む前に、自動歩行が本当に動き出したことを 1 マス目の到着(位置の保存)で確かめる。
+    // 「開かない・歩いていない」だけを見ると、自動歩行がそもそも始まらない壊れ方まで通ってしまう
+    await page.waitForFunction(key => sessionStorage.getItem(key) !== null, POS_KEY, {
+      polling: 'raf',
+      timeout: 3_000,
+    })
+    expect(await readCell(page)).toEqual({ worldId: 'room', cell: { x: 4, y: 5 } })
     // 部屋の中(3 マス分の途中)で割り込む
-    await page.waitForTimeout(150)
     await page.keyboard.down('ArrowRight')
     await page.waitForTimeout(150)
     await page.keyboard.up('ArrowRight')
@@ -383,6 +432,8 @@ for (const { prefix, text, settings } of JOURNEYS) {
     await expect(dialog.getByRole('heading', { name: monument.title })).toBeVisible()
     const entries = monument.entries
     if (entries === undefined) throw new Error('経歴碑の entries が無い')
+    // 空配列だと toHaveCount(0) が通り、下の for が 1 周も回らずロゴの確認が丸ごと素通りする
+    expect(entries.length).toBeGreaterThan(0)
     await expect(dialog.getByRole('img')).toHaveCount(entries.length)
     for (const entry of entries) {
       const logo = dialog.getByRole('img', { name: entry.company })
@@ -446,9 +497,13 @@ for (const { prefix, text, settings } of JOURNEYS) {
     expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 14, y: 0 } })
     const dialog = page.getByRole('dialog')
     const journey = text.stops.journey
+    // link が undefined だと name の絞り込みが消え、窓の中のどのリンクでも通ってしまう。
+    // 名刺工房の link と同じように先に取り出して確かめる
+    const journeyLink = journey.link
+    if (journeyLink === undefined) throw new Error('次の旅の link が無い')
     await expect(dialog.getByRole('heading', { name: journey.title })).toBeVisible()
     await expect(dialog).toContainText(journey.claim)
-    await expect(dialog.getByRole('link', { name: journey.link?.label })).toHaveAttribute(
+    await expect(dialog.getByRole('link', { name: journeyLink.label })).toHaveAttribute(
       'href',
       'mailto:pjhrecr@gmail.com'
     )

@@ -6,6 +6,7 @@
 //   3. コマンド     — `npm run xxx` の xxx が package.json の scripts にあるか
 //   4. frontmatter  — docs/ 配下の文書が status / read_when / source_of_truth / last_reviewed を持つか
 //   5. 孤児         — docs/ 配下の文書がどこからもリンクされていないか
+//   6. E2E 一覧     — docs/quality/test-strategy.md の一覧表と tests/*.spec.ts の実物が一致するか
 //
 // 実在判定は「作業ツリーにあるか」ではなく「git が追跡しているか」で行う。開発機にしか無いもの
 // (.gitignore 済みのフォルダ、リポジトリの外)を実在と数えると、ローカルだけ通って CI で落ちる。
@@ -192,6 +193,46 @@ for (const file of docFiles) {
     other => other !== file && linkedTargets.has(file) && readLinksOf(other).has(file)
   )
   if (!linkedFromOthers) fail(file, 1, 'どこからもリンクされていない')
+}
+
+// 6. E2E の一覧表と実ファイルの突き合わせ。spec を足しても消しても文書が追随しないと、
+// 消えた経路が検査表に残って空回りする(03-pitfalls.md #11)。表に無い spec は
+// 「走っているのに誰も知らない検査」、表にしか無い spec は「もう走らない検査」になる。
+// 見出しの本数も数える — 表だけ直して見出しが「6本」のまま残る崩れ方が一番起きやすい
+const TEST_STRATEGY = 'docs/quality/test-strategy.md'
+const SPEC_PATTERN = /^tests\/[^/]+\.spec\.ts$/
+// 文書ごと消えた・移された場合は突き合わせが丸ごと黙って飛ぶ。飛んだことに気づけるよう落とす
+if (!docFiles.includes(TEST_STRATEGY)) {
+  fail(TEST_STRATEGY, 1, 'この文書が無い。E2E 一覧の突き合わせが成立していない')
+} else {
+  const raw = readFileSync(path.join(ROOT, TEST_STRATEGY), 'utf-8').replace(/\r\n/g, '\n')
+  const actualSpecs = [...trackedFiles].filter(file => SPEC_PATTERN.test(file)).sort()
+  const heading = /^## E2E の(\d+)本 *$/m.exec(raw)
+  if (heading === null) {
+    fail(TEST_STRATEGY, 1, '「## E2E のN本」の見出しが無い。E2E 一覧の突き合わせができない')
+  } else {
+    const headingLine = lineOf(raw, heading.index)
+    // 見出しから次の同階層見出しまでが一覧の範囲(### の小見出しは範囲に含めたままでよい)
+    const section = raw.slice(heading.index + heading[0].length).split(/\n## [^#]/)[0]
+    const listed = [
+      ...new Set([...section.matchAll(/`(tests\/[^`\n]+\.spec\.ts)`/g)].map(match => match[1])),
+    ].sort()
+    for (const spec of actualSpecs) {
+      if (!listed.includes(spec)) fail(TEST_STRATEGY, headingLine, `一覧に無い spec: ${spec}`)
+    }
+    for (const spec of listed) {
+      if (!actualSpecs.includes(spec))
+        fail(TEST_STRATEGY, headingLine, `一覧にあるが実在しない spec: ${spec}`)
+    }
+    if (Number(heading[1]) !== actualSpecs.length)
+      fail(
+        TEST_STRATEGY,
+        headingLine,
+        `見出しの本数が実際と違う: ${heading[1]}本 と書いてあるが tests/ には ${actualSpecs.length}本`
+      )
+  }
+  if (actualSpecs.length === 0)
+    fail(TEST_STRATEGY, 1, 'tests/*.spec.ts が1件も無い。突き合わせが成立していない')
 }
 
 // ある文書が指しているリンク先(リポジトリ相対)の集合。孤児判定でだけ使う

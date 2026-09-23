@@ -29,6 +29,18 @@ describe('locale-path', () => {
     expect(parseLocale('/korea')).toBe('ja')
   })
 
+  // 言語切り替えは ko→ja の向きもある。上の表は withLocale(・,'ko') しか見ていないので、
+  // ja 分岐が接頭辞を外さず入力をそのまま返す実装へ退化しても表では落ちない
+  it('/ko 配下を ja へ切り替えると接頭辞が外れる', () => {
+    expect(withLocale('/ko/works/x', 'ja')).toBe('/works/x')
+    expect(withLocale('/ko/list/', 'ja')).toBe('/list/')
+    expect(withLocale('/ko', 'ja')).toBe('/')
+    expect(withLocale('/ko/', 'ja')).toBe('/')
+    // 接頭辞を持たないパスは ja でも素通し
+    expect(withLocale('/works/x', 'ja')).toBe('/works/x')
+    expect(withLocale('/korea', 'ja')).toBe('/korea')
+  })
+
   // 決定: 空文字列は本来 react-router から来ない(pathname は必ず / 始まり)が、
   // 例外を投げず決定的に動くことだけを保証する。'/' 始まりの不変条件は保証対象外とする
   it('空文字列は例外を投げず ja 扱い・無変換で通過する', () => {
@@ -64,5 +76,13 @@ describe('toHref', () => {
   it('ルートは二重スラッシュにしない', () => {
     expect(toHref('/', 'ja')).toBe('/')
     expect(toHref('/', 'ko')).toBe('/ko/')
+  })
+  // 言語切り替えボタンが作る ko→ja のリンク。この向きの単言が無いと、
+  // ja のとき /ko 接頭辞が付いたままのリンクを出しても気付けない
+  it('/ko 配下から ja へのリンクは接頭辞の無い末尾スラッシュ付きになる', () => {
+    expect(toHref('/ko/works/x', 'ja')).toBe('/works/x/')
+    expect(toHref('/ko/list/', 'ja')).toBe('/list/')
+    expect(toHref('/ko', 'ja')).toBe('/')
+    expect(toHref('/ko/', 'ja')).toBe('/')
   })
 })

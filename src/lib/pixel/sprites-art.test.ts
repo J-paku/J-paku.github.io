@@ -33,12 +33,23 @@ describe('SPRITE_ARTS', () => {
     const sheet = buildSprites()
 
     expect(sheet.uri.startsWith('data:image/png;base64,')).toBe(true)
-    expect(sheet.count).toBe(Object.keys(SPRITE_ARTS).length)
+    // 枚数は実測値で釘付けにする。art.ts が count: keys.length と定義しているので、
+    // Object.keys(SPRITE_ARTS).length と比べると両辺が同じ式になり、素材を落としても通ってしまう。
+    // 増やすときはこの数を意図的に書き換える(sprites.test.ts の BASELINE と同じ持ち方)
+    expect(sheet.count).toBe(63)
     expect(sheet.height).toBe(TILE)
   })
 
   it('目印の背景が透明である', () => {
-    expect(SPRITE_ARTS.marker.join('')).toContain('.')
+    // 「どこかに . がある」では背景を塗り潰しても通る。外周 1 周が透明であることを押さえると、
+    // 目印は草の上へ重ねて置くので周りの地面が透けていなければならない、という意図が残る
+    const art = SPRITE_ARTS.marker
+    const blank = '.'.repeat(TILE)
+
+    expect(art[0], '上辺').toBe(blank)
+    expect(art[TILE - 1], '下辺').toBe(blank)
+    expect(art.map(row => row[0]).join(''), '左辺').toBe(blank)
+    expect(art.map(row => row[TILE - 1]).join(''), '右辺').toBe(blank)
   })
 
   it('経歴碑 2×2 は 32×32 の 1 枚に戻り、下辺が輪郭で接地する', () => {
@@ -132,7 +143,8 @@ describe('PLAYER_ARTS', () => {
     const sheet = buildPlayerSprites()
 
     expect(sheet.uri.startsWith('data:image/png;base64,')).toBe(true)
-    expect(sheet.count).toBe(Object.keys(PLAYER_ARTS).length)
+    // 地形・建物と同じ理由で実測値を書く(コマ数を数える式を両辺に置くと何も守らない)
+    expect(sheet.count).toBe(35)
     expect(sheet.height).toBe(PLAYER_HEIGHT)
   })
 
@@ -173,7 +185,12 @@ describe('PLAYER_ARTS', () => {
   })
 
   it('主人公の背景が透明である', () => {
-    for (const art of Object.values(PLAYER_ARTS)) expect(art.join('')).toContain('.')
+    // 「どこかに . がある」では背景を塗り潰しても通る。コマごとに隅を名指しで見る。
+    // 右上だけは竿(e)が伸びて届く面なので外し、残る 3 隅が透明であることを押さえる
+    for (const [key, art] of Object.entries(PLAYER_ARTS)) {
+      const corners = [art[0][0], art[PLAYER_HEIGHT - 1][0], art[PLAYER_HEIGHT - 1][15]].join('')
+      expect(corners, key).toBe('...')
+    }
   })
 })
 

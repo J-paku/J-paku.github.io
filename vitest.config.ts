@@ -12,6 +12,10 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
+    // 実行する機器のタイムゾーンに結果を左右させない。JST の機器では getUTCHours() を
+    // getHours() に取り違えても気づけないため、ここで UTC に固定する
+    // (package.json 側の TZ=UTC は npm 経由の入口、こちらは npx vitest を直接叩く入口を塞ぐ)
+    env: { TZ: 'UTC' },
     include: ['src/**/*.test.ts'],
     exclude: [...configDefaults.exclude, '**/.claude/**', 'src/_v1-pages/**', 'tests/**'],
   },

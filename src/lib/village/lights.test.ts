@@ -84,8 +84,20 @@ describe('worldLights (町)', () => {
     expect(windowCells.length).toBeGreaterThan(0)
     expect(byKind(town, 'window')).toHaveLength(windowCells.length)
   })
-  it('同じワールドを 2 回渡しても同じ並びになる', () => {
-    expect(worldLights(town)).toEqual(worldLights(town))
+  it('光源の id が構造物の登録順どおりに並ぶ', () => {
+    // 自分自身と比べるとどんな実装でも通ってしまうので、並びそのものを書き下ろして固定する。
+    // 家の窓が先に来るのは structures の並び(home・meishi・lab …)がそのまま出るため
+    expect(worldLights(town).map(light => light.id)).toEqual([
+      'home:win:14,10',
+      'meishi:win:5,4',
+      'lab:win:22,4',
+      'lab:win:24,4',
+      'campfire',
+      'mailbox',
+      'lamp-west',
+      'lamp-east',
+      'lamp-plaza',
+    ])
   })
 })
 

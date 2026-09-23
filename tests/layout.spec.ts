@@ -23,7 +23,8 @@ const waitForStage = async (page: Page, path = '/') => {
   })
 }
 
-// .root のインライン変数(--cols/--rows は Village が、--cell は useStageScale が書く)
+// .root のインライン変数(--cols/--rows は Village が、--cell と --band は useStageScale が書く)。
+// --band は帯の高さではなく「舞台の下端から帯の上端までの距離」で、会話窓・地図がこれを bottom に使う
 const stageVars = (page: Page) =>
   page.evaluate(() => {
     const frame = document.querySelector('[data-village]')
@@ -33,6 +34,7 @@ const stageVars = (page: Page) =>
       cols: Number(root.style.getPropertyValue('--cols')),
       rows: Number(root.style.getPropertyValue('--rows')),
       cell: Number.parseInt(root.style.getPropertyValue('--cell'), 10),
+      band: Number.parseInt(root.style.getPropertyValue('--band'), 10),
     }
   })
 
@@ -115,11 +117,18 @@ test.describe('縦持ちのスマートフォン', () => {
     const band = await box(page, '[data-village-controls]')
     const exitSlot = await box(page, '[data-village-exit-slot]')
     const exit = await box(page, '[data-village-exit]')
-    const { cols, rows, cell } = await stageVars(page)
+    const { cols, rows, cell, band: bandVar } = await stageVars(page)
     // 幅基準: floor(390 / 列)。CSS 既定値ではなく JS の実測値であること(差し引くのは帯と出口の箱の実測)
     expect(cell).toBe(
       computeCell(viewport.width, viewport.height, band.height + exitSlot.height, cols, rows)
     )
+    // 上の1行は検査対象(computeCell)で検査対象を測っているだけなので、幅の基準式が半分になっても
+    // 通ってしまう。390px 幅で実ブラウザが出した値を実数で留め、式そのものが変わったら落とす
+    expect(cell).toBe(39)
+    // 縦持ちは帯が通常フローにいるので、--band に帯の上端までの距離(= 下端に密着した帯の高さ)が入る。
+    // ここが 0 のままだと会話窓・地図が帯を覆う回帰に気づけない
+    expect(bandVar).toBeGreaterThan(0)
+    expect(bandVar).toBe(Math.round(band.height))
     // 一覧への出口は枠のすぐ下に横いっぱい、帯より上
     expect(exit.y).toBeGreaterThanOrEqual(frame.y + frame.height)
     expect(exit.y - (frame.y + frame.height)).toBeLessThanOrEqual(24)
@@ -191,8 +200,9 @@ test.describe('縦持ちのスマートフォン', () => {
     expect(result.rootTouchAction).toBe('none')
     // 帯からその祖先を遡った実効値も none であること(帯の自前の宣言は無くてもよい)
     expect(result.controlsEffectiveNone).toBe(true)
-    // 文書自体がスクロール可能になっていないこと(回帰検知)
-    expect(await scrollOverflow(page)).toBeLessThanOrEqual(1)
+    // 文書自体がスクロール可能になっていないこと(回帰検知)。
+    // 他の許容値と同じ 0 で揃える(この寸法では実測も 0 で、1px の遊びを許す理由が見当たらない)
+    expect(await scrollOverflow(page)).toBeLessThanOrEqual(0)
   })
 })
 
@@ -203,6 +213,9 @@ const expectGutterLayout = async (page: Page, frame: { x: number; width: number 
   const viewport = page.viewportSize()
   if (viewport === null) throw new Error('viewport 未設定')
   expect(await hasGuttersAttr(page)).toBe(true)
+  // ガター配置の帯は absolute で枠に重なるだけなので、差し引く距離は無い。
+  // 縦持ち用の値がそのまま残ると会話窓・地図が画面の途中で切り上がる
+  expect((await stageVars(page)).band).toBe(0)
   const joystick = await box(page, '[data-village-controls] [role="application"]')
   const a = await box(page, '[data-village-action="a"]')
   const b = await box(page, '[data-village-action="b"]')
@@ -238,6 +251,9 @@ test.describe('横持ちのスマートフォン', () => {
     const { cols, rows, cell } = await stageVars(page)
     // 横持ちは帯が無いので min(floor(w/列), floor(h/行), 64)
     expect(cell).toBe(computeCell(viewport.width, viewport.height, 0, cols, rows))
+    // computeCell で computeCell を測っても式の変更は捕まえられない。750×342 で実ブラウザが
+    // 出した値(高さ基準 floor(342/9))を実数で留める
+    expect(cell).toBe(38)
     expect(frame.width).toBe(cell * cols)
     expect(frame.height).toBe(cell * rows)
     // 750×342・cell38の枠幅380なら片側185pxのガターが空き、ガター配置になる
@@ -262,6 +278,8 @@ test.describe('iPad横持ち', () => {
     // 1024×768はどちらの基準でも上限64pxで頭打ちになる
     expect(cell).toBe(computeCell(viewport.width, viewport.height, 0, cols, rows))
     expect(cell).toBe(cellMax(cols))
+    // 上限そのものが変わったら気づけるよう、公式ではなく実数で留める(PC と同じ 64px)
+    expect(cell).toBe(64)
     expect(frame.width).toBe(cell * cols)
     expect(frame.height).toBe(cell * rows)
     // 枠幅640に対し片側192pxのガターが空き、ガター配置になる

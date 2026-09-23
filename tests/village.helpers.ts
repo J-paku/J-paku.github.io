@@ -20,16 +20,20 @@ const POSITION_KEY = `village:${worldSet.id}:pos`
 const OPEN_METEO = 'https://api.open-meteo.com/**'
 
 // 差し替える天気。error は失敗応答(500)で、村はそれを「降らない」に丸める
-export type WeatherKind = 'clear' | 'rain' | 'error'
+export type WeatherKind = 'clear' | 'rain' | 'snow' | 'error'
 
 export type WeatherStub = { calls: () => number }
 
 // 応答の形は src/lib/weather.ts の isOpenMeteoResponse が受け付けるもの。
-// 降雪が 0 で降水が 0 より大きければ雨、両方 0 なら降らない
+// 判定は降雪が先で、降雪が 0 より大きければ雪、そうでなく降水が 0 より大きければ雨、両方 0 なら降らない
 type CurrentWeather = { precipitation: number; snowfall: number }
 const CURRENT: Record<Exclude<WeatherKind, 'error'>, CurrentWeather> = {
   clear: { precipitation: 0, snowfall: 0 },
   rain: { precipitation: 2.4, snowfall: 0 },
+  // 雪は降水にも 0 より大きい値を載せる。降雪を先に見る判定(weather.ts)が落ちたとき、
+  // 同じ応答が「何も降らない」ではなく「雨」に化けるので、雪の検査が取り違えを突ける。
+  // 降水を 0 にすると判定が壊れても層が 0 枚になるだけで、雨との入れ違いを見逃す
+  snow: { precipitation: 1.2, snowfall: 0.8 },
 }
 
 // Open-Meteo をテストの外へ出さず、決めた天気を返す。page にも context にも敷ける。

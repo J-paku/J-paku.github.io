@@ -10,9 +10,31 @@ if (!existsSync(OUT)) {
 }
 
 // next build は public/404.html を自前の英語 404 で上書きする(App Router の _not-found 出力)。
-// GitHub Pages が使うのは out/404.html なので、ここで二言語版を戻してから中身を確かめる
+// GitHub Pages が使うのは out/404.html なので、ここで二言語版を戻してから中身を確かめる。
+//
+// ただし複製してから out/404.html の存在を見ても、確かめているのは自分が今置いたファイルであって
+// next build の出力ではない。next build が 404 を出さなくなっても気づけないので、
+// 複製の前に「ビルドの 404 出力があるか」を先に確かめる。
+// trailingSlash: true の export は not-found を out/404/index.html にも出す(next.config.ts)。
+// こちらはこのスクリプトが一切書かないので、ビルド出力そのものの証拠になる
 const NOT_FOUND_SRC = path.resolve('public', '404.html')
 const NOT_FOUND_DST = path.join(OUT, '404.html')
+const NOT_FOUND_ROUTE = path.join(OUT, '404', 'index.html')
+let failed = false
+for (const [label, target] of [
+  ['out/404/index.html', NOT_FOUND_ROUTE],
+  ['out/404.html', NOT_FOUND_DST],
+]) {
+  if (!existsSync(target)) {
+    console.error(`verify-export: next build の 404 出力が無い: ${label}`)
+    failed = true
+    continue
+  }
+  if (statSync(target).size === 0) {
+    console.error(`verify-export: next build の 404 出力が空: ${label}`)
+    failed = true
+  }
+}
 copyFileSync(NOT_FOUND_SRC, NOT_FOUND_DST)
 const notFoundHtml = readFileSync(NOT_FOUND_DST, 'utf-8')
 if (!notFoundHtml.includes('lang="ja"') || !notFoundHtml.includes('lang="ko"')) {
@@ -36,7 +58,6 @@ const REQUIRED = [
   'ko/works/meishi-cross-platform/index.html',
   '404.html',
 ]
-let failed = false
 for (const rel of REQUIRED) {
   if (!existsSync(path.join(OUT, rel))) {
     console.error(`verify-export: 必須ページが無い: ${rel}`)
@@ -52,8 +73,16 @@ for (const file of htmlFiles) {
     refs += 1
     // ルートグループや動的セグメントを含むチャンク名は HTML 側で percent-encode される
     // (例: app/(ja)/works/%5Bslug%5D/…)。実ファイル名は素の [slug] なので復号して突き合わせる
-    if (!existsSync(path.join(OUT, decodeURIComponent(ref)))) {
+    const abs = path.join(OUT, decodeURIComponent(ref))
+    if (!existsSync(abs)) {
       console.error(`verify-export: ${path.relative(OUT, file)} が参照する ${ref} が無い`)
+      failed = true
+      continue
+    }
+    // 存在だけを見ると 0 バイトのチャンクが通る。スタイルもスクリプトも中身が空なら
+    // 「HTML は出ているのに何も効かないサイト」を配ることになるので、スプライトと同じく大きさまで見る
+    if (statSync(abs).size === 0) {
+      console.error(`verify-export: ${path.relative(OUT, file)} が参照する ${ref} が空(0 bytes)`)
       failed = true
     }
   }
@@ -89,6 +118,22 @@ for (const ref of spriteRefs) {
 if (spriteRefs.size === 0) {
   console.error('verify-export: スプライトシートの参照が0件。検査が成立していない')
   failed = true
+}
+
+// 参照の整合だけでは「中身が空の殻」を配っても全部通る。入口の本文に村の舞台が
+// 焼かれていることまで見る。静的エクスポートなので舞台は HTML の中に文字列として在る
+// (out/index.html を実際に読んで選んだ印。Village が枠・地形・主人公へ立てる data 属性)
+const INDEX_MARKERS = ['data-village-terrain', 'data-village-player']
+for (const rel of ['index.html', 'ko/index.html']) {
+  const abs = path.join(OUT, rel)
+  if (!existsSync(abs)) continue
+  const html = readFileSync(abs, 'utf-8')
+  for (const marker of INDEX_MARKERS) {
+    if (!html.includes(marker)) {
+      console.error(`verify-export: ${rel} の本文に村の印が無い: ${marker}`)
+      failed = true
+    }
+  }
 }
 
 if (failed) process.exit(1)

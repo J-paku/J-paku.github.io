@@ -68,6 +68,19 @@ describe('encodePng', () => {
     expect(() => encodePng({ width: 2, height: 2, data: new Uint8Array(15) })).toThrow()
     expect(() => encodePng({ width: 0, height: 1, data: new Uint8Array(0) })).toThrow()
   })
+  it('幅または高さが 0 なら例外を投げる', () => {
+    // 幅 0・高さ 0 はどちらも長さの検査(0 === 0)を素通りするので、寸法そのものの番人が要る。
+    // ここが片方だけになると、もう片方は 0×N の PNG(IHDR だけ 0、IDAT は空)が黙って焼き上がり、
+    // 読み込んだ側で初めて壊れた画像として現れる
+    expect(() => encodePng({ width: 0, height: 1, data: new Uint8Array(0) })).toThrow()
+    expect(() => encodePng({ width: 1, height: 0, data: new Uint8Array(0) })).toThrow()
+    expect(() => encodePng({ width: 0, height: 0, data: new Uint8Array(0) })).toThrow()
+  })
+  it('幅または高さが負なら例外を投げる', () => {
+    expect(() => encodePng({ width: -1, height: 2, data: new Uint8Array(0) })).toThrow()
+    expect(() => encodePng({ width: 2, height: -1, data: new Uint8Array(0) })).toThrow()
+    expect(() => encodePng({ width: -2, height: -2, data: new Uint8Array(16) })).toThrow()
+  })
 })
 
 describe('pngDataUri', () => {

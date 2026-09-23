@@ -7,6 +7,14 @@
 // 以前あった「Ctrl+Kでコマンドパレットを開いた状態の検査」(07-redesign.md §3-5)は、
 // 08段階でパレット自体を削除したため対象が存在しなくなり除去した。
 //
+// 検査するのは「経路 × 見え方」+ 開いた状態。初期状態(PC・明るいテーマ)だけを測ると、
+// 実機で一番使われる縦持ちの操作帯も、色が総入れ替えになるダークテーマも、会話窓を開いた
+// 状態も一度も axe に掛からないまま「全経路で違反0件」になる。
+// 状態の作り方は tests/journey.spec.ts(E で会話窓)と tests/layout.spec.ts(縦持ちの寸法)に合わせる。
+//
+// 「開かないまま検査した」は PASS 方向の誤りなので、状態を作れなかったこと自体も NG として数える
+// (03-pitfalls.md #5・#7・#11)。
+//
 // 使い方: node scripts/check-a11y.mjs <baseUrl> <path> [path...]
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -38,6 +46,58 @@ const axeSource = readFileSync(path.join(ROOT_DIR, 'node_modules/axe-core/axe.mi
 const OPEN_METEO = 'https://api.open-meteo.com/**'
 const RAINING_BODY = JSON.stringify({ current: { precipitation: 2.4, snowfall: 0 } })
 
+// テーマの保存先。src/lib/preferences.ts の THEME_STORAGE_KEY、および
+// src/app/html-shell.tsx が起動時に読む文字列と同じ値を保つ
+const THEME_STORAGE_KEY = 'theme'
+
+// 検査する見え方。縦持ちの寸法と入力種別は tests/layout.spec.ts の「縦持ちのスマートフォン」と同じ。
+// 縦持ちでしか描かれない操作帯(スティック・A/B)と、ダークテーマの配色は、既定の見え方の
+// 結果からは何も分からないので別々に測る
+const PORTRAIT_WIDTH = 390
+const VIEWS = [
+  { name: '既定', contextOptions: {}, theme: null },
+  {
+    name: `縦持ち${PORTRAIT_WIDTH}px`,
+    contextOptions: {
+      viewport: { width: PORTRAIT_WIDTH, height: 664 },
+      isMobile: true,
+      hasTouch: true,
+      deviceScaleFactor: 3,
+    },
+    theme: null,
+    // 実際にこの幅で描かれたか。帯が見えることは幅が効いた証拠にならない
+    // (1280px + hasTouch でも帯は出ると実測した)ので、幅そのものを見る
+    expectedWidth: PORTRAIT_WIDTH,
+    // 指のある環境でだけ見える操作帯。PC の見え方では DOM に在っても hidden
+    // (tests/layout.spec.ts の PC のテストが toBeHidden で押さえている前提)。
+    // 村の経路でこれが見えていなければ、スティックと A/B を一度も axe に掛けていない
+    villageOnlyVisible: '[data-village-controls]',
+  },
+  { name: 'ダークテーマ', contextOptions: {}, theme: 'dark' },
+]
+
+// 村の経路(会話窓を開ける)。末尾スラッシュの有無は経路の同一性に関係しない
+const VILLAGE_PATHS = ['', '/ko']
+const normalizePath = targetPath => targetPath.replace(/\/+$/, '')
+const isVillagePath = targetPath => VILLAGE_PATHS.includes(normalizePath(targetPath))
+
+// 折りたたみ(作品カードの詳細)が必ず在る経路。ここで0件なら検査が成立していない。
+// 村の経路には折りたたみが無いのが正常なので、断言はしない。
+//
+// 対象を一覧に絞るのは実測に基づく: 作品ページの button[aria-controls] は技術チップの
+// ポップオーバーで1ページ16件あり、全経路で開いて回ると axe の実行回数が跳ね上がる。
+// 一覧の詳細は「開かないと本文が hidden」という、元の経歴パネルと同じ性質の対象
+const DISCLOSURE_PATHS = ['/list', '/ko/list']
+const hasDisclosures = targetPath => DISCLOSURE_PATHS.includes(normalizePath(targetPath))
+
+// WCAG 違反とは別に、「検査が成立しなかった」事実を数える。
+// 状態を作れなかった回を黙って通すと、測っていないことが違反0件に化ける
+const setupFailures = []
+const failSetup = message => {
+  console.error(`[NG] ${message}`)
+  setupFailures.push(message)
+}
+
 // 現在のページに対して axe を1回実行し、WCAG 違反と best-practice 違反に分けて返す
 async function runAxe(page) {
   const result = await page.evaluate(
@@ -58,19 +118,26 @@ async function runAxe(page) {
   return { wcagViolations, bestPracticeViolations }
 }
 
-// 1経路ぶんの axe 実行結果を返す。初期状態に加え、左列の経歴トリガーを1つずつ開いた
-// 状態でも検査する。panel-career は初期状態で hidden のため、開かないまま検査すると
-// 中の本文が一度も検査対象に入らず、そこに潜む違反が PASS 方向に見えてしまう
-// (03-pitfalls.md #5・#7 と同型)。経歴トリガーが無い経路(作品ストーリーページ等)は
-// 従来どおり初期状態のみを検査する
-async function auditPath(browser, targetPath) {
-  const page = await browser.newPage()
-  await page.route(OPEN_METEO, route =>
+// 1つの見え方でページを開き、axe を注入した page を返す。context は呼び出し側が閉じる。
+// 見え方(縦持ち・テーマ)は context ごとに作る — 同じ page の viewport を差し替えるだけでは
+// isMobile/hasTouch が変わらず、操作帯が出ない画面を「縦持ちで検査した」と呼ぶことになる
+async function openView(browser, targetPath, view) {
+  const context = await browser.newContext(view.contextOptions)
+  await context.route(OPEN_METEO, route =>
     route.fulfill({ status: 200, contentType: 'application/json', body: RAINING_BODY })
   )
+  const page = await context.newPage()
   // Home のスタガーリビールが opacity:0 から始まるため、モーションを止めた状態で計測しないと
   // 合成色で color-contrast が誤検出される(実測45〜51件 → 0件。05-pipeline.md)
   await page.emulateMedia({ reducedMotion: 'reduce' })
+  if (view.theme !== null) {
+    // html-shell.tsx の起動スクリプトが localStorage から読む。最初の描画より前に書いておけば
+    // 1枚目のペイントからそのテーマになり、切り替え途中の合成色を測らずに済む
+    await page.addInitScript(
+      ([key, value]) => localStorage.setItem(key, value),
+      [THEME_STORAGE_KEY, view.theme]
+    )
+  }
 
   const url = new URL(targetPath, baseUrl).toString()
   const response = await page.goto(url, { waitUntil: 'networkidle' })
@@ -83,35 +150,141 @@ async function auditPath(browser, targetPath) {
   // 村ページだけはブートの覆い(#boot)が外れるまで待つ。覆いの下を検査すると隠れた状態を測ることになる
   await page.waitForFunction(() => document.querySelector('#boot') === null)
 
+  if (view.theme !== null) {
+    // 指定したテーマが実際に当たっているかを見る。当たっていなければ測ったのは明るい画面であり、
+    // 「ダークでも違反0件」の根拠にならない(保存キーが変わった時にここで気づく)
+    const applied = await page.evaluate(() => document.documentElement.dataset.theme)
+    if (applied !== view.theme) {
+      failSetup(
+        `${targetPath} (${view.name}): data-theme が "${applied}" のまま。テーマの状態を作れていない`
+      )
+    }
+  }
+
+  if (view.expectedWidth !== undefined) {
+    const actualWidth = await page.evaluate(() => window.innerWidth)
+    if (actualWidth !== view.expectedWidth) {
+      failSetup(
+        `${targetPath} (${view.name}): 実際の幅が ${actualWidth}px。` +
+          `${view.expectedWidth}px の見え方を作れていない`
+      )
+    }
+  }
+
+  if (view.villageOnlyVisible !== undefined && isVillagePath(targetPath)) {
+    const visible = await page.locator(view.villageOnlyVisible).isVisible()
+    if (!visible) {
+      failSetup(
+        `${targetPath} (${view.name}): ${view.villageOnlyVisible} が見えない。` +
+          'その見え方を作れていない'
+      )
+    }
+  }
+
   await page.addScriptTag({ content: axeSource })
+  return { context, page }
+}
 
-  const reports = [{ label: targetPath, ...(await runAxe(page)) }]
+// 折りたたみを1つずつ開いた状態を検査する。開閉対象は初期状態で hidden のため、
+// 開かないまま検査すると中の本文が一度も検査対象に入らず、そこに潜む違反が PASS 方向に見えてしまう
+// (03-pitfalls.md #5・#7 と同型)。
+//
+// トグルは id を名指しせず「button[aria-controls]」という形で集める。
+// 個別の id(かつて panel-career、今なら ai-harness-detail)を書くと、作品が入れ替わった日に
+// 一致するものが無くなり、検査は落ちずに空回りしたまま [OK] を出し続ける(03-pitfalls.md #11)
+async function auditDisclosures(page, targetPath) {
+  const triggers = await page.$$('button[aria-controls]')
+  // 畳まれた中にいるトグルは押せない。見えているものだけを対象にする
+  const visibleTriggers = []
+  for (const trigger of triggers) {
+    if (await trigger.isVisible()) visibleTriggers.push(trigger)
+  }
+  // 0件だと下の for が一度も回らず、中を一度も見ないまま [OK] が出る。
+  // 「開かなかった」を「違反が無かった」と読み替えないために、在るはずの経路では件数を断言する
+  if (visibleTriggers.length === 0 && hasDisclosures(targetPath)) {
+    failSetup(`${targetPath}: 開閉トグル(button[aria-controls])が0件。中身を一度も検査していない`)
+  }
 
-  // タブ(role=tab)は同じ panel-career を指すが別トリガーなので除外する。
-  // 経歴どうしは排他(1つ開くと前の状態は消える)なので、開いてから毎回そのまま検査すればよい
-  const careerTriggers = await page.$$('button[aria-controls="panel-career"]:not([role="tab"])')
-  for (const [index, trigger] of careerTriggers.entries()) {
-    await trigger.click()
-    await page.waitForFunction(() => {
-      const panel = document.querySelector('#panel-career')
-      return panel !== null && !panel.hasAttribute('hidden')
-    })
-    // 2つ目以降はパネルが既に開いていて従来の条件が即真になり、React が aria-current を
-    // 移す前に axe が走る(色の半端なスナップショットで color-contrast を誤検出)。
-    // クリックした本人が current になるまで待って状態確定を保証する
-    await page.waitForFunction(el => el.getAttribute('aria-current') === 'true', trigger)
-    // aria-current 反映後もスタイル再計算・ペイントが同フレームに乗り切らない場合があるため、2フレーム待って確定させる
+  const reports = []
+  for (const [index, trigger] of visibleTriggers.entries()) {
+    const controls = await trigger.getAttribute('aria-controls')
+    // 既に開いているものを押すと畳んでしまう。閉じている時だけ押す
+    if ((await trigger.getAttribute('aria-expanded')) !== 'true') await trigger.click()
+    try {
+      // 押した本人が開いたと言い、指している要素が実際に見えるまで待つ。
+      // 状態が確定する前に axe を走らせると、色の半端なスナップショットで color-contrast を誤検出する
+      await page.waitForFunction(el => el.getAttribute('aria-expanded') === 'true', trigger, {
+        timeout: 5_000,
+      })
+      await page.waitForSelector(`[id="${controls}"]`, { state: 'visible', timeout: 5_000 })
+    } catch {
+      failSetup(`${targetPath}: トグル${index + 1}(aria-controls="${controls}")を押しても開かない`)
+      continue
+    }
+    // 開いた後もスタイル再計算・ペイントが同フレームに乗り切らない場合があるため、2フレーム待って確定させる
     await page.evaluate(
       () =>
         new Promise(resolve => {
           requestAnimationFrame(() => requestAnimationFrame(resolve))
         })
     )
-    reports.push({ label: `${targetPath} (経歴${index + 1})`, ...(await runAxe(page)) })
+    reports.push({
+      label: `${targetPath} (開閉${index + 1}: ${controls})`,
+      ...(await runAxe(page)),
+    })
   }
+  return reports
+}
 
-  await page.close()
+// 村の会話窓(role=dialog)を開いた状態を検査する。開き方は tests/journey.spec.ts と同じで、
+// 村の枠へフォーカスして E を押す(操作帯の A ボタンも同じ会話を開く)。
+// 会話窓は aria-modal で背景を隠す作りなので、開かないまま測ると中の見出し・本文・
+// 送りボタンが一度も axe に掛からない
+async function auditVillageDialog(page, targetPath) {
+  await page.locator('[data-village]').focus()
+  await page.keyboard.press('e')
+  try {
+    await page.waitForSelector('[role="dialog"]', { state: 'visible', timeout: 10_000 })
+  } catch {
+    failSetup(
+      `${targetPath}: E を押しても会話窓(role=dialog)が開かない。開いた状態を検査できていない`
+    )
+    return []
+  }
+  // 開いた直後は本文の送りとフォーカス移動が同フレームに乗り切らないことがあるため、2フレーム待つ
+  await page.evaluate(
+    () =>
+      new Promise(resolve => {
+        requestAnimationFrame(() => requestAnimationFrame(resolve))
+      })
+  )
+  return [{ label: `${targetPath} (会話窓)`, ...(await runAxe(page)) }]
+}
 
+// 1経路ぶんの axe 実行結果を返す。見え方(既定・縦持ち・ダーク)ごとに開き直し、
+// 既定の見え方では さらに折りたたみと村の会話窓という「開かないと見えない状態」も検査する
+async function auditPath(browser, targetPath) {
+  const reports = []
+  for (const view of VIEWS) {
+    const { context, page } = await openView(browser, targetPath, view)
+    try {
+      const label = view.name === '既定' ? targetPath : `${targetPath} (${view.name})`
+      reports.push({ label, ...(await runAxe(page)) })
+
+      // 開いた状態は既定の見え方で1回ずつ。見え方の数だけ開き直すと、同じ本文を
+      // 何度も測るために実行時間だけが伸びる
+      if (view.name === '既定') {
+        if (hasDisclosures(targetPath)) {
+          reports.push(...(await auditDisclosures(page, targetPath)))
+        }
+        if (isVillagePath(targetPath)) {
+          reports.push(...(await auditVillageDialog(page, targetPath)))
+        }
+      }
+    } finally {
+      await context.close()
+    }
+  }
   return reports
 }
 
@@ -159,12 +332,19 @@ async function main() {
     }
   }
 
+  console.log(`axe: ${targetPaths.length}経路を ${reports.length}状態で検査`)
+
   if (totalWcagViolations > 0) {
     console.error(`axe: WCAG違反が合計${totalWcagViolations}件見つかった`)
-    process.exit(1)
   }
+  if (setupFailures.length > 0) {
+    // 検査が成立しなかった回。違反0件と並べて緑にすると、測っていないことが通過に化ける
+    console.error(`axe: 状態を作れず検査できなかった箇所が${setupFailures.length}件`)
+    for (const message of setupFailures) console.error(`  - ${message}`)
+  }
+  if (totalWcagViolations > 0 || setupFailures.length > 0) process.exit(1)
 
-  console.log('axe: 全経路でWCAG違反 0件')
+  console.log('axe: 全経路・全状態でWCAG違反 0件')
 }
 
 main().catch(error => {

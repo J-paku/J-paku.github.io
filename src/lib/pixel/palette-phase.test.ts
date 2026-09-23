@@ -25,6 +25,12 @@ const base: Palette = {
   '7': '#f0e8d0',
   '8': '#6d90ba',
   '9': '#f8e060',
+  // ポストの LED(消灯時のレンズ)。実パレットと同じ文字・同じ色を使う。
+  // この3文字をフィクスチャへ入れておかないと、LIGHT_KEYS に並んでいるだけで
+  // どの表の値も一度も読まれず、発光色を黒へ書き換えても全検査が素通りする
+  '+': '#4a3a38',
+  '*': '#384a3c',
+  '#': '#43384a',
 }
 
 // sRGB値をそのまま重み付けした簡易輝度。暗さの相対比較にのみ使う(WCAG厳密値ではない)
@@ -36,8 +42,21 @@ const luma = (hex: string): number => {
 }
 
 describe('phasePalette', () => {
+  // 段階の一覧(正本は src/utils/day-phase.ts)をここでも正面から押さえる。
+  // it.each(DAY_PHASES) だけに頼ると、組を削っても検査が回る回数が減るだけで緑のまま通り、
+  // 「赤が出ないのに検査が消える」いちばん危ない壊れ方になる
+  it('段階は明け方・昼・夕方・夜の4つ', () => {
+    expect(DAY_PHASES).toEqual(['dawn', 'day', 'dusk', 'night'])
+  })
+
   it('dayはbaseとdeep-equal', () => {
     expect(phasePalette(base, 'day')).toEqual(base)
+  })
+
+  // toEqual は参照の同一性を見ないので、base をそのまま返しても deep-equal は通る。
+  // 呼び出し側は返った表へ後から文字を足せる前提なので、同じ実体を返すと元の表まで書き換わる
+  it('dayでもbaseそのものではなく複製を返す', () => {
+    expect(phasePalette(base, 'day')).not.toBe(base)
   })
 
   it('nightの光源文字は指定の固定色になる', () => {
@@ -48,6 +67,10 @@ describe('phasePalette', () => {
     expect(result['7']).toBe('#ffffff')
     expect(result['8']).toBe('#78e0ff')
     expect(result['9']).toBe('#fff0a0')
+    // ポストの LED の3色(赤・緑・紫)
+    expect(result['+']).toBe('#ff5040')
+    expect(result['*']).toBe('#50e070')
+    expect(result['#']).toBe('#c070ff')
   })
 
   // 夕方・明け方は昼の色を夜の発光色へ 0.8 寄せた値。灯った窓が壁と同じ明るさにならない強さ
@@ -59,6 +82,9 @@ describe('phasePalette', () => {
     expect(result['7']).toBe('#fcfaf6')
     expect(result['8']).toBe('#76d0f1')
     expect(result['9']).toBe('#feed93')
+    expect(result['+']).toBe('#f66a52')
+    expect(result['*']).toBe('#79d383')
+    expect(result['#']).toBe('#c391f2')
   })
 
   it('dawnの光源文字は指定の固定色になる', () => {
@@ -69,6 +95,9 @@ describe('phasePalette', () => {
     expect(result['7']).toBe('#fcfaf6')
     expect(result['8']).toBe('#76d0f1')
     expect(result['9']).toBe('#feed93')
+    expect(result['+']).toBe('#f66a52')
+    expect(result['*']).toBe('#79d383')
+    expect(result['#']).toBe('#c391f2')
   })
 
   // 色調と比率をここで釘付けにする。tintやratioを触ると必ずこのテストが落ちる
