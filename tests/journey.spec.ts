@@ -11,6 +11,9 @@ import { ui as uiKo } from '@content/ko/ui'
 // #works 自体は見えるので、題名まで照らして一覧が本当に中身を持つことを確かめる
 import { meishiCrossPlatform as meishiWorkJa } from '@content/ja/works/meishi-cross-platform'
 import { meishiCrossPlatform as meishiWorkKo } from '@content/ko/works/meishi-cross-platform'
+import { isWalkable } from '@/lib/village/collision'
+import { findPath } from '@/lib/village/path'
+import { spotToward } from '@/components/VillagePage/components/Village/components/WorldMap/utils/spot-navigation'
 // 村を開く手順・歩く walk(1 マスごとに到着を待つ)・押下と到着待ちの間合い・既定で晴れを敷く test は
 // 他の村の spec と共用。正本は village.helpers.ts
 import { HOLD_MS, SETTLE_MS, focusVillage, openVillage, test, walk } from './village.helpers'
@@ -136,6 +139,39 @@ const readVisited = (page: Page) =>
     if (raw === null) return []
     return JSON.parse(raw) as string[]
   }, VISITED_KEY)
+
+// 町のデータ。地図を押す先のマスと、方向キーで移る先の地点をここから選ぶ
+const townOrUndefined = worldSet.worlds.town
+if (townOrUndefined === undefined) throw new Error('worldSet に town が無い')
+const town = townOrUndefined
+// 部屋から出た所(自宅前)。地図を押すテストはここから歩き出す
+const TOWN_ENTRY = { x: 14, y: 12 }
+// 地図で押すマス。地点のボタン(40px 四方で、地図の上では約 3 マス幅)を押してしまわないよう、
+// どの地点の立ち位置からも 3 マス以上離れた、歩いて行けるマスを自宅前の近くから選ぶ。
+// ワープ床や到着で会話が開く範囲に着くと別の出来事が起きるので、それらも外す
+const MAP_CLICK_TARGET = (() => {
+  const onSpecial = (x: number, y: number) =>
+    town.warps.some(w => w.cell.x === x && w.cell.y === y) ||
+    town.spots.some(({ arrivalArea: a }) =>
+      a === undefined ? false : x >= a.x && x < a.x + a.w && y >= a.y && y < a.y + a.h
+    )
+  const farFromSpots = (x: number, y: number) =>
+    town.spots.every(sp => Math.max(Math.abs(sp.cell.x - x), Math.abs(sp.cell.y - y)) >= 3)
+  const candidates: { cell: { x: number; y: number }; steps: number }[] = []
+  for (let y = 0; y < town.height; y++) {
+    for (let x = 0; x < town.width; x++) {
+      if (!isWalkable(town, { x, y }) || onSpecial(x, y) || !farFromSpots(x, y)) continue
+      const route = findPath(town, TOWN_ENTRY, { x, y })
+      // 近すぎると押した位置のずれで隣のマスと取り違えても気付けないので、3 歩以上先から選ぶ
+      if (route === null || route.length < 3) continue
+      candidates.push({ cell: { x, y }, steps: route.length })
+    }
+  }
+  candidates.sort((a, b) => a.steps - b.steps)
+  const picked = candidates[0]
+  if (picked === undefined) throw new Error('地図で押せるマスが町に無い')
+  return picked
+})()
 
 // 現在の部屋は下端の1マスマットから外へ出る
 const leaveRoom = async (page: Page) => {
@@ -299,6 +335,55 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
       text.arriveAt.replace('{place}', lab.place),
       { timeout: 2_500 }
     )
+  })
+
+  test(`地図の地点でないマスを押すと、そのマスまで歩く (${label})`, async ({ page }) => {
+    await openVillage(page, prefix)
+    await leaveRoom(page)
+    expect(await readCell(page)).toEqual({ worldId: 'town', cell: TOWN_ENTRY })
+    const map = page.getByRole('dialog')
+    await page.keyboard.press('m')
+    await expect(map.getByRole('heading', { name: text.mapTitle })).toBeVisible()
+    // 地図の SVG は枠いっぱいに伸びているので、SVG の箱に対するマスの割合で押す位置を決める
+    const box = await map.locator('svg').first().boundingBox()
+    if (box === null) throw new Error('地図の SVG が描かれていない')
+    const { cell, steps } = MAP_CLICK_TARGET
+    await page.mouse.click(
+      box.x + ((cell.x + 0.5) / town.width) * box.width,
+      box.y + ((cell.y + 0.5) / town.height) * box.height
+    )
+    await expect(map).toHaveCount(0)
+    // 1 マス 256ms で歩き切る長さに、押してから歩き出すまでの余裕を足して待つ
+    await expect
+      .poll(() => readCell(page), { timeout: steps * 256 + 2_000 })
+      .toEqual({ worldId: 'town', cell })
+  })
+
+  test(`地図の中で方向キーを押すと、その向きの地点へ焦点が移る (${label})`, async ({ page }) => {
+    await openVillage(page, prefix)
+    await leaveRoom(page)
+    const map = page.getByRole('dialog')
+    await page.keyboard.press('m')
+    await expect(map.getByRole('heading', { name: text.mapTitle })).toBeVisible()
+    const spotButton = (id: string) =>
+      map.getByRole('button', { name: text.fastTravel.replace('{place}', text.stops[id].place) })
+    const first = town.spots[0]
+    if (first === undefined) throw new Error('町に地点が無い')
+    // 地図を開いた直後は最初の地点に焦点がある
+    await expect(spotButton(first.id)).toBeFocused()
+    // 右か下のうち、実際に地点がある向きを町のデータから選ぶ
+    const moves = [
+      { key: 'ArrowRight', spot: spotToward(town.spots, first.id, 'right') },
+      { key: 'ArrowDown', spot: spotToward(town.spots, first.id, 'down') },
+    ]
+    const move = moves.find(m => m.spot !== null)
+    if (move === undefined || move.spot === null)
+      throw new Error('最初の地点の右にも下にも地点が無い')
+    expect(move.spot.id).not.toBe(first.id)
+    await page.keyboard.press(move.key)
+    await expect(spotButton(move.spot.id)).toBeFocused()
+    // 焦点が移っただけで地図は閉じず、歩き出してもいない
+    await expect(map.getByRole('heading', { name: text.mapTitle })).toBeVisible()
   })
 
   test(`再読み込みで村が最初からやり直しになる (${label})`, async ({ page }) => {
@@ -817,6 +902,57 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
       await expect(title).toBeFocused()
       await expect.poll(() => panel.evaluate(el => el.scrollTop)).toBeLessThan(before)
       await page.mouse.up()
+    })
+
+    test(`地図の中でスティックを倒すとその向きの地点へ焦点が移り、A でそこへ向かう`, async ({
+      page,
+    }) => {
+      await openVillage(page, prefix)
+      await leaveRoom(page)
+      const map = page.getByRole('dialog')
+      await page.getByRole('button', { name: text.openMap }).tap()
+      await expect(map.getByRole('heading', { name: text.mapTitle })).toBeVisible()
+      const spotButton = (id: string) =>
+        map.getByRole('button', { name: text.fastTravel.replace('{place}', text.stops[id].place) })
+      const first = town.spots[0]
+      if (first === undefined) throw new Error('町に地点が無い')
+      await expect(spotButton(first.id)).toBeFocused()
+      // 右か下のうち、実際に地点がある向きを町のデータから選ぶ(方向キーの検査と同じ選び方)
+      const moves = [
+        { dx: 30, dy: 0, spot: spotToward(town.spots, first.id, 'right') },
+        { dx: 0, dy: 30, spot: spotToward(town.spots, first.id, 'down') },
+      ]
+      const move = moves.find(m => m.spot !== null)
+      if (move === undefined || move.spot === null)
+        throw new Error('最初の地点の右にも下にも地点が無い')
+      expect(move.spot.id).not.toBe(first.id)
+      const stick = await page.getByRole('application', { name: text.joystick }).boundingBox()
+      if (stick === null) throw new Error('スティックが無い')
+      const x = stick.x + stick.width / 2
+      const y = stick.y + stick.height / 2
+      // 倒し続けると 300ms ごとに次の地点へ流れるので、押した瞬間の 1 つを 2 フレームで処理させてから戻す
+      const waitTwoFrames = () =>
+        page.evaluate(
+          () =>
+            new Promise<void>(resolve => {
+              requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+            })
+        )
+      await page.mouse.move(x, y)
+      await page.mouse.down()
+      await page.mouse.move(x + move.dx, y + move.dy)
+      await waitTwoFrames()
+      await page.mouse.move(x, y)
+      await page.mouse.up()
+      await expect(spotButton(move.spot.id)).toBeFocused()
+      // 焦点の当たった地点を A で押す。地図が閉じ、その地点へ向かって着く
+      // (名前で引くと ja では時計の窓の「決定」と重なるので、A ボタンの印で引く)
+      await page.locator('[data-village-action="a"]').tap()
+      await expect(map).toHaveCount(0)
+      await expect(page.locator('[data-village-bubble]')).toContainText(
+        text.arriveAt.replace('{place}', text.stops[move.spot.id].place),
+        { timeout: 10_000 }
+      )
     })
   })
 
