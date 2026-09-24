@@ -25,6 +25,8 @@ last_reviewed: 2026-09-21
 | `npm run start` | `out/` を `:4173` で配信 | — |
 | `npm run lint:fix` / `npm run format` | 自動修正 | — |
 
+`npm run test:e2e` が配信に使うポートは既定 `:4173` で、`E2E_PORT` で変えられる(`npm run start` は `:4173` 固定)。
+
 CI だけが走らせるものが2つある(`scripts/check-a11y.mjs` と `scripts/check-ja-linebreak.mjs`)。
 どちらも**配信中のサーバが要る**(`npm run start` を先に上げ、`npx wait-on http://localhost:4173` を挟む)。
 **引数のパス列の正本は `.github/workflows/deploy.yml`**、そのまま貼れる実行例は

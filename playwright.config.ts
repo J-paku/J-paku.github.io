@@ -1,9 +1,14 @@
 // out/ を静的配信して実際のクリック・キー操作で導線を検証する
 import { defineConfig, devices } from '@playwright/test'
 
+// 同じ機械で2つのセッション・worktree が同時に E2E を回すと、先にポートを握った側のビルドを
+// 互いに検査してしまうので、E2E_PORT でポートを分けられるようにする
+const PORT = Number(process.env.E2E_PORT ?? 4173)
+const BASE_URL = `http://localhost:${PORT}`
+
 export default defineConfig({
   testDir: 'tests',
-  // 走り出す前に、:4173 を配っているのが「このチェックアウトの out/」かどうかを 1 回だけ照合する。
+  // 走り出す前に、既定 :4173(E2E_PORT で変えられる)を配っているのが「このチェックアウトの out/」かどうかを 1 回だけ照合する。
   // 下の reuseExistingServer は切らない(切ると他プロセスがポートを握っている間 E2E が走らない)代わりに、
   // 別の worktree・別セッションのビルドを検査して全部緑になる事故をここで止める
   globalSetup: './tests/global-setup.ts',
@@ -19,10 +24,10 @@ export default defineConfig({
   // CI では test.only の混入を落とし、フレーキーな失敗は1回だけ再試行する
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  use: { baseURL: 'http://localhost:4173' },
+  use: { baseURL: BASE_URL },
   webServer: {
-    command: 'npx serve out -l 4173',
-    url: 'http://localhost:4173',
+    command: `npx serve out -l ${PORT}`,
+    url: BASE_URL,
     reuseExistingServer: true,
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],

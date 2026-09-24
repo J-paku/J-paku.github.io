@@ -5,7 +5,7 @@ read_when:
   - 画像やスプライトの持ち方を変えるとき
   - 依存や書体の読み込み方を変えるとき
 source_of_truth: true
-last_reviewed: 2026-09-21
+last_reviewed: 2026-09-24
 ---
 
 # 性能
@@ -46,3 +46,26 @@ Noto Sans の太さは `wght@400..700` の範囲で要求する(正本は `src/a
 
 BudouX(`src/utils/ja-phrase.ts`)が import する linkedom(サーバ用の DOM 実装)は、`next.config.ts` の alias でブラウザ向けの束からだけ `src/utils/linkedom-browser-stub.ts` に差し替えている。
 budoux の `browser` フィールドを Turbopack も webpack も当てないため、この差し替えを外すと linkedom 一式が全ルート共通の束に戻る。
+
+## ページあたりの JS と React/Next ランタイムのトレードオフ
+
+実測(2026-09-24、`out/` の非圧縮サイズ。そのページの HTML が参照するスクリプトの合計):
+
+| ページ | スクリプト | 合計 | 内訳 |
+|---|---|---|---|
+| 村(`/`) | 10本 | 646KB | 村専用のチャンクは 61KB。残り約 585KB は React 19 + Next 16 のランタイムと全ページ共通のチャンク(224KB・156KB・110KB…) |
+| 一覧(`/list`) | 11本 | 621KB | 一覧専用のチャンクは 32KB + 5KB。残りは村と同じ全ページ共通のチャンク(224KB・156KB・110KB…) |
+
+**60KB のエンジンに 0.5MB 超のランタイムが付いてくる。** これは静的エクスポート + App Router を選んだ代価である。
+選んだ理由は、言語別のルーティング・メタデータ・コンテンツの読み込みをサーバコンポーネントでビルド時に済ませられること。
+
+**今は手を付けない。** 見直すのは次のどちらかが起きたとき。
+
+- 3G 相当の回線で LCP / TTI が問題になった
+- 村のエンジンを React の外へ出すことになった
+
+測り直すときは `npm run build` の後にこれを走らせる(`out/index.html` を別のページの HTML に替えれば、そのページの分が出る)。
+
+```bash
+node -e 'const fs=require("fs");const html=fs.readFileSync("out/index.html","utf8");const js=[...new Set([...html.matchAll(/\/_next\/static\/[^"\x27 ]+\.js/g)].map(m=>m[0]))];let t=0;for(const j of js){const s=fs.statSync("out"+j).size;t+=s;console.log(j.split("/").pop(),(s/1024).toFixed(0)+"KB")}console.log("total",(t/1024).toFixed(0)+"KB")'
+```

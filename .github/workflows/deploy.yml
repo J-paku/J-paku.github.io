@@ -31,16 +31,40 @@ jobs:
       - run: npm run format:check
       - run: npm run test
       - run: npm run build
+      # ブラウザ本体は lock ファイルの版ごとに使い回す。OS 側の依存はキャッシュできないので hit でも入れる
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
       - name: Install Playwright Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
+      - name: Install Playwright system dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
       - run: npm run test:e2e
       - name: Start static server
         run: npx serve out -l 4173 &
       - run: npx wait-on http://localhost:4173
       - name: axe accessibility check
         run: node scripts/check-a11y.mjs http://localhost:4173 / /ko/ /list/ /ko/list/ /works/meishi-cross-platform/ /ko/works/meishi-cross-platform/
+      # apt のアーカイブ(/var/cache/apt)は root 所有で cache アクションが復元できないので、.deb を利用者側に落として持ち回る
+      - name: Cache CJK font package
+        id: fonts-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/apt-fonts
+          key: ${{ runner.os }}-fonts-noto-cjk-v1
+      - name: Download CJK font package
+        if: steps.fonts-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          mkdir -p ~/.cache/apt-fonts && (cd ~/.cache/apt-fonts && apt-get download fonts-noto-cjk)
       - name: Install CJK fonts for measurement
-        run: sudo apt-get update && sudo apt-get install -y fonts-noto-cjk
+        # dpkg は依存を解決しないので、失敗したら apt で不足分を入れて仕上げる
+        run: sudo dpkg -i ~/.cache/apt-fonts/*.deb || sudo apt-get install -f -y
       - name: Japanese line-break check
         run: node scripts/check-ja-linebreak.mjs http://localhost:4173 / /ko/ /list/ /ko/list/ /works/meishi-cross-platform/ /ko/works/meishi-cross-platform/
       - uses: actions/configure-pages@v5
