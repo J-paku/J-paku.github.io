@@ -68,6 +68,8 @@
   width: min(100%, calc((100vh - 168px) * var(--map-w) / var(--map-h)));
   aspect-ratio: var(--map-w) / var(--map-h);
   margin: 20px;
+  /* 地点の無いマスも押せば歩いて行ける */
+  cursor: pointer;
 }
 
 .mapCanvas > svg {

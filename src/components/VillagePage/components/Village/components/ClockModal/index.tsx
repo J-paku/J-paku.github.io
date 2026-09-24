@@ -5,7 +5,7 @@
 import { useId, useRef, type RefObject } from 'react'
 
 import type { Locale } from '@content/types/content'
-import type { ClockText } from '@content/types/world'
+import type { ClockText, Direction } from '@content/types/world'
 import PhraseText from '@/components/ui/PhraseText'
 
 import { useClockModal } from './hooks/use-clock-modal'
@@ -19,15 +19,25 @@ export type ClockModalProps = {
   announce: (message: string) => void
   onClose: () => void
   returnTo: RefObject<HTMLElement | null>
+  // スティックの押しっぱなしの向き。会話窓と同じ ref を読み、ボタンの移動と針に使う
+  scrollHeldRef: RefObject<Direction | null>
 }
 
-export function ClockModal({ text, lang, announce, onClose, returnTo }: ClockModalProps) {
+export function ClockModal({
+  text,
+  lang,
+  announce,
+  onClose,
+  returnTo,
+  scrollHeldRef,
+}: ClockModalProps) {
   const titleId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
   const {
     step,
     hour,
     minute,
+    decideRef,
     chooseRealtime,
     chooseCustom,
     stepHour,
@@ -35,7 +45,7 @@ export function ClockModal({ text, lang, announce, onClose, returnTo }: ClockMod
     decide,
     cancelPick,
     handleKeyDown,
-  } = useClockModal({ text, dialogRef, returnTo, announce, onClose })
+  } = useClockModal({ text, dialogRef, returnTo, scrollHeldRef, announce, onClose })
 
   return (
     // data-village-clock・data-step は E2E がこの窓と段階を見分けるための目印
@@ -134,7 +144,7 @@ export function ClockModal({ text, lang, announce, onClose, returnTo }: ClockMod
               </>
             ) : (
               <>
-                <button type='button' onClick={decide}>
+                <button ref={decideRef} type='button' onClick={decide}>
                   {text.decide}
                 </button>
                 <button type='button' onClick={cancelPick}>

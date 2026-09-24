@@ -1,7 +1,7 @@
 // 経路探索 findPath のテスト
 import { vi } from 'vitest'
 import type { Cell, World } from '@content/types/world'
-import { findPath } from './path'
+import { findPath, nearestReachable } from './path'
 
 // server-only は Next.js のビルド境界専用ガードで、vitest(node 環境)では無条件に例外を投げる。
 // テストでは中身を持たない mock に差し替え、読み込み専用の @/lib/content/read を素通しにする
@@ -110,5 +110,55 @@ describe('findPath (実際の worldSet — 構造物の回避)', () => {
     expect(path.filter(insideHouse)).toEqual([])
     // 北は外周の木で塞がっているので南の道へ迂回する。直進なら 5 歩のところが 11 歩になる
     expect(path).toHaveLength(11)
+  })
+})
+
+describe('nearestReachable', () => {
+  // 3×3 の広場の中央に 1×1 の構造物(郵便ポスト)を置く。塞いでいるのはタイルではなく構造物だけ
+  const plaza: World = {
+    id: 'plaza3',
+    kind: 'exterior',
+    width: 3,
+    height: 3,
+    start: { x: 0, y: 1 },
+    startFacing: 'right',
+    tiles: [
+      ['path', 'path', 'path'],
+      ['path', 'path', 'path'],
+      ['path', 'path', 'path'],
+    ],
+    structures: [{ id: 'post', kind: 'mailbox', cell: { x: 1, y: 1 } }],
+    spots: [],
+    warps: [],
+  }
+
+  it('target が歩いて届くマスなら target そのもの', () => {
+    expect(nearestReachable(world, { x: 0, y: 2 }, { x: 3, y: 0 })).toEqual({ x: 3, y: 0 })
+  })
+  it('target が構造物なら、隣の届くマスのうち from から先に出会う方', () => {
+    // 西隣 (0,1) から押すと、自分がもう距離 1 で、それより近い届くマスは無いので動かない
+    expect(nearestReachable(plaza, { x: 0, y: 1 }, { x: 1, y: 1 })).toEqual({ x: 0, y: 1 })
+    // 角 (0,0) からは距離 2 の自分より、BFS で先に出会う東の (1,0)(距離 1)へ寄る
+    expect(nearestReachable(plaza, { x: 0, y: 0 }, { x: 1, y: 1 })).toEqual({ x: 1, y: 0 })
+  })
+  it('target がワールドの外なら、届くマスのうち最も近い縁のマス', () => {
+    expect(nearestReachable(world, { x: 0, y: 2 }, { x: 10, y: 2 })).toEqual({ x: 3, y: 2 })
+  })
+  it('from === target なら from', () => {
+    expect(nearestReachable(world, { x: 2, y: 1 }, { x: 2, y: 1 })).toEqual({ x: 2, y: 1 })
+  })
+  it('水で隔てられた向こう岸は選ばず、こちら側で最も近いマスに留まる', () => {
+    // 四隅の島の (0,0) からは自分しか届かない。対岸の (2,0) を押しても動かない
+    const isles: World = {
+      ...plaza,
+      id: 'isles',
+      tiles: [
+        ['grass', 'water', 'grass'],
+        ['water', 'water', 'water'],
+        ['grass', 'water', 'grass'],
+      ],
+      structures: [],
+    }
+    expect(nearestReachable(isles, { x: 0, y: 0 }, { x: 2, y: 0 })).toEqual({ x: 0, y: 0 })
   })
 })

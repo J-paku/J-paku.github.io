@@ -107,6 +107,7 @@ function Village({
     openMap,
     closeOverlay,
     travel,
+    travelTo,
     hasNext,
     onNext,
     pressA,
@@ -293,6 +294,7 @@ function Village({
               announce={announce}
               onClose={closeOverlay}
               returnTo={frameRef}
+              scrollHeldRef={scrollHeldRef}
             />
           ) : null}
           {outdoors ? (
@@ -331,8 +333,10 @@ function Village({
           fastTravelLabel={text.fastTravel}
           closeLabel={text.closeMap}
           onTravel={travel}
+          onTravelTo={travelTo}
           onClose={closeOverlay}
           returnTo={frameRef}
+          scrollHeldRef={scrollHeldRef}
         />
       ) : null}
     </div>

@@ -88,6 +88,29 @@ const expectPicked = async (clockWindow: Locator, hour: string, minute: string) 
   await expect(clockWindow.locator(MINUTE), `分が ${minute}`).toHaveText(minute)
 }
 
+// 次のフレームの描画が終わるまで待つ。スティックの向きは rAF で読まれるので、倒した後にこれを挟めば
+// 「押した瞬間」の 1 つは処理済みで、押し続けた時の繰り返し(300ms 以上先)にはまだ届かない
+const waitTwoFrames = (page: Page) =>
+  page.evaluate(
+    () =>
+      new Promise<void>(resolve => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      })
+  )
+
+// 操作帯のスティックの中心。倒す向きはここからの差で決まる(journey.spec のスティックの検査と同じ掴み方)
+const stickCenter = async (page: Page, text: VillageText) => {
+  const stick = await page.getByRole('application', { name: text.joystick }).boundingBox()
+  if (stick === null) throw new Error('スティックが無い')
+  return { x: stick.x + stick.width / 2, y: stick.y + stick.height / 2 }
+}
+
+// 2次の時が 18 時から何ステップ進んだか。0 時を跨いでも数えられるよう 24 で丸める
+const hourStepsFrom18 = async (clockWindow: Locator) => {
+  const hour = Number(await clockWindow.locator(HOUR).textContent())
+  return (hour - 18 + 24) % 24
+}
+
 // 時計の前まで歩いて昼から始める。どのテストも同じ出発点に揃える
 const startAtClock = async (page: Page, prefix: string, clock: ClockText) => {
   await page.clock.setFixedTime(new Date(NOON_JST))
@@ -206,6 +229,34 @@ for (const { prefix, text } of JOURNEYS) {
     await expect(root, '1次の取消しでも段階が変わらない').toHaveAttribute('data-phase', 'day')
   })
 
+  test(`1次の窓は矢印キーでボタンを移れる (${label})`, async ({ page }) => {
+    await startAtClock(page, prefix, clock)
+    const clockWindow = page.locator(CLOCK_WINDOW)
+    const realtime = clockWindow.getByRole('button', { name: clock.realtime })
+    const custom = clockWindow.getByRole('button', { name: clock.custom })
+    const cancel = clockWindow.getByRole('button', { name: clock.cancel })
+
+    await openClock(page)
+    await expect(clockWindow).toHaveAttribute('data-step', 'choose')
+    await expect(realtime, '開いた直後の焦点は先頭の現在時間').toBeFocused()
+
+    // 下・右が次、上・左が前。1 回押すごとに 1 つだけ移る(2 つ飛べば枠側でも数えている)
+    await page.keyboard.press('ArrowDown')
+    await expect(custom, '下 1 回でカスタム時間').toBeFocused()
+    await page.keyboard.press('ArrowDown')
+    await expect(cancel, '下もう 1 回でやめる').toBeFocused()
+    // 末尾から先は先頭へ回り込む
+    await page.keyboard.press('ArrowDown')
+    await expect(realtime, 'やめるの次は現在時間へ回り込む').toBeFocused()
+    // 先頭から前は末尾へ回り込む
+    await page.keyboard.press('ArrowUp')
+    await expect(cancel, '現在時間の前はやめるへ回り込む').toBeFocused()
+    await page.keyboard.press('ArrowRight')
+    await expect(realtime, '右も下と同じく次へ').toBeFocused()
+    // 焦点を移しただけで、どのボタンも押されていない
+    await expect(clockWindow).toHaveAttribute('data-step', 'choose')
+  })
+
   test(`2次の窓は矢印キーで時と分を動かせる (${label})`, async ({ page }) => {
     await startAtClock(page, prefix, clock)
     const clockWindow = page.locator(CLOCK_WINDOW)
@@ -213,6 +264,11 @@ for (const { prefix, text } of JOURNEYS) {
     await openClock(page)
     await clockWindow.getByRole('button', { name: clock.custom }).click()
     await expect(clockWindow).toHaveAttribute('data-step', 'pick')
+    // 2次へ入ると焦点は決定へ移る。A(Z)がそのまま決定になる前提
+    await expect(
+      clockWindow.getByRole('button', { name: clock.decide }),
+      '2次へ入った時点の焦点は決定'
+    ).toBeFocused()
     await expectPicked(clockWindow, '18', '00')
     // 矢印キーは窓に焦点がある時だけ届く。押す前にそこを確かめておく
     expect(await focusInside(clockWindow), '窓を開いた時点で焦点は窓の中にある').toBe(true)
@@ -237,6 +293,27 @@ for (const { prefix, text } of JOURNEYS) {
       await page.keyboard.press('ArrowDown')
     }
     await expect(clockWindow.locator(MINUTE), '下 4 回で 50 分へ回り込む').toHaveText('50')
+  })
+
+  test(`2次で A(Z) を押すと決定される (${label})`, async ({ page }) => {
+    await startAtClock(page, prefix, clock)
+    const root = page.locator(VILLAGE_ROOT)
+    const clockWindow = page.locator(CLOCK_WINDOW)
+
+    await openClock(page)
+    await clockWindow.getByRole('button', { name: clock.custom }).click()
+    await expect(clockWindow).toHaveAttribute('data-step', 'pick')
+    await expect(clockWindow.getByRole('button', { name: clock.decide })).toBeFocused()
+
+    await page.keyboard.press('ArrowRight')
+    await page.keyboard.press('ArrowRight')
+    await expectPicked(clockWindow, '20', '00')
+    // 焦点は決定に置かれたままなので、Z(画面の A)がそのまま決定を押す
+    await page.keyboard.press('z')
+    await expect(clockWindow).toHaveCount(0)
+    // 20 時は夜の帯。決定されていなければ昼のまま落ちる
+    await expect(root, 'Z で決定されて夜になる').toHaveAttribute('data-phase', 'night')
+    await expect(page.getByRole('status')).toContainText(clock.setCustom.replace('{time}', '20:00'))
   })
 
   test(`Z/X でも時計の窓を決定・閉じられる (${label})`, async ({ page }) => {
@@ -297,5 +374,101 @@ for (const { prefix, text } of JOURNEYS) {
     await page.keyboard.press('Escape')
     await expect(clockWindow).toHaveCount(0)
     await expect(root, '2次を閉じただけでは段階が変わらない').toHaveAttribute('data-phase', 'day')
+  })
+
+  // タッチ端末ではキーボードが無く、窓の操作は操作帯のスティックと A/B だけになる。
+  // 寸法と入力種別は journey.spec の A/B ボタンの検査と揃える
+  test.describe(`スティックと A/B (${label})`, () => {
+    test.use({ viewport: { width: 390, height: 664 }, isMobile: true, hasTouch: true })
+    // 画面の A は aria-label が窓の「決定」と同じ名前になるので、役割と名前ではなく data 属性で掴む
+    const buttonA = '[data-village-action="a"]'
+
+    test(`1次の窓はスティックでボタンを移り、A で押せる`, async ({ page }) => {
+      // 時計の前までは村の枠へ焦点を置いてキーで歩く(startAtClock が枠へ焦点を渡す)。検査の対象は窓の中だけ
+      await startAtClock(page, prefix, clock)
+      const root = page.locator(VILLAGE_ROOT)
+      const clockWindow = page.locator(CLOCK_WINDOW)
+      const custom = clockWindow.getByRole('button', { name: clock.custom })
+      const cancel = clockWindow.getByRole('button', { name: clock.cancel })
+
+      await page.locator(buttonA).tap()
+      await expect(clockWindow).toHaveAttribute('data-step', 'choose')
+      await expect(clockWindow.getByRole('button', { name: clock.realtime })).toBeFocused()
+
+      const { x, y } = await stickCenter(page, text)
+      await page.mouse.move(x, y)
+      await page.mouse.down()
+      // 右へ倒して 2 フレーム処理させてから中央へ戻す。確かめる側の待ちで繰り返しが走り、
+      // 焦点が 2 つ先まで流れないようにする
+      await page.mouse.move(x + 30, y)
+      await waitTwoFrames(page)
+      await page.mouse.move(x, y)
+      await expect(custom, 'スティックの右 1 回でカスタム時間').toBeFocused()
+      // 中央で離したことを 1 フレーム以上読ませてから倒し直す(押し直しとして数えさせる)
+      await page.waitForTimeout(50)
+      await page.mouse.move(x + 30, y)
+      await waitTwoFrames(page)
+      await page.mouse.move(x, y)
+      await expect(cancel, 'もう 1 回でやめる').toBeFocused()
+      await page.mouse.up()
+
+      // A は焦点のボタンを押す。やめるなので何も変えずに閉じる
+      await page.locator(buttonA).tap()
+      await expect(clockWindow).toHaveCount(0)
+      await expect(root, 'やめるでは段階が変わらない').toHaveAttribute('data-phase', 'day')
+    })
+
+    test(`2次の窓はスティックを倒し続けると時が進み続け、A で決定できる`, async ({ page }) => {
+      await startAtClock(page, prefix, clock)
+      const root = page.locator(VILLAGE_ROOT)
+      const clockWindow = page.locator(CLOCK_WINDOW)
+
+      await page.locator(buttonA).tap()
+      await expect(clockWindow).toHaveAttribute('data-step', 'choose')
+
+      const { x, y } = await stickCenter(page, text)
+      await page.mouse.move(x, y)
+      await page.mouse.down()
+      await page.mouse.move(x + 30, y)
+      await waitTwoFrames(page)
+      await page.mouse.move(x, y)
+      await page.mouse.up()
+      await expect(clockWindow.getByRole('button', { name: clock.custom })).toBeFocused()
+
+      // A でカスタム時間を押して2次へ。焦点は決定へ移る
+      await page.locator(buttonA).tap()
+      await expect(clockWindow).toHaveAttribute('data-step', 'pick')
+      await expect(clockWindow.getByRole('button', { name: clock.decide })).toBeFocused()
+      await expectPicked(clockWindow, '18', '00')
+
+      // 右へ倒したまま離さない。押した瞬間に 1 つ、少し待ってからは繰り返して進む。
+      // 何時まで進むかは倒していた時間次第なので、18 時からのステップ数で見る(0 時を跨いでも数えられる)
+      await page.mouse.move(x, y)
+      await page.mouse.down()
+      await page.mouse.move(x + 30, y)
+      await expect
+        .poll(() => hourStepsFrom18(clockWindow), { message: '押した瞬間に 1 つ進む' })
+        .toBeGreaterThanOrEqual(1)
+      await page.waitForTimeout(600)
+      await expect
+        .poll(() => hourStepsFrom18(clockWindow), { message: '倒し続けると繰り返して進む' })
+        .toBeGreaterThanOrEqual(2)
+      await page.mouse.move(x, y)
+      await page.mouse.up()
+
+      // 離した後は止まる。止まった値を決定の一言と突き合わせる
+      await waitTwoFrames(page)
+      const hour = await clockWindow.locator(HOUR).textContent()
+      await page.waitForTimeout(300)
+      await expect(clockWindow.locator(HOUR), '離した後は進まない').toHaveText(hour ?? '')
+
+      await page.locator(buttonA).tap()
+      await expect(clockWindow).toHaveCount(0)
+      // 18 時より後(夜の帯)を決めたので昼から変わる
+      await expect(root, 'A で決定されて昼から変わる').not.toHaveAttribute('data-phase', 'day')
+      await expect(page.getByRole('status')).toContainText(
+        clock.setCustom.replace('{time}', `${hour}:00`)
+      )
+    })
   })
 }
