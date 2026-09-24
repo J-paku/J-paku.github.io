@@ -1,8 +1,10 @@
 // キー・タップ・十字キー・押しっぱなしポインタの入力だけを集める。移動判定と村の処理は外に置き、
-// ここは「今どの向きが押されているか」「どのマスがタップ/押しっぱなしされているか」と行動キーの通知を持つ
+// ここは「今どの向きが押されているか」「どのマスがタップ/押しっぱなしされているか」を runtime の held・scrollHeld・
+// pointerTarget へ書き、行動キーを runtime の actions・buttons へ知らせる
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { FocusEvent, KeyboardEvent, PointerEvent, RefObject } from 'react'
+import type { FocusEvent, KeyboardEvent, PointerEvent } from 'react'
 import type { Cell, Direction } from '@content/types/world'
+import type { VillageRuntime } from './village-runtime'
 
 // event.code で引くので IME やキー配列の影響を受けない
 const CODE_TO_DIRECTION: Record<string, Direction> = {
@@ -46,21 +48,13 @@ export type VillageButtons = {
 }
 
 export type VillageInputOptions = {
-  actions: RefObject<VillageActions>
-  // キーボードの Z/X が呼ぶ A/B。actions は重ね表示が丸ごと差し替えるので別の ref で受ける
-  buttons: RefObject<VillageButtons>
-  // モーダル・地図が開いている間は true。移動入力とタップを捨てる
-  locked: RefObject<boolean>
-  // 歩行ループを起こす手。ループは止まっている間は次のフレームを頼まないので、
-  // 移動の入力(押した向き・ポインタの下のマス)を書いたら呼ぶ。呼ばないと最初の入力が読まれない
-  wake: () => void
+  // 歩行ループは止まっている間は次のフレームを頼まないので、移動の入力(押した向き・ポインタの下のマス)を
+  // 書いたら runtime.wake で起こす。起こさないと最初の入力が読まれない
+  runtime: VillageRuntime
 }
 
 type UseVillageInput = {
-  heldRef: RefObject<Direction | null>
   setHeld: (direction: Direction | null) => void
-  // 会話窓が開いている間(locked)の方向入力。StopModal が本文送り・焦点移動に読む
-  scrollHeldRef: RefObject<Direction | null>
   tapped: Cell | null
   consumeTap: () => void
   onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void
@@ -72,8 +66,6 @@ type UseVillageInput = {
     cellSize: number,
     origin: { x: number; y: number }
   ) => void
-  // 押されている間、ポインタの下にあるマス。離すと null。use-walk-loop が毎フレーム読む
-  pointerTargetRef: RefObject<Cell | null>
   onPointerMove: (
     event: PointerEvent<HTMLDivElement>,
     cellSize: number,
@@ -82,51 +74,42 @@ type UseVillageInput = {
   onPointerUp: (event: PointerEvent<HTMLDivElement>) => void
 }
 
-export function useVillageInput({
-  actions,
-  buttons,
-  locked,
-  wake,
-}: VillageInputOptions): UseVillageInput {
-  const heldRef = useRef<Direction | null>(null)
-  const scrollHeldRef = useRef<Direction | null>(null)
+export function useVillageInput({ runtime }: VillageInputOptions): UseVillageInput {
   const [tapped, setTapped] = useState<Cell | null>(null)
-  // 押されている間のポインタ下のマス。use-walk-loop が毎フレーム読んで経路を作り直す
-  const pointerTargetRef = useRef<Cell | null>(null)
   // 今つかんでいるポインタの id。複数指・マウス混在でも move/up を取り違えないための照合用
   const activePointerIdRef = useRef<number | null>(null)
 
   // 十字キーはキー押下と同じ経路に流す
   const setHeld = useCallback(
     (direction: Direction | null) => {
-      if (locked.current) {
+      if (runtime.locked.current) {
         if (direction === null) {
-          heldRef.current = null
-          scrollHeldRef.current = null
+          runtime.held.current = null
+          runtime.scrollHeld.current = null
           return
         }
         // 会話窓が開いている間は全方向を本文送り・焦点移動に回す
-        scrollHeldRef.current = direction
+        runtime.scrollHeld.current = direction
         return
       }
-      scrollHeldRef.current = null
-      heldRef.current = direction
-      wake()
+      runtime.scrollHeld.current = null
+      runtime.held.current = direction
+      runtime.wake.current()
     },
-    [locked, wake]
+    [runtime]
   )
 
   const onKeyDown = useCallback(
     (event: KeyboardEvent<HTMLDivElement>) => {
       if (event.code === 'Escape') {
         event.preventDefault()
-        actions.current.onEscape()
+        runtime.actions.current.onEscape()
         return
       }
       // M は地図の開閉。開いている間も受け付ける(onMap 側が開いていれば閉じる・会話中は無視する)
       if (event.code === 'KeyM') {
         event.preventDefault()
-        actions.current.onMap()
+        runtime.actions.current.onMap()
         return
       }
       // Z/X は画面の A/B と同じ。会話窓が開いている間も受け付け(地図は焦点が枠の外なので届かない)、
@@ -137,86 +120,95 @@ export function useVillageInput({
         if (event.ctrlKey || event.metaKey || event.altKey) return
         event.preventDefault()
         if (event.repeat) return
-        if (event.code === 'KeyZ') buttons.current.onA()
-        else buttons.current.onB()
+        if (event.code === 'KeyZ') runtime.buttons.current.onA()
+        else runtime.buttons.current.onB()
         return
       }
-      if (locked.current) {
-        heldRef.current = null
+      if (runtime.locked.current) {
+        runtime.held.current = null
         const scrollDirection = CODE_TO_DIRECTION[event.code]
         // 会話窓が開いている間は全方向を本文送り・焦点移動に回す
         if (scrollDirection !== undefined) {
           event.preventDefault()
-          scrollHeldRef.current = scrollDirection
+          runtime.scrollHeld.current = scrollDirection
         }
         return
       }
       const direction = CODE_TO_DIRECTION[event.code]
       if (direction !== undefined) {
         event.preventDefault()
-        heldRef.current = direction
-        wake()
+        runtime.held.current = direction
+        runtime.wake.current()
         return
       }
       if (TALK_CODES.includes(event.code)) {
         event.preventDefault()
-        actions.current.onTalk()
+        runtime.actions.current.onTalk()
       }
     },
-    [actions, buttons, locked, wake]
+    [runtime]
   )
 
-  const onKeyUp = useCallback((event: KeyboardEvent<HTMLDivElement>) => {
-    const direction = CODE_TO_DIRECTION[event.code]
-    if (direction === undefined) return
-    if (heldRef.current === direction) heldRef.current = null
-    if (scrollHeldRef.current === direction) scrollHeldRef.current = null
-  }, [])
+  const onKeyUp = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      const direction = CODE_TO_DIRECTION[event.code]
+      if (direction === undefined) return
+      if (runtime.held.current === direction) runtime.held.current = null
+      if (runtime.scrollHeld.current === direction) runtime.scrollHeld.current = null
+    },
+    [runtime]
+  )
 
   // フォーカスを失ったら押しっぱなし状態を捨てる(キーを押したまま別要素へ移った場合)
-  const onBlur = useCallback((event: FocusEvent<HTMLDivElement>) => {
-    heldRef.current = null
-    // 窓の中で焦点が移っても方向入力は継続し、村の外へ出た時だけ解除する
-    if (!event.currentTarget.contains(event.relatedTarget)) scrollHeldRef.current = null
-    pointerTargetRef.current = null
-    activePointerIdRef.current = null
-  }, [])
+  const onBlur = useCallback(
+    (event: FocusEvent<HTMLDivElement>) => {
+      runtime.held.current = null
+      // 窓の中で焦点が移っても方向入力は継続し、村の外へ出た時だけ解除する
+      if (!event.currentTarget.contains(event.relatedTarget)) runtime.scrollHeld.current = null
+      runtime.pointerTarget.current = null
+      activePointerIdRef.current = null
+    },
+    [runtime]
+  )
 
   const onPointerDown = useCallback(
     (event: PointerEvent<HTMLDivElement>, cellSize: number, origin: { x: number; y: number }) => {
-      if (locked.current || cellSize <= 0) return
+      if (runtime.locked.current || cellSize <= 0) return
       // マップに重ねたボタン(ミニマップ・会話窓)の操作はタップ移動にしない
       const target = event.target
       if (target instanceof Element && target.closest('button, a') !== null) return
       const { x, y } = cellAt(event, cellSize, origin)
       setTapped({ x, y })
-      pointerTargetRef.current = { x, y }
+      runtime.pointerTarget.current = { x, y }
       activePointerIdRef.current = event.pointerId
-      wake()
+      runtime.wake.current()
       // 枠の外へ出ても move/up を受け取り続けるために捕捉する
       event.currentTarget.setPointerCapture(event.pointerId)
     },
-    [locked, wake]
+    [runtime]
   )
 
   const onPointerMove = useCallback(
     (event: PointerEvent<HTMLDivElement>, cellSize: number, origin: { x: number; y: number }) => {
       if (event.pointerId !== activePointerIdRef.current) return
-      if (locked.current || cellSize <= 0) return
+      if (runtime.locked.current || cellSize <= 0) return
       const { x, y } = cellAt(event, cellSize, origin)
-      const current = pointerTargetRef.current
+      const current = runtime.pointerTarget.current
       if (current !== null && current.x === x && current.y === y) return
-      pointerTargetRef.current = { x, y }
-      wake()
+      runtime.pointerTarget.current = { x, y }
+      runtime.wake.current()
     },
-    [locked, wake]
+    [runtime]
   )
 
-  const onPointerUp = useCallback((event: PointerEvent<HTMLDivElement>) => {
-    if (event.pointerId !== activePointerIdRef.current) return
-    pointerTargetRef.current = null
-    activePointerIdRef.current = null
-  }, [])
+  const onPointerUp = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      if (event.pointerId !== activePointerIdRef.current) return
+      runtime.pointerTarget.current = null
+      activePointerIdRef.current = null
+    },
+    [runtime]
+  )
 
   const consumeTap = useCallback(() => setTapped(null), [])
 
@@ -224,26 +216,23 @@ export function useVillageInput({
     // ページが隠れたら押下状態を解除(タブ切替中にキーアップ/ポインタアップを取りこぼす対策)
     const onHidden = () => {
       if (document.visibilityState !== 'hidden') return
-      heldRef.current = null
-      scrollHeldRef.current = null
-      pointerTargetRef.current = null
+      runtime.held.current = null
+      runtime.scrollHeld.current = null
+      runtime.pointerTarget.current = null
       activePointerIdRef.current = null
     }
     document.addEventListener('visibilitychange', onHidden)
     return () => document.removeEventListener('visibilitychange', onHidden)
-  }, [])
+  }, [runtime])
 
   return {
-    heldRef,
     setHeld,
-    scrollHeldRef,
     tapped,
     consumeTap,
     onKeyDown,
     onKeyUp,
     onBlur,
     onPointerDown,
-    pointerTargetRef,
     onPointerMove,
     onPointerUp,
   }

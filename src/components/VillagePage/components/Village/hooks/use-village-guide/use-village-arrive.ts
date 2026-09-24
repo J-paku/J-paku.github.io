@@ -1,31 +1,20 @@
 // 到着マスと衝突の後始末。ワープ・会話地点・目的地を判定し、位置の保存と案内文の差し替えまでを持つ。
-// 会話地点・案内文・目印の入れ物は入口フックの持ち物で、ここは受け取った ref と setState へ書くだけ
+// 会話地点・案内文・目印の入れ物は入口フックと runtime の持ち物で、ここは受け取った ref と setState へ書くだけ
 import { useCallback, useRef } from 'react'
 import type { Dispatch, RefObject, SetStateAction } from 'react'
-import type { Cell, Spot, VillageText, World, WorldSet } from '@content/types/world'
-import type { MoveState } from '@/lib/village/movement'
+import type { Cell, Spot, VillageText, WorldSet } from '@content/types/world'
 import { findPath } from '@/lib/village/path'
 import { spotAt } from '@/lib/village/spot'
 import { warpAt } from '@/lib/village/warp'
 import { writePosition } from '@/lib/preferences'
-import type { SpotRef } from '@/lib/village/spot'
 import { findWorld, type EnterWorld } from '../use-village-world'
-import type { VillageActions } from '../use-village-input'
+import type { VillageRuntime } from '../village-runtime'
 import { defaultSpeech } from './default-speech'
 
 type VillageArriveOptions = {
   worldSet: WorldSet
   text: VillageText
-  worldRef: RefObject<World>
-  worldKeyRef: RefObject<string>
-  stateRef: RefObject<MoveState>
-  destinationRef: RefObject<Cell | null>
-  pendingGoalRef: RefObject<SpotRef | null>
-  pendingRouteRef: RefObject<Cell[] | null>
-  pendingFastRef: RefObject<boolean>
-  autoTalkRef: RefObject<boolean>
-  actionsRef: RefObject<VillageActions>
-  activeSpotRef: RefObject<Spot | null>
+  runtime: VillageRuntime
   coarseRef: RefObject<boolean>
   setDestination: Dispatch<SetStateAction<Cell | null>>
   setPlayerCell: Dispatch<SetStateAction<Cell>>
@@ -43,16 +32,7 @@ type UseVillageArrive = {
 export function useVillageArrive({
   worldSet,
   text,
-  worldRef,
-  worldKeyRef,
-  stateRef,
-  destinationRef,
-  pendingGoalRef,
-  pendingRouteRef,
-  pendingFastRef,
-  autoTalkRef,
-  actionsRef,
-  activeSpotRef,
+  runtime,
   coarseRef,
   setDestination,
   setPlayerCell,
@@ -71,13 +51,13 @@ export function useVillageArrive({
         locatorHiddenRef.current = true
         setLocatorVisible(false)
       }
-      const here = worldRef.current
+      const here = runtime.world.current
       const warp = warpAt(here, cell)
       const target = warp === null ? null : findWorld(worldSet, warp.target.worldId)
       if (warp !== null && target !== null) {
         // ワープした先では地点判定をしない(降り立つマスは通路として扱う)
         enterWorld(warp.target.worldId, target, warp.target.cell, warp.target.facing)
-        activeSpotRef.current = null
+        runtime.activeSpot.current = null
         setActiveSpot(null)
         writePosition(worldSet.id, {
           worldId: warp.target.worldId,
@@ -85,18 +65,18 @@ export function useVillageArrive({
           facing: warp.target.facing,
         })
         // 別ワールドの地点へ向かう途中なら、扉を出た所で目的地と案内を立て直す
-        const goal = pendingGoalRef.current
+        const goal = runtime.pendingGoal.current
         if (goal !== null && goal.worldId === warp.target.worldId) {
-          pendingGoalRef.current = null
-          destinationRef.current = goal.spot.cell
+          runtime.pendingGoal.current = null
+          runtime.destination.current = goal.spot.cell
           setDestination(goal.spot.cell)
           setSpeech(text.headTo.replace('{place}', text.stops[goal.spot.id].place))
           // 次へボタンの自動歩行が続いている時だけ、到着ワールドの経路を作り直す(利用者が途中で割り込んだら目的地の印と案内だけ残す)
-          if (autoTalkRef.current) {
+          if (runtime.autoTalk.current) {
             const route = findPath(target, warp.target.cell, goal.spot.cell)
             if (route !== null && route.length > 0) {
-              pendingRouteRef.current = route
-              pendingFastRef.current = true
+              runtime.pendingRoute.current = route
+              runtime.pendingFast.current = true
             }
           }
           return
@@ -105,25 +85,25 @@ export function useVillageArrive({
         return
       }
       writePosition(worldSet.id, {
-        worldId: worldKeyRef.current,
+        worldId: runtime.worldKey.current,
         cell,
-        facing: stateRef.current.facing,
+        facing: runtime.state.current.facing,
       })
       setPlayerCell(cell)
-      const goal = destinationRef.current
+      const goal = runtime.destination.current
       if (goal !== null && goal.x === cell.x && goal.y === cell.y) {
-        destinationRef.current = null
+        runtime.destination.current = null
         setDestination(null)
       }
       const spot = spotAt(here, cell)
-      const previousSpot = activeSpotRef.current
-      activeSpotRef.current = spot
+      const previousSpot = runtime.activeSpot.current
+      runtime.activeSpot.current = spot
       setActiveSpot(spot)
       // 地点への呼びかけは物の上の吹き出しが出す。会話窓は目的地の案内か既定文
       // 目的地の地点。別ワールドの地点へ扉を目指して歩いている間も、その案内を保つ
       const goalSpot =
-        (destinationRef.current === null ? null : spotAt(here, destinationRef.current)) ??
-        pendingGoalRef.current?.spot ??
+        (runtime.destination.current === null ? null : spotAt(here, runtime.destination.current)) ??
+        runtime.pendingGoal.current?.spot ??
         null
       setSpeech(
         goalSpot === null
@@ -134,28 +114,19 @@ export function useVillageArrive({
       // 閉じた後に同じ出口内で横へ動いても繰り返し開かない
       if (
         (spot?.arrivalArea !== undefined && previousSpot?.id !== spot.id) ||
-        (autoTalkRef.current && goal !== null && goal.x === cell.x && goal.y === cell.y)
+        (runtime.autoTalk.current && goal !== null && goal.x === cell.x && goal.y === cell.y)
       ) {
-        autoTalkRef.current = false
-        if (spot !== null) actionsRef.current.onTalk()
+        runtime.autoTalk.current = false
+        if (spot !== null) runtime.actions.current.onTalk()
       }
-      // 追加の依存は入口フックが持つ ref と setState で、描画をまたいでも同じ実体。作り直す回数は分割前と同じ
+      // 追加の依存は runtime と入口フックが持つ ref・setState で、描画をまたいでも同じ実体。作り直す回数は分割前と同じ
     },
     [
       worldSet,
       text,
       enterWorld,
-      worldRef,
-      worldKeyRef,
-      stateRef,
+      runtime,
       setPlayerCell,
-      destinationRef,
-      pendingGoalRef,
-      pendingRouteRef,
-      pendingFastRef,
-      autoTalkRef,
-      actionsRef,
-      activeSpotRef,
       coarseRef,
       setDestination,
       setActiveSpot,
@@ -168,16 +139,16 @@ export function useVillageArrive({
   const bump = useCallback(
     (cell: Cell) => {
       // 壁の扉へぶつかったらワープ(到着扱いにする)
-      if (warpAt(worldRef.current, cell) !== null) {
+      if (warpAt(runtime.world.current, cell) !== null) {
         arrive(cell)
         return
       }
-      const spot = spotAt(worldRef.current, stateRef.current.cell)
+      const spot = spotAt(runtime.world.current, runtime.state.current.cell)
       if (spot === null) return
-      activeSpotRef.current = spot
+      runtime.activeSpot.current = spot
       setActiveSpot(spot)
     },
-    [arrive, worldRef, stateRef, activeSpotRef, setActiveSpot]
+    [arrive, runtime, setActiveSpot]
   )
 
   return { arrive, bump }
