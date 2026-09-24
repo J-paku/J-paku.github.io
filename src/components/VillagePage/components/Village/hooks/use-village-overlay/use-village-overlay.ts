@@ -2,24 +2,14 @@
 // 水辺で話しかけた時は釣りの窓へ回す。頭上の一言は use-village-hint、釣りの進み具合は
 // use-village-fishing、閉じた後の道中は use-village-travel に分けてある
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Dispatch, RefObject, SetStateAction } from 'react'
+import type { Dispatch, SetStateAction } from 'react'
 import type { CareerFeature, CareerRole } from '@content/types/content'
-import type {
-  Cell,
-  Direction,
-  Spot,
-  StopText,
-  VillageText,
-  World,
-  WorldSet,
-} from '@content/types/world'
+import type { Cell, StopText, VillageText, World, WorldSet } from '@content/types/world'
 import { isFishingSpot } from '@/lib/village/fishing'
-import type { MoveState } from '@/lib/village/movement'
-import type { FishingPose } from '@/lib/village/player-pose'
-import { allSpots, facedCell, type SpotRef } from '@/lib/village/spot'
+import { allSpots, facedCell } from '@/lib/village/spot'
 import { writeVisited } from '@/lib/preferences'
-import type { VillageActions } from '../use-village-input'
 import { defaultSpeech } from '../use-village-guide/default-speech'
+import type { VillageRuntime } from '../village-runtime'
 import { useVillageFishing, type FishingPhase } from './use-village-fishing'
 import { useVillageHint } from './use-village-hint'
 import { useVillageTravel } from './use-village-travel'
@@ -37,28 +27,13 @@ export type VillageOverlayOptions = {
   // タッチ端末か。釣りを閉じた後に戻す既定文の選び分けに使う
   coarse: boolean
   world: World
-  worldRef: RefObject<World>
-  worldKeyRef: RefObject<string>
-  stateRef: RefObject<MoveState>
-  destinationRef: RefObject<Cell | null>
-  pendingRouteRef: RefObject<Cell[] | null>
-  pendingFastRef: RefObject<boolean>
-  pendingGoalRef: RefObject<SpotRef | null>
-  autoTalkRef: RefObject<boolean>
+  // runtime.fishingPose には釣っている間だけ段階とその段階に入った時刻(performance.now())を入れる。
+  // 錠を外した・竿の印を変えた・経路を置いた後は runtime.wake で眠っている歩行ループを起こす
+  runtime: VillageRuntime
   setDestination: Dispatch<SetStateAction<Cell | null>>
-  visitedRef: RefObject<ReadonlySet<string>>
   setVisited: Dispatch<SetStateAction<ReadonlySet<string>>>
-  activeSpotRef: RefObject<Spot | null>
   setSpeech: Dispatch<SetStateAction<string>>
   arrive: (cell: Cell) => void
-  lockedRef: RefObject<boolean>
-  actionsRef: RefObject<VillageActions>
-  heldRef: RefObject<Direction | null>
-  // 釣っている間だけ段階とその段階に入った時刻(performance.now())を入れる印。釣っていなければ null。
-  // 歩行ループが毎フレーム読んで竿を持つコマを選ぶ
-  fishingPoseRef: RefObject<FishingPose | null>
-  // 眠っている歩行ループを起こす手。錠を外した・竿の印を変えた・経路を置いた後に呼ぶ
-  wake: () => void
 }
 
 type UseVillageOverlay = {
@@ -68,6 +43,7 @@ type UseVillageOverlay = {
   closeOverlay: () => void
   goNext: () => void
   travel: (spotId: string) => void
+  travelTo: (cell: Cell) => void
   // 話せる相手がいない所で話しかけた時の一言。無ければ null
   hintText: string | null
   // 会話窓(role='status')の一言を差し替える手。時計の設定窓が結果を伝えるのに使う
@@ -84,25 +60,11 @@ export function useVillageOverlay({
   roleLabels,
   coarse,
   world,
-  worldRef,
-  worldKeyRef,
-  stateRef,
-  destinationRef,
-  pendingRouteRef,
-  pendingFastRef,
-  pendingGoalRef,
-  autoTalkRef,
+  runtime,
   setDestination,
-  visitedRef,
   setVisited,
-  activeSpotRef,
   setSpeech,
   arrive,
-  lockedRef,
-  actionsRef,
-  heldRef,
-  fishingPoseRef,
-  wake,
 }: VillageOverlayOptions): UseVillageOverlay {
   const [mode, setMode] = useState<Mode>('walk')
   const { hintText, showHint, clearHint } = useVillageHint({ world })
@@ -124,39 +86,39 @@ export function useVillageOverlay({
   // モーダル・地図が開いている間は移動入力を捨てる。
   // 錠が外れたら、開いている間眠っていた歩行ループを起こす(途中だった歩き・カメラの追従を続ける)
   useEffect(() => {
-    lockedRef.current = mode !== 'walk'
-    if (mode !== 'walk') heldRef.current = null
-    else wake()
-  }, [mode, heldRef, lockedRef, wake])
+    runtime.locked.current = mode !== 'walk'
+    if (mode !== 'walk') runtime.held.current = null
+    else runtime.wake.current()
+  }, [mode, runtime])
 
   // 投げてから結果窓を閉じるまでは竿を持つ。竿のコマはその段階に入ってからの経過で進むので、
   // 始まりの時刻は段階が変わった時だけ書く(同じ段階のまま effect が回り直しても時計を巻き戻さない)。
   // 歩行ループはその段階のコマが進み切ると眠っているので、印を変えたら起こす
   useEffect(() => {
-    if (fishingPhase === 'idle') fishingPoseRef.current = null
-    else if (fishingPoseRef.current?.phase !== fishingPhase)
-      fishingPoseRef.current = { phase: fishingPhase, since: performance.now() }
-    wake()
-  }, [fishingPhase, fishingPoseRef, wake])
+    if (fishingPhase === 'idle') runtime.fishingPose.current = null
+    else if (runtime.fishingPose.current?.phase !== fishingPhase)
+      runtime.fishingPose.current = { phase: fishingPhase, since: performance.now() }
+    runtime.wake.current()
+  }, [fishingPhase, runtime])
 
   const openTalk = useCallback(() => {
-    if (lockedRef.current) return
-    if (stateRef.current.motion !== null) return
-    const spot = activeSpotRef.current
+    if (runtime.locked.current) return
+    if (runtime.state.current.motion !== null) return
+    const spot = runtime.activeSpot.current
     if (spot === null) {
       // 水辺を向いているなら直接投げる。釣っている間は移動を止める。
       // 釣れる中身が 1 つも無い時は開かない — 開くと結果窓が出ないまま移動だけ止まってしまう
-      if (catches.length > 0 && isFishingSpot(worldRef.current, stateRef.current)) {
+      if (catches.length > 0 && isFishingSpot(runtime.world.current, runtime.state.current)) {
         // 全部を釣り上げた後は何もしない。水辺の考え事の吹き出しがもう釣れないと伝えているので、
         // 窓も「……」も noTarget の一言も出さず、移動も止めない
         if (fishingExhausted) return
         clearHint()
-        lockedRef.current = true
-        heldRef.current = null
-        pendingRouteRef.current = null
+        runtime.locked.current = true
+        runtime.held.current = null
+        runtime.pendingRoute.current = null
         setMode('fishing')
         // 浮きと巻物は向いている先の水のマスへ置く。歩き出せば釣りは終わるので、ここで決め打ちできる
-        startFishing(facedCell(stateRef.current))
+        startFishing(facedCell(runtime.state.current))
         return
       }
       // 話せる相手がいない所で話しかけた時は、プレイヤーの頭上に一言だけ出す
@@ -164,34 +126,28 @@ export function useVillageOverlay({
       return
     }
     clearHint()
-    lockedRef.current = true
-    heldRef.current = null
-    pendingRouteRef.current = null
+    runtime.locked.current = true
+    runtime.held.current = null
+    runtime.pendingRoute.current = null
     // 時計の地点は会話窓ではなく設定窓。コース外なので visited にも入れない
     if (spot.action === 'clock') {
       setMode('clock')
       return
     }
     setMode('talk')
-    if (visitedRef.current.has(spot.id)) return
-    const marked = new Set(visitedRef.current)
+    if (runtime.visited.current.has(spot.id)) return
+    const marked = new Set(runtime.visited.current)
     marked.add(spot.id)
-    visitedRef.current = marked
+    runtime.visited.current = marked
     setVisited(marked)
     writeVisited(worldSet.id, [...marked])
   }, [
-    heldRef,
+    runtime,
     worldSet,
-    activeSpotRef,
-    lockedRef,
-    pendingRouteRef,
-    visitedRef,
     setVisited,
     text,
     clearHint,
     showHint,
-    worldRef,
-    stateRef,
     catches,
     startFishing,
     fishingExhausted,
@@ -205,16 +161,16 @@ export function useVillageOverlay({
     // ここで空にしておくので、すぐ投げ直しても次の casting は必ず新しい時刻から数える
     if (mode === 'fishing') {
       resetFishing()
-      fishingPoseRef.current = null
-      setSpeech(defaultSpeech(worldRef.current, text, coarse))
+      runtime.fishingPose.current = null
+      setSpeech(defaultSpeech(runtime.world.current, text, coarse))
     }
-    lockedRef.current = false
+    runtime.locked.current = false
     // 開いている間眠っていた歩行ループを起こす。竿を下ろしたコマもここで描き直させる
-    wake()
+    runtime.wake.current()
     setMode('walk')
     // コース外の地点(経歴碑など)を先に話しても size は増えるが完走にはならないため、
     // visited に含まれるコース地点の数で判定する
-    const visitedCourseCount = courseSpotIds.filter(id => visitedRef.current.has(id)).length
+    const visitedCourseCount = courseSpotIds.filter(id => runtime.visited.current.has(id)).length
     // 5 か所目の会話を閉じた瞬間だけ、一覧への案内に差し替えて焦点を移す
     if (wasTalk && !celebratedRef.current && visitedCourseCount === totalSpots) {
       celebratedRef.current = true
@@ -227,20 +183,7 @@ export function useVillageOverlay({
         exit.focus()
       })
     }
-  }, [
-    lockedRef,
-    mode,
-    visitedRef,
-    courseSpotIds,
-    totalSpots,
-    setSpeech,
-    text,
-    resetFishing,
-    fishingPoseRef,
-    worldRef,
-    coarse,
-    wake,
-  ])
+  }, [runtime, mode, courseSpotIds, totalSpots, setSpeech, text, resetFishing, coarse])
 
   // M は開閉の切り替え。会話中は無視
   const openMap = useCallback(() => {
@@ -248,35 +191,26 @@ export function useVillageOverlay({
       closeOverlay()
       return
     }
-    if (lockedRef.current || world.kind !== 'exterior') return
-    lockedRef.current = true
-    heldRef.current = null
+    if (runtime.locked.current || world.kind !== 'exterior') return
+    runtime.locked.current = true
+    runtime.held.current = null
     setMode('map')
-  }, [heldRef, world, lockedRef, mode, closeOverlay])
+  }, [runtime, world, mode, closeOverlay])
 
-  const { goNext, travel } = useVillageTravel({
+  const { goNext, travel, travelTo } = useVillageTravel({
     worldSet,
     text,
-    worldRef,
-    worldKeyRef,
-    stateRef,
-    destinationRef,
-    pendingRouteRef,
-    pendingFastRef,
-    pendingGoalRef,
-    autoTalkRef,
+    runtime,
     setDestination,
-    activeSpotRef,
     setSpeech,
     arrive,
     closeOverlay,
     openTalk,
-    wake,
   })
 
   useEffect(() => {
-    actionsRef.current = { onTalk: openTalk, onMap: openMap, onEscape: closeOverlay }
-  }, [openTalk, openMap, closeOverlay, actionsRef])
+    runtime.actions.current = { onTalk: openTalk, onMap: openMap, onEscape: closeOverlay }
+  }, [openTalk, openMap, closeOverlay, runtime])
 
   return {
     mode,
@@ -285,6 +219,7 @@ export function useVillageOverlay({
     closeOverlay,
     goNext,
     travel,
+    travelTo,
     hintText,
     announce: setSpeech,
     fishing: {

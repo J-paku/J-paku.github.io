@@ -1,5 +1,7 @@
 // 村の組み立て。ワールド・案内・移動ループ・重ね表示の各フックを順に繋ぎ、描画に要る値だけを返す。
-// フックを呼ぶ順(寸法→入力→復元→rAF→重ね表示)がそのまま effect の走る順になるので、並べ替えない
+// フックを呼ぶ順(寸法→入力→復元→rAF→重ね表示)がそのまま effect の走る順になるので、並べ替えない。
+// フック同士が共有する ref は village-runtime.ts の束 2 つ(runtime・dom)で最初に一度に作り、
+// 各フックはそれを受け取るだけにする(ref を 1 本ずつ次のフックへ手渡ししない)
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import type { CareerFeature, CareerRole } from '@content/types/content'
@@ -7,18 +9,15 @@ import type { Cell, Spot, StopText, VillageText, World, WorldSet } from '@conten
 import type { SheetLayout } from '@/lib/pixel/art'
 import { doorMarkers, type DoorMarker } from '@/lib/village/door-marker'
 import { waterBubble } from '@/lib/village/fishing'
-import type { FishingPose } from '@/lib/village/player-pose'
 import { nextSpot, talkAnchor } from '@/lib/village/spot'
-import { useVillageInput, type VillageActions, type VillageButtons } from './use-village-input'
-import { cameraOffset, useStageScale, VIEW_COLS, VIEW_ROWS } from './use-stage-scale'
+import { useVillageInput } from './use-village-input'
+import { useStageScale, VIEW_COLS, VIEW_ROWS } from './use-stage-scale'
 import { useVillageGuide } from './use-village-guide/use-village-guide'
 import type { FishingPhase } from './use-village-overlay/use-village-fishing'
 import { useVillageOverlay } from './use-village-overlay/use-village-overlay'
 import { useVillageWorld } from './use-village-world'
-import { useWalkLoop } from './use-walk-loop'
-
-const NO_ACTIONS: VillageActions = { onTalk: () => {}, onMap: () => {}, onEscape: () => {} }
-const NO_BUTTONS: VillageButtons = { onA: () => {}, onB: () => {} }
+import { useWalkLoop } from './use-walk-loop/use-walk-loop'
+import { useVillageDom, useVillageRuntime, type VillageRuntime } from './village-runtime'
 
 // 地点の文言の引き先。時計のような action を持つ地点は会話窓を開かないので stops ではなく専用の欄を見る
 const placeName = (text: VillageText, spot: Spot): string =>
@@ -93,7 +92,7 @@ type UseVillage = {
   fishing: { phase: FishingPhase; stop: StopText | null; at: Cell | null; exhausted: boolean }
   setHeld: VillageInput['setHeld']
   // 会話窓が開いている間の上下入力。StopModal が本文スクロールに読む
-  scrollHeldRef: VillageInput['scrollHeldRef']
+  scrollHeldRef: VillageRuntime['scrollHeld']
   onKeyDown: VillageInput['onKeyDown']
   onKeyUp: VillageInput['onKeyUp']
   onBlur: VillageInput['onBlur']
@@ -105,6 +104,8 @@ type UseVillage = {
   closeOverlay: () => void
   goNext: () => void
   travel: (spotId: string) => void
+  // 地図の任意のマスへの移動
+  travelTo: (cell: Cell) => void
   // 開いている窓に「次へ」があるか。A の「次へ」と窓の次へボタンが同じ値を読む
   hasNext: boolean
   // その「次へ」の行き先
@@ -124,35 +125,14 @@ export function useVillage({
   sprites,
   playerSprites,
 }: VillageOptions): UseVillage {
-  // 眠っている歩行ループを起こす手。ループの本体は useWalkLoop が持ち、ここへ今の手を入れる。
-  // ワールド・入力・重ね表示はループより先(または外)で呼ぶので、この ref 越しに届ける。
-  // ref と手を作るだけで effect は持たないので、フックの呼び順(AGENTS.md 2)には関わらない
-  const wakeLoopRef = useRef<() => void>(() => {})
-  const wakeLoop = useCallback(() => wakeLoopRef.current(), [])
+  const startWorld = worldSet.worlds[worldSet.startWorldId]
+  // ref と束を作るだけで effect は持たないので、フックの呼び順(AGENTS.md 2)には関わらない
+  const runtime = useVillageRuntime(startWorld, worldSet.startWorldId)
+  const dom = useVillageDom(startWorld)
 
-  const {
-    startWorld,
-    world,
-    worldRef,
-    worldKeyRef,
-    stateRef,
-    destinationRef,
-    pendingRouteRef,
-    pendingFastRef,
-    pendingGoalRef,
-    autoTalkRef,
-    destination,
-    setDestination,
-    playerCell,
-    setPlayerCell,
-    enterWorld,
-  } = useVillageWorld(worldSet, wakeLoop)
+  const { world, destination, setDestination, playerCell, setPlayerCell, enterWorld } =
+    useVillageWorld(worldSet, runtime)
 
-  const frameRef = useRef<HTMLDivElement>(null)
-  // カメラで動く層。この中にだけ地面・人物・目印を入れ、会話窓とミニマップは枠に残す
-  const worldLayerRef = useRef<HTMLDivElement>(null)
-  // 今のカメラ原点(マス単位)。タップ位置をワールド座標へ直すのに使う
-  const camRef = useRef(cameraOffset(startWorld, startWorld.start))
   // 舞台いっぱいの要素と、縦持ちで枠の下に置く十字キー帯。マス寸法はこの2つの実測から決める
   const rootRef = useRef<HTMLDivElement>(null)
   const controlsRef = useRef<HTMLDivElement>(null)
@@ -165,43 +145,21 @@ export function useVillage({
     cols: VIEW_COLS,
     rows: VIEW_ROWS,
   })
-  const playerRef = useRef<HTMLDivElement>(null)
-  const locatorRef = useRef<HTMLDivElement>(null)
-  const hintRef = useRef<HTMLDivElement>(null)
-  const playerLightRef = useRef<HTMLDivElement>(null)
-  const lampVeilRef = useRef<HTMLDivElement>(null)
-  const loadingRef = useRef<HTMLDivElement>(null)
-  const lockedRef = useRef(false)
-  const actionsRef = useRef<VillageActions>(NO_ACTIONS)
-  const buttonsRef = useRef<VillageButtons>(NO_BUTTONS)
-  // 釣っている間だけ段階とその段階に入った時刻を持つ(釣っていなければ null)。
-  // 重ね表示側が書き、歩行ループが毎フレーム読んで段階と経過から竿のコマを選ぶ
-  const fishingPoseRef = useRef<FishingPose | null>(null)
   const [fishingTarget, setFishingTarget] = useState<Cell | null>(null)
 
   const {
-    heldRef,
     setHeld,
-    scrollHeldRef,
     tapped,
     consumeTap,
     onKeyDown,
     onKeyUp,
     onBlur,
     onPointerDown,
-    pointerTargetRef,
     onPointerMove,
     onPointerUp,
-  } = useVillageInput({
-    actions: actionsRef,
-    buttons: buttonsRef,
-    locked: lockedRef,
-    wake: wakeLoop,
-  })
+  } = useVillageInput({ runtime })
 
   const {
-    visitedRef,
-    activeSpotRef,
     visited,
     setVisited,
     activeSpot,
@@ -216,78 +174,49 @@ export function useVillage({
     worldSet,
     text,
     startWorld,
-    worldRef,
-    worldKeyRef,
-    stateRef,
-    destinationRef,
-    pendingGoalRef,
-    pendingRouteRef,
-    pendingFastRef,
-    autoTalkRef,
-    actionsRef,
+    runtime,
     setDestination,
     setPlayerCell,
     enterWorld,
   })
 
   useWalkLoop({
-    frameRef,
-    worldLayerRef,
-    camRef,
-    playerRef,
-    locatorRef,
-    hintRef,
-    playerLightRef,
-    lampVeilRef,
-    loadingRef,
-    worldRef,
-    stateRef,
-    pendingRouteRef,
-    pendingFastRef,
-    autoTalkRef,
-    lockedRef,
-    heldRef,
-    fishingPoseRef,
+    runtime,
+    dom,
     sprites: playerSprites,
     veilSprites: sprites,
-    onFishingTarget: setFishingTarget,
     reduceMotion,
     arrive,
     bump,
     tapped,
     consumeTap,
-    pointerTargetRef,
-    wakeRef: wakeLoopRef,
+    onFishingTarget: setFishingTarget,
   })
 
-  const { mode, openTalk, openMap, closeOverlay, goNext, travel, hintText, announce, fishing } =
-    useVillageOverlay({
-      worldSet,
-      text,
-      catches,
-      roleLabels,
-      coarse,
-      world,
-      worldRef,
-      worldKeyRef,
-      stateRef,
-      destinationRef,
-      pendingRouteRef,
-      pendingFastRef,
-      pendingGoalRef,
-      autoTalkRef,
-      setDestination,
-      visitedRef,
-      setVisited,
-      activeSpotRef,
-      setSpeech,
-      arrive,
-      lockedRef,
-      actionsRef,
-      heldRef,
-      fishingPoseRef,
-      wake: wakeLoop,
-    })
+  const {
+    mode,
+    openTalk,
+    openMap,
+    closeOverlay,
+    goNext,
+    travel,
+    travelTo,
+    hintText,
+    announce,
+    fishing,
+  } = useVillageOverlay({
+    worldSet,
+    text,
+    catches,
+    roleLabels,
+    coarse,
+    world,
+    runtime,
+    setDestination,
+    setVisited,
+    setSpeech,
+    arrive,
+  })
 
   // A/B は重ね表示の手(openTalk・goNext・closeOverlay)を使うので、その後に置く。
   // 画面の A・キーボードの Z・窓の次へボタンが同じ行き先を読む
@@ -299,8 +228,8 @@ export function useVillage({
       openTalk()
       return
     }
-    if (mode === 'map') return
     // 会話窓・時計の設定窓・釣りの窓の中のボタン・リンクへ焦点が移っていれば、そこを押す。
+    // 地図も同じ窓(role='dialog')なので、スティックで焦点を移した地点のボタンをここで押す。
     // スティックで本文を送り切った先(次へ・閉じる・本文のリンク)を A で決定できるようにする。
     // 画面の A/B ボタン自身は押下でフォーカスを奪わない(preventFocusSteal)ので、ここには入らない
     const active = document.activeElement
@@ -322,8 +251,8 @@ export function useVillage({
 
   // キーボードの Z/X は ref 越しに呼ぶので、A/B が作り直されたら入れ替える
   useEffect(() => {
-    buttonsRef.current = { onA: pressA, onB: pressB }
-  }, [pressA, pressB])
+    runtime.buttons.current = { onA: pressA, onB: pressB }
+  }, [pressA, pressB, runtime])
 
   const placeNames = useMemo<Record<string, string>>(
     () => Object.fromEntries(world.spots.map(s => [s.id, placeName(text, s)])),
@@ -350,17 +279,17 @@ export function useVillage({
 
   return {
     rootRef,
-    frameRef,
-    worldLayerRef,
+    frameRef: dom.frame,
+    worldLayerRef: dom.worldLayer,
     controlsRef,
     exitRef,
-    playerRef,
-    locatorRef,
-    hintRef,
-    playerLightRef,
-    lampVeilRef,
-    loadingRef,
-    camRef,
+    playerRef: dom.player,
+    locatorRef: dom.locator,
+    hintRef: dom.hint,
+    playerLightRef: dom.playerLight,
+    lampVeilRef: dom.lampVeil,
+    loadingRef: dom.loading,
+    camRef: dom.cam,
     world,
     destination,
     playerCell,
@@ -380,7 +309,7 @@ export function useVillage({
     mode,
     fishing,
     setHeld,
-    scrollHeldRef,
+    scrollHeldRef: runtime.scrollHeld,
     onKeyDown,
     onKeyUp,
     onBlur,
@@ -392,6 +321,7 @@ export function useVillage({
     closeOverlay,
     goNext,
     travel,
+    travelTo,
     hasNext,
     onNext,
     pressA,

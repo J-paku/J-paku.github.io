@@ -1,12 +1,10 @@
-// 到着・衝突の結果を会話地点・案内文・訪問済みへ反映する。この入口は入れ物(ref と state)を持つだけで、
-// 保存からの復元は use-village-restore、到着と衝突の判定は use-village-arrive が受け持つ
+// 到着・衝突の結果を会話地点・案内文・訪問済みへ反映する。この入口は入れ物(state と coarse の ref)を持つだけで、
+// 訪問済み・会話地点の ref は runtime にある。保存からの復元は use-village-restore、到着と衝突の判定は use-village-arrive が受け持つ
 import { useRef, useState } from 'react'
-import type { Dispatch, RefObject, SetStateAction } from 'react'
+import type { Dispatch, SetStateAction } from 'react'
 import type { Cell, Spot, VillageText, World, WorldSet } from '@content/types/world'
-import type { MoveState } from '@/lib/village/movement'
-import type { SpotRef } from '@/lib/village/spot'
 import type { EnterWorld } from '../use-village-world'
-import type { VillageActions } from '../use-village-input'
+import type { VillageRuntime } from '../village-runtime'
 import { defaultSpeech } from './default-speech'
 import { useVillageArrive } from './use-village-arrive'
 import { EMPTY_VISITED, useVillageRestore } from './use-village-restore'
@@ -15,23 +13,13 @@ export type VillageGuideOptions = {
   worldSet: WorldSet
   text: VillageText
   startWorld: World
-  worldRef: RefObject<World>
-  worldKeyRef: RefObject<string>
-  stateRef: RefObject<MoveState>
-  destinationRef: RefObject<Cell | null>
-  pendingGoalRef: RefObject<SpotRef | null>
-  pendingRouteRef: RefObject<Cell[] | null>
-  pendingFastRef: RefObject<boolean>
-  autoTalkRef: RefObject<boolean>
-  actionsRef: RefObject<VillageActions>
+  runtime: VillageRuntime
   setDestination: Dispatch<SetStateAction<Cell | null>>
   setPlayerCell: Dispatch<SetStateAction<Cell>>
   enterWorld: EnterWorld
 }
 
 type UseVillageGuide = {
-  visitedRef: RefObject<ReadonlySet<string>>
-  activeSpotRef: RefObject<Spot | null>
   visited: ReadonlySet<string>
   setVisited: Dispatch<SetStateAction<ReadonlySet<string>>>
   // タッチ端末か(pointer: coarse)。枠の aria-label の案内文を切り替える
@@ -49,22 +37,11 @@ export function useVillageGuide({
   worldSet,
   text,
   startWorld,
-  worldRef,
-  worldKeyRef,
-  stateRef,
-  destinationRef,
-  pendingGoalRef,
-  pendingRouteRef,
-  pendingFastRef,
-  autoTalkRef,
-  actionsRef,
+  runtime,
   setDestination,
   setPlayerCell,
   enterWorld,
 }: VillageGuideOptions): UseVillageGuide {
-  const visitedRef = useRef<ReadonlySet<string>>(EMPTY_VISITED)
-  const activeSpotRef = useRef<Spot | null>(null)
-
   const [visited, setVisited] = useState<ReadonlySet<string>>(EMPTY_VISITED)
   const [activeSpot, setActiveSpot] = useState<Spot | null>(null)
   // サーバ描画はキーボード向けの案内。タッチ判定は window が要るのでマウント後に立てる
@@ -79,8 +56,7 @@ export function useVillageGuide({
     worldSet,
     text,
     startWorld,
-    visitedRef,
-    activeSpotRef,
+    runtime,
     coarseRef,
     setVisited,
     setActiveSpot,
@@ -93,16 +69,7 @@ export function useVillageGuide({
   const { arrive, bump } = useVillageArrive({
     worldSet,
     text,
-    worldRef,
-    worldKeyRef,
-    stateRef,
-    destinationRef,
-    pendingGoalRef,
-    pendingRouteRef,
-    pendingFastRef,
-    autoTalkRef,
-    actionsRef,
-    activeSpotRef,
+    runtime,
     coarseRef,
     setDestination,
     setPlayerCell,
@@ -113,8 +80,6 @@ export function useVillageGuide({
   })
 
   return {
-    visitedRef,
-    activeSpotRef,
     visited,
     setVisited,
     // タッチ端末か。枠の aria-label の案内文を切り替える

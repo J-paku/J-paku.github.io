@@ -7,6 +7,7 @@ import { isWalkable } from '@/lib/village/collision'
 import { spotAt } from '@/lib/village/spot'
 import { clearVillageProgress, readPosition, readVisited } from '@/lib/preferences'
 import { findWorld, type EnterWorld } from '../use-village-world'
+import type { VillageRuntime } from '../village-runtime'
 import { defaultSpeech } from './default-speech'
 
 // 空の訪問済み。初期値と「読み込み直後」で同じ実体を使い、無駄な再描画を起こさない
@@ -22,8 +23,8 @@ type VillageRestoreOptions = {
   worldSet: WorldSet
   text: VillageText
   startWorld: World
-  visitedRef: RefObject<ReadonlySet<string>>
-  activeSpotRef: RefObject<Spot | null>
+  // 戻した訪問済みと会話地点を runtime の visited・activeSpot にも書く
+  runtime: VillageRuntime
   coarseRef: RefObject<boolean>
   setVisited: Dispatch<SetStateAction<ReadonlySet<string>>>
   setActiveSpot: Dispatch<SetStateAction<Spot | null>>
@@ -37,8 +38,7 @@ export function useVillageRestore({
   worldSet,
   text,
   startWorld,
-  visitedRef,
-  activeSpotRef,
+  runtime,
   coarseRef,
   setVisited,
   setActiveSpot,
@@ -72,20 +72,19 @@ export function useVillageRestore({
     const restored: ReadonlySet<string> = isFirstMountOfLoad
       ? EMPTY_VISITED
       : new Set(readVisited(worldSet.id))
-    visitedRef.current = restored
+    runtime.visited.current = restored
     setVisited(restored)
     const spot = spotAt(restore.world, restore.cell)
-    activeSpotRef.current = spot
+    runtime.activeSpot.current = spot
     setActiveSpot(spot)
     setSpeech(defaultSpeech(restore.world, text, coarseRef.current))
-    // 追加の依存は入口フックが持つ ref と setState で、描画をまたいでも同じ実体。走る回数は分割前と同じ
+    // 追加の依存は runtime と入口フックが持つ ref・setState で、描画をまたいでも同じ実体。走る回数は分割前と同じ
   }, [
     worldSet,
     startWorld,
     text,
     enterWorld,
-    visitedRef,
-    activeSpotRef,
+    runtime,
     coarseRef,
     setVisited,
     setActiveSpot,
