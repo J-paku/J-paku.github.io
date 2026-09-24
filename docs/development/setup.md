@@ -35,6 +35,7 @@ npm run start   # out/ を :4173 で配信(Playwright の baseURL と同じ)
 ```
 
 Playwright は `webServer` 設定で `npx serve out -l 4173` を自分で起動するが、`out/` は作らない。
+E2E のポートは `E2E_PORT` で変えられる(`E2E_PORT=4199 npm run test:e2e`。`npm run start` は `:4173` のまま)。
 **先に `npm run build` を済ませておく。** 古い `out/` が残っていると、直したはずのものが直っていないように見える。
 
 ## WSL で `/mnt/c` の下に置いている場合

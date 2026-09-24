@@ -5,7 +5,7 @@ read_when:
   - 配信が反映されないとき
   - 配信を戻したいとき
 source_of_truth: true
-last_reviewed: 2026-09-21
+last_reviewed: 2026-09-24
 ---
 
 # 配信
@@ -19,9 +19,9 @@ last_reviewed: 2026-09-21
 push to main
   → build ジョブ(直列。前段が落ちたら後段は走らない)
       docs:check → typecheck → lint → format:check → test → build
-      → Playwright Chromium を入れて test:e2e
+      → Playwright Chromium をキャッシュから戻す(miss なら入れる)→ test:e2e
       → out/ を :4173 で配信 → wait-on
-      → axe(全ルート) → CJK フォントを入れて 日本語改行検査
+      → axe(全ルート) → CJK フォントの .deb をキャッシュから戻して入れる → 日本語改行検査
       → upload-pages-artifact
   → deploy ジョブ(GitHub Pages)
 ```
@@ -29,6 +29,22 @@ push to main
 - Node は `.nvmrc`。ローカルと同じ版を使う
 - `concurrency: pages` + `cancel-in-progress` なので、連続 push では後の1本だけが生き残る
 - Pages の設定は **Settings → Pages → Source = GitHub Actions**
+
+## キャッシュ
+
+| 対象 | 置き場 | キー | miss のとき |
+|---|---|---|---|
+| npm の取得物 | `setup-node` の `cache: npm` | `package-lock.json` | `npm ci` がそのまま取りに行く |
+| Playwright のブラウザ本体 | `~/.cache/ms-playwright` | `<OS>-playwright-<package-lock.json のハッシュ>` | `playwright install --with-deps chromium`。hit でも OS 側の依存は `playwright install-deps chromium` で入れる |
+| CJK フォント(`fonts-noto-cjk` の `.deb`) | `~/.cache/apt-fonts` | `<OS>-fonts-noto-cjk-v1` | `apt-get download` で落とす。hit でも miss でも最後に `dpkg -i` で入れる |
+
+- フォントを apt ごとキャッシュしないのは、apt のアーカイブが root 所有で cache アクションが復元できないから。`.deb` だけを利用者側のディレクトリに持つ
+- **無効化の仕方。** Playwright は `package-lock.json` が変われば自動で作り直される。フォントはキーの `v1` を上げる(版を固定していないので、新しい版を拾いたいときも同じ)
+- hit したかどうかは Actions のログで、各 cache step の出力(`Cache restored from key` か `Cache not found`)を見る
+
+**トレードオフ。** 利用者1人のリポジトリで push の頻度が低く、これまではキャッシュを管理する手間のほうが短縮される時間より大きかったので入れていなかった。
+2026-09-24 に入れたのは、Playwright のブラウザ本体(約 150MB)の取得と CJK フォントの apt 導入が毎回繰り返されてビルド時間の固定費になっており、cache アクション 2 step で済むので管理の手間も小さくなったから。
+チームで回すなら、Playwright の公式イメージ(ブラウザと依存を焼き込んだコンテナ)と `setup-node` のキャッシュから先に入れる。
 
 ## ローカルで CI を再現する
 
