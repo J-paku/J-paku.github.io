@@ -185,6 +185,10 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  /* 帯の上の長押しでテキスト選択・拡大鏡・長押しメニューを出さない */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 @media (pointer: coarse) and (orientation: portrait) {
   .controls {
