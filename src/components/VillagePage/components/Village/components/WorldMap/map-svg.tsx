@@ -89,15 +89,45 @@ const GLYPH_CELLS = 7
 // 字の周りを 1 ドットずつ広げた白い下敷き(縁の黒 1 ドットを含めて 9 ドット角)
 const PLATE_CELLS = GLYPH_CELLS + 2
 
+// この縮尺より小さい地図(ミニマップの 4)では字が 1 マスに収まらず、隣の印と重なって潰れる。
+// 字の代わりに点で描く境目
+const DOT_MARKER_SCALE_LIMIT = 8
+
 type SpotMarkerProps = {
   cell: Cell
   scale: number
   visited: boolean
 }
 
+// ミニマップの印。マスの中央に (縮尺 - 1) 角の色の点を、1px の白い縁で囲んで置く。
+// 奇数角を偶数のマスに置くので半ピクセルは左上へ寄せ、格子からずらさない
+function DotMarker({ cell, scale, visited }: SpotMarkerProps) {
+  const inner = Math.max(1, scale - 1)
+  const outer = inner + 2
+  const left = Math.round(cell.x * scale + scale / 2 - outer / 2)
+  const top = Math.round(cell.y * scale + scale / 2 - outer / 2)
+
+  return (
+    <g>
+      <rect x={left} y={top} width={outer} height={outer} fill={MARKER_COLORS.plate} />
+      <rect
+        x={left + 1}
+        y={top + 1}
+        width={inner}
+        height={inner}
+        fill={visited ? MARKER_COLORS.visited : MARKER_COLORS.unvisited}
+      />
+    </g>
+  )
+}
+
 // 印の中身は地点のマス・縮尺・訪問済みかだけで決まる。歩くたびの再描画では作り直さない
 const SpotMarker = memo(function SpotMarker({ cell, scale, visited }: SpotMarkerProps) {
-  // 1 ドットの辺。縮尺 4 なら 1px(字 7px・下敷き 9px)、縮尺 16 なら 3px(字 21px・下敷き 27px)
+  if (scale < DOT_MARKER_SCALE_LIMIT) {
+    return <DotMarker cell={cell} scale={scale} visited={visited} />
+  }
+
+  // 1 ドットの辺。縮尺 16 なら 3px(字 21px・下敷き 27px)
   const dot = Math.max(1, Math.round(scale / 5))
   const glyphSize = GLYPH_CELLS * dot
   const plateSize = PLATE_CELLS * dot
@@ -240,15 +270,35 @@ export function MapSvg({
           fill='#d8452f'
         />
       ) : null}
-      <rect x={player.x * scale} y={player.y * scale} width={scale} height={scale} fill='#fff' />
+      {/* 主人公は印より後(= 上)に描き、印に埋もれないようにする */}
+      <PlayerMarker cell={player} scale={scale} />
+    </svg>
+  )
+}
+
+type PlayerMarkerProps = {
+  cell: Cell
+  scale: number
+}
+
+// 主人公の印。白い縁 1px に黒の四角。大きい地図はマスちょうどの大きさ、
+// ミニマップは点の印(縮尺 + 1 角)より大きく見えるよう、マスの中央から (縮尺 + 2) 角へ広げる
+function PlayerMarker({ cell, scale }: PlayerMarkerProps) {
+  const size = scale < DOT_MARKER_SCALE_LIMIT ? scale + 2 : scale
+  const left = Math.round(cell.x * scale + scale / 2 - size / 2)
+  const top = Math.round(cell.y * scale + scale / 2 - size / 2)
+
+  return (
+    <>
+      <rect x={left} y={top} width={size} height={size} fill='#fff' />
       <rect
-        x={player.x * scale + 1}
-        y={player.y * scale + 1}
-        width={Math.max(scale - 2, 1)}
-        height={Math.max(scale - 2, 1)}
+        x={left + 1}
+        y={top + 1}
+        width={Math.max(size - 2, 1)}
+        height={Math.max(size - 2, 1)}
         fill='#1a1a18'
       />
-    </svg>
+    </>
   )
 }
 

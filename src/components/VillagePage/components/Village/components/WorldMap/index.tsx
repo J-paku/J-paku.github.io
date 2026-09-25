@@ -4,6 +4,7 @@
 import {
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   type CSSProperties,
   type KeyboardEvent,
@@ -65,6 +66,46 @@ const ARROW_DIRECTIONS: Partial<Record<string, Direction>> = {
 // 同じ長さにし、地点が 1 つずつ移るのを目で追って手を離せるようにする
 const SPOT_REPEAT_MS = 300
 
+type LabelBox = Pick<DOMRect, 'left' | 'right' | 'top' | 'bottom'>
+
+const labelsOverlap = (a: LabelBox, b: LabelBox) =>
+  a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
+
+// 地点のラベルどうしの重なりを実測で解く。ラベルは折り返さないので、狭い画面では長い名前が隣のラベルの下へ潜る。
+// 1 回目: 重なった組の後ろ側(world.spots の順で後の地点)のラベルを上下反対へ回す。
+// 2 回目: 回してもまだ前の地点のラベルと重なるものは隠す(焦点・ポインタが乗った時だけ出る。CSS 側)。
+// 結果はボタンの data-label へ DOM で直接書く。React state を経由しないので、測り直しで再描画は起きない
+const arrangeSpotLabels = (panel: HTMLElement) => {
+  const spots = Array.from(panel.querySelectorAll<HTMLElement>('[data-spot-id]'))
+  for (const spot of spots) delete spot.dataset.label
+
+  const measure = () => spots.map(spot => spot.firstElementChild?.getBoundingClientRect() ?? null)
+
+  const first = measure()
+  const flipped = new Set<number>()
+  first.forEach((box, later) => {
+    if (box === null) return
+    const hit = first.some(
+      (other, earlier) => earlier < later && other !== null && labelsOverlap(other, box)
+    )
+    if (hit) flipped.add(later)
+  })
+  for (const index of flipped) spots[index].dataset.label = 'flip'
+  if (flipped.size === 0) return
+
+  // 反転の書き込み後に測り直す(getBoundingClientRect が同期でレイアウトを確定させる)
+  const second = measure()
+  const shown: LabelBox[] = []
+  second.forEach((box, index) => {
+    if (box === null) return
+    if (shown.some(other => labelsOverlap(other, box))) {
+      spots[index].dataset.label = 'hidden'
+      return
+    }
+    shown.push(box)
+  })
+}
+
 export function WorldMap({
   world,
   visited,
@@ -95,6 +136,34 @@ export function WorldMap({
       returnTarget?.focus()
     }
   }, [returnTo])
+
+  // 地図が描かれた直後(描画前)に 1 回、以後は画面の大きさが変わるたびに 1 フレームへまとめて 1 回測る。
+  // 字形の読み込みでラベルの幅が変わるので、フォントが揃った時にももう 1 回測る
+  useLayoutEffect(() => {
+    const panel = panelRef.current
+    if (panel === null) return
+
+    arrangeSpotLabels(panel)
+    let frame: number | null = null
+    let active = true
+    const handleResize = () => {
+      if (frame !== null) return
+      frame = requestAnimationFrame(() => {
+        frame = null
+        arrangeSpotLabels(panel)
+      })
+    }
+    window.addEventListener('resize', handleResize)
+    void document.fonts.ready.then(() => {
+      if (active) arrangeSpotLabels(panel)
+    })
+
+    return () => {
+      active = false
+      window.removeEventListener('resize', handleResize)
+      if (frame !== null) cancelAnimationFrame(frame)
+    }
+  }, [world, placeNames])
 
   // 今の焦点の地点から、その向きで最も近い地点へ焦点を移す。キー以外の入力からも呼べるよう keydown とは分けてある
   const focusSpotToward = (direction: Direction) => {

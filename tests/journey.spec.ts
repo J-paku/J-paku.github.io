@@ -347,6 +347,17 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
     // 地図の SVG は枠いっぱいに伸びているので、SVG の箱に対するマスの割合で押す位置を決める
     const box = await map.locator('svg').first().boundingBox()
     if (box === null) throw new Error('地図の SVG が描かれていない')
+    // SVG はパネルの中に左右対称に収まる。mapCanvas の左右 margin が 100% の幅に足され、
+    // 右の余白を食い潰していた(左 40px・右 ほぼ 0px。iPhone 縦持ち実測)。
+    // はみ出しは枠線の内側で止まるので箱の内外だけでは捉えられず、左右の余白の差まで測る
+    const panel = await map.locator(':scope > div').first().boundingBox()
+    if (panel === null) throw new Error('地図のパネルが描かれていない')
+    const leftGap = box.x - panel.x
+    const rightGap = panel.x + panel.width - (box.x + box.width)
+    expect({
+      inside: leftGap >= 0 && rightGap >= 0,
+      symmetric: Math.abs(leftGap - rightGap) <= 1,
+    }).toEqual({ inside: true, symmetric: true })
     const { cell, steps } = MAP_CLICK_TARGET
     await page.mouse.click(
       box.x + ((cell.x + 0.5) / town.width) * box.width,

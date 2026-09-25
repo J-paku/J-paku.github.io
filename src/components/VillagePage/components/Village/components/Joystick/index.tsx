@@ -1,7 +1,7 @@
 // 村をタッチ操作するための仮想ジョイスティック
 'use client'
 
-import { useRef, type CSSProperties, type PointerEvent } from 'react'
+import { useEffect, useRef, type CSSProperties, type PointerEvent } from 'react'
 
 import type { Direction } from '@content/types/world'
 
@@ -31,11 +31,29 @@ const KNOB_START_STYLE: CSSProperties = { transform: knobTransform(CENTER) }
 export function Joystick({ label, onHold }: JoystickProps) {
   // 倒した位置は pointermove ごとに変わるので state にせず、つまみの transform を ref で直接書く
   // (指が動くたびに React のコミットを起こさない。親への向きの通知は変わった時だけ)
+  const baseRef = useRef<HTMLDivElement>(null)
   const knobRef = useRef<HTMLDivElement>(null)
   const originRef = useRef<Position | null>(null)
   const activePointerIdRef = useRef<number | null>(null)
   const lastDirectionRef = useRef<Direction | null>(null)
   const maxRadiusRef = useRef<number>(88 * RADIUS_RATIO)
+
+  // React の onTouchStart は passive 登録なので preventDefault が効かず、iOS の長押しで拡大鏡(テキスト選択)が出る。
+  // CSS の user-select・touch-callout だけでは止まらないため、passive: false で直接登録して既定動作を止める。
+  // touchstart の preventDefault は pointer イベントを止めないので、倒す処理は下の pointer ハンドラのまま
+  useEffect(() => {
+    const base = baseRef.current
+    if (base === null) return
+
+    const preventTouchDefault = (event: TouchEvent) => {
+      event.preventDefault()
+    }
+    base.addEventListener('touchstart', preventTouchDefault, { passive: false })
+
+    return () => {
+      base.removeEventListener('touchstart', preventTouchDefault)
+    }
+  }, [])
 
   const moveKnob = (position: Position) => {
     const knob = knobRef.current
@@ -105,6 +123,7 @@ export function Joystick({ label, onHold }: JoystickProps) {
 
   return (
     <div
+      ref={baseRef}
       className={styles.base}
       role='application'
       aria-label={label}

@@ -52,6 +52,7 @@
 .mapViewport {
   max-width: 100%;
   max-height: calc(100vh - 128px);
+  padding: 0 20px;
   overflow: hidden;
 }
 
@@ -60,14 +61,16 @@
    overlay padding(32) + panel border(6) + panel padding(42) + title 見出し(32+14=46)
    + mapCanvas の上下 margin(40) = 168px(mapViewport の残り高さ 100vh-128px から
    mapCanvas の margin 40px をさらに引いたもの)。
-   幅の候補は「100%(= mapViewport の残り幅)」、高さの候補は「(100vh-168px) を
+   左右の余白は mapViewport の padding で取り、mapCanvas は margin auto で中央に置く。
+   mapCanvas に左右 margin を付けると 100% の幅にその分が足され、パネルの右へはみ出す(iPhone 縦持ち実測)。
+   幅の候補は「100%(= mapViewport の padding を除いた幅)」、高さの候補は「(100vh-168px) を
    マスの縦横比(--map-w / --map-h)で幅に換算した値」。小さい方を採用することで、
    幅が先に詰まる縦長画面でも、高さが先に詰まる横長の低い画面でも必ず両方の上限内に収まる */
 .mapCanvas {
   position: relative;
   width: min(100%, calc((100vh - 168px) * var(--map-w) / var(--map-h)));
   aspect-ratio: var(--map-w) / var(--map-h);
-  margin: 20px;
+  margin: 20px auto;
   /* 地点の無いマスも押せば歩いて行ける */
   cursor: pointer;
 }
@@ -92,9 +95,19 @@
 }
 
 .spot:hover,
-.spot:focus-visible {
+.spot:focus {
+  /* 焦点・ポインタの乗った地点のラベルを、隣の地点のラベルより上に出す */
+  z-index: 2;
   border-color: #181818;
   outline: none;
+}
+
+/* 焦点は :focus で出す。タッチ端末ではスティックから移した焦点(プログラムの focus())に
+   :focus-visible が付かず、何も起きていないように見えるため。キーボードも同じ見た目で足りる */
+.spot:focus .spotLabel,
+.spot:focus .spotLabelAbove {
+  background: #181818;
+  color: #fff;
 }
 
 .spotLabel,
@@ -104,13 +117,14 @@
   left: 50%;
   z-index: 1;
   width: max-content;
-  max-width: 112px;
   padding: 2px 4px;
   border: 2px solid #181818;
   transform: translateX(-50%);
   background: #fff;
   color: #181818;
   font: 500 10px/1.25 var(--f-label);
+  /* 折り返すと 2 行になり、下の地点のラベルと重なる */
+  white-space: nowrap;
   pointer-events: none;
 }
 
@@ -123,6 +137,23 @@
 .spotLabelAbove {
   top: auto;
   bottom: calc(100% + 2px);
+}
+
+/* 隣のラベルと重なるので上下を入れ替えた地点(index.tsx の arrangeSpotLabels が付ける) */
+.spot[data-label='flip'] .spotLabel {
+  top: auto;
+  bottom: calc(100% + 2px);
+}
+
+.spot[data-label='flip'] .spotLabelAbove {
+  top: calc(100% + 2px);
+  bottom: auto;
+}
+
+/* 入れ替えても重なるラベルは、焦点・ポインタが乗った時だけ出す(その時は z-index 2 で上に来る) */
+.spot[data-label='hidden']:not(:focus, :hover) .spotLabel,
+.spot[data-label='hidden']:not(:focus, :hover) .spotLabelAbove {
+  visibility: hidden;
 }
 
 /* 右端に近い地点(x が幅の 66% 以上)はラベルが右へ突き出すので、右揃えへ切り替える */
