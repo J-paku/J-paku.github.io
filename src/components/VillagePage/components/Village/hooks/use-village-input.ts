@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FocusEvent, KeyboardEvent, PointerEvent } from 'react'
 import type { Cell, Direction } from '@content/types/world'
-import type { VillageRuntime } from './village-runtime'
+import type { VillageRuntime } from './use-village-runtime'
 
 // event.code で引くので IME やキー配列の影響を受けない
 const CODE_TO_DIRECTION: Record<string, Direction> = {

@@ -3,7 +3,7 @@
 import type { RefObject } from 'react'
 import type { World } from '@content/types/world'
 import type { MoveState } from '@/lib/village/movement'
-import { approachCamera, cameraOffset, VIEW_COLS } from '../../use-stage-scale'
+import { approachCamera, cameraOffset, VIEW_COLS } from '../../hooks/use-stage-scale'
 import type { CameraFrame, WalkFrameState } from './types'
 
 // 表示座標 = マス座標 + 移動中の補間。reduced motion では補間せず到着マスへ飛ぶ

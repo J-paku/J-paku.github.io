@@ -4,8 +4,8 @@ import { useRef, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import type { Cell, Spot, VillageText, World, WorldSet } from '@content/types/world'
 import type { EnterWorld } from '../use-village-world'
-import type { VillageRuntime } from '../village-runtime'
-import { defaultSpeech } from './default-speech'
+import type { VillageRuntime } from '../use-village-runtime'
+import { pickDefaultSpeech } from '../../utils/pick-default-speech'
 import { useVillageArrive } from './use-village-arrive'
 import { EMPTY_VISITED, useVillageRestore } from './use-village-restore'
 
@@ -47,7 +47,7 @@ export function useVillageGuide({
   // サーバ描画はキーボード向けの案内。タッチ判定は window が要るのでマウント後に立てる
   const coarseRef = useRef(false)
   const [coarse, setCoarse] = useState(false)
-  const [speech, setSpeech] = useState<string>(defaultSpeech(startWorld, text, false))
+  const [speech, setSpeech] = useState<string>(pickDefaultSpeech(startWorld, text, false))
   const [reduceMotion, setReduceMotion] = useState(false)
   const [locatorVisible, setLocatorVisible] = useState(true)
 

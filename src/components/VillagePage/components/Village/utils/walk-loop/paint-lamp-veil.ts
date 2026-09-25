@@ -5,7 +5,7 @@ import type { RefObject } from 'react'
 import type { Cell, World } from '@content/types/world'
 import type { SheetLayout } from '@/lib/pixel/art'
 import { lampVeilAt, type LampVeil } from '@/lib/village/lamp-veil'
-import { spriteIndex, spriteStyle } from '../../../sprite-style'
+import { spriteIndex, spriteStyle } from '../../sprite-style'
 import type { WalkFrameState } from './types'
 
 // 主人公に重なった街灯を、主人公の上へ重ねる層(LampVeil)の席へ写す。

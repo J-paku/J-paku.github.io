@@ -44,6 +44,8 @@ src/components/Directory/components/WorkCard/
 - **フックのフォルダには `index.ts` を作らない**(不変ルール4)。呼び出し側はファイルを直接指す
 - 画面専用のフックはその画面のフォルダの `<画面>/hooks/` に、横断するものだけ `src/hooks/` に置く
 - 命名は `use-` 始まりの kebab-case
+- `hooks` フォルダには `use-` 始まりのフック(と `.test.ts`)以外を置かない。純粋関数・レンダラーは `utils` フォルダへ
+- ファイル名は動詞-名詞の kebab-case、3語まで(例: `paint-camera.ts`)。長い名前を付けない
 
 ## スタイル
 

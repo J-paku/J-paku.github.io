@@ -5,7 +5,7 @@ import type { Cell, VillageText, WorldSet } from '@content/types/world'
 import { findPath, nearestReachable } from '@/lib/village/path'
 import { nextSpot } from '@/lib/village/spot'
 import { routeToWarp } from '@/lib/village/warp'
-import type { VillageRuntime } from '../village-runtime'
+import type { VillageRuntime } from '../use-village-runtime'
 
 type VillageTravelOptions = {
   worldSet: WorldSet

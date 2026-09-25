@@ -2,7 +2,7 @@
 // 入れ物(WalkFrameState)にまとめて部品へ渡す。部品ごとに ref を持たせると、
 // どの値をどの部品が書くのかがフックの外から追えなくなるため 1 か所に集める
 import type { Cell, World } from '@content/types/world'
-import type { VillageRuntime } from '../../village-runtime'
+import type { VillageRuntime } from '../../hooks/use-village-runtime'
 
 export type WalkFrameState = {
   spriteKey: string
@@ -36,7 +36,7 @@ export type WalkFrameState = {
   veilId: string
 }
 
-// 1 フレームの移動と経路づくりが読み書きする ref の束。どれも village-runtime が作った runtime の一部で、
+// 1 フレームの移動と経路づくりが読み書きする ref の束。どれも use-village-runtime が作った runtime の一部で、
 // ここでは毎フレーム .current を読み直す(値を写し取ると入力側の更新を取りこぼす)
 export type MoveRefs = Pick<
   VillageRuntime,
