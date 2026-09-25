@@ -20,6 +20,9 @@ const FONT_HREF: Record<Locale, string> = {
   ko: 'https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Noto+Sans+KR:wght@400..700&family=Noto+Serif+KR:wght@400&family=Playfair+Display:wght@400&display=swap',
 }
 
+// 計測先はリポジトリに書かず、配信の workflow が GitHub の変数から渡す。無ければ計測タグを出さない
+const GOATCOUNTER_URL = process.env.NEXT_PUBLIC_GOATCOUNTER_URL
+
 // スキップリンクの文言は content から取るため各ページ側(VillagePage 等)が持つ
 function HtmlShell({ locale, children }: HtmlShellProps) {
   return (
@@ -29,11 +32,9 @@ function HtmlShell({ locale, children }: HtmlShellProps) {
         <link rel='preconnect' href='https://fonts.googleapis.com' />
         <link rel='preconnect' href='https://fonts.gstatic.com' crossOrigin='anonymous' />
         <link rel='stylesheet' href={FONT_HREF[locale]} />
-        <script
-          data-goatcounter='https://tottannim.goatcounter.com/count'
-          async
-          src='https://gc.zgo.at/count.js'
-        />
+        {GOATCOUNTER_URL ? (
+          <script data-goatcounter={GOATCOUNTER_URL} async src='https://gc.zgo.at/count.js' />
+        ) : null}
       </head>
       <body>
         <PageviewCounter />

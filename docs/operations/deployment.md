@@ -29,6 +29,7 @@ push to main
 - Node は `.nvmrc`。ローカルと同じ版を使う
 - `concurrency: pages` + `cancel-in-progress` なので、連続 push では後の1本だけが生き残る
 - Pages の設定は **Settings → Pages → Source = GitHub Actions**
+- 計測先は **Settings → Secrets and variables → Actions → Variables** の `GOATCOUNTER_URL`。build step が `NEXT_PUBLIC_GOATCOUNTER_URL` として渡し、未設定なら計測タグを出さない
 
 ## キャッシュ
 

@@ -29,7 +29,7 @@ last_reviewed: 2026-09-21
 
 ## 記録が無いもの
 
-- **Vite + react-router から Next.js App Router 静的エクスポートへの移行**(2026-09-18、`23d8f33`)。
+- **Vite + react-router から Next.js App Router 静的エクスポートへの移行**(2026-09-18、`8bccf34`)。
   そのコミットには本文が無く、取り込んだ Pull Request #1 の併合コミットの本文も PR の題名1行だけで、**理由を書いた一次資料がリポジトリ内に無い**ため ADR にしていない。
   同じ併合でトップが一覧から村へ替わっているので、移行はその改編の一部として進んだと見えるが、これは記録ではなく推測である。
   現在の構成そのものは [../architecture/overview.md](../architecture/overview.md) にある

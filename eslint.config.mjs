@@ -1,13 +1,5 @@
-import { dirname } from 'path'
-import { fileURLToPath } from 'url'
-import { FlatCompat } from '@eslint/eslintrc'
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-})
+import nextCoreWebVitals from 'eslint-config-next/core-web-vitals'
+import nextTypescript from 'eslint-config-next/typescript'
 
 // バレル禁止(全ファイル共通)。レイヤー override でも rule 全体が置き換わるため毎回同梱する
 const BARREL_PATHS = [
@@ -46,23 +38,9 @@ const eslintConfig = [
       'next-env.d.ts',
     ],
   },
-  ...compat.extends(
-    'next/core-web-vitals',
-    'next/typescript',
-    'plugin:@typescript-eslint/recommended'
-  ),
-  ...compat.config({
-    env: {
-      browser: true,
-      es2021: true,
-    },
-    parser: '@typescript-eslint/parser',
-    parserOptions: {
-      ecmaVersion: 'latest',
-      sourceType: 'module',
-    },
-    plugins: ['@typescript-eslint'],
-  }),
+  // parser・browser globals・@typescript-eslint plugin と recommended は 16 の next 設定が同梱するため個別指定を削除
+  ...nextCoreWebVitals,
+  ...nextTypescript,
   {
     rules: {
       '@typescript-eslint/no-explicit-any': 'warn',
@@ -80,6 +58,12 @@ const eslintConfig = [
       ],
       // バレルインポート禁止: from '.' → from './index' を強制
       'no-restricted-imports': ['error', { paths: BARREL_PATHS }],
+      // 村の rAF ループ・入力フックは ref.current を直接書き換える設計(VillagePage/AGENTS.md 5番)のため無効化
+      'react-hooks/immutability': 'off',
+      // React Compiler は使わないため警告に留め、次の整理対象として残す
+      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/refs': 'warn',
+      'react-hooks/preserve-manual-memoization': 'warn',
       // "react-hooks/exhaustive-deps": "off",
     },
   },
