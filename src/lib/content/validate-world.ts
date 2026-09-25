@@ -93,9 +93,12 @@ const validateWorld = (set: WorldSet, worldId: string, world: World): string[] =
 
   const structureIds = new Set(world.structures.map(s => s.id))
   for (const spot of world.spots) {
+    // 構造物を持たない地点は、到着範囲(道の出口)か action(池の釣りなど)のどちらかを持つこと
     if (
       (spot.structureId !== undefined && !structureIds.has(spot.structureId)) ||
-      (spot.structureId === undefined && spot.arrivalArea === undefined)
+      (spot.structureId === undefined &&
+        spot.arrivalArea === undefined &&
+        spot.action === undefined)
     )
       issues.push(at(`地点 "${spot.id}" の structureId "${spot.structureId}" が無い`))
     const area = spot.arrivalArea
@@ -168,7 +171,7 @@ export const validateWorldSet = (set: WorldSet): string[] => {
 }
 
 // 文言の stops キーが全ワールドの spot id 集合と完全一致するか(片方だけの追加・削除を落とす)。
-// action を持つ地点は会話窓を開かないので stops には入れない — 文言は専用の欄(卓上時計なら text.clock)が持つ
+// action を持つ地点は会話窓を開かないので stops には入れない — 文言は専用の欄(卓上時計なら text.clock、池なら text.fishing)が持つ
 export const validateVillageText = (set: WorldSet, text: VillageText, locale: Locale): string[] => {
   const issues: string[] = []
   const keys = new Set(Object.keys(text.stops))

@@ -94,12 +94,15 @@ const TOWN_BLOCKS: readonly (readonly Block[])[] = [
 // 池は x0-5/y14-19、広場は x22-27/y14-17。自宅前(14,12)から各地点まで16歩以内。
 // 池は外周まで届くが、水も木と同じく通行不可なので町の境はそのまま閉じている。
 // 北の道は x14-15/y0-5 で、外周を抜けて町の外へ出る。道の左右 x12-13・x16-17 の y0-1 は木。
-// 経歴碑はその木の手前 (16,2)、話しかけ位置は道に面した (16,4) — コース外
-// 次の旅(journey)は道の突き当たり x14-15/y0 に着くと開く。外周のマスなので吹き出しの置き場が
+// 経歴碑はその木の手前 (16,2)、話しかけ位置は道に面した (16,4) — コース 4 番目
+// 次の旅(journey)は道の突き当たり x14-15/y0 に着くと開く — コースの最後(8 番目)。外周のマスなので吹き出しの置き場が
 // 上に無く、talkAnchor が足元から下へ出す(建物を持たない地点の扱い。spot.ts 参照)
 // 郵便ポスト(mailbox)は広場の北端 (24,14)、話しかけ位置は道に面した (24,13)
 // 焚き火(campfire)はロボット (8,15) の東隣 (9,15) の草地に 1 マス、通行不可。
-// ロボットの話しかけ位置 (8,14) とその周りの道は塞がない
+// ロボットの話しかけ位置 (8,14) とその周りの道は塞がない。焚き火の話しかけ位置は真上の (9,14) で、
+// ロボットの (8,14) と隣り合うが spotAt は明示された立ち位置を優先するので取り違えない
+// 池(pond)は構造物を持たない地点。話しかけ位置は水 (5,15) の東隣の草地 (6,15) で、左を向く — コース外。
+// 話しかけると会話窓ではなく釣りが始まる(action: 'fishing')
 // 街灯(lamp)は西 (9,8)・東 (20,8)・広場際 (20,14)の3つ、いずれも草地に立つ。cell は絵の上のマス。
 // 絵は縦 1×2(上が笠とガラス、下が地面まで下りる柱と台座)で、通行不可は柱の立つ下の1マスだけ。
 // 灯のある上のマスは歩いて通れて、主人公は笠の裏を通り抜ける(そのとき街灯を半透明で重ねて描く)
@@ -149,16 +152,21 @@ export const town: World = {
   spots: [
     { id: 'meishi', structureId: 'meishi', cell: { x: 6, y: 6 }, facing: 'up', order: 2 },
     { id: 'lab', structureId: 'lab', cell: { x: 23, y: 6 }, facing: 'up', order: 3 },
-    { id: 'robot', structureId: 'robot', cell: { x: 8, y: 14 }, facing: 'down', order: 4 },
-    { id: 'mailbox', structureId: 'mailbox', cell: { x: 24, y: 13 }, facing: 'down', order: 5 },
-    // コース外(order 無し)。話しかけ・地図表示・地図からの移動はできるが、次の地点・訪問数・完走判定には数えない
-    { id: 'monument', structureId: 'monument', cell: { x: 16, y: 4 }, facing: 'up' },
+    { id: 'monument', structureId: 'monument', cell: { x: 16, y: 4 }, facing: 'up', order: 4 },
+    { id: 'robot', structureId: 'robot', cell: { x: 8, y: 14 }, facing: 'down', order: 5 },
+    { id: 'campfire', structureId: 'campfire', cell: { x: 9, y: 14 }, facing: 'down', order: 6 },
+    { id: 'mailbox', structureId: 'mailbox', cell: { x: 24, y: 13 }, facing: 'down', order: 7 },
+    // コースの最後。道の突き当たりに着くと会話窓が開く
     {
       id: 'journey',
       cell: { x: 14, y: 0 },
       facing: 'up',
       arrivalArea: { x: 14, y: 0, w: 2, h: 1 },
+      order: 8,
     },
+    // コース外(order 無し)。話しかけ・地図表示・地図からの移動はできるが、次の地点・訪問数・完走判定には数えない。
+    // 話しかけると会話窓ではなく釣りが始まる
+    { id: 'pond', cell: { x: 6, y: 15 }, facing: 'left', action: 'fishing' },
   ],
   warps: [
     {

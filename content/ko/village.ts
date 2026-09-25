@@ -3,8 +3,8 @@ import type { VillageText } from '@content/types/world'
 
 export const village: VillageText = {
   intro:
-    '프론트엔드 / 프로덕트 엔지니어 J-Paku의 포트폴리오. 걸어서 다섯 곳을 돌면 제가 어떤 문제를 푸는지 알 수 있습니다.',
-  promise: '1분 · 5곳 · 대표 작업 3개',
+    '프론트엔드 / 프로덕트 엔지니어 J-Paku의 포트폴리오. 걸어서 여덟 곳을 돌면 제가 어떤 문제를 푸는지 알 수 있습니다.',
+  promise: '1분 · 8곳 · 대표 작업 3개',
   hint: '방향키·WASD로 이동 · Z로 대화·X로 닫기 · M으로 지도',
   hintTouch: '스틱으로 이동 · A로 대화 · 오른쪽 아래 지도를 탭하면 이동',
   noTarget: '근처에 말 걸 곳이 없네. 문이나 건물을 찾아보자',
@@ -22,7 +22,7 @@ export const village: VillageText = {
   shortcuts: '작품으로 바로 가기',
   toList: '작품 목록으로',
   toVillage: '마을로 보기',
-  allSeen: '다섯 곳을 모두 봤어요. 「{list}」에서 작품을 다시 볼 수 있어요.',
+  allSeen: '여덟 곳을 모두 봤어요. 「{list}」에서 작품을 다시 볼 수 있어요.',
   buttonA: '선택',
   buttonB: '취소',
   joystick: '이동 스틱',
@@ -49,6 +49,7 @@ export const village: VillageText = {
     cancelled: '설정을 취소했습니다.',
   },
   fishing: {
+    place: '연못',
     prompt: '낚시를 해볼까…?',
     go: '낚는다',
     exhausted: '여기선 더 안 낚일 것 같네…. 다음 경험은 함께 만들어 보지 않을래요?',
@@ -98,8 +99,8 @@ export const village: VillageText = {
       claim: '좌석과 팀 배치를 손가락으로 직접 움직이며 확인할 수 있는 좌석 맵을 만들었습니다.',
       proof:
         '앵커를 기준으로 한 핀치 줌과 관성 스크롤을 구현했고, @use-gesture/react와 렌더링 방식 전환을 함께 사용했습니다.',
-      hook: '다음은 AI 로봇을 만나보세요.',
-      next: 'AI 로봇에게',
+      hook: '다음은 북쪽 길가의 경력비를 읽어보세요.',
+      next: '경력비로',
       detail:
         '개발 중에는 iOS 버전에서 축소할 때 앱이 꺼지는 문제도 발견했습니다. 원인은 메모리 부족이었고, 한계에 도달하기 전에 줌을 제어해 해결했습니다.',
       link: {
@@ -113,14 +114,27 @@ export const village: VillageText = {
       claim: '같은 요청에서 최대한 같은 품질의 결과를 낼 수 있는 AI 개발 환경을 만들었습니다.',
       proof:
         'AI의 행동을 제어하는 훅을 25개 마련하고, eval로 구조 자체를 계속 검증해 회귀를 막고 있습니다. 환경의 설계·구현뿐 아니라 팀 도입과 운용까지 담당했습니다.',
-      hook: '마지막으로 우체통에 들러보세요.',
-      next: '우체통으로',
+      hook: '다음은 모닥불에 들러보세요.',
+      next: '모닥불로',
       detail:
         '도입 2개월 만에 팀의 코드 추가 줄 수는 약 4배가 되었습니다. AI 팀이 자동으로 완료한 작업 중 87.6%는 사람의 손질 없이 완료됩니다.',
       link: {
         label: 'AI 개발 기반 페이지',
         target: { kind: 'external', url: 'https://j-paku.github.io/ai-harness/' },
       },
+    },
+    campfire: {
+      place: '모닥불',
+      arrive: '모닥불이 타닥타닥 타오르고 있어요. 잠깐 쉬어갈까요?',
+      talk: '불 쬐기',
+      title: '구조는 팀이 써야 의미가 있다',
+      claim: '만든 구조는 팀이 계속 써야 비로소 도움이 된다고 생각합니다.',
+      proof:
+        'AI 개발 환경은 나눠주는 것으로 끝내지 않고, 주 1회 활용 사례를 나누는 정례와 옆에 앉아 함께 의뢰를 돌리는 지원을 이어갔습니다. 설계 규약도 문서로 만들고, hook으로 기계적으로 지킬 수 있게 했습니다.',
+      hook: '다음은 우체통에 들러보세요.',
+      next: '우체통으로',
+      detail:
+        '도입과 운용까지 담당한 결과, AI 팀이 자동으로 완료한 작업 중 87.6%는 사람의 손질 없이 완료됩니다.',
     },
     mailbox: {
       place: '우체통',
@@ -129,8 +143,8 @@ export const village: VillageText = {
         '지금까지 업무 시스템을 잇는 설계, 손가락으로 직관적으로 다루는 UI, 그리고 팀이 반복해서 쓸 수 있는 개발 환경을 소개했습니다.',
       proof:
         '잠깐 이야기를 나눠보고 싶으신 분도, 개발에 대해 상담하고 싶으신 분도 편하게 연락해 주세요.',
-      hook: '감사합니다. 궁금한 곳은 지도에서 언제든 다시 갈 수 있습니다.',
-      next: '전체 요약 보기',
+      hook: '감사합니다. 마지막으로 북쪽 길 너머로 걸어가 보세요.',
+      next: '다음 여정으로',
       detail: '이메일은 다음과 같습니다. pjhrecr@gmail.com',
       link: {
         label: '이메일 쓰기',
@@ -170,8 +184,8 @@ export const village: VillageText = {
       ],
       proof:
         '전반은 파견처 정보시스템 부서에서, 지금은 상사의 사내 개발팀에서 리더를 맡고 있습니다.',
-      hook: '궁금한 작품은 지도에서 언제든 돌아갈 수 있습니다.',
-      next: '작품 일람으로',
+      hook: '다음은 AI 로봇을 만나보세요.',
+      next: 'AI 로봇에게',
       detail: '각 현장에서 무엇을 만들었는지는 작품 일람의 프로필에 이어집니다.',
       talk: '읽기',
     },

@@ -123,6 +123,7 @@ describe('isCollectionComplete', () => {
 })
 
 const text: FishingText = {
+  place: '池',
   prompt: '釣りをしてみますか?',
   go: '釣る',
   exhausted: 'もう釣れそうにない…',

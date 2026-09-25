@@ -196,14 +196,22 @@ describe('validateWorldSet', () => {
     const monument = worldSet.worlds.town.structures.find(s => s.id === 'monument')
     expect(monument).toEqual({ id: 'monument', kind: 'monument', cell: { x: 16, y: 2 } })
   })
-  it('経歴碑の会話地点は order を持たず、コース外の地点として登録されている', () => {
-    const spot = worldSet.worlds.town.spots.find(s => s.id === 'monument')
-    expect(spot).toEqual({
-      id: 'monument',
-      structureId: 'monument',
-      cell: { x: 16, y: 4 },
-      facing: 'up',
-    })
+  it('経歴碑・焚き火・次の旅はコースの 4・6・8 番目に登録されている', () => {
+    const order = (id: string) => worldSet.worlds.town.spots.find(s => s.id === id)?.order
+    expect(order('monument')).toBe(4)
+    expect(order('campfire')).toBe(6)
+    expect(order('journey')).toBe(8)
+  })
+  it('池は order を持たず、話しかけると釣りが始まるコース外の地点として登録されている', () => {
+    const spot = worldSet.worlds.town.spots.find(s => s.id === 'pond')
+    expect(spot).toEqual({ id: 'pond', cell: { x: 6, y: 15 }, facing: 'left', action: 'fishing' })
+  })
+  it('構造物も到着範囲も持たない地点は、action があれば認め、無ければ拒む', () => {
+    const spot = { id: 'pond', cell: { x: 2, y: 2 }, facing: 'up' as const }
+    expect(validateWorldSet(townSet({ spots: [{ ...spot, action: 'fishing' }] }))).toEqual([])
+    expect(validateWorldSet(townSet({ spots: [spot] }))).toContain(
+      'ワールド "town": 地点 "pond" の structureId "undefined" が無い'
+    )
   })
 })
 
