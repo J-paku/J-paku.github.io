@@ -88,21 +88,44 @@
   height: 100%;
 }
 
-/* 押せる範囲は札(22px)の周りに 3px ずつ。隣の地点の札は index.tsx の arrangeBadges が 6px 空けて置くので、
-   範囲どうしは重ならない。--nudge-x / --nudge-y は重なりを避けてずらした量(ずらさない札には付かない) */
+/* 地点の印。地点マスの中心に置いた 39px 角のボタンの中央に ✓/? の字(.glyph 27px 角)を描き、
+   番号の札(.spot > .badge 18px)をその右上の角へ 4px だけ重ねて付ける(札はボタンの外へはみ出す)。
+   押せる範囲はボタン(字の周りに 6px ずつ)。隣の地点の印(字 + 札)どうしは index.tsx の arrangeBadges が
+   6px 空けて置く。--nudge-x / --nudge-y は重なりを避けてずらした量(ずらさない印には付かない)。
+   字と札はボタンごと一緒に動く */
 .spot {
   position: absolute;
   top: var(--spot-y);
   left: var(--spot-x);
-  display: grid;
-  width: 28px;
-  height: 28px;
+  width: 39px;
+  height: 39px;
   padding: 0;
   border: 0;
-  place-items: center;
+  overflow: visible;
   transform: translate(calc(-50% + var(--nudge-x, 0px)), calc(-50% + var(--nudge-y, 0px)));
   background: transparent;
   cursor: pointer;
+}
+
+/* 1 ドット 3px の 9 ドット角。地図が縮んでも字の大きさは変えない */
+.glyph {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  display: block;
+  width: 27px;
+  height: 27px;
+}
+
+/* 地図の上の札は字の右上の角に小さく付ける。字(6〜33px)と札(29〜47px / -8〜10px)の重なりは縦横 4px。
+   下の一覧の札(22px)はそのまま */
+.spot > .badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 18px;
+  height: 18px;
+  font-size: 11px;
 }
 
 .spot:hover,
@@ -113,7 +136,7 @@
 }
 
 /* 地点の番号の札。地図の上と下の一覧で同じ見た目にし、番号で対応を取る。
-   訪問前は黒地に白い数字、訪問後は地図のミニマップの印と同じ緑(map-svg.tsx の MARKER_COLORS.visited) */
+   訪問前は黒地に白い数字、訪問後は地図の ✓ の字・ミニマップの印と同じ緑(map-svg.tsx の MARKER_COLORS.visited) */
 .badge {
   display: grid;
   width: 22px;

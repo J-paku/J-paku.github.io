@@ -57,16 +57,43 @@ function structureColor(structure: Structure) {
 }
 
 // 会話地点の印。訪問済みの緑は地図の草(#6bb36a)と紛れないよう濃くする。
-// 拡大地図の番号の札(world-map.module.css の .badge)も同じ緑・黒を使う
-const MARKER_COLORS = {
+// 拡大地図の ✓/? の字(WorldMap の index.tsx)と番号の札(world-map.module.css の .badge)も同じ緑・黒を使う
+export const MARKER_COLORS = {
   visited: '#2f9e44',
   unvisited: '#1a1a18',
   plate: '#fff',
+  plateEdge: '#1a1a18',
 } as const
 
-// この縮尺以上の地図(拡大地図の 16)では地点と扉の印を SVG に描かない。
-// 代わりに地図の上へ HTML の番号の札を重ね、下の一覧の番号と対応させる(WorldMap の index.tsx)。
-// これより小さい地図(ミニマップの 4)は点で描く
+// 拡大地図の印の 7×7 のドット絵。フォント依存で滲むため <text> は使わず '#' の位置に rect を置く。
+// 描くのは WorldMap の index.tsx(地点のボタンの中の SVG)。札と一緒にずらせるよう、この地図の SVG には描かない
+export const CHECK_GLYPH: readonly string[] = [
+  '.......',
+  '.....##',
+  '....##.',
+  '##.##..',
+  '.###...',
+  '..##...',
+  '.......',
+]
+
+// 「?」は下敷きの縁と同じ黒なので、左右 1 ドットを空けて縁と繋がらないようにする
+export const QUESTION_GLYPH: readonly string[] = [
+  '..###..',
+  '.##.##.',
+  '....##.',
+  '...##..',
+  '...##..',
+  '.......',
+  '...##..',
+]
+
+const GLYPH_CELLS = 7
+// 字の周りを 1 ドットずつ広げた白い下敷き(縁の黒 1 ドットを含めて 9 ドット角)
+export const PLATE_CELLS = GLYPH_CELLS + 2
+
+// この縮尺より小さい地図(ミニマップの 4)は地点と扉を点で描く。
+// これ以上(拡大地図の 16)は描かず、地図の上に重ねた地点のボタンが ✓/? の字と番号の札を持つ(WorldMap の index.tsx)
 const DOT_MARKER_SCALE_LIMIT = 8
 
 type SpotMarkerProps = {
@@ -165,7 +192,7 @@ export function MapSvg({
   doors,
 }: MapSvgProps) {
   const visibleSpotIds = new Set(spotIds)
-  // 拡大地図では番号の札が印の代わりになるので、点の印はミニマップだけで描く
+  // 拡大地図では地点のボタンが ✓/? の字を持つので、点の印はミニマップだけで描く
   const drawMarkers = scale < DOT_MARKER_SCALE_LIMIT
   const width = world.width * scale
   const height = world.height * scale
