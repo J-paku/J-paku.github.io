@@ -13,6 +13,7 @@ export type MapSvgProps = {
   visited: ReadonlySet<string>
   player: Cell
   destination: Cell | null
+  // 印を置く地点と扉。点の印を描くミニマップだけが使い、拡大地図(縮尺 16)では描かない
   spotIds: readonly string[]
   // 屋内の地点(自室の home など)の代わりに印を置く扉
   doors: readonly DoorMarker[]
@@ -55,42 +56,17 @@ function structureColor(structure: Structure) {
   return STRUCTURE_COLORS[structure.kind]
 }
 
-// 会話地点の印。訪問済みの緑は地図の草(#6bb36a)と紛れないよう濃くする
+// 会話地点の印。訪問済みの緑は地図の草(#6bb36a)と紛れないよう濃くする。
+// 拡大地図の番号の札(world-map.module.css の .badge)も同じ緑・黒を使う
 const MARKER_COLORS = {
   visited: '#2f9e44',
   unvisited: '#1a1a18',
   plate: '#fff',
-  plateEdge: '#1a1a18',
 } as const
 
-// 7×7 のドット絵。フォント依存で滲むため <text> は使わず '#' の位置に rect を置く
-const CHECK_GLYPH: readonly string[] = [
-  '.......',
-  '.....##',
-  '....##.',
-  '##.##..',
-  '.###...',
-  '..##...',
-  '.......',
-]
-
-// 「?」は下敷きの縁と同じ黒なので、左右 1 ドットを空けて縁と繋がらないようにする
-const QUESTION_GLYPH: readonly string[] = [
-  '..###..',
-  '.##.##.',
-  '....##.',
-  '...##..',
-  '...##..',
-  '.......',
-  '...##..',
-]
-
-const GLYPH_CELLS = 7
-// 字の周りを 1 ドットずつ広げた白い下敷き(縁の黒 1 ドットを含めて 9 ドット角)
-const PLATE_CELLS = GLYPH_CELLS + 2
-
-// この縮尺より小さい地図(ミニマップの 4)では字が 1 マスに収まらず、隣の印と重なって潰れる。
-// 字の代わりに点で描く境目
+// この縮尺以上の地図(拡大地図の 16)では地点と扉の印を SVG に描かない。
+// 代わりに地図の上へ HTML の番号の札を重ね、下の一覧の番号と対応させる(WorldMap の index.tsx)。
+// これより小さい地図(ミニマップの 4)は点で描く
 const DOT_MARKER_SCALE_LIMIT = 8
 
 type SpotMarkerProps = {
@@ -100,8 +76,9 @@ type SpotMarkerProps = {
 }
 
 // ミニマップの印。マスの中央に (縮尺 - 1) 角の色の点を、1px の白い縁で囲んで置く。
-// 奇数角を偶数のマスに置くので半ピクセルは左上へ寄せ、格子からずらさない
-function DotMarker({ cell, scale, visited }: SpotMarkerProps) {
+// 奇数角を偶数のマスに置くので半ピクセルは左上へ寄せ、格子からずらさない。
+// 印の中身は地点のマス・縮尺・訪問済みかだけで決まる。歩くたびの再描画では作り直さない
+const SpotMarker = memo(function SpotMarker({ cell, scale, visited }: SpotMarkerProps) {
   const inner = Math.max(1, scale - 1)
   const outer = inner + 2
   const left = Math.round(cell.x * scale + scale / 2 - outer / 2)
@@ -117,54 +94,6 @@ function DotMarker({ cell, scale, visited }: SpotMarkerProps) {
         height={inner}
         fill={visited ? MARKER_COLORS.visited : MARKER_COLORS.unvisited}
       />
-    </g>
-  )
-}
-
-// 印の中身は地点のマス・縮尺・訪問済みかだけで決まる。歩くたびの再描画では作り直さない
-const SpotMarker = memo(function SpotMarker({ cell, scale, visited }: SpotMarkerProps) {
-  if (scale < DOT_MARKER_SCALE_LIMIT) {
-    return <DotMarker cell={cell} scale={scale} visited={visited} />
-  }
-
-  // 1 ドットの辺。縮尺 16 なら 3px(字 21px・下敷き 27px)
-  const dot = Math.max(1, Math.round(scale / 5))
-  const glyphSize = GLYPH_CELLS * dot
-  const plateSize = PLATE_CELLS * dot
-  // 地点マスの中心に置く。ドットの格子がずれないよう整数へ丸める
-  const left = Math.round(cell.x * scale + scale / 2 - glyphSize / 2)
-  const top = Math.round(cell.y * scale + scale / 2 - glyphSize / 2)
-  const glyph = visited ? CHECK_GLYPH : QUESTION_GLYPH
-  const inkColor = visited ? MARKER_COLORS.visited : MARKER_COLORS.unvisited
-
-  return (
-    <g>
-      <rect
-        x={left - dot}
-        y={top - dot}
-        width={plateSize}
-        height={plateSize}
-        fill={MARKER_COLORS.plateEdge}
-      />
-      <rect x={left} y={top} width={glyphSize} height={glyphSize} fill={MARKER_COLORS.plate} />
-      {glyph.flatMap((row, rowIndex) =>
-        row
-          .split('')
-          .flatMap((pixel, colIndex) =>
-            pixel === '#'
-              ? [
-                  <rect
-                    key={`${colIndex}-${rowIndex}`}
-                    x={left + colIndex * dot}
-                    y={top + rowIndex * dot}
-                    width={dot}
-                    height={dot}
-                    fill={inkColor}
-                  />,
-                ]
-              : []
-          )
-      )}
     </g>
   )
 })
@@ -236,6 +165,8 @@ export function MapSvg({
   doors,
 }: MapSvgProps) {
   const visibleSpotIds = new Set(spotIds)
+  // 拡大地図では番号の札が印の代わりになるので、点の印はミニマップだけで描く
+  const drawMarkers = scale < DOT_MARKER_SCALE_LIMIT
   const width = world.width * scale
   const height = world.height * scale
 
@@ -248,19 +179,28 @@ export function MapSvg({
       aria-hidden='true'
     >
       <MapTerrain world={world} scale={scale} />
-      {world.spots
-        .filter(spot => visibleSpotIds.has(spot.id))
-        .map(spot => (
-          <SpotMarker key={spot.id} cell={spot.cell} scale={scale} visited={visited.has(spot.id)} />
-        ))}
-      {doors.map(door => (
-        <SpotMarker
-          key={`door-${door.id}`}
-          cell={door.cell}
-          scale={scale}
-          visited={isDoorVisited(door, visited)}
-        />
-      ))}
+      {drawMarkers
+        ? world.spots
+            .filter(spot => visibleSpotIds.has(spot.id))
+            .map(spot => (
+              <SpotMarker
+                key={spot.id}
+                cell={spot.cell}
+                scale={scale}
+                visited={visited.has(spot.id)}
+              />
+            ))
+        : null}
+      {drawMarkers
+        ? doors.map(door => (
+            <SpotMarker
+              key={`door-${door.id}`}
+              cell={door.cell}
+              scale={scale}
+              visited={isDoorVisited(door, visited)}
+            />
+          ))
+        : null}
       {destination ? (
         <rect
           x={destination.x * scale}
