@@ -1,11 +1,17 @@
 // 地図の方向キーによる地点間の移動 spotToward のテスト
-import type { Cell, Spot } from '@content/types/world'
+import type { Cell } from '@content/types/world'
 import { spotToward } from './spot-navigation'
 
-const spot = (id: string, cell: Cell): Spot => ({ id, cell, facing: 'up' })
+type Entry = {
+  id: string
+  cell: Cell
+}
+
+// 地図の一覧と同じく id とマスだけを持つ地点
+const spot = (id: string, cell: Cell): Entry => ({ id, cell })
 
 // 中央 c から見て、右に near(2 マス)と far(5 マス)、上に above、下に below を置く
-const spots: readonly Spot[] = [
+const spots: readonly Entry[] = [
   spot('c', { x: 5, y: 5 }),
   spot('far', { x: 10, y: 5 }),
   spot('near', { x: 7, y: 5 }),

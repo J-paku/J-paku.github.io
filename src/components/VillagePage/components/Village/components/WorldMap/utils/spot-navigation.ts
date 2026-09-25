@@ -1,6 +1,12 @@
 // 地図の中で方向キーを押した時に、次に焦点を移す地点を決める(空間移動)。
-// 画面ではなくマスの座標で比べるので、地図の拡大率に左右されない
-import type { Direction, Spot } from '@content/types/world'
+// 画面ではなくマスの座標で比べるので、地図の拡大率に左右されない。
+// 地点は id とマスだけを見る(地図の番号付きの一覧 MapEntry も、ワールドの Spot もそのまま渡せる)
+import type { Cell, Direction } from '@content/types/world'
+
+type SpotLike = {
+  id: string
+  cell: Cell
+}
 
 type Axis = {
   // 押した向きへ進んだ量。正の地点だけが候補になる
@@ -20,16 +26,16 @@ const AXES: Record<Direction, Axis> = {
 // 押した向きへ真っすぐ並んだ地点を選ぶため
 const CROSS_WEIGHT = 2
 
-export const spotToward = (
-  spots: readonly Spot[],
+export const spotToward = <T extends SpotLike>(
+  spots: readonly T[],
   currentId: string | null,
   direction: Direction
-): Spot | null => {
+): T | null => {
   const current = spots.find(spot => spot.id === currentId)
   // 地点に焦点が無い(閉じるボタンなど)時は、Tab と同じく最初の地点から始める
   if (current === undefined) return spots[0] ?? null
   const axis = AXES[direction]
-  let best: Spot | null = null
+  let best: T | null = null
   let bestScore = Infinity
   for (const spot of spots) {
     if (spot.id === current.id) continue

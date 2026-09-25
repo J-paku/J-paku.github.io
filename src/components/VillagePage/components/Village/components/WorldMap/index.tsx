@@ -14,6 +14,7 @@ import {
 
 import type { Cell, Direction, World } from '@content/types/world'
 import type { DoorMarker } from '@/lib/village/door-marker'
+import type { MapEntry } from '@/lib/village/map-entries'
 
 import { useHeldDirection } from '../../hooks/use-held-direction'
 import { MapSvg } from './map-svg'
@@ -27,6 +28,8 @@ export type WorldMapProps = {
   destination: Cell | null
   placeNames: Record<string, string>
   doors: readonly DoorMarker[]
+  // 地図に番号の札を置き、下の一覧に並べる地点(番号はコース順)。他の世界の地点は入口のマスに置かれている
+  entries: MapEntry[]
   title: string
   fastTravelLabel: string
   closeLabel: string
@@ -52,8 +55,6 @@ type MapCanvasStyle = CSSProperties & {
 
 const FOCUSABLE_SELECTOR = 'button:not([disabled]), a[href]'
 const SCALE = 16
-// ラベルが右へ突き出す地点(枠の右端に近い)はラベルを右揃えへ切り替える境界(幅に対する割合)
-const RIGHT_EDGE_RATIO = 0.66
 // 地図の中で焦点を地点から地点へ移す方向キー
 const ARROW_DIRECTIONS: Partial<Record<string, Direction>> = {
   ArrowUp: 'up',
@@ -66,44 +67,100 @@ const ARROW_DIRECTIONS: Partial<Record<string, Direction>> = {
 // 同じ長さにし、地点が 1 つずつ移るのを目で追って手を離せるようにする
 const SPOT_REPEAT_MS = 300
 
-type LabelBox = Pick<DOMRect, 'left' | 'right' | 'top' | 'bottom'>
+// 番号の札どうしに空ける最小の隙間(px)。地点のボタン(札 22px + 周り 3px ずつ = 28px)の押せる範囲が重ならない幅
+const BADGE_GAP = 6
 
-const labelsOverlap = (a: LabelBox, b: LabelBox) =>
-  a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
+type BadgeBox = {
+  left: number
+  right: number
+  top: number
+  bottom: number
+}
 
-// 地点のラベルどうしの重なりを実測で解く。ラベルは折り返さないので、狭い画面では長い名前が隣のラベルの下へ潜る。
-// 1 回目: 重なった組の後ろ側(world.spots の順で後の地点)のラベルを上下反対へ回す。
-// 2 回目: 回してもまだ前の地点のラベルと重なるものは隠す(焦点・ポインタが乗った時だけ出る。CSS 側)。
-// 結果はボタンの data-label へ DOM で直接書く。React state を経由しないので、測り直しで再描画は起きない
-const arrangeSpotLabels = (panel: HTMLElement) => {
-  const spots = Array.from(panel.querySelectorAll<HTMLElement>('[data-spot-id]'))
-  for (const spot of spots) delete spot.dataset.label
+const badgesTouch = (a: BadgeBox, b: BadgeBox) =>
+  a.left < b.right + BADGE_GAP &&
+  b.left < a.right + BADGE_GAP &&
+  a.top < b.bottom + BADGE_GAP &&
+  b.top < a.bottom + BADGE_GAP
 
-  const measure = () => spots.map(spot => spot.firstElementChild?.getBoundingClientRect() ?? null)
+const centerOf = (box: BadgeBox) => ({
+  x: (box.left + box.right) / 2,
+  y: (box.top + box.bottom) / 2,
+})
 
-  const first = measure()
-  const flipped = new Set<number>()
-  first.forEach((box, later) => {
-    if (box === null) return
-    const hit = first.some(
-      (other, earlier) => earlier < later && other !== null && labelsOverlap(other, box)
-    )
-    if (hit) flipped.add(later)
-  })
-  for (const index of flipped) spots[index].dataset.label = 'flip'
-  if (flipped.size === 0) return
+// 向き(-1 / +1)へ、a に触れなくなるまで b を動かす量。0 の差は +1(右・下)とみなす
+const clearance = (a: BadgeBox, b: BadgeBox, axis: 'x' | 'y', sign: number) => {
+  if (axis === 'x') return sign > 0 ? a.right + BADGE_GAP - b.left : a.left - BADGE_GAP - b.right
+  return sign > 0 ? a.bottom + BADGE_GAP - b.top : a.top - BADGE_GAP - b.bottom
+}
 
-  // 反転の書き込み後に測り直す(getBoundingClientRect が同期でレイアウトを確定させる)
-  const second = measure()
-  const shown: LabelBox[] = []
-  second.forEach((box, index) => {
-    if (box === null) return
-    if (shown.some(other => labelsOverlap(other, box))) {
-      spots[index].dataset.label = 'hidden'
-      return
+const shifted = (box: BadgeBox, axis: 'x' | 'y', amount: number): BadgeBox =>
+  axis === 'x'
+    ? { ...box, left: box.left + amount, right: box.right + amount }
+    : { ...box, top: box.top + amount, bottom: box.bottom + amount }
+
+const insideBox = (box: BadgeBox, frame: BadgeBox) =>
+  box.left >= frame.left &&
+  box.right <= frame.right &&
+  box.top >= frame.top &&
+  box.bottom <= frame.bottom
+
+// 隣り合うマスの地点(AIロボと焚き火など)は札が重なるので、実測で後の番号の札をずらす。
+// 札は番号の順(= entries の順)に置き、前の札 a に触れる札 b は a から b へ向かう向きへ押し出す
+// (池のように左下にある地点は左下へ逃げ、元の場所の近くに残る)。中心の差の大きい軸を先に試し、
+// 地図の外へ出るなら他方の軸へ。どちらも外なら先の軸のまま置く。
+// ずらした量はボタンの --nudge-x / --nudge-y へ DOM で直接書く。ボタンごと動くので押せる範囲も札に付いてくる
+const arrangeBadges = (canvas: HTMLElement) => {
+  const spots = Array.from(canvas.querySelectorAll<HTMLElement>('[data-spot-id]'))
+  for (const spot of spots) {
+    spot.style.removeProperty('--nudge-x')
+    spot.style.removeProperty('--nudge-y')
+  }
+
+  // ずらしを外した後に測る(getBoundingClientRect が同期でレイアウトを確定させる)
+  const canvasRect = canvas.getBoundingClientRect()
+  const frame: BadgeBox = {
+    left: canvasRect.left,
+    right: canvasRect.right,
+    top: canvasRect.top,
+    bottom: canvasRect.bottom,
+  }
+  const placed: BadgeBox[] = []
+  for (const spot of spots) {
+    const rect = spot.firstElementChild?.getBoundingClientRect()
+    if (rect === undefined) continue
+    const origin: BadgeBox = {
+      left: rect.left,
+      right: rect.right,
+      top: rect.top,
+      bottom: rect.bottom,
     }
-    shown.push(box)
-  })
+    let box = origin
+    // ずらす回数は置いた札の数 + 1 までで打ち切る(行き場が無い時に回り続けないため)
+    let steps = placed.length + 1
+    while (steps > 0) {
+      steps -= 1
+      const hit = placed.find(other => badgesTouch(other, box))
+      if (hit === undefined) break
+      const from = centerOf(hit)
+      const to = centerOf(box)
+      const dx = to.x - from.x
+      const dy = to.y - from.y
+      const signX = dx < 0 ? -1 : 1
+      const signY = dy < 0 ? -1 : 1
+      const first = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y'
+      const second = first === 'x' ? 'y' : 'x'
+      const sign = (axis: 'x' | 'y') => (axis === 'x' ? signX : signY)
+      const tryFirst = shifted(box, first, clearance(hit, box, first, sign(first)))
+      const trySecond = shifted(box, second, clearance(hit, box, second, sign(second)))
+      box = insideBox(tryFirst, frame) || !insideBox(trySecond, frame) ? tryFirst : trySecond
+    }
+    placed.push(box)
+    const nudgeX = box.left - origin.left
+    const nudgeY = box.top - origin.top
+    if (nudgeX !== 0) spot.style.setProperty('--nudge-x', `${nudgeX}px`)
+    if (nudgeY !== 0) spot.style.setProperty('--nudge-y', `${nudgeY}px`)
+  }
 }
 
 export function WorldMap({
@@ -113,6 +170,7 @@ export function WorldMap({
   destination,
   placeNames,
   doors,
+  entries,
   title,
   fastTravelLabel,
   closeLabel,
@@ -124,6 +182,7 @@ export function WorldMap({
 }: WorldMapProps) {
   const titleId = useId()
   const panelRef = useRef<HTMLDivElement>(null)
+  const canvasRef = useRef<HTMLDivElement>(null)
   const firstSpotRef = useRef<HTMLButtonElement>(null)
   // スティックを倒し続けた時に次の地点へ移す rAF 時刻。押した瞬間に置き、空の間は繰り返さない
   const repeatAtRef = useRef<number | null>(null)
@@ -137,39 +196,38 @@ export function WorldMap({
     }
   }, [returnTo])
 
-  // 地図が描かれた直後(描画前)に 1 回、以後は画面の大きさが変わるたびに 1 フレームへまとめて 1 回測る。
-  // 字形の読み込みでラベルの幅が変わるので、フォントが揃った時にももう 1 回測る
-  useLayoutEffect(() => {
-    const panel = panelRef.current
-    if (panel === null) return
+  // 札の置き場所が変わった時だけ測り直す(entries は描き直しのたびに別の配列になり得るので、中身の文字列で比べる)
+  const badgeLayoutKey = entries
+    .map(entry => `${entry.id}:${entry.cell.x},${entry.cell.y}`)
+    .join('|')
 
-    arrangeSpotLabels(panel)
+  // 地図が描かれた直後(描画前)に 1 回、以後は画面の大きさ・向きが変わるたびに 1 フレームへまとめて 1 回測る
+  useLayoutEffect(() => {
+    const canvas = canvasRef.current
+    if (canvas === null) return
+
+    arrangeBadges(canvas)
     let frame: number | null = null
-    let active = true
     const handleResize = () => {
       if (frame !== null) return
       frame = requestAnimationFrame(() => {
         frame = null
-        arrangeSpotLabels(panel)
+        arrangeBadges(canvas)
       })
     }
     window.addEventListener('resize', handleResize)
-    void document.fonts.ready.then(() => {
-      if (active) arrangeSpotLabels(panel)
-    })
 
     return () => {
-      active = false
       window.removeEventListener('resize', handleResize)
       if (frame !== null) cancelAnimationFrame(frame)
     }
-  }, [world, placeNames])
+  }, [badgeLayoutKey, world])
 
   // 今の焦点の地点から、その向きで最も近い地点へ焦点を移す。キー以外の入力からも呼べるよう keydown とは分けてある
   const focusSpotToward = (direction: Direction) => {
     const active = document.activeElement
     const currentId = active instanceof HTMLElement ? (active.dataset.spotId ?? null) : null
-    const next = spotToward(world.spots, currentId, direction)
+    const next = spotToward(entries, currentId, direction)
     if (next === null) return
     panelRef.current?.querySelector<HTMLElement>(`[data-spot-id='${next.id}']`)?.focus()
   }
@@ -264,7 +322,12 @@ export function WorldMap({
           {closeLabel}
         </button>
         <div className={styles.mapViewport}>
-          <div className={styles.mapCanvas} style={mapCanvasStyle} onClick={handleCanvasClick}>
+          <div
+            ref={canvasRef}
+            className={styles.mapCanvas}
+            style={mapCanvasStyle}
+            onClick={handleCanvasClick}
+          >
             <MapSvg
               world={world}
               scale={SCALE}
@@ -274,40 +337,52 @@ export function WorldMap({
               spotIds={Object.keys(placeNames)}
               doors={doors}
             />
-            {world.spots.map((spot, index) => {
-              const placeName = placeNames[spot.id]
+            {entries.map((entry, index) => {
               // SVG が流動的に伸縮しても揃うよう、px ではなく mapCanvas に対する割合で置く
               const position: SpotPosition = {
-                '--spot-x': `${((spot.cell.x + 0.5) / world.width) * 100}%`,
-                '--spot-y': `${((spot.cell.y + 0.5) / world.height) * 100}%`,
+                '--spot-x': `${((entry.cell.x + 0.5) / world.width) * 100}%`,
+                '--spot-y': `${((entry.cell.y + 0.5) / world.height) * 100}%`,
               }
-              // 右端に近い地点はラベルが枠外へ突き出すので、右揃えに切り替える印を付ける
-              const edge =
-                (spot.cell.x + 0.5) / world.width > RIGHT_EDGE_RATIO ? 'right' : undefined
 
               return (
                 <button
-                  key={spot.id}
+                  key={entry.id}
                   ref={index === 0 ? firstSpotRef : undefined}
                   type='button'
                   className={styles.spot}
                   style={position}
-                  data-edge={edge}
-                  data-spot-id={spot.id}
-                  aria-label={fastTravelLabel.replace('{place}', placeName)}
-                  onClick={() => onTravel(spot.id)}
+                  data-spot-id={entry.id}
+                  aria-label={fastTravelLabel.replace('{place}', placeNames[entry.id])}
+                  onClick={() => onTravel(entry.id)}
                 >
-                  {/* 下向きの地点(建物が下にある)はラベルを上に出し、隣の地点のラベルと重ねない */}
-                  <span
-                    className={spot.facing === 'down' ? styles.spotLabelAbove : styles.spotLabel}
-                  >
-                    {placeName}
+                  <span className={styles.badge} data-visited={entry.visited ? 'true' : undefined}>
+                    {entry.number}
                   </span>
                 </button>
               )
             })}
           </div>
         </div>
+        {/* 地図の番号と地点の名前の対応表。地図の中に字を置くと名前どうしが重なるので、名前はここにだけ出す。
+            焦点の方向移動の対象は地図の札だけなので、ここのボタンには data-spot-id を付けない */}
+        <ol className={styles.legend}>
+          {entries.map(entry => (
+            <li key={entry.id}>
+              <button
+                type='button'
+                className={styles.legendItem}
+                onClick={() => onTravel(entry.id)}
+              >
+                <span className={styles.badge} data-visited={entry.visited ? 'true' : undefined}>
+                  {entry.number}
+                </span>
+                <span className={styles.legendName}>{placeNames[entry.id]}</span>
+                {/* 訪問済みは色だけでなく印でも示す */}
+                {entry.visited ? <span className={styles.legendCheck}>✓</span> : null}
+              </button>
+            </li>
+          ))}
+        </ol>
       </div>
     </div>
   )

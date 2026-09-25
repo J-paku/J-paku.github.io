@@ -88,6 +88,7 @@ function Village({
     locatorVisible,
     placeNames,
     doors,
+    entries,
     talkAt,
     talkText,
     talkLabel,
@@ -329,6 +330,7 @@ function Village({
           destination={destination}
           placeNames={placeNames}
           doors={doors}
+          entries={entries}
           title={text.mapTitle}
           fastTravelLabel={text.fastTravel}
           closeLabel={text.closeMap}

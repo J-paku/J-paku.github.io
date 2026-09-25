@@ -1,6 +1,10 @@
+/* 番号の一覧でパネルが大きくなり、デスクトップ・横持ちでも画面に固定の設定の歯車(SettingsMenu の z-index 100)・
+   作品一覧へのリンク(ExitLink の 50)・村のページの固定要素(60)と重なる。地図はモーダルなので、
+   どの画面でもそれらより上(110)に置き、覆いの下へ沈める。
+   縦持ちでは下の @media で bottom を --band にしてあるので、操作帯は覆わずに見えたまま */
 .overlay {
   position: fixed;
-  z-index: 20;
+  z-index: 110;
   display: grid;
   padding: 16px;
   inset: 0;
@@ -51,24 +55,27 @@
 
 .mapViewport {
   max-width: 100%;
-  max-height: calc(100vh - 128px);
+  /* 下の番号の一覧(.legend 約 110px)の分も残す。
+     項目が 9 個(2 列 5 行)の前提。項目の数が変わったらこの値も直す */
+  max-height: calc(100vh - 238px);
   padding: 0 20px;
   overflow: hidden;
 }
 
 /* 地図は横にも縦にも絶対にスクロールさせない。SVG (= mapCanvas) を、幅制約と高さ制約の
-   両方を同時に満たす最大サイズまで縮める。100vh から引く 168px の内訳は
+   両方を同時に満たす最大サイズまで縮める。100vh から引く 278px の内訳は
    overlay padding(32) + panel border(6) + panel padding(42) + title 見出し(32+14=46)
-   + mapCanvas の上下 margin(40) = 168px(mapViewport の残り高さ 100vh-128px から
-   mapCanvas の margin 40px をさらに引いたもの)。
+   + mapCanvas の上下 margin(40) + 番号の一覧 .legend(5 行 × 22px = 110) = 278px
+   (一覧は項目が 9 個(2 列 5 行)の前提。項目の数が変わったらこの値も直す)
+   (mapViewport の残り高さ 100vh-238px から mapCanvas の margin 40px をさらに引いたもの)。
    左右の余白は mapViewport の padding で取り、mapCanvas は margin auto で中央に置く。
    mapCanvas に左右 margin を付けると 100% の幅にその分が足され、パネルの右へはみ出す(iPhone 縦持ち実測)。
-   幅の候補は「100%(= mapViewport の padding を除いた幅)」、高さの候補は「(100vh-168px) を
+   幅の候補は「100%(= mapViewport の padding を除いた幅)」、高さの候補は「(100vh-278px) を
    マスの縦横比(--map-w / --map-h)で幅に換算した値」。小さい方を採用することで、
    幅が先に詰まる縦長画面でも、高さが先に詰まる横長の低い画面でも必ず両方の上限内に収まる */
 .mapCanvas {
   position: relative;
-  width: min(100%, calc((100vh - 168px) * var(--map-w) / var(--map-h)));
+  width: min(100%, calc((100vh - 278px) * var(--map-w) / var(--map-h)));
   aspect-ratio: var(--map-w) / var(--map-h);
   margin: 20px auto;
   /* 地点の無いマスも押せば歩いて行ける */
@@ -81,87 +88,108 @@
   height: 100%;
 }
 
+/* 押せる範囲は札(22px)の周りに 3px ずつ。隣の地点の札は index.tsx の arrangeBadges が 6px 空けて置くので、
+   範囲どうしは重ならない。--nudge-x / --nudge-y は重なりを避けてずらした量(ずらさない札には付かない) */
 .spot {
   position: absolute;
   top: var(--spot-y);
   left: var(--spot-x);
-  width: 40px;
-  height: 40px;
+  display: grid;
+  width: 28px;
+  height: 28px;
   padding: 0;
-  border: 2px dashed transparent;
-  transform: translate(-50%, -50%);
+  border: 0;
+  place-items: center;
+  transform: translate(calc(-50% + var(--nudge-x, 0px)), calc(-50% + var(--nudge-y, 0px)));
   background: transparent;
   cursor: pointer;
 }
 
 .spot:hover,
 .spot:focus {
-  /* 焦点・ポインタの乗った地点のラベルを、隣の地点のラベルより上に出す */
-  z-index: 2;
-  border-color: #181818;
+  /* 焦点・ポインタの乗った札を、隣の札より上に出す */
+  z-index: 1;
   outline: none;
+}
+
+/* 地点の番号の札。地図の上と下の一覧で同じ見た目にし、番号で対応を取る。
+   訪問前は黒地に白い数字、訪問後は地図のミニマップの印と同じ緑(map-svg.tsx の MARKER_COLORS.visited) */
+.badge {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  box-sizing: border-box;
+  border: 2px solid #181818;
+  place-items: center;
+  background: #181818;
+  color: #fff;
+  font: 700 12px/1 var(--f-label);
+  font-variant-numeric: tabular-nums;
+}
+
+.badge[data-visited='true'] {
+  background: #2f9e44;
 }
 
 /* 焦点は :focus で出す。タッチ端末ではスティックから移した焦点(プログラムの focus())に
    :focus-visible が付かず、何も起きていないように見えるため。キーボードも同じ見た目で足りる */
-.spot:focus .spotLabel,
-.spot:focus .spotLabelAbove {
-  background: #181818;
-  color: #fff;
-}
-
-.spotLabel,
-.spotLabelAbove {
-  position: absolute;
-  top: calc(100% + 2px);
-  left: 50%;
-  z-index: 1;
-  width: max-content;
-  padding: 2px 4px;
-  border: 2px solid #181818;
-  transform: translateX(-50%);
+.spot:hover .badge,
+.spot:focus .badge {
+  border-style: dashed;
   background: #fff;
   color: #181818;
-  font: 500 10px/1.25 var(--f-label);
-  /* 折り返すと 2 行になり、下の地点のラベルと重なる */
+}
+
+/* 番号と地点名の対応表。縦持ちの電話でも 2 列、1 行 22px(札の高さ)で並べる。
+   左の列には奇数番(3 のインタラクション研究所など長い名前)が来るので広めに取り、
+   左右の余白は地図のような 20px を取らずパネルの幅いっぱいを使う(縦持ち 390px でも名前を省かない) */
+.legend {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  column-gap: 8px;
+  list-style: none;
+}
+
+.legendItem {
+  display: flex;
+  width: 100%;
+  min-height: 22px;
+  padding: 0;
+  border: 0;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  color: #181818;
+  font: 500 11px/1.2 var(--f-label);
+  text-align: left;
+  cursor: pointer;
+}
+
+/* 長い名前は折り返さず省く。折り返すと行の高さが 22px を超え、地図の高さ計算から外れる */
+.legendName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
-  pointer-events: none;
+}
+
+.legendCheck {
+  flex: none;
+  color: #2f9e44;
+  font-weight: 700;
+}
+
+.legendItem:focus-visible {
+  outline: 2px solid #181818;
+  outline-offset: 1px;
 }
 
 .close:focus-visible {
   outline: 2px solid #181818;
   outline-offset: 2px;
-}
-
-/* 上向き配置のラベル */
-.spotLabelAbove {
-  top: auto;
-  bottom: calc(100% + 2px);
-}
-
-/* 隣のラベルと重なるので上下を入れ替えた地点(index.tsx の arrangeSpotLabels が付ける) */
-.spot[data-label='flip'] .spotLabel {
-  top: auto;
-  bottom: calc(100% + 2px);
-}
-
-.spot[data-label='flip'] .spotLabelAbove {
-  top: calc(100% + 2px);
-  bottom: auto;
-}
-
-/* 入れ替えても重なるラベルは、焦点・ポインタが乗った時だけ出す(その時は z-index 2 で上に来る) */
-.spot[data-label='hidden']:not(:focus, :hover) .spotLabel,
-.spot[data-label='hidden']:not(:focus, :hover) .spotLabelAbove {
-  visibility: hidden;
-}
-
-/* 右端に近い地点(x が幅の 66% 以上)はラベルが右へ突き出すので、右揃えへ切り替える */
-.spot[data-edge='right'] .spotLabel,
-.spot[data-edge='right'] .spotLabelAbove {
-  left: auto;
-  right: 0;
-  transform: none;
 }
 
 /* 帯(スティック・A/B)は覆わない。--band は帯の上端までの距離なので、A は次へ、
@@ -178,6 +206,32 @@
     overflow: visible;
   }
   .mapCanvas {
-    width: min(100%, calc((100vh - var(--band, 0px) - 168px) * var(--map-w) / var(--map-h)));
+    width: min(100%, calc((100vh - var(--band, 0px) - 278px) * var(--map-w) / var(--map-h)));
+  }
+}
+
+/* 横持ちの低い画面(縦 500px 以下)は、一覧を地図の下に置くと地図が 100px ほどまで縮む。
+   パネルを 2 列(地図 | 一覧)にし、一覧は右に 1 列で縦へ並べる。地図の高さは一覧の分を引かない
+   (100vh - 168px。内訳は上の .mapCanvas の注釈から一覧の 110px を除いたもの) */
+@media (orientation: landscape) and (max-height: 500px) {
+  .panel {
+    display: grid;
+    width: min(100%, 760px);
+    /* 地図の列は残りの幅。mapCanvas の幅は % を含むので、列を中身の幅(auto)で決めると循環して潰れる */
+    grid-template-columns: minmax(0, 1fr) max-content;
+    column-gap: 12px;
+    align-items: center;
+  }
+  .title {
+    grid-column: 1 / -1;
+  }
+  .mapViewport {
+    max-height: calc(100vh - 128px);
+  }
+  .mapCanvas {
+    width: min(100%, calc((100vh - 168px) * var(--map-w) / var(--map-h)));
+  }
+  .legend {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
