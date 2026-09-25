@@ -9,7 +9,9 @@ import type { Cell, Spot, StopText, VillageText, World, WorldSet } from '@conten
 import type { SheetLayout } from '@/lib/pixel/art'
 import { doorMarkers, type DoorMarker } from '@/lib/village/door-marker'
 import { waterBubble } from '@/lib/village/fishing'
+import { mapEntries, type MapEntry } from '@/lib/village/map-entries'
 import { nextSpot, talkAnchor } from '@/lib/village/spot'
+import { arriveSpeech, placeName, talkLabelOf } from '../utils/spot-text'
 import { useVillageInput } from './use-village-input'
 import { useStageScale, VIEW_COLS, VIEW_ROWS } from './use-stage-scale'
 import { useVillageGuide } from './use-village-guide/use-village-guide'
@@ -18,20 +20,6 @@ import { useVillageOverlay } from './use-village-overlay/use-village-overlay'
 import { useVillageWorld } from './use-village-world'
 import { useWalkLoop } from './use-walk-loop/use-walk-loop'
 import { useVillageDom, useVillageRuntime, type VillageRuntime } from './use-village-runtime'
-
-// 地点の文言の引き先。時計のような action を持つ地点は会話窓を開かないので stops ではなく専用の欄を見る
-const placeName = (text: VillageText, spot: Spot): string =>
-  spot.action === 'clock' ? text.clock.place : text.stops[spot.id].place
-
-// 地点に立った時の呼びかけ。地点ごとの文言があればそれ、無ければ arriveAt に場所名を入れる
-const arriveSpeech = (text: VillageText, spot: Spot): string =>
-  spot.action === 'clock'
-    ? text.clock.arrive
-    : (text.stops[spot.id].arrive ?? text.arriveAt.replace('{place}', placeName(text, spot)))
-
-// 吹き出しの行動ボタン(A)の文言
-const talkLabelOf = (text: VillageText, spot: Spot): string =>
-  spot.action === 'clock' ? text.clock.talk : (text.stops[spot.id].talk ?? text.talk)
 
 // 入力フックが返す手はそのまま枠へ渡すだけなので、型もそちらから引く
 type VillageInput = ReturnType<typeof useVillageInput>
@@ -75,7 +63,10 @@ type UseVillage = {
   hintLabel: string
   reduceMotion: boolean
   locatorVisible: boolean
+  // 全ワールドの地点 id → 地点名。地図の一覧が別のワールド(自室)の地点名も引く
   placeNames: Record<string, string>
+  // 地図に並べる地点(番号・位置・訪問済み)
+  entries: MapEntry[]
   doors: DoorMarker[]
   // 話しかける物の位置(ワールド座標・マス単位)。x は物の中央、y は上に出すなら物の上辺、下に出すなら下辺。
   // 吹き出しは world 層に置くのでカメラを引かない
@@ -254,28 +245,41 @@ export function useVillage({
     runtime.buttons.current = { onA: pressA, onB: pressB }
   }, [pressA, pressB, runtime])
 
+  // 地図の一覧は今いないワールドの地点も並べるので、名前は全ワールドの地点から作る
   const placeNames = useMemo<Record<string, string>>(
-    () => Object.fromEntries(world.spots.map(s => [s.id, placeName(text, s)])),
-    [world, text]
+    () =>
+      Object.fromEntries(
+        Object.values(worldSet.worlds)
+          .flatMap(w => w.spots)
+          .map(s => [s.id, placeName(text, s)])
+      ),
+    [worldSet, text]
   )
+  const entries = useMemo(() => mapEntries(worldSet, world, visited), [worldSet, world, visited])
   // 屋内の地点は屋外の地図に載らないので、そこへ通じる扉に印を置く
   const doors = useMemo(() => doorMarkers(worldSet, world), [worldSet, world])
 
+  // 釣り場の地点(action: 'fishing')に立った時は、地点の吹き出しを出さず水辺の吹き出し 1 つにまとめる。
+  // 釣れる中身が無ければ投げられないので、吹き出しごと出さない
+  const atFishingSpot = activeSpot?.action === 'fishing'
+  const spotBubble = activeSpot !== null && !atFishingSpot ? activeSpot : null
   const canFish =
-    mode === 'walk' && activeSpot === null && catches.length > 0 && fishingTarget !== null
+    mode === 'walk' &&
+    catches.length > 0 &&
+    (atFishingSpot || (activeSpot === null && fishingTarget !== null))
   const talkAt =
-    activeSpot !== null
-      ? talkAnchor(world, activeSpot, playerCell)
+    spotBubble !== null
+      ? talkAnchor(world, spotBubble, playerCell)
       : canFish
         ? { x: playerCell.x + 0.5, y: playerCell.y - 0.5 }
         : null
   // 水辺の吹き出しの文言・ボタン・形。全部を釣り上げた後はボタンの無い考え事に替わる
   const water = waterBubble(text.fishing, fishing.exhausted)
   const talkText =
-    activeSpot !== null ? arriveSpeech(text, activeSpot) : canFish ? water.text : null
+    spotBubble !== null ? arriveSpeech(text, spotBubble) : canFish ? water.text : null
   const talkLabel =
-    activeSpot !== null ? talkLabelOf(text, activeSpot) : canFish ? water.label : undefined
-  const talkKind = canFish ? water.kind : 'speech'
+    spotBubble !== null ? talkLabelOf(text, spotBubble) : canFish ? water.label : undefined
+  const talkKind = spotBubble === null && canFish ? water.kind : 'speech'
 
   return {
     rootRef,
@@ -300,6 +304,7 @@ export function useVillage({
     reduceMotion,
     locatorVisible,
     placeNames,
+    entries,
     doors,
     talkAt,
     talkText,

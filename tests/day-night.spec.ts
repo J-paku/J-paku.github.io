@@ -1,7 +1,7 @@
 // 昼夜の空と天気の E2E。時計を4つの帯それぞれへ固定して村の段階と、4段階ぶんの実シートが
 // どれも別物であることを確かめ、夜の灯りがともって主人公に付いて回ること・昼は同じ要素が
 // 描かれないことを確かめ、Open-Meteo の応答を差し替えて雨・雪の層が出る/出ないを確かめ、
-// 最後に段階と天気が載っても5か所のコースが今までどおり完走することを ja/ko 双方で見る
+// 最後に段階と天気が載っても8か所のコースが今までどおり完走することを ja/ko 双方で見る
 import { expect, type Page } from '@playwright/test'
 import type { VillageText } from '@content/types/world'
 import { village as villageJa } from '@content/ja/village'
@@ -204,8 +204,11 @@ for (const { prefix, text } of JOURNEYS) {
   const home = text.stops.home
   const meishi = text.stops.meishi
   const lab = text.stops.lab
+  const monument = text.stops.monument
   const robot = text.stops.robot
+  const campfire = text.stops.campfire
   const mailbox = text.stops.mailbox
+  const journey = text.stops.journey
 
   // DAY_PHASES を回すので、段階を足して PHASE_CLOCKS を書き忘れれば型で落ち、
   // 書けばこの網羅テストが自動で1本増える
@@ -396,9 +399,9 @@ for (const { prefix, text } of JOURNEYS) {
     await expect(page.locator(WEATHER_LAYERS), '失敗したら何も降らない').toHaveCount(0)
   })
 
-  test(`夜で雨でも5か所のコースは最後まで通る (${label})`, async ({ page }) => {
-    // 10s 待ちを4回連ねるので既定の30sを超える(journey.spec の完走テストと同じ理由)
-    test.setTimeout(60_000)
+  test(`夜で雨でも8か所のコースは最後まで通る (${label})`, async ({ page }) => {
+    // 10s 待ちを7回連ねるので既定の30sを超える(journey.spec の完走テストと同じ理由)
+    test.setTimeout(90_000)
     await stubWeather(page, 'rain')
     await page.clock.setFixedTime(new Date(PHASE_CLOCKS.night))
     await openVillage(page, prefix)
@@ -419,14 +422,16 @@ for (const { prefix, text } of JOURNEYS) {
     )
     await dialog.getByRole('button', { name: meishi.next }).click()
     await expect(dialog.getByRole('heading', { name: lab.title })).toBeVisible({ timeout: 10_000 })
-    await dialog.getByRole('button', { name: lab.next }).click()
-    await expect(dialog.getByRole('heading', { name: robot.title })).toBeVisible({
-      timeout: 10_000,
-    })
-    await dialog.getByRole('button', { name: robot.next }).click()
-    await expect(dialog.getByRole('heading', { name: mailbox.title })).toBeVisible({
-      timeout: 10_000,
-    })
+    // 研究所 → 経歴碑 → AIロボ → 焚き火 → ポスト → 次の旅を次へで連ねる。
+    // 最後の次の旅は、北の道の突き当たり(arrivalArea)へ着いたことで会話窓が自動で開く
+    const chain = [lab, monument, robot, campfire, mailbox]
+    for (const [i, stop] of chain.entries()) {
+      const next = chain[i + 1] ?? journey
+      await dialog.getByRole('button', { name: stop.next }).click()
+      await expect(dialog.getByRole('heading', { name: next.title })).toBeVisible({
+        timeout: 10_000,
+      })
+    }
     await page.keyboard.press('Escape')
     await expect(dialog).toHaveCount(0)
     await expect(page.getByRole('status')).toContainText(
