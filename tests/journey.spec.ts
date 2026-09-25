@@ -13,6 +13,7 @@ import { meishiCrossPlatform as meishiWorkJa } from '@content/ja/works/meishi-cr
 import { meishiCrossPlatform as meishiWorkKo } from '@content/ko/works/meishi-cross-platform'
 import { isWalkable } from '@/lib/village/collision'
 import { findPath } from '@/lib/village/path'
+import { mapEntries } from '@/lib/village/map-entries'
 import { spotToward } from '@/components/VillagePage/components/Village/components/WorldMap/utils/spot-navigation'
 // 村を開く手順・歩く walk(1 マスごとに到着を待つ)・押下と到着待ちの間合い・既定で晴れを敷く test は
 // 他の村の spec と共用。正本は village.helpers.ts
@@ -144,10 +145,15 @@ const readVisited = (page: Page) =>
 const townOrUndefined = worldSet.worlds.town
 if (townOrUndefined === undefined) throw new Error('worldSet に town が無い')
 const town = townOrUndefined
+// 地図の印の並び(番号順)。先頭は番号 1 の自室で、印は自宅の扉に付く。
+// 地図を開いた直後の焦点と方向キーの移り先は、町の地点ではなくこの並びで決まる
+const MAP_ENTRIES = mapEntries(worldSet, town, new Set())
 // 部屋から出た所(自宅前)。地図を押すテストはここから歩き出す
 const TOWN_ENTRY = { x: 14, y: 12 }
-// 地図で押すマス。地点のボタン(40px 四方で、地図の上では約 3 マス幅)を押してしまわないよう、
-// どの地点の立ち位置からも 3 マス以上離れた、歩いて行けるマスを自宅前の近くから選ぶ。
+// 自室(PC)の番号の印は、自室が町に無いので自宅の扉 (14,11) に付く
+const HOME_BADGE = { x: 14, y: 11 }
+// 地図で押すマス。地点の番号の印(約 22px の丸で、地図の上では 2 マス弱)を押してしまわないよう、
+// どの印からも 2 マス以上離れた、歩いて行けるマスを自宅前の近くから選ぶ。
 // ワープ床や到着で会話が開く範囲に着くと別の出来事が起きるので、それらも外す
 const MAP_CLICK_TARGET = (() => {
   const onSpecial = (x: number, y: number) =>
@@ -156,7 +162,9 @@ const MAP_CLICK_TARGET = (() => {
       a === undefined ? false : x >= a.x && x < a.x + a.w && y >= a.y && y < a.y + a.h
     )
   const farFromSpots = (x: number, y: number) =>
-    town.spots.every(sp => Math.max(Math.abs(sp.cell.x - x), Math.abs(sp.cell.y - y)) >= 3)
+    [...town.spots.map(sp => sp.cell), HOME_BADGE].every(
+      c => Math.max(Math.abs(c.x - x), Math.abs(c.y - y)) >= 2
+    )
   const candidates: { cell: { x: number; y: number }; steps: number }[] = []
   for (let y = 0; y < town.height; y++) {
     for (let x = 0; x < town.width; x++) {
@@ -184,8 +192,19 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
   const meishi = text.stops.meishi
   const lab = text.stops.lab
   const robot = text.stops.robot
+  const campfire = text.stops.campfire
   const mailbox = text.stops.mailbox
   const monument = text.stops.monument
+  const journey = text.stops.journey
+  const fishing = text.fishing
+  const allSeen = text.allSeen.replace('{list}', text.toList)
+  // 地図の印の地点名。池は text.stops を持たず text.fishing が名前を持つ(地図の placeNames と同じ引き方)
+  const placeOf = (id: string) => (id === 'pond' ? fishing.place : text.stops[id].place)
+  // 着いた時の吹き出しの文言。池は水辺の誘い、ほかは地点の arrive があればそれ、無ければ既定の一言
+  const arriveTextOf = (id: string) =>
+    id === 'pond'
+      ? fishing.prompt
+      : (text.stops[id].arrive ?? text.arriveAt.replace('{place}', text.stops[id].place))
 
   test(`自分の部屋の会話から次の目的地を案内する (${label})`, async ({ page }) => {
     await openVillage(page, prefix)
@@ -377,15 +396,15 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
     await page.keyboard.press('m')
     await expect(map.getByRole('heading', { name: text.mapTitle })).toBeVisible()
     const spotButton = (id: string) =>
-      map.getByRole('button', { name: text.fastTravel.replace('{place}', text.stops[id].place) })
-    const first = town.spots[0]
-    if (first === undefined) throw new Error('町に地点が無い')
-    // 地図を開いた直後は最初の地点に焦点がある
+      map.getByRole('button', { name: text.fastTravel.replace('{place}', placeOf(id)) })
+    const first = MAP_ENTRIES[0]
+    if (first === undefined) throw new Error('地図に印が無い')
+    // 地図を開いた直後は番号 1(自室)の印に焦点がある
     await expect(spotButton(first.id)).toBeFocused()
     // 右か下のうち、実際に地点がある向きを町のデータから選ぶ
     const moves = [
-      { key: 'ArrowRight', spot: spotToward(town.spots, first.id, 'right') },
-      { key: 'ArrowDown', spot: spotToward(town.spots, first.id, 'down') },
+      { key: 'ArrowRight', spot: spotToward(MAP_ENTRIES, first.id, 'right') },
+      { key: 'ArrowDown', spot: spotToward(MAP_ENTRIES, first.id, 'down') },
     ]
     const move = moves.find(m => m.spot !== null)
     if (move === undefined || move.spot === null)
@@ -395,6 +414,69 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
     await expect(spotButton(move.spot.id)).toBeFocused()
     // 焦点が移っただけで地図は閉じず、歩き出してもいない
     await expect(map.getByRole('heading', { name: text.mapTitle })).toBeVisible()
+  })
+
+  test(`地図の凡例に 9 か所が番号順に並び、番号 1 は自室 (${label})`, async ({ page }) => {
+    await openVillage(page, prefix)
+    await leaveRoom(page)
+    const map = page.getByRole('dialog')
+    await page.keyboard.press('m')
+    await expect(map.getByRole('heading', { name: text.mapTitle })).toBeVisible()
+    // 地図の上に地点名の文字は置かず、番号の印と地図の下の凡例で地点を示す。
+    // 凡例はコース順の 8 か所(1..8)の後ろにコース外の池(9)が続く
+    const legend = map.locator('ol').getByRole('button')
+    await expect(legend).toHaveCount(9)
+    const labels = (await legend.allTextContents()).map(t => t.trim())
+    // 番号の後ろに数字が続かないことまで見る(1 が 10 や 11 の頭と取り違えられないように)
+    expect(labels.map((t, i) => new RegExp(`^${i + 1}(?!\\d)`).test(t))).toEqual(
+      labels.map(() => true)
+    )
+    expect(labels[0]).toContain(home.place)
+    expect(labels[8]).toContain(fishing.place)
+  })
+
+  test(`地図の凡例の自室を押すと、家に入って PC の前に着く (${label})`, async ({ page }) => {
+    await openVillage(page, prefix)
+    await leaveRoom(page)
+    expect(await readCell(page)).toEqual({ worldId: 'town', cell: TOWN_ENTRY })
+    const map = page.getByRole('dialog')
+    await page.keyboard.press('m')
+    await expect(map.getByRole('heading', { name: text.mapTitle })).toBeVisible()
+    await map.locator('ol').getByRole('button').filter({ hasText: home.place }).click()
+    await expect(map).toHaveCount(0)
+    // 自宅前 → 扉 (14,11) → 部屋の出口手前 (4,6) → PC の前 (4,4) と自動で歩く。
+    // 扉をくぐる前に止まる・町に取り残される壊れ方は、部屋のワールドに着かないのでここで落ちる
+    await expect
+      .poll(() => readCell(page), { timeout: 10_000 })
+      .toEqual({ worldId: 'room', cell: { x: 4, y: 4 } })
+  })
+
+  test(`池の前で A を押すと会話窓ではなく釣りが始まる (${label})`, async ({ page }) => {
+    await openVillage(page, prefix)
+    await leaveRoom(page)
+    const map = page.getByRole('dialog')
+    await page.keyboard.press('m')
+    await expect(map.getByRole('heading', { name: text.mapTitle })).toBeVisible()
+    await map
+      .getByRole('button', { name: text.fastTravel.replace('{place}', fishing.place) })
+      .click()
+    await expect(map).toHaveCount(0)
+    // 池の地点は東の岸 (6,15) に立ち、左の水面を向く
+    await expect
+      .poll(() => readCell(page), { timeout: 10_000 })
+      .toEqual({ worldId: 'town', cell: { x: 6, y: 15 } })
+    // 着いた時の吹き出しは水辺の誘い 1 つだけ(地点の到着の一言と二重に出さない)
+    const bubbles = page.locator('[data-village-bubble]')
+    await expect(bubbles).toHaveCount(1)
+    await expect(bubbles).toContainText(fishing.prompt)
+    await page.keyboard.press('e')
+    // 会話窓は開かず、竿を投げて水面に浮きが出る
+    await expect(page.getByRole('status')).toContainText(fishing.cast)
+    await expect(page.locator('[data-village-float]')).toHaveAttribute(
+      'data-float-phase',
+      'casting'
+    )
+    await expect(page.getByRole('dialog')).toHaveCount(0)
   })
 
   test(`再読み込みで村が最初からやり直しになる (${label})`, async ({ page }) => {
@@ -515,11 +597,41 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
     expect((await readCell(page))?.worldId).toBe('room')
   })
 
-  test(`5 か所すべて話すと案内が変わり一覧のボタンへ焦点が移る (${label})`, async ({ page }) => {
-    // 10s 待ちを4回連ねるので既定の30sを超える
-    test.setTimeout(60_000)
+  test(`8 か所すべて話すと案内が変わり一覧のボタンへ焦点が移る (${label})`, async ({ page }) => {
+    // 10s 待ちを7回連ねるので既定の30sを超える
+    test.setTimeout(90_000)
     await openVillage(page, prefix)
     const dialog = page.getByRole('dialog')
+    await page.keyboard.press('e')
+    await expect(dialog.getByRole('heading', { name: home.title })).toBeVisible()
+    // 自室 → 名刺工房 → 研究所 → 経歴碑 → AIロボ → 焚き火 → ポストを次へで連ねる
+    const chain = [home, meishi, lab, monument, robot, campfire, mailbox]
+    for (const [i, stop] of chain.entries()) {
+      const next = chain[i + 1] ?? journey
+      await dialog.getByRole('button', { name: stop.next }).click()
+      await expect(dialog.getByRole('heading', { name: next.title })).toBeVisible({
+        timeout: 10_000,
+      })
+    }
+    // 最後の次の旅は、北の道の突き当たり(arrivalArea)へ着いたことで会話窓が自動で開く
+    await page.keyboard.press('Escape')
+    await expect(dialog).toHaveCount(0)
+    await expect(page.getByRole('status')).toContainText(allSeen)
+    const exit = page.locator('[data-village-exit]')
+    await expect(exit).toBeFocused()
+    await expect(exit).toHaveAttribute('data-bounce', '')
+  })
+
+  test(`町の経歴碑でロゴ付きの職歴一覧を確認でき、経歴碑もコースに数える (${label})`, async ({
+    page,
+  }) => {
+    // 経歴碑以外の 7 か所を先に巡り(次へ連鎖と地図の移動を合わせて 10s 待ちが 6 回)、
+    // 最後に経歴碑で話すので既定の30秒を超える
+    test.setTimeout(90_000)
+    await openVillage(page, prefix)
+    const dialog = page.getByRole('dialog')
+    const status = page.getByRole('status')
+    // 自室 → 名刺工房 → 研究所は次へ連鎖で巡る。研究所の次は経歴碑なので、そこで窓を閉じて連鎖を切る
     await page.keyboard.press('e')
     await expect(dialog.getByRole('heading', { name: home.title })).toBeVisible()
     await dialog.getByRole('button', { name: home.next }).click()
@@ -530,39 +642,38 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
     await expect(dialog.getByRole('heading', { name: lab.title })).toBeVisible({
       timeout: 10_000,
     })
-    await dialog.getByRole('button', { name: lab.next }).click()
-    await expect(dialog.getByRole('heading', { name: robot.title })).toBeVisible({
+    await page.keyboard.press('Escape')
+    await expect(dialog).toHaveCount(0)
+    // 経歴碑を飛ばして AIロボへ地図で移り、焚き火 → ポスト → 次の旅を次へ連鎖で巡る
+    await page.keyboard.press('m')
+    await dialog
+      .getByRole('button', { name: text.fastTravel.replace('{place}', robot.place) })
+      .click()
+    await expect(dialog).toHaveCount(0)
+    // 地図からの移動では会話窓が開かない。着いた吹き出しが出てから話しかける
+    await expect(page.locator('[data-village-bubble]')).toContainText(
+      robot.arrive ?? text.arriveAt.replace('{place}', robot.place),
+      { timeout: 10_000 }
+    )
+    await page.keyboard.press('e')
+    await expect(dialog.getByRole('heading', { name: robot.title })).toBeVisible()
+    await dialog.getByRole('button', { name: robot.next }).click()
+    await expect(dialog.getByRole('heading', { name: campfire.title })).toBeVisible({
       timeout: 10_000,
     })
-    await dialog.getByRole('button', { name: robot.next }).click()
+    await dialog.getByRole('button', { name: campfire.next }).click()
     await expect(dialog.getByRole('heading', { name: mailbox.title })).toBeVisible({
       timeout: 10_000,
     })
+    await dialog.getByRole('button', { name: mailbox.next }).click()
+    await expect(dialog.getByRole('heading', { name: journey.title })).toBeVisible({
+      timeout: 10_000,
+    })
     await page.keyboard.press('Escape')
     await expect(dialog).toHaveCount(0)
-    await expect(page.getByRole('status')).toContainText(
-      text.allSeen.replace('{list}', text.toList)
-    )
-    const exit = page.locator('[data-village-exit]')
-    await expect(exit).toBeFocused()
-    await expect(exit).toHaveAttribute('data-bounce', '')
-  })
-
-  test(`町の経歴碑でロゴ付きの職歴一覧を確認でき、完走判定には数えない (${label})`, async ({
-    page,
-  }) => {
-    // 経歴碑の確認に続けて残り4か所も次へ連鎖で巡るので、連鎖の待ち(1 回 10s まで)が重なり
-    // 既定の30秒を超えうる
-    test.setTimeout(60_000)
-    await openVillage(page, prefix)
-    const dialog = page.getByRole('dialog')
-    // 先に自宅(4,4)で話しておき、コースの自宅と名刺工房の間に経歴碑を挟む
-    await page.keyboard.press('e')
-    await expect(dialog.getByRole('heading', { name: home.title })).toBeVisible()
-    await page.keyboard.press('Escape')
-    await expect(dialog).toHaveCount(0)
-    await leaveRoom(page)
-    // 町の中は地図で高速移動する(町を歩いて通れることは他のテストが確かめる)。
+    // 経歴碑だけ残した 7 か所では完走の案内は出ない。経歴碑がコース外のままなら、ここで出てしまう
+    expect(await readVisited(page)).not.toContain('monument')
+    await expect(status).not.toContainText(allSeen)
     // 経歴碑は北の道の左右の木の手前 (16,2) に立ち、話しかけるマスはその 2 つ下 (16,4)
     await page.keyboard.press('m')
     await dialog
@@ -570,7 +681,6 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
       .click()
     await expect(dialog).toHaveCount(0)
     await expect.poll(() => readCell(page)).toEqual({ worldId: 'town', cell: { x: 16, y: 4 } })
-    // 地図からの移動では会話窓が開かない。着いた吹き出しが出てから話しかける
     await expect(page.locator('[data-village-bubble]')).toContainText(
       monument.arrive ?? text.arriveAt.replace('{place}', monument.place)
     )
@@ -592,41 +702,9 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
     }
     await page.keyboard.press('Escape')
     await expect(dialog).toHaveCount(0)
-    // コース外の地点なので、話しても5か所の完走案内は発火しない
-    await expect(page.getByRole('status')).not.toContainText(
-      text.allSeen.replace('{list}', text.toList)
-    )
-    // 名刺工房 (6,6) へも地図で移る。ここから先は「5 か所すべて話すと案内が変わり一覧のボタンへ
-    // 焦点が移る」と同じ次へ連鎖で残り4か所(コース地点)を巡り、経歴碑を挟んでも完走判定が
-    // 数え漏れなく動くことを確認する
-    await page.keyboard.press('m')
-    await dialog
-      .getByRole('button', { name: text.fastTravel.replace('{place}', meishi.place) })
-      .click()
-    await expect(dialog).toHaveCount(0)
-    await expect.poll(() => readCell(page)).toEqual({ worldId: 'town', cell: { x: 6, y: 6 } })
-    await expect(page.locator('[data-village-bubble]')).toContainText(
-      text.arriveAt.replace('{place}', meishi.place)
-    )
-    await page.keyboard.press('e')
-    await expect(dialog.getByRole('heading', { name: meishi.title })).toBeVisible()
-    await dialog.getByRole('button', { name: meishi.next }).click()
-    await expect(dialog.getByRole('heading', { name: lab.title })).toBeVisible({
-      timeout: 10_000,
-    })
-    await dialog.getByRole('button', { name: lab.next }).click()
-    await expect(dialog.getByRole('heading', { name: robot.title })).toBeVisible({
-      timeout: 10_000,
-    })
-    await dialog.getByRole('button', { name: robot.next }).click()
-    await expect(dialog.getByRole('heading', { name: mailbox.title })).toBeVisible({
-      timeout: 10_000,
-    })
-    await page.keyboard.press('Escape')
-    await expect(dialog).toHaveCount(0)
-    await expect(page.getByRole('status')).toContainText(
-      text.allSeen.replace('{list}', text.toList)
-    )
+    // 経歴碑で 8 か所目。訪問に数えられ、ここで初めて完走の案内が出る
+    expect(await readVisited(page)).toContain('monument')
+    await expect(status).toContainText(allSeen)
   })
 
   test(`北の道へ進むと次の旅の会話が開き、閉じて町へ戻れる (${label})`, async ({ page }) => {
@@ -642,7 +720,6 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
     await walk(page, 'ArrowUp', 4)
     expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 14, y: 0 } })
     const dialog = page.getByRole('dialog')
-    const journey = text.stops.journey
     // link が undefined だと name の絞り込みが消え、窓の中のどのリンクでも通ってしまう。
     // 名刺工房の link と同じように先に取り出して確かめる
     const journeyLink = journey.link
@@ -924,14 +1001,14 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
       await page.getByRole('button', { name: text.openMap }).tap()
       await expect(map.getByRole('heading', { name: text.mapTitle })).toBeVisible()
       const spotButton = (id: string) =>
-        map.getByRole('button', { name: text.fastTravel.replace('{place}', text.stops[id].place) })
-      const first = town.spots[0]
-      if (first === undefined) throw new Error('町に地点が無い')
+        map.getByRole('button', { name: text.fastTravel.replace('{place}', placeOf(id)) })
+      const first = MAP_ENTRIES[0]
+      if (first === undefined) throw new Error('地図に印が無い')
       await expect(spotButton(first.id)).toBeFocused()
       // 右か下のうち、実際に地点がある向きを町のデータから選ぶ(方向キーの検査と同じ選び方)
       const moves = [
-        { dx: 30, dy: 0, spot: spotToward(town.spots, first.id, 'right') },
-        { dx: 0, dy: 30, spot: spotToward(town.spots, first.id, 'down') },
+        { dx: 30, dy: 0, spot: spotToward(MAP_ENTRIES, first.id, 'right') },
+        { dx: 0, dy: 30, spot: spotToward(MAP_ENTRIES, first.id, 'down') },
       ]
       const move = moves.find(m => m.spot !== null)
       if (move === undefined || move.spot === null)
@@ -961,7 +1038,7 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
       await page.locator('[data-village-action="a"]').tap()
       await expect(map).toHaveCount(0)
       await expect(page.locator('[data-village-bubble]')).toContainText(
-        text.arriveAt.replace('{place}', text.stops[move.spot.id].place),
+        arriveTextOf(move.spot.id),
         { timeout: 10_000 }
       )
     })

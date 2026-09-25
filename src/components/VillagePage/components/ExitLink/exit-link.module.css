@@ -29,7 +29,7 @@
   outline-offset: 4px;
 }
 
-/* 5 か所すべて話し終えた合図。use-village-overlay が data-bounce を立てた時だけ、
+/* コースの全地点で話し終えた合図。use-village-overlay が data-bounce を立てた時だけ、
    ページが変わるまで小さく跳ね続けて一覧への注目を促す */
 .exit[data-bounce] {
   animation: exit-bounce 1.1s ease-in-out infinite;

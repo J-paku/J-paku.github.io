@@ -10,6 +10,7 @@ import { writePosition } from '@/lib/preferences'
 import { findWorld, type EnterWorld } from '../use-village-world'
 import type { VillageRuntime } from '../use-village-runtime'
 import { pickDefaultSpeech } from '../../utils/pick-default-speech'
+import { headToSpeech } from '../../utils/spot-text'
 
 type VillageArriveOptions = {
   worldSet: WorldSet
@@ -55,6 +56,9 @@ export function useVillageArrive({
       const warp = warpAt(here, cell)
       const target = warp === null ? null : findWorld(worldSet, warp.target.worldId)
       if (warp !== null && target !== null) {
+        // 扉まで高速の経路(次へ・地図からの移動)で来たか。利用者が歩き・タップで割り込むと
+        // 経路の速度は等速へ戻るので、ワールドを入れ替えて移動状態を作り直す前に読んでおく
+        const arrivedFast = runtime.state.current.fast
         // ワープした先では地点判定をしない(降り立つマスは通路として扱う)
         enterWorld(warp.target.worldId, target, warp.target.cell, warp.target.facing)
         runtime.activeSpot.current = null
@@ -70,9 +74,10 @@ export function useVillageArrive({
           runtime.pendingGoal.current = null
           runtime.destination.current = goal.spot.cell
           setDestination(goal.spot.cell)
-          setSpeech(text.headTo.replace('{place}', text.stops[goal.spot.id].place))
-          // 次へボタンの自動歩行が続いている時だけ、到着ワールドの経路を作り直す(利用者が途中で割り込んだら目的地の印と案内だけ残す)
-          if (runtime.autoTalk.current) {
+          setSpeech(headToSpeech(text, goal.spot))
+          // 次へ・地図からの自動歩行が続いている時だけ、到着ワールドの経路を作り直す(利用者が途中で割り込んだら目的地の印と案内だけ残す)。
+          // 地図からの移動は会話窓を開かない(autoTalk が false)ので、扉まで高速で来たかでも続ける
+          if (runtime.autoTalk.current || arrivedFast) {
             const route = findPath(target, warp.target.cell, goal.spot.cell)
             if (route !== null && route.length > 0) {
               runtime.pendingRoute.current = route
@@ -108,7 +113,7 @@ export function useVillageArrive({
       setSpeech(
         goalSpot === null
           ? pickDefaultSpeech(here, text, coarseRef.current)
-          : text.headTo.replace('{place}', text.stops[goalSpot.id].place)
+          : headToSpeech(text, goalSpot)
       )
       // 出口の範囲に入った時、または次へで目的地に着いた時に開く。
       // 閉じた後に同じ出口内で横へ動いても繰り返し開かない

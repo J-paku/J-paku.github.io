@@ -80,7 +80,7 @@ export function useVillageOverlay({
   const courseSpotIds = useMemo(() => allSpots(worldSet).map(spot => spot.id), [worldSet])
   // 全ワールド通しの会話地点数(コース分のみ)
   const totalSpots = courseSpotIds.length
-  // 「5 か所すべて話した」の演出は一度だけ出す。再訪の度に一覧へ焦点を奪わない
+  // 「コースの全地点で話した」の演出は一度だけ出す。再訪の度に一覧へ焦点を奪わない
   const celebratedRef = useRef(false)
 
   // モーダル・地図が開いている間は移動入力を捨てる。
@@ -105,6 +105,15 @@ export function useVillageOverlay({
     if (runtime.locked.current) return
     if (runtime.state.current.motion !== null) return
     const spot = runtime.activeSpot.current
+    // 移動を止めて投げる。浮きと巻物は cell(水のマス)へ置く。歩き出せば釣りは終わるので、ここで決め打ちできる
+    const beginFishing = (cell: Cell) => {
+      clearHint()
+      runtime.locked.current = true
+      runtime.held.current = null
+      runtime.pendingRoute.current = null
+      setMode('fishing')
+      startFishing(cell)
+    }
     if (spot === null) {
       // 水辺を向いているなら直接投げる。釣っている間は移動を止める。
       // 釣れる中身が 1 つも無い時は開かない — 開くと結果窓が出ないまま移動だけ止まってしまう
@@ -112,17 +121,20 @@ export function useVillageOverlay({
         // 全部を釣り上げた後は何もしない。水辺の考え事の吹き出しがもう釣れないと伝えているので、
         // 窓も「……」も noTarget の一言も出さず、移動も止めない
         if (fishingExhausted) return
-        clearHint()
-        runtime.locked.current = true
-        runtime.held.current = null
-        runtime.pendingRoute.current = null
-        setMode('fishing')
-        // 浮きと巻物は向いている先の水のマスへ置く。歩き出せば釣りは終わるので、ここで決め打ちできる
-        startFishing(facedCell(runtime.state.current))
+        beginFishing(facedCell(runtime.state.current))
         return
       }
       // 話せる相手がいない所で話しかけた時は、プレイヤーの頭上に一言だけ出す
       showHint(text.noTarget)
+      return
+    }
+    // 釣り場の地点は会話窓ではなく、水辺と同じく直接投げる。コース外なので visited にも入れない。
+    // 投げられない時(中身が無い・全部を釣り上げた後)は水辺と同じく何もしない
+    if (spot.action === 'fishing') {
+      if (catches.length === 0 || fishingExhausted) return
+      // どの向きで立ち止まっても竿と浮きが水へ向くよう、地点の向き(水の方)へ向き直ってから投げる
+      runtime.state.current = { ...runtime.state.current, facing: spot.facing }
+      beginFishing(facedCell(spot))
       return
     }
     clearHint()
@@ -168,10 +180,10 @@ export function useVillageOverlay({
     // 開いている間眠っていた歩行ループを起こす。竿を下ろしたコマもここで描き直させる
     runtime.wake.current()
     setMode('walk')
-    // コース外の地点(経歴碑など)を先に話しても size は増えるが完走にはならないため、
+    // コース外の地点を先に話しても size は増えるが完走にはならないため(時計・池はそもそも visited に入れない)、
     // visited に含まれるコース地点の数で判定する
     const visitedCourseCount = courseSpotIds.filter(id => runtime.visited.current.has(id)).length
-    // 5 か所目の会話を閉じた瞬間だけ、一覧への案内に差し替えて焦点を移す
+    // コースの全地点が揃った会話を閉じた瞬間だけ、一覧への案内に差し替えて焦点を移す
     if (wasTalk && !celebratedRef.current && visitedCourseCount === totalSpots) {
       celebratedRef.current = true
       setSpeech(text.allSeen.replace('{list}', text.toList))
