@@ -17,7 +17,7 @@ import type { DoorMarker } from '@/lib/village/door-marker'
 import type { MapEntry } from '@/lib/village/map-entries'
 
 import { useHeldDirection } from '../../hooks/use-held-direction'
-import { MapSvg } from './map-svg'
+import { CHECK_GLYPH, MapSvg, MARKER_COLORS, PLATE_CELLS, QUESTION_GLYPH } from './map-svg'
 import { spotToward } from './utils/spot-navigation'
 import styles from './world-map.module.css'
 
@@ -28,7 +28,7 @@ export type WorldMapProps = {
   destination: Cell | null
   placeNames: Record<string, string>
   doors: readonly DoorMarker[]
-  // 地図に番号の札を置き、下の一覧に並べる地点(番号はコース順)。他の世界の地点は入口のマスに置かれている
+  // 地図の ✓/? の字の右上に番号の札を置き、下の一覧に並べる地点(番号はコース順)。他の世界の地点は入口のマスに置かれている
   entries: MapEntry[]
   title: string
   fastTravelLabel: string
@@ -67,7 +67,7 @@ const ARROW_DIRECTIONS: Partial<Record<string, Direction>> = {
 // 同じ長さにし、地点が 1 つずつ移るのを目で追って手を離せるようにする
 const SPOT_REPEAT_MS = 300
 
-// 番号の札どうしに空ける最小の隙間(px)。地点のボタン(札 22px + 周り 3px ずつ = 28px)の押せる範囲が重ならない幅
+// 印(✓/? の字 + 右上の番号の札)どうしに空ける最小の隙間(px)
 const BADGE_GAP = 6
 
 type BadgeBox = {
@@ -105,11 +105,12 @@ const insideBox = (box: BadgeBox, frame: BadgeBox) =>
   box.top >= frame.top &&
   box.bottom <= frame.bottom
 
-// 隣り合うマスの地点(AIロボと焚き火など)は札が重なるので、実測で後の番号の札をずらす。
-// 札は番号の順(= entries の順)に置き、前の札 a に触れる札 b は a から b へ向かう向きへ押し出す
+// 隣り合うマスの地点(AIロボと焚き火など)は印が重なるので、実測で後の番号の印をずらす。
+// 印は字と札を合わせた範囲(ボタンの子の外接矩形。札はボタンの外へはみ出す)で測る。
+// 印は番号の順(= entries の順)に置き、前の印 a に触れる印 b は a から b へ向かう向きへ押し出す
 // (池のように左下にある地点は左下へ逃げ、元の場所の近くに残る)。中心の差の大きい軸を先に試し、
 // 地図の外へ出るなら他方の軸へ。どちらも外なら先の軸のまま置く。
-// ずらした量はボタンの --nudge-x / --nudge-y へ DOM で直接書く。ボタンごと動くので押せる範囲も札に付いてくる
+// ずらした量はボタンの --nudge-x / --nudge-y へ DOM で直接書く。字・札・押せる範囲がボタンごと一緒に動く
 const arrangeBadges = (canvas: HTMLElement) => {
   const spots = Array.from(canvas.querySelectorAll<HTMLElement>('[data-spot-id]'))
   for (const spot of spots) {
@@ -127,16 +128,16 @@ const arrangeBadges = (canvas: HTMLElement) => {
   }
   const placed: BadgeBox[] = []
   for (const spot of spots) {
-    const rect = spot.firstElementChild?.getBoundingClientRect()
-    if (rect === undefined) continue
+    const rects = Array.from(spot.children).map(child => child.getBoundingClientRect())
+    if (rects.length === 0) continue
     const origin: BadgeBox = {
-      left: rect.left,
-      right: rect.right,
-      top: rect.top,
-      bottom: rect.bottom,
+      left: Math.min(...rects.map(rect => rect.left)),
+      right: Math.max(...rects.map(rect => rect.right)),
+      top: Math.min(...rects.map(rect => rect.top)),
+      bottom: Math.max(...rects.map(rect => rect.bottom)),
     }
     let box = origin
-    // ずらす回数は置いた札の数 + 1 までで打ち切る(行き場が無い時に回り続けないため)
+    // ずらす回数は置いた印の数 + 1 までで打ち切る(行き場が無い時に回り続けないため)
     let steps = placed.length + 1
     while (steps > 0) {
       steps -= 1
@@ -161,6 +162,53 @@ const arrangeBadges = (canvas: HTMLElement) => {
     if (nudgeX !== 0) spot.style.setProperty('--nudge-x', `${nudgeX}px`)
     if (nudgeY !== 0) spot.style.setProperty('--nudge-y', `${nudgeY}px`)
   }
+}
+
+type SpotGlyphProps = {
+  visited: boolean
+}
+
+// 地点のボタンの中の ✓/? の字(9 ドット角の SVG、1 ドット = 1 単位)。黒い縁・白い下敷き・訪問済みは緑の ✓、未訪問は黒の ?。
+// 地図の SVG ではなくボタンの中に描くので、arrangeBadges が札と一緒にずらせる。画面上の大きさは .glyph が決める
+function SpotGlyph({ visited }: SpotGlyphProps) {
+  const glyph = visited ? CHECK_GLYPH : QUESTION_GLYPH
+  const inkColor = visited ? MARKER_COLORS.visited : MARKER_COLORS.unvisited
+
+  return (
+    <svg
+      className={styles.glyph}
+      viewBox={`0 0 ${PLATE_CELLS} ${PLATE_CELLS}`}
+      shapeRendering='crispEdges'
+      aria-hidden='true'
+    >
+      <rect width={PLATE_CELLS} height={PLATE_CELLS} fill={MARKER_COLORS.plateEdge} />
+      <rect
+        x={1}
+        y={1}
+        width={PLATE_CELLS - 2}
+        height={PLATE_CELLS - 2}
+        fill={MARKER_COLORS.plate}
+      />
+      {glyph.flatMap((row, rowIndex) =>
+        row
+          .split('')
+          .flatMap((pixel, colIndex) =>
+            pixel === '#'
+              ? [
+                  <rect
+                    key={`${colIndex}-${rowIndex}`}
+                    x={colIndex + 1}
+                    y={rowIndex + 1}
+                    width={1}
+                    height={1}
+                    fill={inkColor}
+                  />,
+                ]
+              : []
+          )
+      )}
+    </svg>
+  )
 }
 
 export function WorldMap({
@@ -355,6 +403,7 @@ export function WorldMap({
                   aria-label={fastTravelLabel.replace('{place}', placeNames[entry.id])}
                   onClick={() => onTravel(entry.id)}
                 >
+                  <SpotGlyph visited={entry.visited} />
                   <span className={styles.badge} data-visited={entry.visited ? 'true' : undefined}>
                     {entry.number}
                   </span>
