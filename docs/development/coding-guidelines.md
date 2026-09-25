@@ -28,6 +28,8 @@ last_reviewed: 2026-09-21
 
 - ファイル名は **kebab-case**。コンポーネントフォルダだけ **PascalCase**、その入口が `index.tsx`
 - フックは `use-` 始まり。**フックのフォルダに `index.ts` を作らない**(不変ルール4)
+- `hooks` フォルダには `use-` 始まりのフック(と `.test.ts`)以外を置かない。純粋関数・レンダラーは `utils` フォルダへ
+- ファイル名は動詞-名詞の kebab-case、3語まで(例: `paint-camera.ts`)。長い名前を付けない
 - **バレル禁止**(→ [../architecture/boundaries.md](../architecture/boundaries.md))
 
 ## 分け方

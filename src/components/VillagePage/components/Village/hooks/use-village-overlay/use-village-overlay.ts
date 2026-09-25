@@ -8,8 +8,8 @@ import type { Cell, StopText, VillageText, World, WorldSet } from '@content/type
 import { isFishingSpot } from '@/lib/village/fishing'
 import { allSpots, facedCell } from '@/lib/village/spot'
 import { writeVisited } from '@/lib/preferences'
-import { defaultSpeech } from '../use-village-guide/default-speech'
-import type { VillageRuntime } from '../village-runtime'
+import { pickDefaultSpeech } from '../../utils/pick-default-speech'
+import type { VillageRuntime } from '../use-village-runtime'
 import { useVillageFishing, type FishingPhase } from './use-village-fishing'
 import { useVillageHint } from './use-village-hint'
 import { useVillageTravel } from './use-village-travel'
@@ -162,7 +162,7 @@ export function useVillageOverlay({
     if (mode === 'fishing') {
       resetFishing()
       runtime.fishingPose.current = null
-      setSpeech(defaultSpeech(runtime.world.current, text, coarse))
+      setSpeech(pickDefaultSpeech(runtime.world.current, text, coarse))
     }
     runtime.locked.current = false
     // 開いている間眠っていた歩行ループを起こす。竿を下ろしたコマもここで描き直させる

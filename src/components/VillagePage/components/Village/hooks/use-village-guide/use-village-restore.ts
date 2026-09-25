@@ -7,8 +7,8 @@ import { isWalkable } from '@/lib/village/collision'
 import { spotAt } from '@/lib/village/spot'
 import { clearVillageProgress, readPosition, readVisited } from '@/lib/preferences'
 import { findWorld, type EnterWorld } from '../use-village-world'
-import type { VillageRuntime } from '../village-runtime'
-import { defaultSpeech } from './default-speech'
+import type { VillageRuntime } from '../use-village-runtime'
+import { pickDefaultSpeech } from '../../utils/pick-default-speech'
 
 // 空の訪問済み。初期値と「読み込み直後」で同じ実体を使い、無駄な再描画を起こさない
 export const EMPTY_VISITED: ReadonlySet<string> = new Set<string>()
@@ -77,7 +77,7 @@ export function useVillageRestore({
     const spot = spotAt(restore.world, restore.cell)
     runtime.activeSpot.current = spot
     setActiveSpot(spot)
-    setSpeech(defaultSpeech(restore.world, text, coarseRef.current))
+    setSpeech(pickDefaultSpeech(restore.world, text, coarseRef.current))
     // 追加の依存は runtime と入口フックが持つ ref・setState で、描画をまたいでも同じ実体。走る回数は分割前と同じ
   }, [
     worldSet,

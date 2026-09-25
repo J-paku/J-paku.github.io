@@ -4,7 +4,7 @@ import type { RefObject } from 'react'
 import type { SheetLayout } from '@/lib/pixel/art'
 import type { MoveState } from '@/lib/village/movement'
 import { playerPose, type FishingPose } from '@/lib/village/player-pose'
-import { spriteIndex } from '../../../sprite-style'
+import { spriteIndex } from '../../sprite-style'
 import type { CameraFrame, WalkFrameState } from './types'
 
 // コマを決めるのに読むもの。ref は呼ばれた時点の値を読み直す

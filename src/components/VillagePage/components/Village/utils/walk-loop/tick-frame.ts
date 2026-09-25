@@ -3,7 +3,7 @@
 // 捨てる判定(ワープ直後の押しっぱなし)は入力側では決められない — ワールドが替わったことを知るのはこのループだけ
 import type { Cell } from '@content/types/world'
 import { step } from '@/lib/village/movement'
-import { replanTowardPointer } from './pointer-pathing'
+import { replanTowardPointer } from './route-pointer'
 import type { MoveRefs, WalkFrameState } from './types'
 
 // 1 フレームの中で呼び出す、フック側の処理

@@ -8,8 +8,8 @@ import { spotAt } from '@/lib/village/spot'
 import { warpAt } from '@/lib/village/warp'
 import { writePosition } from '@/lib/preferences'
 import { findWorld, type EnterWorld } from '../use-village-world'
-import type { VillageRuntime } from '../village-runtime'
-import { defaultSpeech } from './default-speech'
+import type { VillageRuntime } from '../use-village-runtime'
+import { pickDefaultSpeech } from '../../utils/pick-default-speech'
 
 type VillageArriveOptions = {
   worldSet: WorldSet
@@ -81,7 +81,7 @@ export function useVillageArrive({
           }
           return
         }
-        setSpeech(defaultSpeech(target, text, coarseRef.current))
+        setSpeech(pickDefaultSpeech(target, text, coarseRef.current))
         return
       }
       writePosition(worldSet.id, {
@@ -107,7 +107,7 @@ export function useVillageArrive({
         null
       setSpeech(
         goalSpot === null
-          ? defaultSpeech(here, text, coarseRef.current)
+          ? pickDefaultSpeech(here, text, coarseRef.current)
           : text.headTo.replace('{place}', text.stops[goalSpot.id].place)
       )
       // 出口の範囲に入った時、または次へで目的地に着いた時に開く。

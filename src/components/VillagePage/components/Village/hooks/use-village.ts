@@ -1,6 +1,6 @@
 // 村の組み立て。ワールド・案内・移動ループ・重ね表示の各フックを順に繋ぎ、描画に要る値だけを返す。
 // フックを呼ぶ順(寸法→入力→復元→rAF→重ね表示)がそのまま effect の走る順になるので、並べ替えない。
-// フック同士が共有する ref は village-runtime.ts の束 2 つ(runtime・dom)で最初に一度に作り、
+// フック同士が共有する ref は use-village-runtime.ts の束 2 つ(runtime・dom)で最初に一度に作り、
 // 各フックはそれを受け取るだけにする(ref を 1 本ずつ次のフックへ手渡ししない)
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { RefObject } from 'react'
@@ -17,7 +17,7 @@ import type { FishingPhase } from './use-village-overlay/use-village-fishing'
 import { useVillageOverlay } from './use-village-overlay/use-village-overlay'
 import { useVillageWorld } from './use-village-world'
 import { useWalkLoop } from './use-walk-loop/use-walk-loop'
-import { useVillageDom, useVillageRuntime, type VillageRuntime } from './village-runtime'
+import { useVillageDom, useVillageRuntime, type VillageRuntime } from './use-village-runtime'
 
 // 地点の文言の引き先。時計のような action を持つ地点は会話窓を開かないので stops ではなく専用の欄を見る
 const placeName = (text: VillageText, spot: Spot): string =>

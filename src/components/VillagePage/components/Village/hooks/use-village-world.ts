@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import type { Cell, Direction, World, WorldSet } from '@content/types/world'
 import { createMoveState } from '@/lib/village/movement'
-import type { VillageRuntime } from './village-runtime'
+import type { VillageRuntime } from './use-village-runtime'
 
 // 添字の型は常に World だが、保存値や移動先 id は実在しないことがあるので存在を確かめる
 export const findWorld = (set: WorldSet, id: string): World | null =>

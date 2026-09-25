@@ -1,22 +1,22 @@
 // rAFで移動を1フレームずつ進め、結果をDOMへ直接書く。タップされたマスは経路にして次のステップへ渡す。
 // 入力も経路も無く描き終えたら次のフレームを頼まずに眠り、入力・ワールド移動・窓を閉じる・
 // 釣りの段階の切り替わり・枠の大きさの変化で runtime.wake から起こされる。
-// 読み書きする ref は village-runtime の束 2 つ(runtime と dom)で受け取る。
-// このファイルは React との継ぎ目(ref・effect・依存配列)だけを持ち、1 フレームの中身は utils/ の部品へ任せる。
+// 読み書きする ref は use-village-runtime の束 2 つ(runtime と dom)で受け取る。
+// このファイルは React との継ぎ目(ref・effect・依存配列)だけを持ち、1 フレームの中身は utils/walk-loop/ の部品へ任せる。
 // 部品を平らな関数にしておくと、どの値がフレームをまたいで残るのか(WalkFrameState)が 1 か所で見える
 import { useCallback, useEffect, useRef } from 'react'
 import type { Cell } from '@content/types/world'
 import type { SheetLayout } from '@/lib/pixel/art'
-import type { VillageDom, VillageRuntime } from '../village-runtime'
-import { createAnimationLoop } from './utils/animation-loop'
-import { paintCamera } from './utils/camera-renderer'
-import { notifyFishingTarget } from './utils/fishing-target'
-import { paintLampVeil } from './utils/lamp-veil-renderer'
-import { tickFrame } from './utils/movement-controller'
-import { placePlayer, writePose } from './utils/player-renderer'
-import { queueTapRoute } from './utils/pointer-pathing'
-import type { WalkFrameState } from './utils/types'
-import { waitForWorldTiles } from './utils/world-transition-renderer'
+import type { VillageDom, VillageRuntime } from '../use-village-runtime'
+import { createAnimationLoop } from '../../utils/walk-loop/create-animation-loop'
+import { paintCamera } from '../../utils/walk-loop/paint-camera'
+import { notifyFishingTarget } from '../../utils/walk-loop/notify-fishing-target'
+import { paintLampVeil } from '../../utils/walk-loop/paint-lamp-veil'
+import { tickFrame } from '../../utils/walk-loop/tick-frame'
+import { placePlayer, writePose } from '../../utils/walk-loop/place-player'
+import { queueTapRoute } from '../../utils/walk-loop/route-pointer'
+import type { WalkFrameState } from '../../utils/walk-loop/types'
+import { waitForWorldTiles } from '../../utils/walk-loop/wait-world-tiles'
 
 export type WalkLoopOptions = {
   // runtime.wake はこのフックが今のループの手を入れる置き場。入力・復元・重ね表示はこのフックより先
