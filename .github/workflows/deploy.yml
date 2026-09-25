@@ -30,7 +30,11 @@ jobs:
       - run: npm run lint
       - run: npm run format:check
       - run: npm run test
-      - run: npm run build
+      # 計測先 URL はリポジトリに書かず、GitHub の変数から渡す(未設定なら計測タグを出さない)
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_GOATCOUNTER_URL: ${{ vars.GOATCOUNTER_URL }}
       # ブラウザ本体は lock ファイルの版ごとに使い回す。OS 側の依存はキャッシュできないので hit でも入れる
       - name: Cache Playwright browsers
         id: playwright-cache

@@ -56,7 +56,7 @@
 - **Next.js App Routerの静的エクスポート。** Server Actions・ISR・Middlewareは使わない
 - **localeは`pathname`だけで決める。** 自動リダイレクトも`?lang=`も設けず、URLを唯一の情報源にする
 - **表示文字列は`content/`(ja・ko)に、ブラウザ保存は`src/lib/preferences.ts`に集約する。** 前者は両言語が同一の型を満たすので翻訳キーの過不足を`tsc`が検出し、後者はテーマが`localStorage`、村の位置と訪問記録が`sessionStorage`
-- **外部へ出る通信は4系統だけ。** Google Fonts・その書体ファイル・GoatCounterの計測タグ・Open-Meteoに限り、どれも失敗が村を止めない作りにしてある
+- **外部へ出る通信は4系統だけ。** Google Fonts・その書体ファイル・GoatCounterの計測タグ・Open-Meteoに限り、どれも失敗が村を止めない作りにしてある。計測先URLは環境変数`NEXT_PUBLIC_GOATCOUNTER_URL`(GitHubの変数`GOATCOUNTER_URL`)から入り、未設定なら計測タグを出さない
 
 境界の線引きは [docs/architecture/boundaries.md](docs/architecture/boundaries.md)、過去の判断の記録は [docs/decisions/README.md](docs/decisions/README.md) にあります。
 
