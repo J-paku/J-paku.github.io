@@ -57,9 +57,10 @@ export type Spot = {
   cell: Cell
   facing: Direction
   order?: number
-  // 話しかけると会話窓ではなく時計の設定窓を開く地点。order は付けず、訪問数にも数えない。
-  // 文言は text.stops ではなく text.clock が持つ
-  action?: 'clock'
+  // 話しかけると会話窓ではなく専用の窓を開く地点。order は付けず、訪問数にも数えない。
+  // clock = 時計の設定窓(文言は text.clock)、fishing = 池の釣り(文言は text.fishing)。
+  // どちらも文言は text.stops には置かない
+  action?: 'clock' | 'fishing'
 }
 // ワープ。cell に到着するか、通行不可な cell(扉)へぶつかったら target のワールド・マス・向きへ移る
 export type Warp = {
@@ -128,6 +129,7 @@ export type ClockText = {
 
 // 釣りの文言。水辺の吹き出しと結果窓に使う
 export type FishingText = {
+  place: string // 地点名(吹き出し・地図・読み上げ)。例「池」
   prompt: string // 水辺の吹き出し
   go: string // 吹き出しのボタン「釣る」
   exhausted: string // 全部を釣り上げた後、水辺で prompt の代わりに浮かぶ考え事の吹き出し(ボタン無し)
@@ -145,7 +147,7 @@ export type FishingText = {
 
 export type VillageText = {
   intro: string // マップ上部の1行
-  promise: string // 「1分・5か所・代表作3つ」の約束(intro の下)
+  promise: string // 所要時間・コースの地点数・代表作の数の約束(intro の下)
   hint: string // 操作案内(会話窓の既定文)。キーボード向け
   hintTouch: string // 操作案内のタッチ向け(スティック・A・地図をタップ)。pointer: coarse で置き換える
   noTarget: string // 近くに話せる地点が無い時の一言(E を押した時など)
@@ -163,7 +165,7 @@ export type VillageText = {
   shortcuts: string
   toList: string
   toVillage: string
-  allSeen: string // 5 か所すべて話した後の案内。{list} は toList に置換
+  allSeen: string // コースの全地点で話した後の案内。{list} は toList に置換
   buttonA: string // A ボタンの読み上げ名(決定)
   buttonB: string // B ボタンの読み上げ名(キャンセル)
   joystick: string // 仮想スティックの読み上げ名(タッチ端末)

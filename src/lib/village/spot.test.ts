@@ -235,7 +235,7 @@ describe('spotAt (到着範囲の境界)', () => {
   })
 })
 
-// order の無い地点(経歴碑のようにコース外の地点)を加えても、既存の set 自体はそのまま使う
+// order の無い地点(時計のようにコース外の地点)を加えても、既存の set 自体はそのまま使う
 describe('order の無い地点', () => {
   const monumentSpot: Spot = {
     id: 'monument',
@@ -269,6 +269,13 @@ describe('spotAt (実際の worldSet — 経歴碑)', () => {
     expect(spotAt(realTown, { x: 8, y: 14 })?.id).toBe('robot')
     expect(spotAt(realTown, { x: 24, y: 15 })?.id).toBe('mailbox')
   })
+  it('焚き火の真上 (9,14) は焚き火、隣のロボットの立ち位置 (8,14) はロボットのまま', () => {
+    expect(spotAt(realTown, { x: 9, y: 14 })?.id).toBe('campfire')
+    expect(spotAt(realTown, { x: 8, y: 14 })?.id).toBe('robot')
+  })
+  it('池の岸 (6,15) は池の地点になる', () => {
+    expect(spotAt(realTown, { x: 6, y: 15 })?.id).toBe('pond')
+  })
 })
 
 describe('北の出口', () => {
@@ -279,7 +286,7 @@ describe('北の出口', () => {
     expect(spotAt(realTown, { x: 14, y: 1 })).toBeNull()
     expect(spotAt(realTown, { x: 13, y: 0 })).toBeNull()
     expect(spotAt(realTown, { x: 16, y: 0 })).toBeNull()
-    expect(allSpots(realWorldSet)).toHaveLength(5)
+    expect(allSpots(realWorldSet)).toHaveLength(8)
   })
 
   it('道だけが外周を抜け、左右は木の壁のまま残る', () => {
@@ -382,7 +389,9 @@ const CANONICAL_ANCHORS: Record<string, TalkAnchor> = {
   'town/robot': { x: 8.5, y: 13.5, place: 'above' },
   'town/mailbox': { x: 24.5, y: 12.5, place: 'above' },
   'town/monument': { x: 17, y: 2, place: 'above' },
+  'town/campfire': { x: 9.5, y: 13.5, place: 'above' },
   'town/journey': { x: 15, y: 1, place: 'below' },
+  'town/pond': { x: 5.5, y: 15, place: 'above' },
 }
 
 describe('talkAnchor (実際の worldSet — 正規の会話マス)', () => {

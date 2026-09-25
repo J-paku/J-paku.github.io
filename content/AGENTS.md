@@ -17,8 +17,8 @@
 1. **ja と ko は同じ型を満たす。** 片方だけ足さない。ko の欠けを ja で埋めない
 2. **表示文字列はここにしか置かない**(不変ルール2)。コンポーネントに日本語・韓国語のリテラルを書かない
 3. **作品を足す = ファイル追加 + `src/lib/content/read.ts` の登録表に ja/ko を1行ずつ。** バレルも glob も使わない
-4. **村の地点を足す = `world.ts` の `spots` + 両言語の `village.ts` の `stops`。** キーは過不足なく一致させる。ただし `action` を持つ地点(卓上時計の `action: 'clock'`)は `stops` に入れない。文言は専用の欄(`clock`)が持ち、`stops` に入れると `validateVillageText` が `文言に未知の地点 "clock" がある` でビルドを落とす
-5. **コース外の地点には `order` を付けない。** `order` は全ワールド通しの 1..n の連番
+4. **村の地点を足す = `world.ts` の `spots` + 両言語の `village.ts` の `stops`。** キーは過不足なく一致させる。ただし `action` を持つ地点(`action: 'clock' | 'fishing'`。卓上時計と池)は `stops` に入れない。文言は専用の欄(`clock` / `fishing`)が持ち、`stops` に入れると `validateVillageText` が `文言に未知の地点 "clock" がある` のようにビルドを落とす
+5. **コース外の地点には `order` を付けない。** `order` は全ワールド通しの 1..n の連番。`action` を持つ地点(卓上時計・池)はコース外
 6. ロケール共通の値(`glyph`・`story.scenes[].image`)は ja/ko に同じ値を書く。型を分けない
 7. `status: 'wip'` の作品は(不変ルール5) `period` / `role` / `scale` / `detail` / `story` を持たない。詳細ページも作らない
 
