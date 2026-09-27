@@ -59,6 +59,7 @@ export function Ground({ world, sprites, destination }: GroundProps) {
       {destination !== null ? (
         <div
           className={`${styles.sprite} ${styles.marker}`}
+          data-village-destination
           style={spriteStyle(destination.x, destination.y, spriteIndex(sprites, 'marker'))}
           aria-hidden='true'
         />

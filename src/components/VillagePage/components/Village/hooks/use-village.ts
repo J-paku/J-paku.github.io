@@ -182,6 +182,7 @@ export function useVillage({
     bump,
     tapped,
     consumeTap,
+    setDestination,
     onFishingTarget: setFishingTarget,
   })
 

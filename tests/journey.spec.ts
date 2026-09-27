@@ -1105,6 +1105,265 @@ test('灯の裏を通り抜ける間だけ街灯が半透明で重なり、柱�
   await expect(veiled, '絵のマスを離れたら重ならない').toHaveCount(0)
 })
 
+// 舞台を押して歩く先。自宅前から横か縦へまっすぐ 3 マス(無ければ 2 マス)の、歩けて扉(ワープ)でないマス。
+// 家・木など通れないマスを押しても経路が付かず印も立たないので、世界のデータで通れるマスを選ぶ。
+// まっすぐの最短経路に限るのは、歩く時間(1 マス 256ms)を読めるようにして印を測る間を残すため
+const TAP_TARGET = (() => {
+  const offsets = [
+    { x: 3, y: 0 },
+    { x: -3, y: 0 },
+    { x: 0, y: 3 },
+    { x: 0, y: -3 },
+    { x: 2, y: 0 },
+    { x: -2, y: 0 },
+    { x: 0, y: 2 },
+    { x: 0, y: -2 },
+  ]
+  const picked = offsets
+    .map(d => ({ x: TOWN_ENTRY.x + d.x, y: TOWN_ENTRY.y + d.y }))
+    .find(cell => {
+      if (!isWalkable(town, cell)) return false
+      if (town.warps.some(w => w.cell.x === cell.x && w.cell.y === cell.y)) return false
+      const route = findPath(town, TOWN_ENTRY, cell)
+      const straight = Math.abs(cell.x - TOWN_ENTRY.x) + Math.abs(cell.y - TOWN_ENTRY.y)
+      return route !== null && route.length === straight
+    })
+  if (picked === undefined) throw new Error('自宅前の近くに押して歩けるマスが無い')
+  return picked
+})()
+
+// 行き先の印(赤いピン)は地図からの移動だけでなく、舞台のマスを押した時にも立つ。
+// 印は 1 マスの絵を半分に縮めてマスの真ん中に置き、着いたら消える。言語では変わらないので ja だけ見る
+test('舞台を押すと押したマスに小さな赤いピンが立ち、着くと消える (/)', async ({ page }) => {
+  await openVillage(page, '')
+  await leaveRoom(page)
+  expect(await readCell(page)).toEqual({ worldId: 'town', cell: TOWN_ENTRY })
+  // 町に出た直後はカメラが人物へ寄っている途中のことがある。ワールド層の位置が数フレーム
+  // 動かなくなってから、その原点と --cell で押す位置を決める(入力側もカメラ原点と枠の幅でマスを割り出す)
+  const stage = await page.evaluate(
+    () =>
+      new Promise<{
+        frameX: number
+        frameY: number
+        frameW: number
+        frameH: number
+        layerX: number
+        layerY: number
+        cell: number
+      }>(resolve => {
+        let last = ''
+        let still = 0
+        const tick = () => {
+          const frame = document.querySelector('[data-village]')
+          const layer = document.querySelector('[data-world]')
+          if (frame !== null && layer !== null) {
+            const f = frame.getBoundingClientRect()
+            const l = layer.getBoundingClientRect()
+            const now = `${l.x},${l.y}`
+            still = now === last ? still + 1 : 0
+            last = now
+            if (still >= 5) {
+              resolve({
+                frameX: f.x,
+                frameY: f.y,
+                frameW: f.width,
+                frameH: f.height,
+                layerX: l.x,
+                layerY: l.y,
+                cell: parseFloat(getComputedStyle(frame).getPropertyValue('--cell')),
+              })
+              return
+            }
+          }
+          requestAnimationFrame(tick)
+        }
+        requestAnimationFrame(tick)
+      })
+  )
+  expect(stage.cell).toBeGreaterThan(0)
+  const goal = TAP_TARGET
+  const point = {
+    x: stage.layerX + (goal.x + 0.5) * stage.cell,
+    y: stage.layerY + (goal.y + 0.5) * stage.cell,
+  }
+  // 押す位置が枠の中にあること(外なら枠ではなくページを押してしまう)
+  expect({
+    insideX: point.x > stage.frameX && point.x < stage.frameX + stage.frameW,
+    insideY: point.y > stage.frameY && point.y < stage.frameY + stage.frameH,
+  }).toEqual({ insideX: true, insideY: true })
+  // 押す位置にボタン・リンク(ミニマップなど)が重なっていないこと(重なっていれば入力側がタップ移動にしない)
+  expect(
+    await page.evaluate(
+      ({ x, y }) => document.elementFromPoint(x, y)?.closest('button, a') === null,
+      point
+    )
+  ).toBe(true)
+  await page.mouse.click(point.x, point.y)
+  // 印が立った最初のフレームで位置と大きさをまとめて測る(歩き終えると消えるので、別々に読むと取り逃す)
+  const marker = await page.waitForFunction(
+    () => {
+      const found = document.querySelectorAll('[data-world] [data-village-destination]')
+      if (found.length === 0) return null
+      const el = found[0]
+      const layer = document.querySelector('[data-world]')
+      if (layer === null) return null
+      const style = getComputedStyle(el)
+      const box = el.getBoundingClientRect()
+      const origin = layer.getBoundingClientRect()
+      return {
+        count: found.length,
+        left: parseFloat(style.left),
+        top: parseFloat(style.top),
+        width: box.width,
+        centerX: box.x + box.width / 2 - origin.x,
+        centerY: box.y + box.height / 2 - origin.y,
+      }
+    },
+    undefined,
+    { polling: 'raf', timeout: 2_000 }
+  )
+  const seen = await marker.jsonValue()
+  if (seen === null) throw new Error('行き先の印が立たなかった')
+  expect(seen.count, '印は 1 つだけ').toBe(1)
+  // 位置は押したマス(left/top はマスの左上。縮小は transform なので left/top は変わらない)
+  expect(Math.abs(seen.left - goal.x * stage.cell), '印の left が押したマス').toBeLessThanOrEqual(
+    0.5
+  )
+  expect(Math.abs(seen.top - goal.y * stage.cell), '印の top が押したマス').toBeLessThanOrEqual(0.5)
+  // 大きさは 1 マスの半分で、マスの真ん中に立つ
+  expect(Math.abs(seen.width - stage.cell / 2), '印は半マスの幅').toBeLessThanOrEqual(1)
+  expect(
+    Math.abs(seen.centerX - (goal.x + 0.5) * stage.cell),
+    '印はマスの横の真ん中'
+  ).toBeLessThanOrEqual(1)
+  expect(
+    Math.abs(seen.centerY - (goal.y + 0.5) * stage.cell),
+    '印はマスの縦の真ん中'
+  ).toBeLessThanOrEqual(1)
+  // 着いたら印は下りる
+  const steps = Math.abs(goal.x - TOWN_ENTRY.x) + Math.abs(goal.y - TOWN_ENTRY.y)
+  await expect
+    .poll(() => readCell(page), { timeout: steps * 256 + 2_000 })
+    .toEqual({ worldId: 'town', cell: goal })
+  await expect(page.locator('[data-world] [data-village-destination]')).toHaveCount(0)
+})
+
+// 押したまま指を動かす先。自宅前から同じ向きへまっすぐ 2 マス先(A)と 3 マス先(B)の組で、
+// どちらも TAP_TARGET と同じ基準(歩ける・扉でない・まっすぐが最短)を満たすもの。
+// 同じ軸に並べるので、A へ向かう途中で B へ指を動かすと経路の行き先が実際に変わる
+const DRAG_TARGETS = (() => {
+  const directions = [
+    { x: 1, y: 0 },
+    { x: -1, y: 0 },
+    { x: 0, y: 1 },
+    { x: 0, y: -1 },
+  ]
+  const usable = (cell: { x: number; y: number }) => {
+    if (!isWalkable(town, cell)) return false
+    if (town.warps.some(w => w.cell.x === cell.x && w.cell.y === cell.y)) return false
+    const route = findPath(town, TOWN_ENTRY, cell)
+    const straight = Math.abs(cell.x - TOWN_ENTRY.x) + Math.abs(cell.y - TOWN_ENTRY.y)
+    return route !== null && route.length === straight
+  }
+  for (const d of directions) {
+    const from = { x: TOWN_ENTRY.x + d.x * 2, y: TOWN_ENTRY.y + d.y * 2 }
+    const to = { x: TOWN_ENTRY.x + d.x * 3, y: TOWN_ENTRY.y + d.y * 3 }
+    if (usable(from) && usable(to)) return { from, to }
+  }
+  throw new Error('自宅前からまっすぐ 2・3 マス先に押して歩けるマスの組が無い')
+})()
+
+// ドラッグ中の印は指先(向かうマス)を追う。押した時のマスに印を残したままにすると、
+// 通り道の A に着いた時点で印が下りてしまい、B へ向かう間は印が無くなる。言語では変わらないので ja だけ見る
+test('舞台を押したまま指を動かすとピンは向かう先のマスへ移り、着くと消える (/)', async ({
+  page,
+}) => {
+  await openVillage(page, '')
+  await leaveRoom(page)
+  expect(await readCell(page)).toEqual({ worldId: 'town', cell: TOWN_ENTRY })
+  // ワールド層の位置が数フレーム動かなくなるまで待ち、その原点と --cell を返す。
+  // 歩き出した後はカメラが人物を追って動くので、押す位置は押す直前の原点から決め直す
+  const settledStage = () =>
+    page.evaluate(
+      () =>
+        new Promise<{ layerX: number; layerY: number; cell: number }>(resolve => {
+          let last = ''
+          let still = 0
+          const tick = () => {
+            const frame = document.querySelector('[data-village]')
+            const layer = document.querySelector('[data-world]')
+            if (frame !== null && layer !== null) {
+              const l = layer.getBoundingClientRect()
+              const now = `${l.x},${l.y}`
+              still = now === last ? still + 1 : 0
+              last = now
+              if (still >= 5) {
+                resolve({
+                  layerX: l.x,
+                  layerY: l.y,
+                  cell: parseFloat(getComputedStyle(frame).getPropertyValue('--cell')),
+                })
+                return
+              }
+            }
+            requestAnimationFrame(tick)
+          }
+          requestAnimationFrame(tick)
+        })
+    )
+  // 今のワールド層の原点(カメラが動いていても待たずに読む)
+  const currentLayer = () =>
+    page.evaluate(() => {
+      const layer = document.querySelector('[data-world]')
+      if (layer === null) throw new Error('[data-world] が描かれていない')
+      const l = layer.getBoundingClientRect()
+      return { layerX: l.x, layerY: l.y }
+    })
+  const stage = await settledStage()
+  expect(stage.cell).toBeGreaterThan(0)
+  const { from, to } = DRAG_TARGETS
+  const pointOf = (layer: { layerX: number; layerY: number }, cell: { x: number; y: number }) => ({
+    x: layer.layerX + (cell.x + 0.5) * stage.cell,
+    y: layer.layerY + (cell.y + 0.5) * stage.cell,
+  })
+  const notOnControl = (p: { x: number; y: number }) =>
+    page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('button, a') === null, p)
+  // 印の位置(ワールド層の中の left/top)が、指定したマスの左上と一致するまで待つ
+  const markerAt = (cell: { x: number; y: number }) =>
+    page.waitForFunction(
+      ({ x, y, size }) => {
+        const found = document.querySelectorAll('[data-world] [data-village-destination]')
+        if (found.length !== 1) return false
+        const style = getComputedStyle(found[0])
+        return (
+          Math.abs(parseFloat(style.left) - x * size) <= 0.5 &&
+          Math.abs(parseFloat(style.top) - y * size) <= 0.5
+        )
+      },
+      { x: cell.x, y: cell.y, size: stage.cell },
+      { polling: 'raf', timeout: 2_000 }
+    )
+  const a = pointOf(stage, from)
+  expect(await notOnControl(a)).toBe(true)
+  await page.mouse.move(a.x, a.y)
+  await page.mouse.down()
+  // まず押したマス A に印が立つ
+  await markerAt(from)
+  // 歩き出してカメラが動いているので、B を押す位置は今の原点から決める
+  const b = pointOf(await currentLayer(), to)
+  expect(await notOnControl(b)).toBe(true)
+  await page.mouse.move(b.x, b.y, { steps: 4 })
+  // B へ向かう間、印は B に移っている(通り道の A に着いても下りない)
+  await markerAt(to)
+  await page.mouse.up()
+  // 1 マス 256ms で歩き切る長さに、押してから歩き出すまでの余裕を足して待つ
+  const steps = Math.abs(to.x - TOWN_ENTRY.x) + Math.abs(to.y - TOWN_ENTRY.y)
+  await expect
+    .poll(() => readCell(page), { timeout: steps * 256 + 2_000 })
+    .toEqual({ worldId: 'town', cell: to })
+  await expect(page.locator('[data-world] [data-village-destination]')).toHaveCount(0)
+})
+
 // ポストの正規の会話マスは上の (24,13) だが、下の (24,15) からも話しかけられる。
 // 吹き出しを正規の会話マスの頭上に付けていた頃は主人公より 2 マス余り上へ浮き、
 // iPhone 13 の縦持ちで枠(overflow: hidden)の上へ 16px はみ出して切れた。

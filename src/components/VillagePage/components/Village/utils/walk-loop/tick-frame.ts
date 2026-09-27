@@ -14,13 +14,15 @@ export type FrameSteps = {
   paint: (dtMs: number) => boolean
   arrive: (cell: Cell) => void
   bump: (cell: Cell) => void
+  // 押したまま動かして向かうマスが変わり、そこへ経路を置いた時に 1 回だけ呼ぶ
+  retarget: (cell: Cell) => void
 }
 
 // 1 フレーム分進めて描く。まだ時間で変わるもの・読むべき入力が残っていれば true
 export const tickFrame = (
   frameState: WalkFrameState,
   refs: MoveRefs,
-  { applyPose, paint, arrive, bump }: FrameSteps,
+  { applyPose, paint, arrive, bump, retarget }: FrameSteps,
   elapsed: number
 ): boolean => {
   const {
@@ -54,7 +56,7 @@ export const tickFrame = (
   const held = frameState.ignoreHeld ? null : heldRef.current
   // 利用者の入力で経路が捨てられたら自動で開くのも取り消す
   if (held !== null) autoTalkRef.current = false
-  replanTowardPointer(frameState, refs, held)
+  replanTowardPointer(frameState, refs, held, retarget)
   const result = step(
     worldRef.current,
     stateRef.current,

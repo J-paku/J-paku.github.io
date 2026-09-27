@@ -67,8 +67,12 @@
   background-size: calc(var(--cell) * var(--count)) var(--cell);
   image-rendering: pixelated;
 }
+/* 行き先の印は 1 マスの絵を半分に縮め、マスの真ん中に小さく立てる。
+   位置は left/top で決まるので transform を縮小だけに使える */
 .marker {
   z-index: 1;
+  transform: scale(0.5);
+  transform-origin: 50% 50%;
 }
 /* 明るい輪郭を常に付け、草や屋根の上でも人物が沈まないようにする。
    主人公のシートは 16×24(縦 1.5 マス)。足元をマスの下辺に揃え、頭は半マス上へはみ出す */

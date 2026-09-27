@@ -33,6 +33,8 @@ export type WalkLoopOptions = {
   bump: (cell: Cell) => void
   tapped: Cell | null
   consumeTap: () => void
+  // 行き先の印(赤いピン)を立てる。地図からの移動と同じく、着いた時に到着の処理が下ろす
+  setDestination: (cell: Cell | null) => void
 }
 
 export function useWalkLoop({
@@ -46,6 +48,7 @@ export function useWalkLoop({
   bump,
   tapped,
   consumeTap,
+  setDestination,
 }: WalkLoopOptions): void {
   // フレームをまたいで残す値。各項目の意味は WalkFrameState の型に書いてある
   const frameStateRef = useRef<WalkFrameState>({
@@ -112,10 +115,25 @@ export function useWalkLoop({
     [applyPose, reduceMotion, dom, runtime, veilSprites, onFishingTarget]
   )
 
+  // 押したまま指を動かして向かうマスが変わった時、行き先の印を指先のマスへ移す。
+  // 呼ばれるのは経路を置き直した時の 1 回だけなので、state を触る頻度は到着時と同じに収まる
+  const retarget = useCallback(
+    (cell: Cell) => {
+      runtime.destination.current = cell
+      setDestination(cell)
+    },
+    [runtime, setDestination]
+  )
+
   useEffect(() => {
     const loop = createAnimationLoop(
       elapsed =>
-        tickFrame(frameStateRef.current, runtime, { applyPose, paint, arrive, bump }, elapsed),
+        tickFrame(
+          frameStateRef.current,
+          runtime,
+          { applyPose, paint, arrive, bump, retarget },
+          elapsed
+        ),
       dom.frame
     )
     const wake = loop.wake
@@ -126,7 +144,7 @@ export function useWalkLoop({
       // 外したループを起こさない。後始末の後に届いた入力で、描く先の無いループが回り出すのを防ぐ
       if (runtime.wake.current === wake) runtime.wake.current = () => {}
     }
-  }, [arrive, bump, paint, applyPose, runtime, dom])
+  }, [arrive, bump, paint, applyPose, retarget, runtime, dom])
 
   // 枠の幅を覚え、変わったらループを起こして新しいマス寸法で描き直させる。
   // 幅を読むのは大きさが変わった時だけで、描く側は毎フレーム覚えた値を使う
@@ -141,10 +159,15 @@ export function useWalkLoop({
     return () => observer.disconnect()
   }, [dom, runtime])
 
-  // タップ → 経路を作って次のステップへ渡す。通れない場所は無視
+  // タップ → 経路を作って次のステップへ渡す。通れない場所は無視。
+  // 経路が付いた時だけ押したマスに行き先の印を立てる(経路は押したマスちょうどで終わるので、着けば到着の処理が下ろす)
   useEffect(() => {
     if (tapped === null) return
-    if (queueTapRoute(runtime, tapped)) runtime.wake.current()
+    if (queueTapRoute(runtime, tapped)) {
+      runtime.destination.current = tapped
+      setDestination(tapped)
+      runtime.wake.current()
+    }
     consumeTap()
-  }, [tapped, consumeTap, runtime])
+  }, [tapped, consumeTap, runtime, setDestination])
 }
