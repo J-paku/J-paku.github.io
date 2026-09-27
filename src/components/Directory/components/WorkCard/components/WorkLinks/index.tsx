@@ -35,7 +35,7 @@ function WorkLinks({ live, repo, storySlug, locale, ui }: WorkLinksProps) {
         </a>
       ) : null}
       {storySlug !== undefined ? (
-        // サムネイル覆いの中にある同じ行き先のボタン(WorkCard/index.tsx の hasStoryOverlay)とは別の、
+        // サムネイル覆いの中にある同じ行き先のボタン(Shot/utils/overlay-kind.ts の hasStoryOverlay)とは別の、
         // 常設の入口。live/repo が無い作品(覆いはstory専用ボタンになる)でも、あっても、ここには常に出す
         <Link href={toHref(`/works/${storySlug}`, locale)} className={styles.link}>
           {ui.story}

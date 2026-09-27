@@ -8,7 +8,7 @@ import type { Cell, Direction, Spot, World } from '@content/types/world'
 import { createMoveState, type MoveState } from '@/lib/village/movement'
 import type { FishingPose } from '@/lib/village/player-pose'
 import type { SpotRef } from '@/lib/village/spot'
-import { cameraOffset } from './use-stage-scale'
+import { cameraOffset } from '../utils/stage-scale'
 import { EMPTY_VISITED } from './use-village-guide/use-village-restore'
 import type { VillageActions, VillageButtons } from './use-village-input'
 

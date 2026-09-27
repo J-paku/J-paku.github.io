@@ -4,7 +4,8 @@
 // 机上時計で時刻を止めている間(timeMode === 'custom')は指定された時から段階を決める。
 // 時計を止めていても、画像取得の一時的な失敗から戻れるよう1分ごとに準備を確かめる
 import { useEffect, useRef, useState } from 'react'
-import { useVillageTime, villagePhase } from './use-village-time'
+import { useVillageTime } from './use-village-time'
+import { villagePhase } from '../utils/village-phase'
 import type { DayPhase } from '@/utils/day-phase'
 
 const CHECK_INTERVAL_MS = 60_000

@@ -9,7 +9,7 @@ import type { RefObject } from 'react'
 import type { Direction } from '@content/types/world'
 
 import { useHeldDirection } from '../../../hooks/use-held-direction'
-import { focusablesIn } from '../focusables'
+import { focusablesIn, STOP_FOCUSABLE_SELECTOR } from '../../../utils/focusables'
 
 // 押しっぱなしの間、1フレームで動かす本文スクロール量(px)
 const SCROLL_STEP = 6
@@ -52,7 +52,7 @@ export function useHeldScroll({
     const dialog = dialogRef.current
     if (panel === null || dialog === null) return
 
-    const focusables = focusablesIn(dialog)
+    const focusables = focusablesIn(dialog, STOP_FOCUSABLE_SELECTOR)
     const active = document.activeElement
     const index = focusables.findIndex(element => element === active)
 

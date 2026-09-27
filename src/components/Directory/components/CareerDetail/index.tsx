@@ -6,9 +6,11 @@
 import { Fragment } from 'react'
 import type { Career, Locale, UiStrings } from '@content/types/content'
 import PhraseText from '@/components/ui/PhraseText'
+import Asides from './components/Asides'
 import Assignment from './components/Assignment'
 import Facts from './components/Facts'
 import Features from './components/Features'
+import Origin from './components/Origin'
 import styles from './career-detail.module.css'
 
 type CareerDetailProps = {
@@ -58,42 +60,7 @@ function CareerDetail({ career, ui, locale }: CareerDetailProps) {
         </p>
       </div>
 
-      {detail.origin !== undefined ? (
-        <section className={styles.block}>
-          <h3 className={styles.blockHeading}>
-            <PhraseText text={detail.origin.heading} locale={locale} />
-          </h3>
-          {detail.origin.lead !== undefined ? (
-            <p className={styles.lead}>
-              <PhraseText text={detail.origin.lead} locale={locale} />
-            </p>
-          ) : null}
-          {/* 現場の手順なので順序付きリスト。コマ間の › は装飾のためCSSの疑似要素が持つ */}
-          <ol className={styles.flow}>
-            {detail.origin.flow.map((step, index) => (
-              // 送り記号を枠の外に置くため、<li> は包むだけにしてコマ本体は中の span が持つ
-              // 同じ語が再登場しうるので鍵に位置を含める。並びは入力が同じなら常に同じ
-              <li key={`${index}:${step.label}`} className={styles.flowItem}>
-                <span className={step.emphasis === true ? styles.flowChipStrong : styles.flowChip}>
-                  {step.emphasis === true ? (
-                    // 強調は濃さだけに頼らず strong でも示す
-                    <strong className={styles.flowStrongText}>
-                      <PhraseText text={step.label} locale={locale} />
-                    </strong>
-                  ) : (
-                    <PhraseText text={step.label} locale={locale} />
-                  )}
-                </span>
-              </li>
-            ))}
-          </ol>
-          {detail.origin.note !== undefined ? (
-            <p className={styles.note}>
-              <PhraseText text={detail.origin.note} locale={locale} />
-            </p>
-          ) : null}
-        </section>
-      ) : null}
+      {detail.origin !== undefined ? <Origin origin={detail.origin} locale={locale} /> : null}
 
       {detail.core !== undefined ? (
         <div className={styles.core}>
@@ -144,25 +111,7 @@ function CareerDetail({ career, ui, locale }: CareerDetailProps) {
         <Features features={detail.features} ui={ui} locale={locale} />
       ) : null}
 
-      {detail.asides !== undefined ? (
-        <section className={styles.block}>
-          <h3 className={styles.blockHeading}>
-            <PhraseText text={detail.asides.heading} locale={locale} />
-          </h3>
-          <ul className={styles.asides}>
-            {detail.asides.items.map(aside => (
-              <li key={aside.title} className={styles.aside}>
-                <h4 className={styles.asideTitle}>
-                  <PhraseText text={aside.title} locale={locale} />
-                </h4>
-                <p className={styles.body}>
-                  <PhraseText text={aside.body} locale={locale} />
-                </p>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+      {detail.asides !== undefined ? <Asides asides={detail.asides} locale={locale} /> : null}
 
       {/* 作品一覧への戻り道。v2 では同一ページ内の #works へ跳ぶアンカーにする */}
       <a className={styles.back} href='#works'>

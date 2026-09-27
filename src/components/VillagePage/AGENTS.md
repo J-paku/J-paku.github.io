@@ -1,7 +1,7 @@
 # src/components/VillagePage/ で作業するとき
 
 村の画面。`index.tsx` は**サーバ**で、スプライトシートの合成と地点リンクをここで1回だけ作って
-クライアントの `Village` へ渡す。規則と絵の層は [../../../docs/architecture/village.md](../../../docs/architecture/village.md)。
+クライアントの `Village` へ渡す(組み立ての中身は `utils/sprite-css.ts`・`utils/stop-links.ts`・`utils/phase-init.ts`)。規則と絵の層は [../../../docs/architecture/village.md](../../../docs/architecture/village.md)。
 
 ## 守ること
 
@@ -10,7 +10,7 @@
 3. **移動・衝突・経路・地点判定のロジックをここに書かない。** `src/lib/village/` の純粋関数に置く(単体テストが書けるのはそちらだけ)
 4. **保存は `src/lib/preferences.ts` 経由。** `sessionStorage` を直接触らない
 5. 歩行ループ(`components/Village/hooks/use-walk-loop/use-walk-loop.ts`。フレームの中身は `components/Village/utils/walk-loop/` に分けてある)は rAF の中で **DOM へ直接書く**。React state を経由させない(再レンダーで駒が飛ぶ)
-6. `use-stage-scale.ts` は `--cell` と `--band` を実測で書く。重ね表示(会話窓・地図)は `--band` を超えて操作帯を覆わない
+6. `components/Village/hooks/use-stage-scale.ts` は `--cell` と `--band` を実測で書く(寸法の計算式は `components/Village/utils/stage-scale.ts`)。重ね表示(会話窓・地図)は `--band` を超えて操作帯を覆わない
 7. 新しいモーダルはネイティブ `<dialog>` の `showModal()` を使う → [../../../docs/quality/accessibility.md](../../../docs/quality/accessibility.md)
 8. **街灯だけは主人公の上にも描く層がある** — `components/Village/components/LampVeil/`(`.world` の中・`.terrain` の外・z 3)。
    街灯は柱の立つ下のマスだけが通行不可で、灯のある上のマス(笠の裏)に立つと主人公(z 2)が街灯を塗り潰すので、重なった 1 本を 2 マス分まとめて半透明で重ね直す。

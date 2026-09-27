@@ -15,7 +15,7 @@ import {
   cellMax,
   computeCell,
   hasGutters,
-} from './use-stage-scale'
+} from './stage-scale'
 
 describe('cellMax', () => {
   it('列数が2倍(20列)になれば上限は半分(32px)になり、合計横幅64×10を保つ', () => {

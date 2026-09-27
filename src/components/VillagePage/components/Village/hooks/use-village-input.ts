@@ -2,8 +2,9 @@
 // ここは「今どの向きが押されているか」「どのマスがタップ/押しっぱなしされているか」を runtime の held・scrollHeld・
 // pointerTarget へ書き、行動キーを runtime の actions・buttons へ知らせる
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { FocusEvent, KeyboardEvent, PointerEvent } from 'react'
+import type { FocusEvent, KeyboardEvent, PointerEvent, RefObject } from 'react'
 import type { Cell, Direction } from '@content/types/world'
+import { VIEW_COLS } from '../utils/stage-scale'
 import type { VillageRuntime } from './use-village-runtime'
 
 // event.code で引くので IME やキー配列の影響を受けない
@@ -51,7 +52,13 @@ export type VillageInputOptions = {
   // 歩行ループは止まっている間は次のフレームを頼まないので、移動の入力(押した向き・ポインタの下のマス)を
   // 書いたら runtime.wake で起こす。起こさないと最初の入力が読まれない
   runtime: VillageRuntime
+  // 表示枠の左上が指すワールド座標(マス単位)。カメラの分だけタップ位置をずらす
+  cam: RefObject<{ x: number; y: number }>
 }
+
+// 枠の実測幅を表示枠の列数で割った 1 マスの px
+const cellSizeOf = (event: PointerEvent<HTMLDivElement>): number =>
+  event.currentTarget.clientWidth / VIEW_COLS
 
 type UseVillageInput = {
   setHeld: (direction: Direction | null) => void
@@ -60,21 +67,13 @@ type UseVillageInput = {
   onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void
   onKeyUp: (event: KeyboardEvent<HTMLDivElement>) => void
   onBlur: (event: FocusEvent<HTMLDivElement>) => void
-  // origin は表示枠の左上が指すワールド座標(マス単位)。カメラの分だけタップ位置をずらす
-  onPointerDown: (
-    event: PointerEvent<HTMLDivElement>,
-    cellSize: number,
-    origin: { x: number; y: number }
-  ) => void
-  onPointerMove: (
-    event: PointerEvent<HTMLDivElement>,
-    cellSize: number,
-    origin: { x: number; y: number }
-  ) => void
+  // マス寸法は枠(currentTarget)の実測幅から、カメラの原点は cam から引く
+  onPointerDown: (event: PointerEvent<HTMLDivElement>) => void
+  onPointerMove: (event: PointerEvent<HTMLDivElement>) => void
   onPointerUp: (event: PointerEvent<HTMLDivElement>) => void
 }
 
-export function useVillageInput({ runtime }: VillageInputOptions): UseVillageInput {
+export function useVillageInput({ runtime, cam }: VillageInputOptions): UseVillageInput {
   const [tapped, setTapped] = useState<Cell | null>(null)
   // 今つかんでいるポインタの id。複数指・マウス混在でも move/up を取り違えないための照合用
   const activePointerIdRef = useRef<number | null>(null)
@@ -172,7 +171,9 @@ export function useVillageInput({ runtime }: VillageInputOptions): UseVillageInp
   )
 
   const onPointerDown = useCallback(
-    (event: PointerEvent<HTMLDivElement>, cellSize: number, origin: { x: number; y: number }) => {
+    (event: PointerEvent<HTMLDivElement>) => {
+      const cellSize = cellSizeOf(event)
+      const origin = cam.current
       if (runtime.locked.current || cellSize <= 0) return
       // マップに重ねたボタン(ミニマップ・会話窓)の操作はタップ移動にしない
       const target = event.target
@@ -185,12 +186,14 @@ export function useVillageInput({ runtime }: VillageInputOptions): UseVillageInp
       // 枠の外へ出ても move/up を受け取り続けるために捕捉する
       event.currentTarget.setPointerCapture(event.pointerId)
     },
-    [runtime]
+    [runtime, cam]
   )
 
   const onPointerMove = useCallback(
-    (event: PointerEvent<HTMLDivElement>, cellSize: number, origin: { x: number; y: number }) => {
+    (event: PointerEvent<HTMLDivElement>) => {
       if (event.pointerId !== activePointerIdRef.current) return
+      const cellSize = cellSizeOf(event)
+      const origin = cam.current
       if (runtime.locked.current || cellSize <= 0) return
       const { x, y } = cellAt(event, cellSize, origin)
       const current = runtime.pointerTarget.current
@@ -198,7 +201,7 @@ export function useVillageInput({ runtime }: VillageInputOptions): UseVillageInp
       runtime.pointerTarget.current = { x, y }
       runtime.wake.current()
     },
-    [runtime]
+    [runtime, cam]
   )
 
   const onPointerUp = useCallback(

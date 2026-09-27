@@ -70,7 +70,7 @@ const TOWN_LIGHTS = {
 const TOWN_LIGHT_TOTAL = Object.values(TOWN_LIGHTS).reduce((sum, count) => sum + count, 0)
 // 人物と灯りの中心のずれの許容。両者は同じ transform を受けるので本来は 0 で、実測のまるめしか出ない。
 // 追従が切れた灯りは歩き終えた人物から 1 マスぶん離れる。1 マスの px は画面の大きさで決まるが、
-// use-stage-scale.ts の下限(CELL_MIN = 12px)を下回ることはないので、1px の許容とは取り違えようがない
+// Village/utils/stage-scale.ts の下限(CELL_MIN = 12px)を下回ることはないので、1px の許容とは取り違えようがない
 const LIGHT_GAP_TOLERANCE_PX = 1
 
 // 天気は helpers の test が context へ既定で晴れを敷くので、段階だけを見たいテストは何も敷かない。

@@ -5,7 +5,7 @@ import { memo, useMemo } from 'react'
 import type { Cell, World } from '@content/types/world'
 import type { SheetLayout } from '@/lib/pixel/art'
 import { facadeCells } from '@/lib/village/facade'
-import { spriteIndex, spriteStyle } from '../../sprite-style'
+import { spriteIndex, spriteStyle } from '../../utils/sprite-style'
 import styles from '../../scene.module.css'
 
 export type GroundProps = {

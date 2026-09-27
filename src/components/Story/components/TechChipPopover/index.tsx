@@ -3,10 +3,10 @@
 // 開閉・外側クリック・Escape は window 購読+contains 判定で扱う。
 // ポップオーバー本体は常にDOMへ残し hidden 属性で畳む — aria-controls が指す要素を消さないため
 'use client'
-import { useEffect, useId, useRef, useState } from 'react'
-import type { PointerEvent as ReactPointerEvent } from 'react'
+import { useId } from 'react'
 import type { Locale, WorkStoryChip } from '@content/types/content'
 import PhraseText from '@/components/ui/PhraseText'
+import { useChipPopover } from './hooks/use-chip-popover'
 import styles from './tech-chip-popover.module.css'
 
 type TechChipPopoverProps = {
@@ -15,39 +15,8 @@ type TechChipPopoverProps = {
 }
 
 function TechChipPopover({ chip, locale }: TechChipPopoverProps) {
-  const [isOpen, setIsOpen] = useState(false)
-  const rootRef = useRef<HTMLSpanElement>(null)
+  const { isOpen, setIsOpen, rootRef, handlePointerEnter, handlePointerLeave } = useChipPopover()
   const popoverId = useId()
-
-  // Esc とチップ外側の pointerdown で閉じる。開いている間だけ購読する
-  useEffect(() => {
-    if (!isOpen) return
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setIsOpen(false)
-    }
-    const onPointerDown = (event: PointerEvent) => {
-      const root = rootRef.current
-      if (root !== null && event.target instanceof Node && !root.contains(event.target)) {
-        setIsOpen(false)
-      }
-    }
-    window.addEventListener('keydown', onKeyDown)
-    window.addEventListener('pointerdown', onPointerDown)
-    return () => {
-      window.removeEventListener('keydown', onKeyDown)
-      window.removeEventListener('pointerdown', onPointerDown)
-    }
-  }, [isOpen])
-
-  // マウスのホバーだけを開閉に使う。タッチ環境のタップ直後に発火する疑似ホバーは対象外にする
-  const handlePointerEnter = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    if (event.pointerType !== 'mouse') return
-    setIsOpen(true)
-  }
-  const handlePointerLeave = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    if (event.pointerType !== 'mouse') return
-    setIsOpen(false)
-  }
 
   return (
     <span ref={rootRef} className={styles.root}>

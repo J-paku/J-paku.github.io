@@ -49,7 +49,7 @@ export function StopModal({
   const panelRef = useRef<HTMLDivElement>(null)
   const thumb = useScrollThumb(panelRef)
   // フックを呼ぶ順がそのまま effect の実行順・片付け順になる。つまみ → 焦点 → 送り の順を入れ替えない
-  const handleKeyDown = useModalFocus({ titleRef, returnTo, onClose })
+  const handleKeyDown = useModalFocus({ dialogRef, titleRef, returnTo, onClose })
   useHeldScroll({ dialogRef, panelRef, titleRef, scrollHeldRef })
 
   const railStyle: RailStyle = {

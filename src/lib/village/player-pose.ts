@@ -2,7 +2,7 @@
 // 釣っている間は歩行コマではなく竿を持つコマを使う(向きの左右反転は歩行と同じ)。
 // 竿のコマは釣りの段階と、その段階に入ってからの経過で決まる。時間でまだコマが変わるか(animating)も
 // 返し、歩行ループはそれだけを見て眠ってよいかを決める(ループ側に時間の定数を持たない)
-// sprites.ts は node:crypto を読むので、値ではなく型だけを取り込む。import type は出力から消えるので、
+// sprites.ts は node:zlib(art.ts → png.ts 経由)を読むので、値ではなく型だけを取り込む。import type は出力から消えるので、
 // クライアントのバンドルへ sprites.ts が入らない
 import type { FISHING_MOTIONS } from '@/lib/pixel/sprites'
 import type { MoveState } from './movement'

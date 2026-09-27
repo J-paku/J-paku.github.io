@@ -5,7 +5,7 @@ read_when:
   - 画像やスプライトの持ち方を変えるとき
   - 依存や書体の読み込み方を変えるとき
 source_of_truth: true
-last_reviewed: 2026-09-24
+last_reviewed: 2026-09-27
 ---
 
 # 性能
@@ -24,7 +24,7 @@ last_reviewed: 2026-09-24
 
 ## 焼くシートの枚数を増やさない
 
-枚数の正本は `src/lib/pixel/sprites.ts`(地形・建物と主人公を時間帯の段階ぶんずつ + 天気の分)。
+枚数の正本は `src/lib/pixel/sheet-file.ts` の `SHEET_KINDS`(地形・建物と主人公を時間帯の段階ぶんずつ)と `src/lib/pixel/sprites.ts`(天気の分)。
 時間帯や天気を足すと枚数が掛け算で増える。足す前に「`data-phase` の切り替えだけで済ませられないか」を考える。
 
 ## 調べ方

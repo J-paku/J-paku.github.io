@@ -1,6 +1,6 @@
 // スプライトシートを実ファイルの PNG として焼き出すビルド前スクリプト。
-// 置き場も名前も src/lib/pixel/sprites.ts の SHEET_DIR・sheetFileName が正本で、
-// ここは同じ関数を呼ぶだけ。名前には中身の指紋が入る(理由は sprites.ts に書いた)ので、
+// 置き場も名前も src/lib/pixel/sheet-file.ts の SHEET_DIR・sheetFileName が正本で、
+// ここは同じ関数を呼ぶだけ。名前には中身の指紋が入る(理由は sheet-file.ts に書いた)ので、
 // 綴りを二重に持つとこのスクリプトと VillagePage が黙ってすれ違う。
 //
 // data URI のまま HTML に載せると 8 枚ぶんの base64 が毎ページ・毎訪問ぶん配られる(実測で
@@ -65,7 +65,7 @@ const bytesOfSheet = (name, uri) => {
 async function main() {
   const { DAY_PHASES } = await import(srcUrl('utils/day-phase.ts'))
   const { SHEET_DIR, SHEET_KINDS, sheetFileName, sheetOf } = await import(
-    srcUrl('lib/pixel/sprites.ts')
+    srcUrl('lib/pixel/sheet-file.ts')
   )
   const outDir = path.join(ROOT_DIR, 'public', SHEET_DIR)
 

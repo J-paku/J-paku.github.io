@@ -4,14 +4,14 @@ import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent, RefObject } from 'react'
 import type { ClockText, Direction } from '@content/types/world'
 import { wrapWithin } from '@/utils/wrap-within'
+import { useDialogFocus } from '../../../hooks/use-dialog-focus'
 import { useHeldDirection } from '../../../hooks/use-held-direction'
 import { useVillageTime } from '../../../hooks/use-village-time'
+import { CLOCK_FOCUSABLE_SELECTOR, focusablesIn } from '../../../utils/focusables'
 import { formatClock, HOUR_SPAN, MINUTE_SPAN, MINUTE_STEP } from '../utils/clock-time'
 
 export type ClockStep = 'choose' | 'pick'
 
-// この窓で焦点を移せるのはボタンだけ。Tab の輪はこの並びで回す
-const FOCUSABLE_SELECTOR = 'button:not([disabled])'
 // まだ一度も時刻を決めていない時の針の位置。夕方は昼夜の変化が一番分かりやすい
 const DEFAULT_HOUR = 18
 const DEFAULT_MINUTE = 0
@@ -91,17 +91,17 @@ export function useClockModal({
       decideRef.current?.focus()
       return
     }
-    dialogRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)?.focus()
+    dialogRef.current?.querySelector<HTMLElement>(CLOCK_FOCUSABLE_SELECTOR)?.focus()
   }, [dialogRef, step])
 
-  // 閉じた時は開く前にいた所(村の枠)へ戻す。返却先はマウント時に控える
-  useEffect(() => {
-    const returnTarget = returnTo.current
-
-    return () => {
-      returnTarget?.focus()
-    }
-  }, [returnTo])
+  // 閉じた時は開く前にいた所(村の枠)へ戻す。返却先はマウント時に控える。
+  // 開いた時の焦点は段階で変わるので上の effect が置き、ここでは渡さない
+  const trapTab = useDialogFocus({
+    open: true,
+    rootRef: dialogRef,
+    selector: CLOCK_FOCUSABLE_SELECTOR,
+    returnTo,
+  })
 
   const chooseRealtime = () => {
     setRealtime()
@@ -132,7 +132,7 @@ export function useClockModal({
   const moveFocus = (delta: number) => {
     const dialog = dialogRef.current
     if (dialog === null) return
-    const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
+    const focusable = focusablesIn(dialog, CLOCK_FOCUSABLE_SELECTOR)
     if (focusable.length === 0) return
     const index = focusable.findIndex(element => element === document.activeElement)
     // 焦点が並びの外にある時は、進むなら先頭・戻るなら末尾から入る
@@ -175,23 +175,7 @@ export function useClockModal({
       return
     }
 
-    if (event.key === 'Tab') {
-      const focusable = Array.from(
-        event.currentTarget.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
-      )
-      if (focusable.length === 0) return
-
-      const first = focusable[0]
-      const last = focusable[focusable.length - 1]
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault()
-        last.focus()
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault()
-        first.focus()
-      }
-      return
-    }
+    if (trapTab(event)) return
 
     // 矢印キーは 1 段目でボタンの移動、2 段目で針に割り当てる。押す(自動反復を含む)たびに 1 つ動かすので、
     // 速い連打も 1 回ずつ数えられる

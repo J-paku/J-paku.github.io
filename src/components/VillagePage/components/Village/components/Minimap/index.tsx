@@ -4,7 +4,7 @@
 import type { Cell, World } from '@content/types/world'
 import type { DoorMarker } from '@/lib/village/door-marker'
 
-import { MapSvg } from '../WorldMap/map-svg'
+import { MapSvg } from '../MapSvg'
 import styles from './minimap.module.css'
 
 export type MinimapProps = {

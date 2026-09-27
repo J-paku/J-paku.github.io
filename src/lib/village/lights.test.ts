@@ -4,7 +4,7 @@ import type { Structure, World } from '@content/types/world'
 import { facadeCells } from './facade'
 import { NO_GLOW, PLAYER_LIGHT, worldLights, type LightKind, type LightSource } from './lights'
 // 絵そのものを読むのはこのテストの中だけ。lights.ts はクライアントの束に入るので、
-// あちらが sprites.ts を実行時に取り込むと node:crypto まで一緒に配られてしまう
+// あちらが sprites.ts を実行時に取り込むと node:zlib(art.ts → png.ts 経由)まで一緒に配られてしまう
 import { LIGHT_KEYS } from '@/lib/pixel/palette-phase'
 import { SPRITE_ARTS, SPRITE_NIGHT_ARTS } from '@/lib/pixel/sprites'
 

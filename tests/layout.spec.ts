@@ -6,7 +6,7 @@ import {
   CELL_MIN,
   cellMax,
   computeCell,
-} from '../src/components/VillagePage/components/Village/hooks/use-stage-scale'
+} from '../src/components/VillagePage/components/Village/utils/stage-scale'
 // 村の E2E で共用する test。context に既定で晴れの応答を敷き、舞台を開いた時の天気の問い合わせを
 // 実ネットワークへ出さない。正本は village.helpers.ts
 import { test } from './village.helpers'

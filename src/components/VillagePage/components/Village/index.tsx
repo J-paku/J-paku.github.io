@@ -20,10 +20,10 @@ import Ground from './components/Ground'
 import FishingFloat from './components/FishingFloat'
 import LampVeil from './components/LampVeil'
 import { useDayPhase, type PhaseSheets } from './hooks/use-day-phase'
-import { VIEW_COLS } from './hooks/use-stage-scale'
 import { useVillage } from './hooks/use-village'
 import { useWeather } from './hooks/use-weather'
-import { initialView } from './initial-view'
+import { cellShift, initialView } from './utils/initial-view'
+import { pickDialog } from './utils/pick-dialog'
 import styles from './scene.module.css'
 
 type VillageProps = {
@@ -76,7 +76,6 @@ function Village({
     playerLightRef,
     lampVeilRef,
     loadingRef,
-    camRef,
     world,
     destination,
     playerCell,
@@ -93,6 +92,7 @@ function Village({
     talkText,
     talkLabel,
     talkKind,
+    talkAction,
     hintText,
     mode,
     fishing,
@@ -104,7 +104,6 @@ function Village({
     onPointerDown,
     onPointerMove,
     onPointerUp,
-    openTalk,
     openMap,
     closeOverlay,
     travel,
@@ -130,22 +129,14 @@ function Village({
 
   // 会話窓に出す中身。地点の会話か釣りの窓かをここで 1 つに決め、StopModal は 1 か所だけで描く。
   // 「次へ」の有無と行き先(hasNext・onNext)は A ボタンと共用するので use-village が持つ。
-  const dialog =
-    mode === 'talk' && activeSpot !== null
-      ? {
-          stop: text.stops[activeSpot.id],
-          href: stopHrefs[activeSpot.id] ?? null,
-          external: stopExternal[activeSpot.id] ?? false,
-          closeLabel: text.close,
-        }
-      : mode === 'fishing' && fishing.stop !== null
-        ? {
-            stop: fishing.stop,
-            href: null,
-            external: false,
-            closeLabel: text.close,
-          }
-        : null
+  const dialog = pickDialog({
+    mode,
+    activeSpot,
+    fishingStop: fishing.stop,
+    text,
+    stopHrefs,
+    stopExternal,
+  })
 
   return (
     // data-phase は VillagePage のインラインスクリプトが初回描画の前に書き換える。
@@ -171,12 +162,8 @@ function Village({
           onKeyDown={onKeyDown}
           onKeyUp={onKeyUp}
           onBlur={onBlur}
-          onPointerDown={event =>
-            onPointerDown(event, event.currentTarget.clientWidth / VIEW_COLS, camRef.current)
-          }
-          onPointerMove={event =>
-            onPointerMove(event, event.currentTarget.clientWidth / VIEW_COLS, camRef.current)
-          }
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
         >
@@ -245,10 +232,7 @@ function Village({
                 lang={lang}
                 at={talkAt}
                 actionLabel={talkLabel}
-                onAction={() => {
-                  frameRef.current?.focus()
-                  openTalk()
-                }}
+                onAction={talkAction}
                 kind={talkKind}
               />
             ) : null}
@@ -258,9 +242,7 @@ function Village({
                 className={styles.hintAnchor}
                 aria-hidden='false'
                 // rAF が回り出すまでの土台。プレイヤーの今のマスへ先に置き、以後は毎フレーム上書きされる
-                style={{
-                  transform: `translate(calc(var(--cell) * ${playerCell.x}), calc(var(--cell) * ${playerCell.y}))`,
-                }}
+                style={{ transform: cellShift(playerCell) }}
               >
                 {/* 頭はマスの上へ半マスはみ出すので、吹き出しはその分だけ上に付ける */}
                 <TalkBubble text={hintText} lang={lang} at={{ x: 0.5, y: -0.5 }} kind='thought' />

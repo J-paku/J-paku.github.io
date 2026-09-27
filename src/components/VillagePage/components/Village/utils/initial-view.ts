@@ -1,10 +1,10 @@
 // JS前と切り替え直後の見た目を決める。rAFが回り出したら useWalkLoop が実測pxで置き換える
 import type { CSSProperties } from 'react'
-import type { World } from '@content/types/world'
+import type { Cell, World } from '@content/types/world'
 import type { SheetLayout } from '@/lib/pixel/art'
 import { createMoveState } from '@/lib/village/movement'
 import { playerPose } from '@/lib/village/player-pose'
-import { cameraOffset, VIEW_COLS, VIEW_ROWS } from './hooks/use-stage-scale'
+import { cameraOffset, VIEW_COLS, VIEW_ROWS } from './stage-scale'
 import { spriteIndex, type SpriteStyle } from './sprite-style'
 
 // CSS 変数は CSSProperties に含まれないので、使う分だけを足した形で渡す
@@ -34,6 +34,10 @@ export type InitialView = {
   locatorSpriteStyle: SpriteStyle
 }
 
+// マスの左上へ置く transform。rAF が回り出すまでの土台として、人物と同じ位置のものが同じ書式で受け取る
+export const cellShift = (cell: Cell): string =>
+  `translate(calc(var(--cell) * ${cell.x}), calc(var(--cell) * ${cell.y}))`
+
 export const initialView = (
   world: World,
   sprites: SheetLayout,
@@ -52,7 +56,7 @@ export const initialView = (
     '--minimap-h': outdoors ? `${world.height * MINIMAP_SCALE + MINIMAP_CHROME}px` : '0px',
   }
   const startPose = playerPose(createMoveState(world), reduceMotion)
-  const startShift = `translate(calc(var(--cell) * ${world.start.x}), calc(var(--cell) * ${world.start.y}))`
+  const startShift = cellShift(world.start)
   const playerStyle: SpriteStyle = {
     transform: `${startShift}${startPose.flip ? ' scaleX(-1)' : ''}`,
     '--i': spriteIndex(playerSprites, startPose.key),

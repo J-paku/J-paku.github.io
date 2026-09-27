@@ -90,7 +90,7 @@
 
 /* 地点の印。地点マスの中心に置いた 39px 角のボタンの中央に ✓/? の字(.glyph 27px 角)を描き、
    番号の札(.spot > .badge 18px)をその右上の角へ 4px だけ重ねて付ける(札はボタンの外へはみ出す)。
-   押せる範囲はボタン(字の周りに 6px ずつ)。隣の地点の印(字 + 札)どうしは index.tsx の arrangeBadges が
+   押せる範囲はボタン(字の周りに 6px ずつ)。隣の地点の印(字 + 札)どうしは utils/arrange-badges.ts の arrangeBadges が
    6px 空けて置く。--nudge-x / --nudge-y は重なりを避けてずらした量(ずらさない印には付かない)。
    字と札はボタンごと一緒に動く */
 .spot {
@@ -136,7 +136,7 @@
 }
 
 /* 地点の番号の札。地図の上と下の一覧で同じ見た目にし、番号で対応を取る。
-   訪問前は黒地に白い数字、訪問後は地図の ✓ の字・ミニマップの印と同じ緑(map-svg.tsx の MARKER_COLORS.visited) */
+   訪問前は黒地に白い数字、訪問後は地図の ✓ の字・ミニマップの印と同じ緑(Village/utils/marker-colors.ts の MARKER_COLORS.visited) */
 .badge {
   display: grid;
   width: 22px;

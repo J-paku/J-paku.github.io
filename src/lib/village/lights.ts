@@ -2,7 +2,7 @@
 // Lighting の CSS が --cell を掛けて出す。ここは純粋なデータで、光の計算は一切しない
 // (にじみの絵は放射グラデーション 1 本が描く)。
 // スプライトの絵(src/lib/pixel/)はここから読まない — このファイルはクライアントの束に入るので、
-// sprites.ts を実行時に取り込むと node:crypto まで一緒に引きずり込まれる。
+// sprites.ts を実行時に取り込むと node:zlib(art.ts → png.ts 経由)まで一緒に引きずり込まれる。
 // 「発光する絵を持つのに後光が無い」の突き合わせは lights.test.ts の中だけでやる
 import type { Cell, Structure, World } from '@content/types/world'
 import { facadeCells } from './facade'

@@ -1,15 +1,17 @@
 // 会話モーダルと地図の開閉を持つ。開いている間は移動入力を止め、閉じる時に完走の演出を出す。
 // 水辺で話しかけた時は釣りの窓へ回す。頭上の一言は use-village-hint、釣りの進み具合は
-// use-village-fishing、閉じた後の道中は use-village-travel に分けてある
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+// use-village-fishing、閉じた後の道中は use-village-travel に分けてある。
+// 訪問の記録と完走の演出は use-course-progress、竿の印を runtime へ写すのは use-fishing-pose
+import { useCallback, useEffect, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import type { CareerFeature, CareerRole } from '@content/types/content'
 import type { Cell, StopText, VillageText, World, WorldSet } from '@content/types/world'
 import { isFishingSpot } from '@/lib/village/fishing'
-import { allSpots, facedCell } from '@/lib/village/spot'
-import { writeVisited } from '@/lib/preferences'
+import { facedCell } from '@/lib/village/spot'
 import { pickDefaultSpeech } from '../../utils/pick-default-speech'
 import type { VillageRuntime } from '../use-village-runtime'
+import { useCourseProgress } from './use-course-progress'
+import { useFishingPose } from './use-fishing-pose'
 import { useVillageFishing, type FishingPhase } from './use-village-fishing'
 import { useVillageHint } from './use-village-hint'
 import { useVillageTravel } from './use-village-travel'
@@ -76,12 +78,13 @@ export function useVillageOverlay({
     start: startFishing,
     reset: resetFishing,
   } = useVillageFishing({ text, catches, roleLabels, world, setSpeech })
-  // コース地点(order を持つ地点)の id 一覧。一度だけ作り、visited との突き合わせに使う
-  const courseSpotIds = useMemo(() => allSpots(worldSet).map(spot => spot.id), [worldSet])
-  // 全ワールド通しの会話地点数(コース分のみ)
-  const totalSpots = courseSpotIds.length
-  // 「コースの全地点で話した」の演出は一度だけ出す。再訪の度に一覧へ焦点を奪わない
-  const celebratedRef = useRef(false)
+  const { markVisited, celebrateIfComplete } = useCourseProgress({
+    worldSet,
+    text,
+    runtime,
+    setVisited,
+    setSpeech,
+  })
 
   // モーダル・地図が開いている間は移動入力を捨てる。
   // 錠が外れたら、開いている間眠っていた歩行ループを起こす(途中だった歩き・カメラの追従を続ける)
@@ -91,15 +94,8 @@ export function useVillageOverlay({
     else runtime.wake.current()
   }, [mode, runtime])
 
-  // 投げてから結果窓を閉じるまでは竿を持つ。竿のコマはその段階に入ってからの経過で進むので、
-  // 始まりの時刻は段階が変わった時だけ書く(同じ段階のまま effect が回り直しても時計を巻き戻さない)。
-  // 歩行ループはその段階のコマが進み切ると眠っているので、印を変えたら起こす
-  useEffect(() => {
-    if (fishingPhase === 'idle') runtime.fishingPose.current = null
-    else if (runtime.fishingPose.current?.phase !== fishingPhase)
-      runtime.fishingPose.current = { phase: fishingPhase, since: performance.now() }
-    runtime.wake.current()
-  }, [fishingPhase, runtime])
+  // 錠の effect の後に登録する(effect の実行順を保つ)
+  useFishingPose(fishingPhase, runtime)
 
   const openTalk = useCallback(() => {
     if (runtime.locked.current) return
@@ -147,23 +143,8 @@ export function useVillageOverlay({
       return
     }
     setMode('talk')
-    if (runtime.visited.current.has(spot.id)) return
-    const marked = new Set(runtime.visited.current)
-    marked.add(spot.id)
-    runtime.visited.current = marked
-    setVisited(marked)
-    writeVisited(worldSet.id, [...marked])
-  }, [
-    runtime,
-    worldSet,
-    setVisited,
-    text,
-    clearHint,
-    showHint,
-    catches,
-    startFishing,
-    fishingExhausted,
-  ])
+    markVisited(spot.id)
+  }, [runtime, markVisited, text, clearHint, showHint, catches, startFishing, fishingExhausted])
 
   const closeOverlay = useCallback(() => {
     // 完走の演出は会話窓を閉じた時だけ。時計の設定窓・地図はここを通っても数えない
@@ -180,22 +161,8 @@ export function useVillageOverlay({
     // 開いている間眠っていた歩行ループを起こす。竿を下ろしたコマもここで描き直させる
     runtime.wake.current()
     setMode('walk')
-    // コース外の地点を先に話しても size は増えるが完走にはならないため(時計・池はそもそも visited に入れない)、
-    // visited に含まれるコース地点の数で判定する
-    const visitedCourseCount = courseSpotIds.filter(id => runtime.visited.current.has(id)).length
-    // コースの全地点が揃った会話を閉じた瞬間だけ、一覧への案内に差し替えて焦点を移す
-    if (wasTalk && !celebratedRef.current && visitedCourseCount === totalSpots) {
-      celebratedRef.current = true
-      setSpeech(text.allSeen.replace('{list}', text.toList))
-      // StopModal のアンマウント処理(返却先フォーカス)の後に上書きするため、次フレームまで待つ
-      window.requestAnimationFrame(() => {
-        const exit = document.querySelector<HTMLElement>('[data-village-exit]')
-        if (exit === null) return
-        exit.dataset.bounce = ''
-        exit.focus()
-      })
-    }
-  }, [runtime, mode, courseSpotIds, totalSpots, setSpeech, text, resetFishing, coarse])
+    if (wasTalk) celebrateIfComplete()
+  }, [runtime, mode, celebrateIfComplete, setSpeech, text, resetFishing, coarse])
 
   // M は開閉の切り替え。会話中は無視
   const openMap = useCallback(() => {

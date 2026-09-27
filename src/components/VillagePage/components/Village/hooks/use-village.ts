@@ -2,18 +2,19 @@
 // フックを呼ぶ順(寸法→入力→復元→rAF→重ね表示)がそのまま effect の走る順になるので、並べ替えない。
 // フック同士が共有する ref は use-village-runtime.ts の束 2 つ(runtime・dom)で最初に一度に作り、
 // 各フックはそれを受け取るだけにする(ref を 1 本ずつ次のフックへ手渡ししない)
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import type { CareerFeature, CareerRole } from '@content/types/content'
 import type { Cell, Spot, StopText, VillageText, World, WorldSet } from '@content/types/world'
 import type { SheetLayout } from '@/lib/pixel/art'
-import { doorMarkers, type DoorMarker } from '@/lib/village/door-marker'
-import { waterBubble } from '@/lib/village/fishing'
-import { mapEntries, type MapEntry } from '@/lib/village/map-entries'
-import { nextSpot, talkAnchor } from '@/lib/village/spot'
-import { arriveSpeech, placeName, talkLabelOf } from '../utils/spot-text'
+import type { DoorMarker } from '@/lib/village/door-marker'
+import type { MapEntry } from '@/lib/village/map-entries'
+import { VIEW_COLS, VIEW_ROWS } from '../utils/stage-scale'
+import { resolveTalkBubble } from '../utils/talk-bubble'
+import { useMapData } from './use-map-data'
+import { useVillageButtons } from './use-village-buttons'
 import { useVillageInput } from './use-village-input'
-import { useStageScale, VIEW_COLS, VIEW_ROWS } from './use-stage-scale'
+import { useStageScale } from './use-stage-scale'
 import { useVillageGuide } from './use-village-guide/use-village-guide'
 import type { FishingPhase } from './use-village-overlay/use-village-fishing'
 import { useVillageOverlay } from './use-village-overlay/use-village-overlay'
@@ -52,7 +53,6 @@ type UseVillage = {
   // 主人公に重なった街灯を主人公の上へ重ねる層。use-walk-loop が重なりの変わった時だけ書き換える
   lampVeilRef: RefObject<HTMLDivElement | null>
   loadingRef: RefObject<HTMLDivElement | null>
-  camRef: RefObject<{ x: number; y: number }>
   world: World
   destination: Cell | null
   playerCell: Cell
@@ -75,6 +75,8 @@ type UseVillage = {
   talkLabel: string | undefined
   // 吹き出しの形。地点の会話はいつも台詞で、水辺だけ全部を釣り上げた後はボタンの無い考え事に替わる
   talkKind: 'speech' | 'thought'
+  // 吹き出しの行動ボタン。枠へ焦点を戻してから話しかける
+  talkAction: () => void
   // 話せる相手がいない時の考え事の吹き出し。2.5 秒で消える。位置は hintRef が毎フレーム追従する
   hintText: string | null
   mode: 'walk' | 'talk' | 'map' | 'clock' | 'fishing'
@@ -90,7 +92,6 @@ type UseVillage = {
   onPointerDown: VillageInput['onPointerDown']
   onPointerMove: VillageInput['onPointerMove']
   onPointerUp: VillageInput['onPointerUp']
-  openTalk: () => void
   openMap: () => void
   closeOverlay: () => void
   goNext: () => void
@@ -148,7 +149,7 @@ export function useVillage({
     onPointerDown,
     onPointerMove,
     onPointerUp,
-  } = useVillageInput({ runtime })
+  } = useVillageInput({ runtime, cam: dom.cam })
 
   const {
     visited,
@@ -209,77 +210,33 @@ export function useVillage({
     arrive,
   })
 
-  // A/B は重ね表示の手(openTalk・goNext・closeOverlay)を使うので、その後に置く。
-  // 画面の A・キーボードの Z・窓の次へボタンが同じ行き先を読む
-  const hasNext = mode === 'talk' && activeSpot !== null && nextSpot(worldSet, activeSpot) !== null
-  const onNext = goNext
-  const pressA = useCallback(() => {
-    // 話せる相手がいない時は openTalk 自身が「考え事」の一言を出す
-    if (mode === 'walk') {
-      openTalk()
-      return
-    }
-    // 会話窓・時計の設定窓・釣りの窓の中のボタン・リンクへ焦点が移っていれば、そこを押す。
-    // 地図も同じ窓(role='dialog')なので、スティックで焦点を移した地点のボタンをここで押す。
-    // スティックで本文を送り切った先(次へ・閉じる・本文のリンク)を A で決定できるようにする。
-    // 画面の A/B ボタン自身は押下でフォーカスを奪わない(preventFocusSteal)ので、ここには入らない
-    const active = document.activeElement
-    if (
-      (active instanceof HTMLButtonElement || active instanceof HTMLAnchorElement) &&
-      active.closest('[role="dialog"]') !== null
-    ) {
-      active.click()
-      return
-    }
-    if (hasNext) onNext()
-  }, [mode, hasNext, onNext, openTalk])
+  // A/B は重ね表示の手(openTalk・goNext・closeOverlay)を使うので、その後に呼ぶ
+  const { hasNext, onNext, pressA, pressB } = useVillageButtons({
+    mode,
+    activeSpot,
+    worldSet,
+    openTalk,
+    goNext,
+    closeOverlay,
+    runtime,
+  })
 
-  // 歩いている時以外は重ね表示が開いているので、B はそれを閉じる。
-  // 釣りは窓が出ていない間(投げてからかかるまで)も mode が fishing のままなので、B で中断できる
-  const pressB = useCallback(() => {
-    if (mode !== 'walk') closeOverlay()
-  }, [mode, closeOverlay])
+  const { placeNames, entries, doors } = useMapData({ worldSet, text, world, visited })
 
-  // キーボードの Z/X は ref 越しに呼ぶので、A/B が作り直されたら入れ替える
-  useEffect(() => {
-    runtime.buttons.current = { onA: pressA, onB: pressB }
-  }, [pressA, pressB, runtime])
-
-  // 地図の一覧は今いないワールドの地点も並べるので、名前は全ワールドの地点から作る
-  const placeNames = useMemo<Record<string, string>>(
-    () =>
-      Object.fromEntries(
-        Object.values(worldSet.worlds)
-          .flatMap(w => w.spots)
-          .map(s => [s.id, placeName(text, s)])
-      ),
-    [worldSet, text]
-  )
-  const entries = useMemo(() => mapEntries(worldSet, world, visited), [worldSet, world, visited])
-  // 屋内の地点は屋外の地図に載らないので、そこへ通じる扉に印を置く
-  const doors = useMemo(() => doorMarkers(worldSet, world), [worldSet, world])
-
-  // 釣り場の地点(action: 'fishing')に立った時は、地点の吹き出しを出さず水辺の吹き出し 1 つにまとめる。
-  // 釣れる中身が無ければ投げられないので、吹き出しごと出さない
-  const atFishingSpot = activeSpot?.action === 'fishing'
-  const spotBubble = activeSpot !== null && !atFishingSpot ? activeSpot : null
-  const canFish =
-    mode === 'walk' &&
-    catches.length > 0 &&
-    (atFishingSpot || (activeSpot === null && fishingTarget !== null))
-  const talkAt =
-    spotBubble !== null
-      ? talkAnchor(world, spotBubble, playerCell)
-      : canFish
-        ? { x: playerCell.x + 0.5, y: playerCell.y - 0.5 }
-        : null
-  // 水辺の吹き出しの文言・ボタン・形。全部を釣り上げた後はボタンの無い考え事に替わる
-  const water = waterBubble(text.fishing, fishing.exhausted)
-  const talkText =
-    spotBubble !== null ? arriveSpeech(text, spotBubble) : canFish ? water.text : null
-  const talkLabel =
-    spotBubble !== null ? talkLabelOf(text, spotBubble) : canFish ? water.label : undefined
-  const talkKind = spotBubble === null && canFish ? water.kind : 'speech'
+  const { canFish, talkAt, talkText, talkLabel, talkKind } = resolveTalkBubble({
+    mode,
+    catchCount: catches.length,
+    activeSpot,
+    fishingTarget,
+    world,
+    playerCell,
+    text,
+    exhausted: fishing.exhausted,
+  })
+  const talkAction = () => {
+    dom.frame.current?.focus()
+    openTalk()
+  }
 
   return {
     rootRef,
@@ -293,7 +250,6 @@ export function useVillage({
     playerLightRef: dom.playerLight,
     lampVeilRef: dom.lampVeil,
     loadingRef: dom.loading,
-    camRef: dom.cam,
     world,
     destination,
     playerCell,
@@ -310,6 +266,7 @@ export function useVillage({
     talkText,
     talkLabel,
     talkKind,
+    talkAction,
     hintText: canFish ? null : hintText,
     mode,
     fishing,
@@ -321,7 +278,6 @@ export function useVillage({
     onPointerDown,
     onPointerMove,
     onPointerUp,
-    openTalk,
     openMap,
     closeOverlay,
     goNext,

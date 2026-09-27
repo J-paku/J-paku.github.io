@@ -15,6 +15,7 @@
 | `palette-phase.ts` | 時間帯4段階へのパレット派生 |
 | `png.ts` | RGBA → PNG の符号化(Node の zlib のみ) |
 | `sprites.ts` | 上を束ねて型付きのシートにする |
+| `sheet-file.ts` | 配信するシートの種類(`SHEET_KINDS`)・置き場(`SHEET_DIR`)・指紋入りのファイル名(`sheetFileName`)の正本。焼いた1枚を `sheetOf` で使い回す |
 
 ## 守ること
 
@@ -23,7 +24,7 @@
 3. **`palette-phase.ts` が予約している文字を地形・主人公の絵に使わない。** 光源用が `LIGHT_KEYS`、段階に関わらず色を変えない文字が `FIXED_KEYS`。予約は `sprites.test.ts` が固定している
 4. **雨と雪のシートは時間帯で色を変えない。** 地形・主人公は `phasePalette` を通すが、天気は素の `palette` のまま焼く(降る粒は地形ではないため)。「夜なのに雪が暗くならない」は仕様。実際に見える色には `src/components/VillagePage/components/Village/components/Weather/` の CSS 側(2コマの opacity と重ね順)も関わる
 5. **`DayPhase` の正本は `src/utils/day-phase.ts`。** ここでは型を import するだけで再 export しない(レイヤー境界のため)
-6. 時間帯や天気を増やすとシートの枚数が掛け算で増える(枚数の正本は `src/lib/pixel/sprites.ts`)。増やす前に `data-phase` の切り替えで済まないかを考える
+6. 時間帯や天気を増やすとシートの枚数が掛け算で増える(枚数の正本は焼く種類の `src/lib/pixel/sheet-file.ts` の `SHEET_KINDS` と、天気の分の `src/lib/pixel/sprites.ts`)。増やす前に `data-phase` の切り替えで済まないかを考える
 7. 絵は自作のみ。原作ゲームの素材を持ち込まない
 
 ## 確かめ方
