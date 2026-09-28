@@ -16,6 +16,26 @@
    街灯は柱の立つ下のマスだけが通行不可で、灯のある上のマス(笠の裏)に立つと主人公(z 2)が街灯を塗り潰すので、重なった 1 本を 2 マス分まとめて半透明で重ね直す。
    どの街灯かは `src/lib/village/lamp-veil.ts` が決め、位置と表示は `components/Village/utils/walk-loop/paint-lamp-veil.ts` が重なりの変わった時だけ DOM へ書く
 
+## UI の部位 → フォルダ
+
+画面の部品は 1 部品 1 フォルダで並ぶ。クライアントの `Village` が描く部品は `components/Village/components/` の下にあり、並べる順と渡す値は `components/Village/index.tsx`。
+起動の覆いと一覧への出口の 2 つだけはサーバの `index.tsx` が作るので、この直下の `components/` にある。
+
+| 部位 | フォルダ | 中身を決める所・補足 |
+|---|---|---|
+| 起動の覆い(ロゴの着地) | `components/Boot/` | `index.tsx` が舞台の先頭に置く。中央のロゴを見出し(`data-boot-target`)へ飛ばしてから外す飾りで、読み上げからは隠す。初回は hydration 前のインライン script、クライアント遷移では effect が同じ手順を走らせる |
+| 一覧への出口 | `components/ExitLink/` | `index.tsx` が作って `Village` の `exit` へ渡し、`components/Village/index.tsx` の出口の箱(`exitRef`)に入る。縦持ちタッチでは枠の下に高さを持つ。全地点で話し終えた時の焦点移動と跳ねは `components/Village/hooks/use-village-overlay/use-course-progress.ts` |
+| 操作帯(スティック・A/B) | `components/Village/components/Joystick/`・`components/Village/components/ActionButtons/` | A/B の行き先は `components/Village/hooks/use-village-buttons.ts` が mode から決め、ボタンは呼ぶだけ |
+| 枠の下端の案内文と吹き出し | `components/Village/components/SpeechBox/`・`components/Village/components/TalkBubble/` | 案内文は `role='status'` の一言。吹き出しは world 層の中に置き、話しかける物の上の台詞と、話せる相手がいない時の頭上の考え事の両方を描く |
+| 会話窓と卓上時計の窓(枠に重ねる窓) | `components/Village/components/StopModal/`・`components/Village/components/ClockModal/` | 会話窓は地点の説明と釣りの結果を 1 か所で描く。どちらを出すかは `components/Village/utils/pick-dialog.ts` |
+| 地図(ミニマップ・拡大地図) | `components/Village/components/Minimap/`・`components/Village/components/WorldMap/`・`components/Village/components/MapSvg/` | MapSvg は両方の地図が縮尺だけ変えて使う地形の SVG。番号の札と凡例は WorldMap の中 |
+| 地面と行き先の赤いピン | `components/Village/components/Ground/` | 床タイル・建物の正面・行き先の印。動かないマスは 1 枚の箱にまとめてある |
+| 夜の灯りと街灯の重ね | `components/Village/components/Lighting/`・`components/Village/components/LampVeil/` | 主人公の灯りと街灯の重ねは歩行ループが DOM へ直接書く(守ること 5・8) |
+| 雨・雪 | `components/Village/components/Weather/` | world 層ではなく枠の子。屋内では描かない |
+| 釣りの浮き・糸・巻物 | `components/Village/components/FishingFloat/` | 釣っている間だけ出る。進み具合は `components/Village/hooks/use-village-overlay/use-village-fishing.ts` |
+
+フォルダを消した・名前を変えた時は `npm run docs:check` がこの表の古いパスを落とすが、**足した時は検出されない。** 部品を足したら自分で行に加える。
+
 ## UI の位置を変えるとき
 
 **着手前に現ビルドを撮る。** 縦持ち・横持ち・モーダル展開・地図展開のそれぞれで、その場所に今何が描かれているかを見る。
