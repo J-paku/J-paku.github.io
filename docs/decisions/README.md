@@ -20,6 +20,7 @@ last_reviewed: 2026-09-21
 | [0004](0004-lint-enforced-layer-boundaries.md) | レイヤー境界を ESLint で機械的に守らせる | Accepted |
 | [0005](0005-runtime-weather-fetch.md) | 村の天気だけ実行時に外部 API を呼ぶ | Accepted |
 | [0006](0006-jst-fixed-day-phase.md) | 昼夜の判定を JST 固定にする | Accepted |
+| [0007](0007-component-tests-happy-dom.md) | 環境で分かれるコンポーネントの出し分けを happy-dom の統合テストで見る | Accepted |
 
 ## 書くときの決まり
 

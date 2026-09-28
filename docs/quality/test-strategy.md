@@ -9,19 +9,36 @@ last_reviewed: 2026-09-28
 
 # テスト
 
-## 2層しかない
+## 3層
 
 | 層 | 置き場 | 対象 | 環境 |
 |---|---|---|---|
-| 単体(Vitest) | 対象ファイルの隣 `*.test.ts` | **純粋関数**と、`fetch`・Storage を `vi.stubGlobal` で差し替えて測る `src/lib/` の入口 | `environment: 'node'`。DOM を持たない |
+| 単体(Vitest) | 対象ファイルの隣 `*.test.ts` | **純粋関数**と、`fetch`・Storage を `vi.stubGlobal` で差し替えて測る `src/lib/` の入口 | `environment: 'node'`(既定)。DOM を持たない |
+| 統合(Vitest + React Testing Library) | 対象コンポーネントの隣 `index.test.tsx` | **環境で分かれるコンポーネントの出し分け**。いまは作品カード(`src/components/Directory/components/WorkCard/index.test.tsx`)だけ | ファイル先頭の `// @vitest-environment happy-dom` でそのファイルだけ DOM を持つ |
 | E2E(Playwright) | `tests/**/*.spec.ts` | 実際のクリック・キー操作 | `out/` を `:4173` で静的配信 |
 
 - E2E の配信ポートは既定 `:4173` で、`E2E_PORT` で変えられる(`playwright.config.ts`)
-- Vitest が拾うのは `src/**/*.test.ts` だけ(`vitest.config.ts`)。`content/` や `tests/` は対象外
-- **コンポーネントのレンダリングテストは無い。** 画面の確認は E2E が受け持つ
+- Vitest が拾うのは `src/**/*.test.ts` と `src/**/*.test.tsx`(`vitest.config.ts`)。`content/` や `tests/` は対象外
 - 純粋関数に切り出せる計算は切り出してから単体テストを書く。`src/lib/village/` と `src/lib/pixel/` がその形になっている
 - フィクスチャは `*.fixture.ts`(Vitest の対象から外れる名前)
 - モジュール変数に覚えを持つ関数(`src/lib/fetch-svg-source.ts` の取得の覚え)は、テストごとに `vi.resetModules()` してから import し直し、空の覚えから始める
+
+### どの層に置くか
+
+- **計算だけ**(入力が同じなら出力も同じ)→ 単体
+- **環境で分かれるコンポーネントの出し分け**(URL のハッシュ・`matchMedia`・`IntersectionObserver` の有無)→ 統合。
+  実ブラウザでは作りにくい環境(`IntersectionObserver` が無い等)を `vi.stubGlobal` で作り、画面に何が出るかを見る
+- **実際の配置・寸法・スクロール・rAF・歩行** → E2E。happy-dom は配置を計算しない(作品カードの `getBoundingClientRect()` は幅・高さとも 0 だった)
+- **村(`src/components/VillagePage/`)は統合の対象にしない。** 描画が実際の寸法と rAF の歩行ループに依存するため、
+  happy-dom では確かめたいものが再現しない。村の出し分けは E2E で見るか、純粋関数へ切り出して単体で見る
+
+### 統合テストの約束
+
+- 確かめるのは利用者に見えるもの(role・`aria-*`・`inert`・要素の有無)。クラス名に頼るときは、部品と同じ CSS Modules を
+  テストでも import して引く(Vitest は CSS を処理せず、CSS Modules を `_<キー>_<ファイル名のハッシュ>` を返す Proxy に置き換える)
+- 環境の差し替えは `vi.stubGlobal` で行い、`afterEach` で `vi.unstubAllGlobals()` と URL(`history.replaceState`)を戻す
+- `fetch` も差し替えて外へ通信させない。happy-dom は相対 URL を `http://localhost:3000` へ取りに行く
+- 実データは `readContent('ja')` から条件で選ぶ(slug を名指ししない)。`server-only` は単体と同じく mock する
 
 ## E2E の12本
 
