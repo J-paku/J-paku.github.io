@@ -12,6 +12,8 @@ import {
   PLAYER_ARTS,
   SPRITE_ARTS,
   SPRITE_NIGHT_ARTS,
+  UMBRELLA_CLOSE_STEPS,
+  UMBRELLA_OPEN_STEPS,
 } from './sprites'
 import { charsOf, litKeys, sampler } from './sprites.fixture'
 import { DAY_PHASES } from '@/utils/day-phase'
@@ -51,10 +53,13 @@ describe('時刻ごとのシート', () => {
 
   it('昼の主人公シートは 1 バイトも変わらない', () => {
     // 後から足した釣りの動き(投げ・当たり・釣り上げ)のコマを外して、既存の歩行・待機コマの同一性を守る。
-    // 動きの場面は FISHING_MOTIONS から外すので、場面を足してもこの基準を焼き直さずに済む
+    // 動きの場面は FISHING_MOTIONS から外すので、場面を足してもこの基準を焼き直さずに済む。
+    // 後から足した傘のコマ(player-umbrella-*)も同じ方針で外す
     const arts = Object.fromEntries(
       Object.entries(PLAYER_ARTS).filter(
-        ([key]) => !FISHING_MOTIONS.some(motion => key.endsWith(`-${motion}`))
+        ([key]) =>
+          !FISHING_MOTIONS.some(motion => key.endsWith(`-${motion}`)) &&
+          !key.startsWith('player-umbrella-')
       )
     )
     const sheet = buildSheet(arts, phasePalette(palette, 'day'), 24)
@@ -190,5 +195,30 @@ describe('焚き火', () => {
     )
     // 指紋だけだと「なぜ一致していられるのか」が残らないので、昼の色が等しいことも直接言う
     expect(phasePalette(palette, 'day')['9']).toBe(phasePalette(palette, 'day').F)
+  })
+})
+
+describe('傘のコマ', () => {
+  it('差して立つ・歩くコマと、出す・しまう動きのコマが、どの段階のシートにも全部載る', () => {
+    // 村の側(player-pose.ts)は鍵を名前で引くので、載っていないと雨の外でだけ主人公が描けなくなる。
+    // 期待する鍵は PLAYER_ARTS からではなく約束した名前から組む。同じ表から取ると、
+    // 鍵の名前を書き違えても両辺が一緒に動いて素通りする
+    const expected = [
+      ...(['up', 'down'] as const).flatMap(facing =>
+        [0, 1, 2].map(frame => `player-umbrella-${facing}-${frame}`)
+      ),
+      'player-umbrella-right-0',
+      'player-umbrella-right-1',
+      ...UMBRELLA_OPEN_STEPS.map(step => `player-umbrella-open-${step}`),
+      ...UMBRELLA_CLOSE_STEPS.map(step => `player-umbrella-close-${step}`),
+    ]
+    const missing = DAY_PHASES.map(phase => {
+      const { index } = buildPlayerSprites(phase)
+      return { phase, missing: expected.filter(key => !Object.hasOwn(index, key)) }
+    })
+
+    // 差して立つ・歩く 8 枚、出す 5 段階、しまう 5 段階。段階の組が黙って縮んでも気付けるよう数で留める
+    expect(expected).toHaveLength(18)
+    expect(missing).toEqual(DAY_PHASES.map(phase => ({ phase, missing: [] })))
   })
 })

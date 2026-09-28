@@ -25,6 +25,13 @@ export const FISHING_MOTIONS = [
 ] as const
 type FishingMotion = (typeof FISHING_MOTIONS)[number]
 
+// 雨の外で傘を出して開く動き(正面)と、閉じてしまう動き(背面)。並びは使う時間の順。
+// FISHING_MOTIONS と同じく鍵の型をこの組から導くので、段階を足して playerSpriteArts へ書き忘れると型検査で落ちる
+export const UMBRELLA_OPEN_STEPS = ['reach', 'draw', 'extend', 'half', 'raise'] as const
+export const UMBRELLA_CLOSE_STEPS = ['lower', 'half', 'closed', 'compact', 'stow'] as const
+type UmbrellaOpenStep = (typeof UMBRELLA_OPEN_STEPS)[number]
+type UmbrellaCloseStep = (typeof UMBRELLA_CLOSE_STEPS)[number]
+
 type PlayerSpriteKey =
   | 'player-up-0'
   | 'player-up-1'
@@ -38,6 +45,17 @@ type PlayerSpriteKey =
   | 'player-fish-down'
   | 'player-fish-right'
   | `player-fish-${'up' | 'down' | 'right'}-${FishingMotion}`
+  // 傘を差したコマ。番号は素のコマと同じく 0 が静止、1・2 が歩行(横向きは 1 だけ)
+  | 'player-umbrella-up-0'
+  | 'player-umbrella-up-1'
+  | 'player-umbrella-up-2'
+  | 'player-umbrella-down-0'
+  | 'player-umbrella-down-1'
+  | 'player-umbrella-down-2'
+  | 'player-umbrella-right-0'
+  | 'player-umbrella-right-1'
+  | `player-umbrella-open-${UmbrellaOpenStep}`
+  | `player-umbrella-close-${UmbrellaCloseStep}`
 
 export type SpriteKey =
   keyof typeof terrainArt | keyof typeof structureArt | keyof typeof fishingArt
@@ -107,6 +125,25 @@ const playerSpriteArts = (frames: PlayerFrames): Record<PlayerSpriteKey, PixelAr
   'player-fish-up-hoist': frames.hoist[0],
   'player-fish-down-hoist': frames.hoist[1],
   'player-fish-right-hoist': frames.hoist[2],
+  // 傘のコマは後から足したので末尾に並べる。前の鍵の index を動かさないため
+  'player-umbrella-up-0': frames.umbrellaUp[0],
+  'player-umbrella-up-1': frames.umbrellaUp[1],
+  'player-umbrella-up-2': frames.umbrellaUp[2],
+  'player-umbrella-down-0': frames.umbrellaDown[0],
+  'player-umbrella-down-1': frames.umbrellaDown[1],
+  'player-umbrella-down-2': frames.umbrellaDown[2],
+  'player-umbrella-right-0': frames.umbrellaRight[0],
+  'player-umbrella-right-1': frames.umbrellaRight[1],
+  'player-umbrella-open-reach': frames.umbrellaOpen.reach,
+  'player-umbrella-open-draw': frames.umbrellaOpen.draw,
+  'player-umbrella-open-extend': frames.umbrellaOpen.extend,
+  'player-umbrella-open-half': frames.umbrellaOpen.half,
+  'player-umbrella-open-raise': frames.umbrellaOpen.raise,
+  'player-umbrella-close-lower': frames.umbrellaClose.lower,
+  'player-umbrella-close-half': frames.umbrellaClose.half,
+  'player-umbrella-close-closed': frames.umbrellaClose.closed,
+  'player-umbrella-close-compact': frames.umbrellaClose.compact,
+  'player-umbrella-close-stow': frames.umbrellaClose.stow,
 })
 
 // 釣りの小物は昼夜で絵が変わらないので、地形・建物と同じ 16×16 のシートへ並べるだけでよい

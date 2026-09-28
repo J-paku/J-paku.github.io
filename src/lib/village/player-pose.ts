@@ -2,9 +2,15 @@
 // 釣っている間は歩行コマではなく竿を持つコマを使う(向きの左右反転は歩行と同じ)。
 // 竿のコマは釣りの段階と、その段階に入ってからの経過で決まる。時間でまだコマが変わるか(animating)も
 // 返し、歩行ループはそれだけを見て眠ってよいかを決める(ループ側に時間の定数を持たない)
+// 雨の屋外では傘を差した歩行コマを使い、扉を出た直後に広げる・扉へ入る前に畳むコマも時間表で出す。
+// 優先は 釣り > 傘 > 普段の歩行コマ
 // sprites.ts は node:zlib(art.ts → png.ts 経由)を読むので、値ではなく型だけを取り込む。import type は出力から消えるので、
 // クライアントのバンドルへ sprites.ts が入らない
-import type { FISHING_MOTIONS } from '@/lib/pixel/sprites'
+import type {
+  FISHING_MOTIONS,
+  UMBRELLA_CLOSE_STEPS,
+  UMBRELLA_OPEN_STEPS,
+} from '@/lib/pixel/sprites'
 import type { MoveState } from './movement'
 
 // 竿を振る時間。振りかぶり・引き・投げ・振り抜きを 4 等分で出し、終われば構え(待機)のコマへ戻る。
@@ -79,20 +85,100 @@ const fishingFrame = (
     : { suffix: step[1], animating: true }
 }
 
+// 扉を出た直後に傘を広げ切るまで(正面向き)と、扉へ入る前に傘を畳んで仕舞うまで(背面向き)の時間。
+// 歩行ループ・扉の切り替えはこの長さを umbrellaBusy 越しに見るだけで、自分では数えない
+export const UMBRELLA_OPEN_MS = 880
+export const UMBRELLA_CLOSE_MS = 960
+
+// 傘の段階。opening と closing は時間表のコマを出し、open は傘を差したまま歩く
+export type UmbrellaPosePhase = 'opening' | 'open' | 'closing'
+// 歩行ループへ渡す傘の印。since はその段階に入った時刻(performance.now() 基準)。
+// 傘が無い(晴れ・屋内・畳み終えた後)ときは印そのものを null にする
+export type UmbrellaPose = { phase: UmbrellaPosePhase; since: number }
+
+// 広げる・畳む間に出すコマの鍵。広げる・畳むコマの名前はシートの UMBRELLA_OPEN_STEPS / UMBRELLA_CLOSE_STEPS から導く
+// (FISHING_MOTIONS と同じ理由。書き写すと片方だけ綴りが変わっても型検査で気付けない)。
+// 前後の区切りに挟む立ちコマ(傘を差した正面・背面、仕舞い終えた背面)は向きの決まった既存の鍵をそのまま使う。
+// 畳み終えた背面は傘の系統ではない player-up-0 なので、共通の接頭辞を持たず鍵をまるごと持つ
+type UmbrellaCut =
+  | `player-umbrella-open-${(typeof UMBRELLA_OPEN_STEPS)[number]}`
+  | `player-umbrella-close-${(typeof UMBRELLA_CLOSE_STEPS)[number]}`
+  | 'player-umbrella-down-0'
+  | 'player-umbrella-up-0'
+  | 'player-up-0'
+// 段階に入ってからの経過が end より前なら、このコマを出す
+type UmbrellaStep = readonly [end: number, cut: UmbrellaCut]
+// steps を上から見て最初に当たった行を使う。どれにも当たらなければ settled の系統の歩行コマ
+// (傘を差したままか、傘なしか)へ戻り、時間では変わらない。動きを控える設定では steps を飛ばす
+type UmbrellaTimeline = { steps: readonly UmbrellaStep[]; settled: 'player-umbrella' | 'player' }
+
+// 区切りの時刻は傘の動きの設計(広げる 880ms・畳む 960ms の時間割)どおりの累積の終わり
+const UMBRELLA_TIMELINES: Record<UmbrellaPosePhase, UmbrellaTimeline> = {
+  opening: {
+    steps: [
+      [120, 'player-umbrella-open-reach'],
+      [280, 'player-umbrella-open-draw'],
+      [440, 'player-umbrella-open-extend'],
+      [580, 'player-umbrella-open-half'],
+      [720, 'player-umbrella-open-raise'],
+      [UMBRELLA_OPEN_MS, 'player-umbrella-down-0'],
+    ],
+    settled: 'player-umbrella',
+  },
+  open: { steps: [], settled: 'player-umbrella' },
+  closing: {
+    steps: [
+      [80, 'player-umbrella-up-0'],
+      [220, 'player-umbrella-close-lower'],
+      [360, 'player-umbrella-close-half'],
+      [520, 'player-umbrella-close-closed'],
+      [700, 'player-umbrella-close-compact'],
+      [880, 'player-umbrella-close-stow'],
+      [UMBRELLA_CLOSE_MS, 'player-up-0'],
+    ],
+    settled: 'player',
+  },
+}
+
+// 今の経過で当たる時間表の行。時間表を過ぎた後と動きを控える設定では undefined
+const umbrellaStep = (
+  phase: UmbrellaPosePhase,
+  reduceMotion: boolean,
+  elapsedMs: number
+): UmbrellaStep | undefined =>
+  reduceMotion ? undefined : UMBRELLA_TIMELINES[phase].steps.find(([end]) => elapsedMs < end)
+
+// 傘を広げている・畳んでいる最中か。最中は移動を止め、畳み終えるまで屋内へ切り替えない。
+// 時間表のコマが残っている間と同じ意味なので、区切りの時刻を別に持たない
+export const umbrellaBusy = (
+  pose: UmbrellaPose | null,
+  now: number,
+  reduceMotion: boolean
+): boolean =>
+  pose !== null && umbrellaStep(pose.phase, reduceMotion, now - pose.since) !== undefined
+
 export const playerPose = (
   state: MoveState,
   reduceMotion: boolean,
   fishing: FishingPosePhase | null = null,
-  fishingElapsedMs = 0
+  fishingElapsedMs = 0,
+  umbrella: UmbrellaPosePhase | null = null,
+  umbrellaElapsedMs = 0
 ) => {
   const walking = !reduceMotion && state.motion !== null && state.motion.progress < 0.5
   const side = state.facing === 'left' || state.facing === 'right'
   const direction = state.facing === 'left' ? 'right' : state.facing
   const frame = walking ? (!side && state.stride === 1 ? 2 : 1) : 0
-  const rod = fishing === null ? null : fishingFrame(fishing, reduceMotion, fishingElapsedMs)
-  return {
-    key: rod === null ? `player-${direction}-${frame}` : `player-fish-${direction}${rod.suffix}`,
-    flip: state.facing === 'left',
-    animating: rod?.animating ?? false,
+  const flip = state.facing === 'left'
+  // 釣っている間は傘の段階に関わらず竿のコマを出す
+  if (fishing !== null) {
+    const rod = fishingFrame(fishing, reduceMotion, fishingElapsedMs)
+    return { key: `player-fish-${direction}${rod.suffix}`, flip, animating: rod.animating }
   }
+  const step =
+    umbrella === null ? undefined : umbrellaStep(umbrella, reduceMotion, umbrellaElapsedMs)
+  // 広げる・畳むコマは正面か背面の絵なので、向きに関わらず反転しない
+  if (step !== undefined) return { key: step[1], flip: false, animating: true }
+  const body = umbrella === null ? 'player' : UMBRELLA_TIMELINES[umbrella].settled
+  return { key: `${body}-${direction}-${frame}`, flip, animating: false }
 }

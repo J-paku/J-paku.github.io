@@ -1,6 +1,7 @@
 // 主人公: 深緑のキャップにゴーグル、茶髪、緑のジャケットと斜め掛けの革ストラップ(参照画像を 15×20 で写した二頭身)
 // タイルは幅 16・高さ 24。足元をマスの下辺に揃え、頭はマスの上へ半マス(8 行)はみ出す。
 // 静止コマは 4〜23 行、歩行コマは全体が一段下がって 5〜23 行に収まり、最下行だけ脚を振る
+// (傘を差したコマだけは例外で、頭上に開いた傘が静止コマでは 0 行目から、歩行コマでは 1 行目から掛かる)
 // 輪郭は x(#181818)で描き、白い縁取りは scene.module.css の drop-shadow が付ける
 import type { PixelArt } from './art'
 import { backLantern, frontLantern, LANTERN_BODY_TOP, overlayLantern, sideLantern } from './lantern'
@@ -27,6 +28,28 @@ type PlayerFrames = {
   // 釣り上げ。pull で竿を起こし、結果の窓が出ている間は hoist のまま
   pull: FishingFrames
   hoist: FishingFrames
+  // 雨の外で傘を差したコマ。並びは up・down・right と同じ(静止・歩行 1・歩行 2、横向きは静止・歩行)
+  umbrellaUp: [PixelArt, PixelArt, PixelArt]
+  umbrellaDown: [PixelArt, PixelArt, PixelArt]
+  umbrellaRight: [PixelArt, PixelArt]
+  // 外へ出た直後に傘を出して開く動き(正面)。reach → draw → extend → half → raise の順に送り、
+  // umbrellaDown の静止コマで締める
+  umbrellaOpen: {
+    reach: PixelArt
+    draw: PixelArt
+    extend: PixelArt
+    half: PixelArt
+    raise: PixelArt
+  }
+  // 中へ入る前に傘を閉じてしまう動き(背面)。umbrellaUp の静止コマから lower → half → closed →
+  // compact → stow の順に送り、傘を持たない up の静止コマで締める
+  umbrellaClose: {
+    lower: PixelArt
+    half: PixelArt
+    closed: PixelArt
+    compact: PixelArt
+    stow: PixelArt
+  }
 }
 
 // 描画の空行。頭上の余白に使う
@@ -990,6 +1013,455 @@ const rightHoistRod: PixelArt = [
 const rightPose = (dy: number, ...patches: PixelArt[]): PixelArt =>
   pose(stand(rightBody, rightFeet), dy, ...patches)
 
+// ここから下は雨の外で差す折りたたみ傘。正面・背面とも右手に傘、左手にランタンを持つ
+// (正面では傘の柄が画面の左、背面では画面の右に来る)。横向きは奥の腕が傘・手前の腕がランタンで、
+// 左向きは右向きを丸ごと反転するので、左右の手ではなくこの奥・手前で持ち手を決めている。
+// 天蓋は赤い低いドームで、正面・背面は 16×5、横向きは 14×5。静止コマでは 0〜4 行、歩行コマでは 1〜5 行を使い、
+// 帽子の上辺を天蓋のふちで隠す(頭の他のドットは素のコマのまま)。柄の銀(s)と上げた手で傘を持つ形を見せる。
+// 色は既存の文字(r・R・h・s・x)だけで、灯り用の文字も段階で色を変えない文字も使わない。
+// 夜は服と同じく phasePalette で沈み、灯るのは重ねたランタンだけになる(夜専用の絵は無い)。
+// どのコマも型紙の重ね合わせではなく完成した 1 枚として置く。歩行 2 は歩行 1 の軸足を替えるだけなので
+// 素のコマと同じく alternateFoot で作る(最下行の 0〜14 列だけが反転し、傘と上体はそのまま)
+
+// ---- 傘を差して歩く ----
+// 正面の静止。出す動きの締めもこのコマ
+const umbrellaDownStand: PixelArt = [
+  '.......xx.......',
+  '....xxxrrxxx....',
+  '..xxrrhrrhrrxx..',
+  '.xrrrRRrrRRrrrx.',
+  'xxx.xxxxxxxx.xxx',
+  's..xxQqqqQxx....',
+  's.xQqqqqqqqQx...',
+  'sxQqZZZqZZZqQx..',
+  'sxQxILJxJILxQx..',
+  'sxxjLLJxJLLjxx..',
+  'xQjxJJxQxJJxjQx.',
+  'xxxQxxqqqxxQxxx.',
+  'sxZxxxxxxxxxZx..',
+  'xAxxAKxAZKAxxAx.',
+  'xxKxKxKAKxKxKxx.',
+  'sxxKKxKKKxKKxx..',
+  's.xxVKKKKKVxx...',
+  'xVKxxBxqxxqqx...',
+  '.xQMxxBxYxMKQx..',
+  '..xMxqxBxBxqKx..',
+  '..xMxqYxBxBxVx..',
+  '..xxzxzzxxBxx...',
+  '...xAAxxzzZx....',
+  '....xx..xxx.....',
+]
+// 正面の歩行 1
+const umbrellaDownWalk1: PixelArt = [
+  '................',
+  '.......xx.......',
+  '....xxxrrxxx....',
+  '..xxrrhrrhrrxx..',
+  '.xrrrRRrrRRrrrx.',
+  'xxx.xxxxxxxx.xxx',
+  's..xxQqqqQxx....',
+  's.xQqqqqqqqQx...',
+  'sxQqZZZqZZZqQx..',
+  'sxQxILJxJILxQx..',
+  'sxxjLLJxJLLjxx..',
+  'xQjxJJxQxJJxjQx.',
+  'xxxQxxqqqxxQxxx.',
+  'sxZxxxxxxxxxZx..',
+  'xAxxAKxAZKAxxAx.',
+  'xxKxKxKAKxKxKxx.',
+  'sxxKKxKKKxKKxx..',
+  's.xxVKKKKKVxx...',
+  'xVKxxBxqxxqqx...',
+  '.xQMxxBxYxMKQx..',
+  '..xMxqxBxBxqKx..',
+  '..xMxqYxBxBxVx..',
+  '..xxzxzzxxBxx...',
+  '...xAAx..xZx....',
+]
+// 背面の静止。しまう動きの始めもこのコマ
+const umbrellaUpStand: PixelArt = [
+  '.......xx.......',
+  '....xxxrrxxx....',
+  '..xxrrhrrhrrxx..',
+  '.xrrrRRrrRRrrrx.',
+  'xxx.xxxxxxxx.xxx',
+  '..xxqqqqqqqqxx.s',
+  '.xqqqqqqqqqqqqxs',
+  '.xqqqqqqqqqqqqxs',
+  'xqqqqqqqqqqqqqqx',
+  'xQjjjjjjjjjjjjQx',
+  'xQjjjjjjjjjjjjQx',
+  '.xQqqqqqqqqqqQxs',
+  '.xZAAAAAAAAAAZxs',
+  '.xAAAAAAAAAAAAxs',
+  '..xAAAAAAAAAAx.s',
+  '...xZAAAAAAZx..s',
+  '....xxxxxxxx...s',
+  '...xBjMMMMMMxKVx',
+  '..xMxBjMMMMMxMQx',
+  '.xKxMMxBjMMMxMx.',
+  '.xKxMMMxBjBBxMx.',
+  '...xQQQxBBBBx...',
+  '...xZZx..xZZx...',
+  '...xAAx..xAAx...',
+]
+// 背面の歩行 1
+const umbrellaUpWalk1: PixelArt = [
+  '................',
+  '.......xx.......',
+  '....xxxrrxxx....',
+  '..xxrrhrrhrrxx..',
+  '.xrrrRRrrRRrrrx.',
+  'xxx.xxxxxxxx.xxx',
+  '..xxqqqqqqqqxx.s',
+  '.xqqqqqqqqqqqqxs',
+  '.xqqqqqqqqqqqqxs',
+  'xqqqqqqqqqqqqqqx',
+  'xQjjjjjjjjjjjjQx',
+  'xQjjjjjjjjjjjjQx',
+  '.xQqqqqqqqqqqQxs',
+  '.xZAAAAAAAAAAZxs',
+  '.xAAAAAAAAAAAAxs',
+  '..xAAAAAAAAAAx.s',
+  '...xZAAAAAAZx..s',
+  '....xxxxxxxx...s',
+  '...xBjMMMMMMxKVx',
+  '..xMxBjMMMMMxMQx',
+  '.xKxMMxBjMMMxMx.',
+  '.xKxMMMxBjBBxMx.',
+  '...xQQQxBBBBx...',
+  '...xAAx..xZx....',
+]
+// 横向きの静止。0 列目と 15 列目は反転に備えて空けたまま
+const umbrellaRightStand: PixelArt = [
+  '.......xx.......',
+  '.....xxrrxx.....',
+  '...xxrhrrhrxx...',
+  '..xrrRRrrRRrrx..',
+  '.xxx.xxxxxxxxxx.',
+  '.s..xxqqqqqqx...',
+  '.s.xqqqqqxxZjjx.',
+  '.sxMqqqxAjZIILx.',
+  '.xMMMMxAAjjILIx.',
+  '.xMMQxAZAZjLIIx.',
+  '.xZxxxxxxQQjjjx.',
+  '.xMMMMMqMMAAjjx.',
+  '.xMMMMMZjAAKKjx.',
+  '.sxxxxxxjAKYxKx.',
+  '.xZAAAAjKjKYxKx.',
+  '.sxAAAjKKKKYjYx.',
+  '.s..xAZxxKVVx...',
+  '.xVKxxQQQQx.....',
+  '..xMxQMMMMQx....',
+  '...xAxJYYqQx....',
+  '...xBxJYYqQx....',
+  '...xBxJKKxjx....',
+  '....xxxQQQx.....',
+  '.....xjAAjx.....',
+]
+// 横向きの歩行
+const umbrellaRightWalk: PixelArt = [
+  '................',
+  '.......xx.......',
+  '.....xxrrxx.....',
+  '...xxrhrrhrxx...',
+  '..xrrRRrrRRrrx..',
+  '.xxx.xxxxxxxxxx.',
+  '.s..xxqqqqqqx...',
+  '.s.xqqqqqxxZjjx.',
+  '.sxMqqqxAjZIILx.',
+  '.xMMMMxAAjjILIx.',
+  '.xMMQxAZAZjLIIx.',
+  '.xZxxxxxxQQjjjx.',
+  '.xMMMMMqMMAAjjx.',
+  '.xMMMMMZjAAKKjx.',
+  '.sxxxxxxjAKYxKx.',
+  '.xZAAAAjKjKYxKx.',
+  '.sxAAAjKKKKYjYx.',
+  '.s..xAZxxKVVx...',
+  '.xVKxxQQQQx.....',
+  '..xMxQMMMMQx....',
+  '...xAxJYYqQx....',
+  '...xBxJYYqQx....',
+  '...xBxJKKxjx....',
+  '....xAAx.xAAx...',
+]
+
+// ---- 傘を出して開く(正面) ----
+// 上着の内へ手を入れる
+const umbrellaDownReach: PixelArt = [
+  '................',
+  '................',
+  '................',
+  '................',
+  '.....xxxxx......',
+  '...xxQqqqQxx....',
+  '..xQqqqqqqqQx...',
+  '.xQqZZZqZZZqQx..',
+  '.xQxILJxJILxQx..',
+  '.xxjLLJxJLLjxx..',
+  'xQjxJJxQxJJxjQx.',
+  'xxxQxxqqqxxQxxx.',
+  '.xZxxxxxxxxxZx..',
+  'xAxxAKxAZKAxxAx.',
+  'xxKxKxKAKxKxKxx.',
+  '.xxKKxKKKxKKxx..',
+  '..xxVKKKKKVxx...',
+  '..xqxBxqxxqqx...',
+  '.xQMMVKxYxMKQx..',
+  '..xMxqxBxBxqKx..',
+  '..xMxqYxBxBxVx..',
+  '..xxzxzzxxBxx...',
+  '...xAAxxzzZx....',
+  '....xx..xxx.....',
+]
+// 短く畳んだ傘を取り出す
+const umbrellaDownDraw: PixelArt = [
+  '................',
+  '................',
+  '................',
+  '................',
+  '.....xxxxx......',
+  '...xxQqqqQxx....',
+  '..xQqqqqqqqQx...',
+  '.xQqZZZqZZZqQx..',
+  '.xQxILJxJILxQx..',
+  '.xxjLLJxJLLjxx..',
+  'xQjxJJxQxJJxjQx.',
+  'xxxQxxqqqxxQxxx.',
+  '.xZxxxxxxxxxZx..',
+  'xAxxAKxAZKAxxAx.',
+  'xxKxKxKAKxKxKxx.',
+  'xxxKKxKKKxKKxx..',
+  'xrxxVKKKKKVxx...',
+  'xrRxxBxqxxqqx...',
+  '.xMVKxBxYxMKQx..',
+  '..xMxqxBxBxqKx..',
+  '..xMxqYxBxBxVx..',
+  '..xxzxzzxxBxx...',
+  '...xAAxxzzZx....',
+  '....xx..xxx.....',
+]
+// 柄を伸ばして立てる
+const umbrellaDownExtend: PixelArt = [
+  '................',
+  '................',
+  '................',
+  '.x..............',
+  'xrx..xxxxx......',
+  'xrRxxQqqqQxx....',
+  'xRxQqqqqqqqQx...',
+  'sxQqZZZqZZZqQx..',
+  'sxQxILJxJILxQx..',
+  'sxxjLLJxJLLjxx..',
+  'xQjxJJxQxJJxjQx.',
+  'xxxQxxqqqxxQxxx.',
+  'sxZxxxxxxxxxZx..',
+  'xAxxAKxAZKAxxAx.',
+  'xxKxKxKAKxKxKxx.',
+  'sxxKKxKKKxKKxx..',
+  's.xxVKKKKKVxx...',
+  'xVKxxBxqxxqqx...',
+  '.xQMxxBxYxMKQx..',
+  '..xMxqxBxBxqKx..',
+  '..xMxqYxBxBxVx..',
+  '..xxzxzzxxBxx...',
+  '...xAAxxzzZx....',
+  '....xx..xxx.....',
+]
+// 天蓋が半分開く
+const umbrellaDownHalf: PixelArt = [
+  '................',
+  '................',
+  '...xx...........',
+  '..xrrx..........',
+  '.xrhrxxxxx......',
+  'xrrxxQqqqQxx....',
+  'xxxQqqqqqqqQx...',
+  'sxQqZZZqZZZqQx..',
+  'sxQxILJxJILxQx..',
+  'sxxjLLJxJLLjxx..',
+  'xQjxJJxQxJJxjQx.',
+  'xxxQxxqqqxxQxxx.',
+  'sxZxxxxxxxxxZx..',
+  'xAxxAKxAZKAxxAx.',
+  'xxKxKxKAKxKxKxx.',
+  'sxxKKxKKKxKKxx..',
+  's.xxVKKKKKVxx...',
+  'xVKxxBxqxxqqx...',
+  '.xQMxxBxYxMKQx..',
+  '..xMxqxBxBxqKx..',
+  '..xMxqYxBxBxVx..',
+  '..xxzxzzxxBxx...',
+  '...xAAxxzzZx....',
+  '....xx..xxx.....',
+]
+// 開いた傘を頭の上へ持ち上げる
+const umbrellaDownRaise: PixelArt = [
+  '................',
+  '.......xx.......',
+  '....xxxrrxxx....',
+  '..xxrrhrrhrrxx..',
+  '.xrrrxxxxxRrrrx.',
+  'xxxxxQqqqQxx.xxx',
+  's.xQqqqqqqqQx...',
+  'sxQqZZZqZZZqQx..',
+  'sxQxILJxJILxQx..',
+  'sxxjLLJxJLLjxx..',
+  'xQjxJJxQxJJxjQx.',
+  'xxxQxxqqqxxQxxx.',
+  'sxZxxxxxxxxxZx..',
+  'xAxxAKxAZKAxxAx.',
+  'xxKxKxKAKxKxKxx.',
+  'sxxKKxKKKxKKxx..',
+  's.xxVKKKKKVxx...',
+  'xVKxxBxqxxqqx...',
+  '.xQMxxBxYxMKQx..',
+  '..xMxqxBxBxqKx..',
+  '..xMxqYxBxBxVx..',
+  '..xxzxzzxxBxx...',
+  '...xAAxxzzZx....',
+  '....xx..xxx.....',
+]
+
+// ---- 傘を閉じてしまう(背面) ----
+// 閉じるために一段下ろす
+const umbrellaUpLower: PixelArt = [
+  '................',
+  '.......xx.......',
+  '....xxxrrxxx....',
+  '..xxrrhrrhrrxx..',
+  '.xrrxxxxxxxxrrx.',
+  'xxxxqqqqqqqqxxxx',
+  '.xqqqqqqqqqqqqxs',
+  '.xqqqqqqqqqqqqxs',
+  'xqqqqqqqqqqqqqqx',
+  'xQjjjjjjjjjjjjQx',
+  'xQjjjjjjjjjjjjQx',
+  '.xQqqqqqqqqqqQxs',
+  '.xZAAAAAAAAAAZxs',
+  '.xAAAAAAAAAAAAxs',
+  '..xAAAAAAAAAAx.s',
+  '...xZAAAAAAZx..s',
+  '....xxxxxxxx...s',
+  '...xBjMMMMMMxKVx',
+  '..xMxBjMMMMMxMQx',
+  '.xKxMMxBjMMMxMx.',
+  '.xKxMMMxBjBBxMx.',
+  '...xQQQxBBBBx...',
+  '...xZZx..xZZx...',
+  '...xAAx..xAAx...',
+]
+// 天蓋をすぼめる
+const umbrellaUpHalf: PixelArt = [
+  '................',
+  '................',
+  '...........xx...',
+  '..........xrrx..',
+  '....xxxxxxxxhrx.',
+  '..xxqqqqqqqqxxrx',
+  '.xqqqqqqqqqqqqxx',
+  '.xqqqqqqqqqqqqxs',
+  'xqqqqqqqqqqqqqqx',
+  'xQjjjjjjjjjjjjQx',
+  'xQjjjjjjjjjjjjQx',
+  '.xQqqqqqqqqqqQxs',
+  '.xZAAAAAAAAAAZxs',
+  '.xAAAAAAAAAAAAxs',
+  '..xAAAAAAAAAAx.s',
+  '...xZAAAAAAZx..s',
+  '....xxxxxxxx...s',
+  '...xBjMMMMMMxKVx',
+  '..xMxBjMMMMMxMQx',
+  '.xKxMMxBjMMMxMx.',
+  '.xKxMMMxBjBBxMx.',
+  '...xQQQxBBBBx...',
+  '...xZZx..xZZx...',
+  '...xAAx..xAAx...',
+]
+// 布を畳みきる
+const umbrellaUpClosed: PixelArt = [
+  '................',
+  '................',
+  '................',
+  '..............x.',
+  '....xxxxxxxx.xrx',
+  '..xxqqqqqqqqxxrx',
+  '.xqqqqqqqqqqqqxx',
+  '.xqqqqqqqqqqqqxs',
+  'xqqqqqqqqqqqqqqx',
+  'xQjjjjjjjjjjjjQx',
+  'xQjjjjjjjjjjjjQx',
+  '.xQqqqqqqqqqqQxs',
+  '.xZAAAAAAAAAAZxs',
+  '.xAAAAAAAAAAAAxs',
+  '..xAAAAAAAAAAx.s',
+  '...xZAAAAAAZx..s',
+  '....xxxxxxxx...s',
+  '...xBjMMMMMMxKVx',
+  '..xMxBjMMMMMxMQx',
+  '.xKxMMxBjMMMxMx.',
+  '.xKxMMMxBjBBxMx.',
+  '...xQQQxBBBBx...',
+  '...xZZx..xZZx...',
+  '...xAAx..xAAx...',
+]
+// 柄を縮めて体へ引き寄せる
+const umbrellaUpCompact: PixelArt = [
+  '................',
+  '................',
+  '................',
+  '................',
+  '....xxxxxxxx....',
+  '..xxqqqqqqqqxx..',
+  '.xqqqqqqqqqqqqx.',
+  '.xqqqqqqqqqqqqx.',
+  'xqqqqqqqqqqqqqqx',
+  'xQjjjjjjjjjjjjQx',
+  'xQjjjjjjjjjjjjQx',
+  '.xQqqqqqqqqqqQx.',
+  '.xZAAAAAAAAAAZx.',
+  '.xAAAAAAAAAAAAx.',
+  '..xAAAAAAAAAAx..',
+  '...xZAAAAAAZxx..',
+  '....xxxxxxxxxrx.',
+  '...xBjMMMMMMxRx.',
+  '..xMxBjMMMMMVKx.',
+  '.xKxMMxBjMMMxMx.',
+  '.xKxMMMxBjBBxMx.',
+  '...xQQQxBBBBx...',
+  '...xZZx..xZZx...',
+  '...xAAx..xAAx...',
+]
+// 上着の内へ押し込む。背中越しに懐は見えないので、右腕が前へ回り、
+// 傘の赤い先が脇腹の陰へ消えることでしまったと見せる。この後は傘を持たない up の静止コマへ戻る
+const umbrellaUpStow: PixelArt = [
+  '................',
+  '................',
+  '................',
+  '................',
+  '....xxxxxxxx....',
+  '..xxqqqqqqqqxx..',
+  '.xqqqqqqqqqqqqx.',
+  '.xqqqqqqqqqqqqx.',
+  'xqqqqqqqqqqqqqqx',
+  'xQjjjjjjjjjjjjQx',
+  'xQjjjjjjjjjjjjQx',
+  '.xQqqqqqqqqqqQx.',
+  '.xZAAAAAAAAAAZx.',
+  '.xAAAAAAAAAAAAx.',
+  '..xAAAAAAAAAAx..',
+  '...xZAAAAAAZx...',
+  '....xxxxxxxx....',
+  '...xBjMMMMMMMxrx',
+  '..xMxBjMMMMMMMx.',
+  '.xKxMMxBjMMMxMx.',
+  '.xKxMMMxBjBBxMx.',
+  '...xQQQxBBBBx...',
+  '...xZZx..xZZx...',
+  '...xAAx..xAAx...',
+]
+
 export const playerArt: PlayerFrames = {
   up: [
     stand(upBody, upFeet),
@@ -1050,6 +1522,23 @@ export const playerArt: PlayerFrames = {
     downPose(-1, downNeck, downFreeArmUp, downHoistRod),
     rightPose(-1, rightNeck, rightHoistRod),
   ],
+  umbrellaUp: [umbrellaUpStand, umbrellaUpWalk1, alternateFoot(umbrellaUpWalk1)],
+  umbrellaDown: [umbrellaDownStand, umbrellaDownWalk1, alternateFoot(umbrellaDownWalk1)],
+  umbrellaRight: [umbrellaRightStand, umbrellaRightWalk],
+  umbrellaOpen: {
+    reach: umbrellaDownReach,
+    draw: umbrellaDownDraw,
+    extend: umbrellaDownExtend,
+    half: umbrellaDownHalf,
+    raise: umbrellaDownRaise,
+  },
+  umbrellaClose: {
+    lower: umbrellaUpLower,
+    half: umbrellaUpHalf,
+    closed: umbrellaUpClosed,
+    compact: umbrellaUpCompact,
+    stow: umbrellaUpStow,
+  },
 }
 
 // ここから下は夜だけ使う差分。昼のコマへ灯りを重ねるだけなので、体と服のドットは昼と 1 ドットも変わらない。
@@ -1096,4 +1585,35 @@ export const playerNightArt: PlayerFrames = {
   bite: litFishing(playerArt.bite),
   pull: litFishing(playerArt.pull),
   hoist: litFishing(playerArt.hoist),
+  // 傘のコマも昼の絵へ灯りを重ねるだけ。差して立つ・歩くコマは素のコマと同じ面と高さ、
+  // 出す動きは正面の静止、しまう動きは背面の静止と同じ高さに提げる。
+  // 傘や上げた腕がランタンの席へ入っていれば、釣りと同じく overlayLantern がここで落ちる
+  umbrellaUp: [
+    standLit(playerArt.umbrellaUp[0], backLantern),
+    walkLit(playerArt.umbrellaUp[1], backLantern),
+    walkLit(playerArt.umbrellaUp[2], backLantern),
+  ],
+  umbrellaDown: [
+    standLit(playerArt.umbrellaDown[0], frontLantern),
+    walkLit(playerArt.umbrellaDown[1], frontLantern),
+    walkLit(playerArt.umbrellaDown[2], frontLantern),
+  ],
+  umbrellaRight: [
+    standLit(playerArt.umbrellaRight[0], sideLantern),
+    walkLit(playerArt.umbrellaRight[1], sideLantern),
+  ],
+  umbrellaOpen: {
+    reach: standLit(playerArt.umbrellaOpen.reach, frontLantern),
+    draw: standLit(playerArt.umbrellaOpen.draw, frontLantern),
+    extend: standLit(playerArt.umbrellaOpen.extend, frontLantern),
+    half: standLit(playerArt.umbrellaOpen.half, frontLantern),
+    raise: standLit(playerArt.umbrellaOpen.raise, frontLantern),
+  },
+  umbrellaClose: {
+    lower: standLit(playerArt.umbrellaClose.lower, backLantern),
+    half: standLit(playerArt.umbrellaClose.half, backLantern),
+    closed: standLit(playerArt.umbrellaClose.closed, backLantern),
+    compact: standLit(playerArt.umbrellaClose.compact, backLantern),
+    stow: standLit(playerArt.umbrellaClose.stow, backLantern),
+  },
 }

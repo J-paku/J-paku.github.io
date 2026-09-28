@@ -34,11 +34,28 @@ const LED_RED = '#ff5040'
 // 向きごとのランタンの升数。下向きは受け皿がいちばん広く写り、上向きは背中側へ半分隠れる
 const LANTERN_DOTS: Record<string, number> = { up: 11, down: 13, right: 12 }
 
-// 主人公のコマの鍵は player-{向き}-{番号} か player-fish-{向き}(-{場面})
+// 傘のコマ → ランタンを同じ所に提げるはずの素のコマ。差して立つ・歩くコマ(player-umbrella-{向き}-{番号})は
+// 同じ向き・同じ番号、出す動き(player-umbrella-open-{段階})は正面の静止、
+// しまう動き(player-umbrella-close-{段階})は背面の静止と同じ面を同じ高さに提げる(actors.ts の playerNightArt)
+const umbrellaBaseOf = (key: string): string => {
+  const [, , kind, frame] = key.split('-')
+  if (kind === 'open') return 'player-down-0'
+  if (kind === 'close') return 'player-up-0'
+  return `player-${kind}-${frame}`
+}
+
+// 主人公のコマの鍵は player-{向き}-{番号} か player-fish-{向き}(-{場面})、傘のコマは上の対応で向きを決める
 const facingOf = (key: string): string => {
   const parts = key.split('-')
+  if (parts[1] === 'umbrella') return facingOf(umbrellaBaseOf(key))
   return parts[1] === 'fish' ? parts[2] : parts[1]
 }
+
+// 昼と夜で違う升(位置と文字)。主人公の夜のコマは昼へ灯りを重ねるだけなので、これがランタンそのものになる
+const litCells = (day: PixelArt, night: PixelArt): string[] =>
+  night.flatMap((row, y) =>
+    [...row].flatMap((ch, x) => (ch === day[y][x] ? [] : [`${x},${y},${ch}`]))
+  )
 
 describe('夜だけ差し替える素材', () => {
   // 夜にできるのは差し替えだけ。鍵が増減・前後すると、UI が昼の index で夜の画像を引くため町中の絵がずれる
@@ -72,7 +89,7 @@ describe('夜だけ差し替える素材', () => {
 
   it('主人公のランタンは夜だけ灯り、昼・明け方・夕方には無い', () => {
     const points = lanternPoints(PLAYER_ARTS, PLAYER_NIGHT_ARTS)
-    // 「1 つ以上」だと、35 コマのうち 34 コマからランタンが消えても緑のまま通ってしまう。
+    // 「1 つ以上」だと、53 コマのうち 52 コマからランタンが消えても緑のまま通ってしまう。
     // ポストの「上辺に 5 粒」と同じく、コマごとに何升灯るかを正確に数える
     const perKey: Record<string, number> = Object.fromEntries(
       Object.keys(PLAYER_ARTS).map(key => [key, 0])
@@ -227,9 +244,10 @@ describe('夜だけ差し替える素材', () => {
   })
 
   it('横向きの夜のコマも反転してずれないよう 1〜14 列に収まる', () => {
-    // 釣りの動きのコマも含めて横向きは全部見る。静止・歩行の 2 枚、待つ 1 枚、動きの場面の数だけある
+    // 釣りの動きのコマも含めて横向きは全部見る。静止・歩行の 2 枚、待つ 1 枚、動きの場面の数だけ、
+    // 傘を差した静止・歩行の 2 枚がある
     const rights = Object.entries(PLAYER_NIGHT_ARTS).filter(([key]) => key.includes('-right'))
-    expect(rights).toHaveLength(2 + 1 + FISHING_MOTIONS.length)
+    expect(rights).toHaveLength(2 + 1 + FISHING_MOTIONS.length + 2)
     for (const [key, art] of rights) {
       for (const row of art) {
         expect(row[0], key).toBe('.')
@@ -241,10 +259,6 @@ describe('夜だけ差し替える素材', () => {
   it('釣りのコマはどれも、その向きの静止コマと同じランタンを同じ所に提げる', () => {
     // 昼と夜で違う升(位置と文字)がランタンそのもの。体を動かしても灯りは手元から動かさないので、
     // 静止コマと 1 升も違わなければ、面の取り違えも高さのずれも欠けも無い
-    const litCells = (day: PixelArt, night: PixelArt): string[] =>
-      night.flatMap((row, y) =>
-        [...row].flatMap((ch, x) => (ch === day[y][x] ? [] : [`${x},${y},${ch}`]))
-      )
     const FACINGS = ['up', 'down', 'right'] as const
     // 向き → 静止コマのランタンの升
     const standLit: Record<string, string[]> = Object.fromEntries(
@@ -261,5 +275,27 @@ describe('夜だけ差し替える素材', () => {
     expect(
       Object.fromEntries(fishing.map(([key, day]) => [key, litCells(day, nightArts[key])]))
     ).toEqual(Object.fromEntries(fishing.map(([key]) => [key, standLit[key.split('-')[2]]])))
+  })
+
+  it('傘のコマは昼の絵へランタンを重ねただけで、素のコマと同じ面を同じ所に提げる', () => {
+    // 傘の絵は昼夜で 1 ドットも変えない(夜専用の絵は無い)。灯りの面と高さも傘を持たないコマに揃えるので、
+    // 昼と夜で違う升が対応する素のコマと 1 升も違わなければ、傘が夜だけ描き変わってもいないし、
+    // 面の取り違えも高さのずれも無い
+    const dayArts: Record<string, PixelArt> = PLAYER_ARTS
+    const nightArts: Record<string, PixelArt> = PLAYER_NIGHT_ARTS
+    const umbrella = Object.keys(PLAYER_ARTS).filter(key => key.startsWith('player-umbrella-'))
+    // 鍵の拾い漏れがあると、黙って少ないコマだけを見て通ってしまう
+    expect(umbrella).toHaveLength(18)
+
+    expect(
+      Object.fromEntries(umbrella.map(key => [key, litCells(dayArts[key], nightArts[key])]))
+    ).toEqual(
+      Object.fromEntries(
+        umbrella.map(key => {
+          const base = umbrellaBaseOf(key)
+          return [key, litCells(dayArts[base], nightArts[base])]
+        })
+      )
+    )
   })
 })

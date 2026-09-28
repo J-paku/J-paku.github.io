@@ -113,7 +113,16 @@ function Village({
     pressA,
     pressB,
     announce,
-  } = useVillage({ worldSet, text, sprites, playerSprites, catches, roleLabels })
+  } = useVillage({
+    worldSet,
+    text,
+    sprites,
+    playerSprites,
+    catches,
+    roleLabels,
+    // 傘を差すのは雨の時だけ(雪・晴れは差さない)
+    raining: weather === 'rain',
+  })
 
   const {
     outdoors,

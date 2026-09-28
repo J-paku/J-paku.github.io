@@ -2,7 +2,7 @@
 // 会話地点・案内文・目印の入れ物は入口フックと runtime の持ち物で、ここは受け取った ref と setState へ書くだけ
 import { useCallback, useRef } from 'react'
 import type { Dispatch, RefObject, SetStateAction } from 'react'
-import type { Cell, Spot, VillageText, WorldSet } from '@content/types/world'
+import type { Cell, Spot, VillageText, World, WorldSet } from '@content/types/world'
 import { findPath } from '@/lib/village/path'
 import { spotAt } from '@/lib/village/spot'
 import { warpAt } from '@/lib/village/warp'
@@ -24,6 +24,8 @@ type VillageArriveOptions = {
   setSpeech: Dispatch<SetStateAction<string>>
   setLocatorVisible: Dispatch<SetStateAction<boolean>>
   enterWorld: EnterWorld
+  // 扉を通る時の傘の開け閉め(use-village-umbrella)。ワープ処理を渡すと、傘を畳む間だけ遅らせて呼ぶ
+  passDoor: (from: World, to: World, warp: () => void) => void
 }
 
 type UseVillageArrive = {
@@ -42,6 +44,7 @@ export function useVillageArrive({
   setSpeech,
   setLocatorVisible,
   enterWorld,
+  passDoor,
 }: VillageArriveOptions): UseVillageArrive {
   const locatorHiddenRef = useRef(false)
 
@@ -60,34 +63,38 @@ export function useVillageArrive({
         // 扉まで高速の経路(次へ・地図からの移動)で来たか。利用者が歩き・タップで割り込むと
         // 経路の速度は等速へ戻るので、ワールドを入れ替えて移動状態を作り直す前に読んでおく
         const arrivedFast = runtime.state.current.fast
-        // ワープした先では地点判定をしない(降り立つマスは通路として扱う)
-        enterWorld(warp.target.worldId, target, warp.target.cell, warp.target.facing)
-        runtime.activeSpot.current = null
-        setActiveSpot(null)
-        writePosition(worldSet.id, {
-          worldId: warp.target.worldId,
-          cell: warp.target.cell,
-          facing: warp.target.facing,
-        })
-        // 別ワールドの地点へ向かう途中なら、扉を出た所で目的地と案内を立て直す
-        const goal = runtime.pendingGoal.current
-        if (goal !== null && goal.worldId === warp.target.worldId) {
-          runtime.pendingGoal.current = null
-          runtime.destination.current = goal.spot.cell
-          setDestination(goal.spot.cell)
-          setSpeech(headToSpeech(text, goal.spot))
-          // 次へ・地図からの自動歩行が続いている時だけ、到着ワールドの経路を作り直す(利用者が途中で割り込んだら目的地の印と案内だけ残す)。
-          // 地図からの移動は会話窓を開かない(autoTalk が false)ので、扉まで高速で来たかでも続ける
-          if (runtime.autoTalk.current || arrivedFast) {
-            const route = findPath(target, warp.target.cell, goal.spot.cell)
-            if (route !== null && route.length > 0) {
-              runtime.pendingRoute.current = route
-              runtime.pendingFast.current = true
+        // 雨の日に屋外から入る時は、扉の前で傘を畳み終えるまで以下のワープ処理を遅らせる(畳む間は足も止まる)。
+        // 屋外へ出る時はすぐにワープし、出た所で傘を開く
+        passDoor(here, target, () => {
+          // ワープした先では地点判定をしない(降り立つマスは通路として扱う)
+          enterWorld(warp.target.worldId, target, warp.target.cell, warp.target.facing)
+          runtime.activeSpot.current = null
+          setActiveSpot(null)
+          writePosition(worldSet.id, {
+            worldId: warp.target.worldId,
+            cell: warp.target.cell,
+            facing: warp.target.facing,
+          })
+          // 別ワールドの地点へ向かう途中なら、扉を出た所で目的地と案内を立て直す
+          const goal = runtime.pendingGoal.current
+          if (goal !== null && goal.worldId === warp.target.worldId) {
+            runtime.pendingGoal.current = null
+            runtime.destination.current = goal.spot.cell
+            setDestination(goal.spot.cell)
+            setSpeech(headToSpeech(text, goal.spot))
+            // 次へ・地図からの自動歩行が続いている時だけ、到着ワールドの経路を作り直す(利用者が途中で割り込んだら目的地の印と案内だけ残す)。
+            // 地図からの移動は会話窓を開かない(autoTalk が false)ので、扉まで高速で来たかでも続ける
+            if (runtime.autoTalk.current || arrivedFast) {
+              const route = findPath(target, warp.target.cell, goal.spot.cell)
+              if (route !== null && route.length > 0) {
+                runtime.pendingRoute.current = route
+                runtime.pendingFast.current = true
+              }
             }
+            return
           }
-          return
-        }
-        setSpeech(pickDefaultSpeech(target, text, coarseRef.current))
+          setSpeech(pickDefaultSpeech(target, text, coarseRef.current))
+        })
         return
       }
       writePosition(worldSet.id, {
@@ -138,6 +145,7 @@ export function useVillageArrive({
       setActiveSpot,
       setSpeech,
       setLocatorVisible,
+      passDoor,
     ]
   )
 

@@ -16,13 +16,15 @@ export type FrameSteps = {
   bump: (cell: Cell) => void
   // 押したまま動かして向かうマスが変わり、そこへ経路を置いた時に 1 回だけ呼ぶ
   retarget: (cell: Cell) => void
+  // 傘を開け閉めしている最中か。その間は新しい移動を始めない
+  umbrellaBusy: () => boolean
 }
 
 // 1 フレーム分進めて描く。まだ時間で変わるもの・読むべき入力が残っていれば true
 export const tickFrame = (
   frameState: WalkFrameState,
   refs: MoveRefs,
-  { applyPose, paint, arrive, bump, retarget }: FrameSteps,
+  { applyPose, paint, arrive, bump, retarget, umbrellaBusy }: FrameSteps,
   elapsed: number
 ): boolean => {
   const {
@@ -52,6 +54,14 @@ export const tickFrame = (
   if (frameState.ignoreHeld && heldRef.current === null) frameState.ignoreHeld = false
   if (frameState.staleTarget && pointerTargetRef.current === null) {
     frameState.staleTarget = false
+  }
+  // 傘を開け閉めしている間は新しい移動を始めない(扉の前で畳む間・外へ出て開く間)。
+  // 押しっぱなしの向き・ポインタ・自動の経路は捨てずに残し、動き終えた後のフレームで読む。
+  // 外へ出た直後は新しい場面をまだ描いていないので、描画だけは進める。
+  // 動き終えたら残った入力を読むため、この間は眠らない
+  if (umbrellaBusy()) {
+    paint(elapsed)
+    return true
   }
   const held = frameState.ignoreHeld ? null : heldRef.current
   // 利用者の入力で経路が捨てられたら自動で開くのも取り消す

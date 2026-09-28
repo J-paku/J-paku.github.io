@@ -6,7 +6,7 @@ import { useMemo, useRef } from 'react'
 import type { RefObject } from 'react'
 import type { Cell, Direction, Spot, World } from '@content/types/world'
 import { createMoveState, type MoveState } from '@/lib/village/movement'
-import type { FishingPose } from '@/lib/village/player-pose'
+import type { FishingPose, UmbrellaPose } from '@/lib/village/player-pose'
 import type { SpotRef } from '@/lib/village/spot'
 import { cameraOffset } from '../utils/stage-scale'
 import { EMPTY_VISITED } from './use-village-guide/use-village-restore'
@@ -39,6 +39,9 @@ export type VillageRuntime = {
   // 釣っている間だけ段階とその段階に入った時刻を持つ(釣っていなければ null)。
   // 重ね表示側が書き、歩行ループが毎フレーム読んで段階と経過から竿のコマを選ぶ
   fishingPose: RefObject<FishingPose | null>
+  // 雨の日に屋外で差す傘の段階と、その段階に入った時刻(差していなければ null)。
+  // 書くのは use-village-umbrella だけ。歩行ループが毎フレーム読んでコマを選び、開け閉めの間は新しい移動を始めない
+  umbrellaPose: RefObject<UmbrellaPose | null>
   visited: RefObject<ReadonlySet<string>>
   activeSpot: RefObject<Spot | null>
   // 村側の処理。入力フックは村の状態を知らず、この ref 越しに呼ぶ
@@ -83,6 +86,7 @@ export function useVillageRuntime(startWorld: World, startWorldId: string): Vill
   const scrollHeld = useRef<Direction | null>(null)
   const pointerTarget = useRef<Cell | null>(null)
   const fishingPose = useRef<FishingPose | null>(null)
+  const umbrellaPose = useRef<UmbrellaPose | null>(null)
   const visited = useRef<ReadonlySet<string>>(EMPTY_VISITED)
   const activeSpot = useRef<Spot | null>(null)
   const actions = useRef<VillageActions>(NO_ACTIONS)
@@ -103,6 +107,7 @@ export function useVillageRuntime(startWorld: World, startWorldId: string): Vill
       scrollHeld,
       pointerTarget,
       fishingPose,
+      umbrellaPose,
       visited,
       activeSpot,
       actions,

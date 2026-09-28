@@ -5,6 +5,7 @@ import type { PixelArt } from './art'
 import { PLAYER_HEIGHT } from './actors'
 import { FISHING_LINES } from './fishing-art'
 import { palette } from './palette'
+import { LIGHT_KEYS, phasePalette } from './palette-phase'
 import {
   buildPlayerSprites,
   buildSprites,
@@ -13,6 +14,7 @@ import {
   SPRITE_ARTS,
 } from './sprites'
 import { charsOf, stitch } from './sprites.fixture'
+import { DAY_PHASES } from '@/utils/day-phase'
 import type { Direction } from '@content/types/world'
 
 describe('SPRITE_ARTS', () => {
@@ -143,12 +145,14 @@ describe('PLAYER_ARTS', () => {
     const sheet = buildPlayerSprites()
 
     expect(sheet.uri.startsWith('data:image/png;base64,')).toBe(true)
-    // 地形・建物と同じ理由で実測値を書く(コマ数を数える式を両辺に置くと何も守らない)
-    expect(sheet.count).toBe(35)
+    // 地形・建物と同じ理由で実測値を書く(コマ数を数える式を両辺に置くと何も守らない)。
+    // 傘のコマ 18 枚(差して立つ・歩く 8、出す 5、しまう 5)を足して 35 から更新
+    expect(sheet.count).toBe(53)
     expect(sheet.height).toBe(PLAYER_HEIGHT)
   })
 
   it('静止コマは足元がマスの下辺(最終行)に着き、頭上 4 行は空である', () => {
+    // 傘を差したコマ(player-umbrella-*)は開いた傘が頭上の行を使うので、この掟から名指しで外している
     for (const key of ['player-up-0', 'player-down-0', 'player-right-0'] as const) {
       const art = PLAYER_ARTS[key]
       expect(art.slice(0, 4).join('')).toBe('.'.repeat(64))
@@ -174,8 +178,8 @@ describe('PLAYER_ARTS', () => {
   it('横向きは反転してもずれないよう 1〜14 列に収まる', () => {
     // 竿のコマも左向きは scaleX(-1) で作るので、同じ掟が要る。釣りの動きのコマも含めて横向きは全部見る
     const rights = Object.entries(PLAYER_ARTS).filter(([key]) => key.includes('-right'))
-    // 静止・歩行の 2 枚、糸を垂らして待つ 1 枚、動きの場面の数だけ
-    expect(rights).toHaveLength(2 + 1 + FISHING_MOTIONS.length)
+    // 静止・歩行の 2 枚、糸を垂らして待つ 1 枚、動きの場面の数だけ、傘を差した静止・歩行の 2 枚
+    expect(rights).toHaveLength(2 + 1 + FISHING_MOTIONS.length + 2)
     for (const [key, art] of rights) {
       for (const row of art) {
         expect(row[0], key).toBe('.')
@@ -396,5 +400,29 @@ describe('釣り糸', () => {
     for (const key of ['fishing-line-up', 'fishing-line-down', 'fishing-line-right'] as const) {
       expect([...charsOf(SPRITE_ARTS[key])].sort().join(''), key).toBe('.s')
     }
+  })
+})
+
+describe('傘のコマ', () => {
+  const umbrella = Object.entries(PLAYER_ARTS).filter(([key]) => key.startsWith('player-umbrella-'))
+
+  it('傘は予約した文字(灯り用・どの段階でも色を変えない文字)を使わない', () => {
+    // 灯り用の文字なら夜に傘が光り、段階で色を変えない文字なら夜も昼の色のまま浮く。
+    // 傘は服と同じく時間帯で沈む物なので、どちらも使えない。
+    // 色を変えない文字の表(palette-phase.ts の FIXED_KEYS)は外へ出していないので、
+    // 「昼以外のどの段階でも昼と同じ色のまま」という振る舞いで見分ける
+    const phases = DAY_PHASES.filter(phase => phase !== 'day')
+    const tinted = phases.map(phase => phasePalette(palette, phase))
+    const isLight = (ch: string): boolean => LIGHT_KEYS.some(light => light === ch)
+    const isFixed = (ch: string): boolean => tinted.every(colors => colors[ch] === palette[ch])
+    const reserved = umbrella.flatMap(([key, art]) =>
+      [...charsOf(art)]
+        .filter(ch => ch !== '.' && (isLight(ch) || isFixed(ch)))
+        .map(ch => `${key}: ${ch}`)
+    )
+
+    // 鍵の拾い漏れがあると、黙って少ないコマだけを見て通ってしまう
+    expect(umbrella).toHaveLength(18)
+    expect(reserved).toEqual([])
   })
 })

@@ -1,5 +1,6 @@
 // 到着・衝突の結果を会話地点・案内文・訪問済みへ反映する。この入口は入れ物(state と coarse の ref)を持つだけで、
-// 訪問済み・会話地点の ref は runtime にある。保存からの復元は use-village-restore、到着と衝突の判定は use-village-arrive が受け持つ
+// 訪問済み・会話地点の ref は runtime にある。保存からの復元は use-village-restore、到着と衝突の判定は use-village-arrive、
+// 扉を通る時と天気が届いた時の傘の段階は use-village-umbrella が受け持つ
 import { useRef, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import type { Cell, Spot, VillageText, World, WorldSet } from '@content/types/world'
@@ -8,11 +9,15 @@ import type { VillageRuntime } from '../use-village-runtime'
 import { pickDefaultSpeech } from '../../utils/pick-default-speech'
 import { useVillageArrive } from './use-village-arrive'
 import { EMPTY_VISITED, useVillageRestore } from './use-village-restore'
+import { useVillageUmbrella } from './use-village-umbrella'
 
 export type VillageGuideOptions = {
   worldSet: WorldSet
   text: VillageText
   startWorld: World
+  // 今いるワールドと雨か。扉を通らずに傘の有無が変わった時(復元・天気の到着)に傘を合わせ直すのに使う
+  world: World
+  raining: boolean
   runtime: VillageRuntime
   setDestination: Dispatch<SetStateAction<Cell | null>>
   setPlayerCell: Dispatch<SetStateAction<Cell>>
@@ -37,6 +42,8 @@ export function useVillageGuide({
   worldSet,
   text,
   startWorld,
+  world,
+  raining,
   runtime,
   setDestination,
   setPlayerCell,
@@ -66,6 +73,10 @@ export function useVillageGuide({
     enterWorld,
   })
 
+  // 傘の段階を書くのはこのフックだけ。到着の処理が扉を通る時に passDoor を使うので、その前に呼ぶ。
+  // 復元の後に置くので、use-village の呼び順(寸法 → 入力 → 復元 → rAF → 重ね表示)の「復元」の中に収まり、順は変わらない
+  const { passDoor } = useVillageUmbrella({ runtime, world, raining, reduceMotion })
+
   const { arrive, bump } = useVillageArrive({
     worldSet,
     text,
@@ -77,6 +88,7 @@ export function useVillageGuide({
     setSpeech,
     setLocatorVisible,
     enterWorld,
+    passDoor,
   })
 
   return {

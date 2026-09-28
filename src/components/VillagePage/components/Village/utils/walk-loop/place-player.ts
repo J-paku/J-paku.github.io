@@ -3,7 +3,7 @@
 import type { RefObject } from 'react'
 import type { SheetLayout } from '@/lib/pixel/art'
 import type { MoveState } from '@/lib/village/movement'
-import { playerPose, type FishingPose } from '@/lib/village/player-pose'
+import { playerPose, type FishingPose, type UmbrellaPose } from '@/lib/village/player-pose'
 import { spriteIndex } from '../sprite-style'
 import type { CameraFrame, WalkFrameState } from './types'
 
@@ -12,6 +12,7 @@ export type PoseSources = {
   playerRef: RefObject<HTMLDivElement | null>
   stateRef: RefObject<MoveState>
   fishingPoseRef: RefObject<FishingPose | null>
+  umbrellaPoseRef: RefObject<UmbrellaPose | null>
   reduceMotion: boolean
   sprites: SheetLayout
 }
@@ -23,25 +24,28 @@ export type FollowerRefs = {
   playerLightRef: RefObject<HTMLDivElement | null>
 }
 
-// 人物のコマ(向き・歩き・竿)と反転を DOM へ書く。位置は直前のまま使うので、
+// 人物のコマ(向き・歩き・竿・傘)と反転を DOM へ書く。位置は直前のまま使うので、
 // 歩行が止まっている間でも呼べる。同じコマならシートの添字は書き換えない。
-// 釣りの段階の中でまだコマが時間で変わる間(投げる・かかった合図・引き上げ)は true を返し、
-// ループを眠らせない。いつまで変わるかは playerPose の時間表だけが知っていて、ここでは数えない
+// 釣りの段階の中でまだコマが時間で変わる間(投げる・かかった合図・引き上げ)と、傘を広げる・畳む間は
+// true を返し、ループを眠らせない。いつまで変わるかは playerPose の時間表だけが知っていて、ここでは数えない
 export const writePose = (
   frameState: WalkFrameState,
-  { playerRef, stateRef, fishingPoseRef, reduceMotion, sprites }: PoseSources
+  { playerRef, stateRef, fishingPoseRef, umbrellaPoseRef, reduceMotion, sprites }: PoseSources
 ): boolean => {
   const player = playerRef.current
   if (player === null) return false
   // 最初の paint より前は位置がまだ決まっていない。空の shift を書くと左上へ飛ぶので触らない
   if (frameState.shift === '') return false
-  // 経過は重ね表示がその段階へ入った時に書いた時刻から数える
+  // 経過は重ね表示がその段階へ入った時に書いた時刻から数える(傘も印をその段階へ書き換えた時刻から)
   const fishing = fishingPoseRef.current
+  const umbrella = umbrellaPoseRef.current
   const { key, flip, animating } = playerPose(
     stateRef.current,
     reduceMotion,
     fishing?.phase ?? null,
-    fishing === null ? 0 : performance.now() - fishing.since
+    fishing === null ? 0 : performance.now() - fishing.since,
+    umbrella?.phase ?? null,
+    umbrella === null ? 0 : performance.now() - umbrella.since
   )
   const transform = `${frameState.shift}${flip ? ' scaleX(-1)' : ''}`
   if (frameState.lastTransform !== transform) {
@@ -53,7 +57,8 @@ export const writePose = (
     player.dataset.sprite = key
     player.style.setProperty('--i', String(spriteIndex(sprites, key)))
   }
-  // その段階のコマが進み切った後(振り終えた構え・合図の後の力み・掲げた後)は時間で変わらないので眠ってよい
+  // その段階のコマが進み切った後(振り終えた構え・合図の後の力み・掲げた後・傘を広げ終えた・畳み終えた後)は
+  // 時間で変わらないので眠ってよい
   return animating
 }
 

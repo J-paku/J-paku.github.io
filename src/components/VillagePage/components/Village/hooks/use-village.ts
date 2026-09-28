@@ -35,6 +35,8 @@ export type VillageOptions = {
   sprites: SheetLayout
   // 主人公だけの 16×24 シート(歩行コマの添字に使う)
   playerSprites: SheetLayout
+  // 雨が降っているか。屋外で傘を差し、扉の出入りで傘を開け閉めする(雪は含めない)
+  raining: boolean
 }
 
 type UseVillage = {
@@ -116,6 +118,7 @@ export function useVillage({
   roleLabels,
   sprites,
   playerSprites,
+  raining,
 }: VillageOptions): UseVillage {
   const startWorld = worldSet.worlds[worldSet.startWorldId]
   // ref と束を作るだけで effect は持たないので、フックの呼び順(AGENTS.md 2)には関わらない
@@ -166,6 +169,8 @@ export function useVillage({
     worldSet,
     text,
     startWorld,
+    world,
+    raining,
     runtime,
     setDestination,
     setPlayerCell,

@@ -1,12 +1,13 @@
 // rAFで移動を1フレームずつ進め、結果をDOMへ直接書く。タップされたマスは経路にして次のステップへ渡す。
 // 入力も経路も無く描き終えたら次のフレームを頼まずに眠り、入力・ワールド移動・窓を閉じる・
-// 釣りの段階の切り替わり・枠の大きさの変化で runtime.wake から起こされる。
+// 釣り・傘の段階の切り替わり・枠の大きさの変化で runtime.wake から起こされる。
 // 読み書きする ref は use-village-runtime の束 2 つ(runtime と dom)で受け取る。
 // このファイルは React との継ぎ目(ref・effect・依存配列)だけを持ち、1 フレームの中身は utils/walk-loop/ の部品へ任せる。
 // 部品を平らな関数にしておくと、どの値がフレームをまたいで残るのか(WalkFrameState)が 1 か所で見える
 import { useCallback, useEffect, useRef } from 'react'
 import type { Cell } from '@content/types/world'
 import type { SheetLayout } from '@/lib/pixel/art'
+import { umbrellaBusy } from '@/lib/village/player-pose'
 import type { VillageDom, VillageRuntime } from '../use-village-runtime'
 import { createAnimationLoop } from '../../utils/walk-loop/create-animation-loop'
 import { paintCamera } from '../../utils/walk-loop/paint-camera'
@@ -75,6 +76,7 @@ export function useWalkLoop({
         playerRef: dom.player,
         stateRef: runtime.state,
         fishingPoseRef: runtime.fishingPose,
+        umbrellaPoseRef: runtime.umbrellaPose,
         reduceMotion,
         sprites,
       }),
@@ -130,13 +132,19 @@ export function useWalkLoop({
     [runtime, setDestination]
   )
 
+  // 傘を開け閉めしている最中か。その間は新しい移動を始めない。時刻で決まるので毎フレーム聞き直す
+  const isUmbrellaBusy = useCallback((): boolean => {
+    const { umbrellaPose: umbrellaPoseRef } = runtime
+    return umbrellaBusy(umbrellaPoseRef.current, performance.now(), reduceMotion)
+  }, [runtime, reduceMotion])
+
   useEffect(() => {
     const loop = createAnimationLoop(
       elapsed =>
         tickFrame(
           frameStateRef.current,
           runtime,
-          { applyPose, paint, arrive, bump, retarget },
+          { applyPose, paint, arrive, bump, retarget, umbrellaBusy: isUmbrellaBusy },
           elapsed
         ),
       dom.frame
@@ -149,7 +157,7 @@ export function useWalkLoop({
       // 外したループを起こさない。後始末の後に届いた入力で、描く先の無いループが回り出すのを防ぐ
       if (runtime.wake.current === wake) runtime.wake.current = () => {}
     }
-  }, [arrive, bump, paint, applyPose, retarget, runtime, dom])
+  }, [arrive, bump, paint, applyPose, retarget, isUmbrellaBusy, runtime, dom])
 
   // 枠の幅を覚え、変わったらループを起こして新しいマス寸法で描き直させる。
   // 幅を読むのは大きさが変わった時だけで、描く側は毎フレーム覚えた値を使う
