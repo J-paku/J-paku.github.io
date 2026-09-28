@@ -405,6 +405,71 @@ describe('釣り糸', () => {
 
 describe('傘のコマ', () => {
   const umbrella = Object.entries(PLAYER_ARTS).filter(([key]) => key.startsWith('player-umbrella-'))
+  const FACINGS = ['up', 'down', 'right'] as const
+  const umbrellaOf = (facing: string, frame: number): PixelArt =>
+    PLAYER_ARTS[`player-umbrella-${facing}-${frame}` as keyof typeof PLAYER_ARTS]
+  const plainOf = (facing: string): PixelArt =>
+    PLAYER_ARTS[`player-${facing}-0` as keyof typeof PLAYER_ARTS]
+
+  // 差して立つコマの天蓋は 0〜11 行。0 行目が石突き、1〜9 行がドーム、10・11 行が縁の白い房(actors.ts の傘の見出し)
+  const CANOPY_ROWS = 12
+  const FRINGE_ROWS = [10, 11]
+  // 天蓋に使ってよい文字は輪郭(x)と傘専用の 5 文字だけ。帽子やゴーグルの文字が 1 つでも混じれば覆い切れていない
+  const CANOPY_CHARS = new Set(['.', 'x', '[', ']', '=', '~', '^'])
+
+  it('開いた傘は帽子を丸ごと覆う幅いっぱいの紺のドームで、縁に白い房を下げ、てっぺんに石突きを立てる', () => {
+    // 正面・背面はマスの幅いっぱい(0〜15 列)。横向きは左向きを反転で作るので 0・15 列を空けた 1〜14 列
+    const spans: Record<(typeof FACINGS)[number], [number, number]> = {
+      up: [0, 15],
+      down: [0, 15],
+      right: [1, 14],
+    }
+    for (const facing of FACINGS) {
+      const canopy = umbrellaOf(facing, 0).slice(0, CANOPY_ROWS)
+      const cols = canopy.flatMap(row => [...row].flatMap((ch, x) => (ch === '.' ? [] : [x])))
+
+      expect([Math.min(...cols), Math.max(...cols)], facing).toEqual(spans[facing])
+      expect(
+        canopy.flatMap(row => [...row].filter(ch => !CANOPY_CHARS.has(ch))),
+        facing
+      ).toEqual([])
+      // 最上行は石突きだけ
+      expect(canopy[0], facing).toMatch(/^\.+\^+\.+$/)
+      // 房は縁の 2 行(点線と、その下に垂れる房)だけに下がり、ドームの上には散らばらない
+      expect(
+        canopy.flatMap((row, y) => (row.includes('~') ? [y] : [])),
+        facing
+      ).toEqual(FRINGE_ROWS)
+    }
+  })
+
+  it('天蓋の下は素のコマのままで、目と顔・背中と足元を残す', () => {
+    // 天蓋のすぐ下の行は帽子の影ではなく髪で埋めるので、そこだけ素のコマと違ってよい。
+    // 正面は 12 行、横向きは 12・13 行の後ろ側(0〜7 列)。背面は元から後ろ髪なので天蓋の直下から同じ
+    const SAME_FROM: Record<(typeof FACINGS)[number], number> = {
+      up: CANOPY_ROWS,
+      down: 13,
+      right: 14,
+    }
+    for (const facing of FACINGS) {
+      expect(umbrellaOf(facing, 0).slice(SAME_FROM[facing]), facing).toEqual(
+        plainOf(facing).slice(SAME_FROM[facing])
+      )
+    }
+    // 横向きの 12・13 行も、顔の側(8〜15 列)は素のまま
+    const rightFace = (art: PixelArt): string[] => art.slice(12, 14).map(row => row.slice(8))
+    expect(rightFace(umbrellaOf('right', 0))).toEqual(rightFace(plainOf('right')))
+  })
+
+  it('歩く間の天蓋は体と一緒に 1 行下がるだけで、形は静止コマと同じ', () => {
+    // 傘のコマは型紙の重ね合わせではなく 1 枚ずつ置いているので、静止コマだけ描き直すと
+    // 歩いた途端に別の傘へ入れ替わる。ここで両者の食い違いを捕まえる(最下行は脚を振るので除く)
+    for (const facing of FACINGS) {
+      const walk = umbrellaOf(facing, 1)
+      expect(walk[0], facing).toBe('.'.repeat(TILE))
+      expect(walk.slice(1, -1), facing).toEqual(umbrellaOf(facing, 0).slice(0, -2))
+    }
+  })
 
   it('傘は予約した文字(灯り用・どの段階でも色を変えない文字)を使わない', () => {
     // 灯り用の文字なら夜に傘が光り、段階で色を変えない文字なら夜も昼の色のまま浮く。
