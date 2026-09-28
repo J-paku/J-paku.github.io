@@ -1,7 +1,7 @@
 // ポインタの入力(押しっぱなし・タップ)を経路に変えて、次のステップへ渡す置き場に入れる。
-// 経路探索そのものは lib の findPath に任せ、ここは「いつ作り直すか」と「作った経路をどこへ置くか」だけを決める
+// 経路探索そのものは lib の routeToCell に任せ、ここは「いつ作り直すか」と「作った経路をどこへ置くか」だけを決める
 import type { Cell, Direction } from '@content/types/world'
-import { findPath } from '@/lib/village/path'
+import { routeToCell } from '@/lib/village/warp'
 import type { MoveRefs, WalkFrameState } from './types'
 
 // 押しっぱなしのポインタへ向けて経路を作り直す。目標が変わった時、または経路を使い切って
@@ -33,7 +33,7 @@ export const replanTowardPointer = (
       // 次のマスへ歩いている途中なら、そのマスから経路を作る。出発マスから作ると先頭が向かっているマス自身になり、
       // 着いた時に「隣接でない先頭」として経路ごと捨てられて次のマスで止まってしまう
       const from = s.motion !== null ? s.motion.to : s.cell
-      const route = findPath(worldRef.current, from, pointerTarget)
+      const route = routeToCell(worldRef.current, from, pointerTarget)
       frameState.plannedTarget = pointerTarget
       // 向かっているマスそのものが目標なら経路は空。残りの経路を空で差し替え、着いた所で止める
       if (route !== null && (route.length > 0 || s.motion !== null)) {
@@ -49,7 +49,7 @@ export const replanTowardPointer = (
   }
 }
 
-// タップ → 経路を作って次のステップへ渡す。通れない場所は無視。
+// タップ → 経路を作って次のステップへ渡す。通れない場所は無視(壁の扉は隣まで歩いてぶつかる)。
 // 経路を置いた時だけ true を返し、呼ぶ側はその時だけループを起こす
 export const queueTapRoute = (
   {
@@ -64,7 +64,7 @@ export const queueTapRoute = (
   // 移動中は向かっているマスから経路を作る(理由は replanTowardPointer と同じ)
   const s = stateRef.current
   const from = s.motion !== null ? s.motion.to : s.cell
-  const route = findPath(worldRef.current, from, tapped)
+  const route = routeToCell(worldRef.current, from, tapped)
   // 向かっているマスそのものをタップした時は経路が空でも「そのマスへ行く」ので、残りの経路を空で差し替えて true を返す
   if (route !== null && (route.length > 0 || s.motion !== null)) {
     pendingRouteRef.current = route

@@ -1,6 +1,6 @@
-// ワープ床 warpAt・扉までの経路 routeToWarp のテスト
+// ワープ床 warpAt・指定したマスまでの経路 routeToCell・扉までの経路 routeToWarp のテスト
 import type { World } from '@content/types/world'
-import { routeToWarp, warpAt } from './warp'
+import { routeToCell, routeToWarp, warpAt } from './warp'
 
 const room: World = {
   id: 'room',
@@ -62,6 +62,39 @@ const walled: World = {
     },
   ],
 }
+
+describe('routeToCell', () => {
+  it('同じ行き先の扉が複数あっても指定した扉へ向かう', () => {
+    const twoDoors: World = {
+      ...walled,
+      tiles: [['doorway', 'floor', 'doorway'], ...walled.tiles.slice(1)],
+      warps: [{ ...walled.warps[0], id: 'near', cell: { x: 0, y: 0 } }, walled.warps[0]],
+    }
+    const route = routeToCell(twoDoors, { x: 0, y: 1 }, { x: 2, y: 0 })
+    expect(route?.at(-1)).toEqual({ x: 2, y: 0 })
+    expect(route).toHaveLength(3)
+    // 扉の 1 歩手前は扉 (2,0) の隣のマス(マンハッタン距離 1)
+    const side = route?.at(-2)
+    if (side === undefined) throw new Error('扉の手前のマスが無い')
+    expect(Math.abs(side.x - 2) + Math.abs(side.y - 0)).toBe(1)
+  })
+  it('ワープでない壁は経路にせず、届かない扉も null', () => {
+    expect(routeToCell({ ...walled, warps: [] }, walled.start, { x: 2, y: 0 })).toBeNull()
+    expect(
+      routeToCell(
+        {
+          ...walled,
+          tiles: [
+            ['floor', 'water', 'doorway'],
+            ...walled.tiles.slice(1).map(row => row.map(() => 'water' as const)),
+          ],
+        },
+        walled.start,
+        { x: 2, y: 0 }
+      )
+    ).toBeNull()
+  })
+})
 
 describe('routeToWarp', () => {
   it('床のワープへは直接歩く経路を返す', () => {

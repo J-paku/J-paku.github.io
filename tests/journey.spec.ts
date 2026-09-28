@@ -17,7 +17,15 @@ import { mapEntries } from '@/lib/village/map-entries'
 import { spotToward } from '@/components/VillagePage/components/Village/components/WorldMap/utils/spot-navigation'
 // 村を開く手順・歩く walk(1 マスごとに到着を待つ)・押下と到着待ちの間合い・既定で晴れを敷く test は
 // 他の村の spec と共用。正本は village.helpers.ts
-import { HOLD_MS, SETTLE_MS, focusVillage, openVillage, test, walk } from './village.helpers'
+import {
+  HOLD_MS,
+  SETTLE_MS,
+  focusVillage,
+  openVillage,
+  stubWeather,
+  test,
+  walk,
+} from './village.helpers'
 
 type SettingsLabels = { menu: string; light: string; dark: string }
 type Journey = { prefix: string; text: VillageText; settings: SettingsLabels; workTitle: string }
@@ -286,6 +294,101 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
     await walk(page, 'ArrowUp', 1)
     expect(await readCell(page)).toEqual({ worldId: 'room', cell: { x: 4, y: 6 } })
   })
+
+  // click と hold は扉のマスを押した瞬間のタップで扉へ向かう。押したまま指を動かして扉を目標に
+  // 作り直す経路は、別のマスで押してから扉へ指を動かす drag だけが通る
+  for (const input of ['click', 'hold', 'drag'] as const) {
+    for (const weather of ['clear', 'rain'] as const) {
+      test(`自宅の扉を ${input} して入る (${weather}, ${label})`, async ({ page }) => {
+        // 扉は町から部屋へ戻るワープのマス
+        const door = town.warps.find(w => w.target.worldId === 'room')?.cell
+        if (door === undefined) throw new Error('町に部屋へ戻る扉が無い')
+        // drag で押し始めるマス。自宅前から 2 マス下(押す前に立つマス)の右隣で、扉への道筋から外れている。
+        // ここへ歩いて止まってから指を扉へ動かすので、扉へ入れるのは押したままの作り直しが扉を目標にできた時だけ
+        const dragFrom = { x: TOWN_ENTRY.x + 1, y: TOWN_ENTRY.y + 2 }
+        expect(isWalkable(town, dragFrom), 'drag で押し始めるマスは歩ける').toBe(true)
+        await stubWeather(page, weather)
+        await openVillage(page, prefix)
+        await leaveRoom(page)
+        if (weather === 'rain') {
+          await expect(page.locator('[data-village-player]')).toHaveAttribute(
+            'data-sprite',
+            'player-umbrella-down-0'
+          )
+        }
+        await walk(page, 'ArrowDown', 2)
+        // ワールド層の位置が数フレーム動かなくなるまで待ち、その原点と --cell からマスの真ん中の画面位置を返す
+        const settledPoint = (target: { x: number; y: number }) =>
+          page.locator('[data-world]').evaluate(async (layer, cell) => {
+            let previous = ''
+            let still = 0
+            while (still < 5) {
+              await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+              const rect = layer.getBoundingClientRect()
+              const position = `${rect.x},${rect.y}`
+              still = position === previous ? still + 1 : 0
+              previous = position
+            }
+            const rect = layer.getBoundingClientRect()
+            const size = parseFloat(getComputedStyle(layer).getPropertyValue('--cell'))
+            return {
+              x: rect.x + (cell.x + 0.5) * size,
+              y: rect.y + (cell.y + 0.5) * size,
+              size,
+            }
+          }, target)
+        // 押す位置にボタン・リンク(ミニマップなど)が重なっていないこと(重なっていれば入力側がタップ移動にしない)
+        const notOnControl = (p: { x: number; y: number }) =>
+          page.evaluate(
+            ({ x, y }) => document.elementFromPoint(x, y)?.closest('button, a') === null,
+            p
+          )
+        if (input === 'drag') {
+          const from = await settledPoint(dragFrom)
+          expect(await notOnControl(from)).toBe(true)
+          await page.mouse.move(from.x, from.y)
+          await page.mouse.down()
+          // 押した瞬間のタップで押したマスへ歩いて止まる(押したままなので離さない)
+          await expect.poll(() => readCell(page)).toEqual({ worldId: 'town', cell: dragFrom })
+        }
+        const point = await settledPoint(door)
+        expect(await notOnControl(point)).toBe(true)
+        if (input === 'drag') {
+          await page.mouse.move(point.x, point.y, { steps: 4 })
+        } else {
+          await page.mouse.move(point.x, point.y)
+          await page.mouse.down()
+          if (input === 'click') await page.mouse.up()
+        }
+        await expect(page.locator('[data-village-destination]')).toBeVisible()
+        // 印は扉のマスに立つ(left/top はマスの左上)。drag では指を扉へ動かして経路を作り直した時にだけ扉へ移る
+        await page.waitForFunction(
+          ({ x, y, size }) => {
+            const found = document.querySelectorAll('[data-world] [data-village-destination]')
+            if (found.length !== 1) return false
+            const style = getComputedStyle(found[0])
+            return (
+              Math.abs(parseFloat(style.left) - x * size) <= 0.5 &&
+              Math.abs(parseFloat(style.top) - y * size) <= 0.5
+            )
+          },
+          { x: door.x, y: door.y, size: point.size },
+          { polling: 'raf', timeout: 2_000 }
+        )
+        if (weather === 'rain') {
+          await expect(page.locator('[data-village-player]')).toHaveAttribute(
+            'data-sprite',
+            /^player-umbrella-close-/
+          )
+          await expect(page.locator('[data-world]')).toHaveAttribute('data-world', 'town')
+        }
+        await expect(page.locator('[data-world]')).toHaveAttribute('data-world', 'room')
+        await expect.poll(() => readCell(page)).toEqual({ worldId: 'room', cell: { x: 4, y: 6 } })
+        if (input !== 'click') await page.mouse.up()
+        await expect(page.locator('[data-village-destination]')).toHaveCount(0)
+      })
+    }
+  }
 
   test(`町の名刺工房から作品ページと一覧へ進む (${label})`, async ({ page }) => {
     await openVillage(page, prefix)

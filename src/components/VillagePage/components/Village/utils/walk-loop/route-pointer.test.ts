@@ -109,9 +109,27 @@ describe('replanTowardPointer', () => {
     expect(retarget).toHaveBeenCalledWith(heading)
     expect(refs.pendingRoute.current).toEqual([])
   })
+
+  it('扉を hold すると最後の1歩が扉へ向かう', () => {
+    const door = town.warps.find(warp => warp.target.worldId === 'room')
+    if (door === undefined) throw new Error('自宅の扉が無い')
+    const refs = makeRefs(createMoveState(town), door.cell)
+    const retarget = vi.fn()
+    replanTowardPointer(makeFrameState(), refs, null, retarget)
+    expect(retarget).toHaveBeenCalledWith(door.cell)
+    expect(refs.pendingRoute.current?.at(-1)).toEqual(door.cell)
+  })
 })
 
 describe('queueTapRoute', () => {
+  it('扉を tap すると最後の1歩が扉へ向かう', () => {
+    const door = town.warps.find(warp => warp.target.worldId === 'room')
+    if (door === undefined) throw new Error('自宅の扉が無い')
+    const refs = makeRefs(createMoveState(town), door.cell)
+    expect(queueTapRoute(refs, door.cell)).toBe(true)
+    expect(refs.pendingRoute.current?.at(-1)).toEqual(door.cell)
+  })
+
   it('移動中のタップも、経路は向かっているマスの次から始まる', () => {
     const refs = makeRefs(movingState(), null)
     expect(queueTapRoute(refs, target)).toBe(true)
