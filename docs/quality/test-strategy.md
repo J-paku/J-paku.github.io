@@ -4,7 +4,7 @@ read_when:
   - テストを足す・直すとき
   - どのテストを走らせるか決めるとき
 source_of_truth: true
-last_reviewed: 2026-09-22
+last_reviewed: 2026-09-28
 ---
 
 # テスト
@@ -13,7 +13,7 @@ last_reviewed: 2026-09-22
 
 | 層 | 置き場 | 対象 | 環境 |
 |---|---|---|---|
-| 単体(Vitest) | 対象ファイルの隣 `*.test.ts` | **純粋関数のみ** | `environment: 'node'`。DOM を持たない |
+| 単体(Vitest) | 対象ファイルの隣 `*.test.ts` | **純粋関数**と、`fetch`・Storage を `vi.stubGlobal` で差し替えて測る `src/lib/` の入口 | `environment: 'node'`。DOM を持たない |
 | E2E(Playwright) | `tests/**/*.spec.ts` | 実際のクリック・キー操作 | `out/` を `:4173` で静的配信 |
 
 - E2E の配信ポートは既定 `:4173` で、`E2E_PORT` で変えられる(`playwright.config.ts`)
@@ -21,8 +21,9 @@ last_reviewed: 2026-09-22
 - **コンポーネントのレンダリングテストは無い。** 画面の確認は E2E が受け持つ
 - 純粋関数に切り出せる計算は切り出してから単体テストを書く。`src/lib/village/` と `src/lib/pixel/` がその形になっている
 - フィクスチャは `*.fixture.ts`(Vitest の対象から外れる名前)
+- モジュール変数に覚えを持つ関数(`src/lib/fetch-svg-source.ts` の取得の覚え)は、テストごとに `vi.resetModules()` してから import し直し、空の覚えから始める
 
-## E2E の9本
+## E2E の11本
 
 | ファイル | 見るもの |
 |---|---|
@@ -35,6 +36,8 @@ last_reviewed: 2026-09-22
 | `tests/idle-loop.spec.ts` | 歩行ループの眠りと目覚め。止まっている間と会話窓を開いている間は次のフレームを頼まず眠るか、方向キー・スティック・タップの最初の1回と会話窓を閉じた後の入力で歩き出し、画面の大きさが変わると新しいマス寸法で描き直すか |
 | `tests/not-found.spec.ts` | 存在しない経路。配信が `out/404.html` を 404 で返すか、二言語の案内がそろっているか、そこから村と一覧へ戻る導線がその言語のまま動くか |
 | `tests/directory.spec.ts` | 一覧の作品カード。詳細ページを持つ作品にだけ内部リンクが付くか、持たない作品の slug へ直接入ると作品ページが出ないか(不変ルール5) |
+| `tests/storage-blocked.spec.ts` | 保存(localStorage / sessionStorage)が使えないとき。プロパティを読むだけで投げる形とメソッドが投げる形の両方で、初回ペイント前のテーマ読み込み・テーマの切り替え・会話・歩いて町へ出るまでが、捕まえられない例外(pageerror)を出さずに動くか |
+| `tests/scene-refetch.spec.ts` | 作品ストーリーの場面の絵。取得に失敗した場面が、同じページのままモーダルを開き直すと取り直されて絵が出るか、成功した絵は取り直さないか |
 
 E2E は `out/` を配る。**先に `npm run build` を済ませる。**
 
@@ -43,6 +46,7 @@ E2E は `out/` を配る。**先に `npm run build` を済ませる。**
 - **ファイルの中まで並列に走る**(`fullyParallel`、手元は 4 ワーカーまで)。テストは自分の context だけで村を開き、順番や他のテストが残した状態に頼らない
 - **天気は既定で晴れ。** `@playwright/test` ではなく `tests/village.helpers.ts` の `test` を使うと、context に晴れの応答が敷かれ、実際の天気を待たない。雨・雪や取得失敗を確かめるテストは `stubWeather(page, 'rain' | 'snow' | 'error')` で上書きする(page の route が context の route より先に効く。同じ page に重ねたときは後から敷いた方が勝つ)。axe と日本語改行の検査スクリプトも同じ形の応答に差し替えて測る
 - **歩くのは `walk(page, key, cells)`。** 1 マスごとに保存位置(sessionStorage)が変わるまで待ち、変わらない回(ぶつかった・向きだけ変えた)は `SETTLE_MS` で見切る。戻り値は到着したマス数
+- 保存を塞ぐ `tests/storage-blocked.spec.ts` だけは `walk` を使えない(保存位置が変わらず、読むことも投げる)。1 マス分押して離し、主人公の描かれた位置が隣のマスへ移るのを待つ
 
 ## 新しい検査は必ず一度落とす
 

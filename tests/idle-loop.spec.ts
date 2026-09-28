@@ -7,9 +7,17 @@
 import { expect, type Page } from '@playwright/test'
 import { worldSet } from '@content/world'
 import { village } from '@content/ja/village'
-// 村を開く手順・歩く walk(1 マスごとに到着を待つ)・押下と到着待ちの間合い・描画待ち・既定で晴れを敷く test は
-// 他の村の spec と共用。正本は village.helpers.ts
-import { HOLD_MS, SETTLE_MS, openVillage, settleRender, test, walk } from './village.helpers'
+// 村を開く手順・歩く walk(1 マスごとに到着を待つ)・押下と到着待ちの間合い・描画待ち・主人公の描かれた位置・
+// 既定で晴れを敷く test は他の村の spec と共用。正本は village.helpers.ts
+import {
+  HOLD_MS,
+  SETTLE_MS,
+  openVillage,
+  playerOnScreen,
+  settleRender,
+  test,
+  walk,
+} from './village.helpers'
 
 // 位置の保存先は lib/preferences と同じ組み立て
 const POS_KEY = `village:${worldSet.id}:pos`
@@ -59,21 +67,6 @@ const rafRequestsInOneSecond = async (page: Page) => {
 
 // 眠っていても 1 秒で頼んでよい数。吹き出しの位置合わせ(rAF 2 回)のような一度きりの分の遊び
 const IDLE_RAF_ALLOWANCE = 2
-
-// 主人公が枠の中で何マス目に立って見えるか(左上が 0)。シートは縦 1.5 マスで頭が半マス上へはみ出すので、
-// 足元(下辺)から数える。マス寸法は枠の幅(10 列)から出す
-const playerOnScreen = async (page: Page) => {
-  const frame = await page.locator('[data-village]').boundingBox()
-  const player = await page.locator('[data-village-player]').boundingBox()
-  if (frame === null || player === null) throw new Error('村の枠か主人公が描かれていない')
-  const cell = frame.width / 10
-  return {
-    frame,
-    cell,
-    x: (player.x - frame.x) / cell,
-    y: (player.y + player.height - frame.y) / cell - 1,
-  }
-}
 
 test('止まっている間は歩行ループが眠り、最初の方向キー 1 回で 1 マス歩く', async ({ page }) => {
   await countRafRequests(page)

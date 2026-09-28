@@ -1,4 +1,5 @@
-// 村を動かす E2E の共通手順。村を開く・歩く・描画を待つ・天気を固定する、を各 spec がここから読む。
+// 村を動かす E2E の共通手順。村を開く・歩く・押す・描画を待つ・主人公の描かれた位置を測る・
+// 天気を固定する、を各 spec がここから読む。
 // Playwright が集めるのは testDir 直下の *.spec.ts / *.test.ts だけなので、この名前なら
 // テスト本体として拾われない(中身は test を extend して渡すだけで test() を呼ばないので、
 // 拾われると「テストが無い」で落ちる)。
@@ -144,4 +145,30 @@ export const walk = async (page: Page, key: WalkKey, cells: number): Promise<num
     await settleRender(page)
   }
   return arrived
+}
+
+// 方向キーを 1 マス分だけ押して離す(walk と同じ押し方。始まった移動は離しても最後まで進む)。
+// walk と違って到着(保存位置の変化)も描画も待たない。保存で到着を知れない spec(保存を塞ぐ
+// storage-blocked)や、到着と描画を待つと戻る頃には動きが進んでしまう spec(傘の umbrella)が使う
+export const press = async (page: Page, key: WalkKey) => {
+  await page.keyboard.down(key)
+  await page.waitForTimeout(HOLD_MS)
+  await page.keyboard.up(key)
+}
+
+// 主人公が枠の中で何マス目に立って見えるか(左上が 0)。シートは縦 1.5 マスで頭が半マス上へはみ出すので、
+// 足元(下辺)から数える。マス寸法は枠の幅(10 列)から出す。
+// 位置は丸めずに返し、枠の箱とマス寸法も添える。叩く位置をここから組み立てる spec があり、
+// 丸めると叩く所も近さの判定(toBeCloseTo)もずれるので、丸めるかどうかは使う spec が決める
+export const playerOnScreen = async (page: Page) => {
+  const frame = await page.locator('[data-village]').boundingBox()
+  const player = await page.locator('[data-village-player]').boundingBox()
+  if (frame === null || player === null) throw new Error('村の枠か主人公が描かれていない')
+  const cell = frame.width / 10
+  return {
+    frame,
+    cell,
+    x: (player.x - frame.x) / cell,
+    y: (player.y + player.height - frame.y) / cell - 1,
+  }
 }
