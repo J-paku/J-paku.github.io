@@ -13,11 +13,16 @@ export type ScrollThumb = {
 
 const HIDDEN: ScrollThumb = { visible: false, top: 0, size: 1 }
 
-export function useScrollThumb(target: RefObject<HTMLElement | null>): ScrollThumb {
+// 引数名の末尾を Ref にしておく。React Compiler 系の lint(react-hooks)は ref を型ではなく名前で見分け、
+// 末尾が Ref の名前(と ref そのもの)の current だけを ref の読み取りとして扱う。既定で有効な
+// enableAllowSetStateFromRefsInEffects により、ref から読んだ値を渡す setState と、その値で分岐した先の setState は
+// effect から同期で呼んでも咎めない。名前が target だと ref と見なされず、effect が同期で呼ぶ measure の
+// setThumb が set-state-in-effect(連鎖レンダー)として落ちる
+export function useScrollThumb(targetRef: RefObject<HTMLElement | null>): ScrollThumb {
   const [thumb, setThumb] = useState<ScrollThumb>(HIDDEN)
 
   const measure = useCallback(() => {
-    const el = target.current
+    const el = targetRef.current
     if (el === null) return
     const { scrollTop, scrollHeight, clientHeight } = el
     if (scrollHeight <= clientHeight + 1) {
@@ -27,10 +32,10 @@ export function useScrollThumb(target: RefObject<HTMLElement | null>): ScrollThu
     const size = Math.max(clientHeight / scrollHeight, 0.08)
     const top = (scrollTop / (scrollHeight - clientHeight)) * (1 - size)
     setThumb({ visible: true, top, size })
-  }, [target])
+  }, [targetRef])
 
   useEffect(() => {
-    const el = target.current
+    const el = targetRef.current
     if (el === null) return
     measure()
     el.addEventListener('scroll', measure, { passive: true })
@@ -42,7 +47,7 @@ export function useScrollThumb(target: RefObject<HTMLElement | null>): ScrollThu
       el.removeEventListener('scroll', measure)
       observer.disconnect()
     }
-  }, [target, measure])
+  }, [targetRef, measure])
 
   return thumb
 }

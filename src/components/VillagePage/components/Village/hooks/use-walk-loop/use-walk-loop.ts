@@ -86,15 +86,20 @@ export function useWalkLoop({
   // (新しいワールドのタイルが載り、カメラが目標に追い付き、竿のコマもその段階の分を進み切った)
   const paint = useCallback(
     (dtMs: number): boolean => {
-      const frame = dom.frame.current
-      const player = dom.player.current
+      // current を読む ref は末尾が Ref の名前へ取り出してから読む。React Compiler 系の lint は名前で ref を
+      // 見分けるので、束から直に読むと current を依存に数え、手で書いた依存配列(束ごと)と食い違うと咎める。
+      // 束の中の ref は描画をまたいで同じ実体なので、取り出す時機が早まっても読む値は変わらない
+      const { frame: frameRef, player: playerRef, worldLayer: layerRef, loading: loadingRef } = dom
+      const { state: stateRef, world: worldRef } = runtime
+      const frame = frameRef.current
+      const player = playerRef.current
       if (frame === null || player === null) return false
       const frameState = frameStateRef.current
-      const state = runtime.state.current
-      const world = runtime.world.current
+      const state = stateRef.current
+      const world = worldRef.current
       notifyFishingTarget(frameState, world, state, onFishingTarget)
-      const layer = dom.worldLayer.current
-      if (!waitForWorldTiles(frameState, layer, dom.loading.current, world)) return false
+      const layer = layerRef.current
+      if (!waitForWorldTiles(frameState, layer, loadingRef.current, world)) return false
       paintLampVeil(frameState, dom.lampVeil, world, state.cell, veilSprites)
       const camera = paintCamera(
         frameState,

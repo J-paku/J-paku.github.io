@@ -7,6 +7,7 @@ export function useDetailOpen(slug: string) {
   // 初期状態は SSR と一致させるため false。ハッシュは mount 後に読む(hydration 不一致を避ける)
   const [isDetailOpen, setIsDetailOpen] = useState(false)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- ハッシュは mount 後に一度だけ読み、以後は利用者が開閉する状態のため(useSyncExternalStore ではクライアント遷移の初回描画とハッシュ変更時の開閉が変わる)
     if (window.location.hash === `#${slug}`) setIsDetailOpen(true)
   }, [slug])
 

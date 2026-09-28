@@ -18,6 +18,7 @@ export function useReveal<T extends HTMLElement = HTMLElement>() {
     // ここで表示しないと初期状態の opacity: 0 のまま止まり、内容が見えなくなる
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     if (prefersReducedMotion) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- mount 時に一度だけ読み、一度出したら戻さない状態のため(useSyncExternalStore ではクライアント遷移の初回描画と途中の設定変更後の表示が変わる)。IntersectionObserver が無い環境の即時表示も同じ理由で、規則は effect ごとに最初の同期 setState だけを報告するため、この1行で下の分も覆われる
       setIsRevealed(true)
       return
     }

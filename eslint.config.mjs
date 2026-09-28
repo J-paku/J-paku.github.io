@@ -60,10 +60,11 @@ const eslintConfig = [
       'no-restricted-imports': ['error', { paths: BARREL_PATHS }],
       // 村の rAF ループ・入力フックは ref.current を直接書き換える設計(VillagePage/AGENTS.md 5番)のため無効化
       'react-hooks/immutability': 'off',
-      // React Compiler は使わないため警告に留め、次の整理対象として残す
-      'react-hooks/set-state-in-effect': 'warn',
-      'react-hooks/refs': 'warn',
-      'react-hooks/preserve-manual-memoization': 'warn',
+      // React Compiler は使わないが、これらの警告は整理済み。effect 本文での同期 setState・レンダー中の ref 読み書き・
+      // 依存の食い違う手動メモ化を再び持ち込まないよう error で止める(避けられない箇所は理由付きの eslint-disable-next-line で明示する)
+      'react-hooks/set-state-in-effect': 'error',
+      'react-hooks/refs': 'error',
+      'react-hooks/preserve-manual-memoization': 'error',
       // "react-hooks/exhaustive-deps": "off",
     },
   },

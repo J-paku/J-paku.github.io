@@ -29,7 +29,6 @@ function SettingsMenu({ locale, pathname, ui }: SettingsMenuProps) {
   // 同じ文字列を2回読み上げるため、aria-labelledby で<p>を指し直す
   const localeLabelId = useId()
   const themeLabelId = useId()
-  // 開閉の購読 effect を useThemeChoice の effect より後に保つため、この位置で呼ぶ
   const { open, setOpen, rootRef, buttonRef, closeAndFocusTrigger } = useMenuOpen()
 
   return (

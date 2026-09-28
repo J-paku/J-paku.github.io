@@ -40,13 +40,10 @@ export function useVillageHint({ world }: VillageHintOptions): UseVillageHint {
     [clearHint]
   )
 
-  // アンマウント時に一言とタイマーを残さない
-  useEffect(() => clearHint, [clearHint])
-
-  // ワープ(ワールド変更)では一言を持ち越さない
-  useEffect(() => {
-    clearHint()
-  }, [world, clearHint])
+  // ワープ(ワールド変更)とアンマウントでは一言とタイマーを持ち越さない。
+  // world が変わると前の回の後始末として clearHint が走る。effect の本体で呼んでいた頃と同じ
+  // passive effect の一括処理の中なので、消える時機は変わらない
+  useEffect(() => clearHint, [world, clearHint])
 
   return { hintText, showHint, clearHint }
 }

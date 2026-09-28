@@ -8,7 +8,7 @@
 // ただし素のDOMへ展開すると4場面ぶんのSVGが同時に置かれ、互いのクラス名(.anim など。場面ごとに
 // animation-duration が違う)と id(#hex・#dummyCard など)を奪い合う。シャドウルートなら
 // スタイルも id 参照も各場面の中に閉じるので、この構成では必須。
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import { fetchSvgSource } from '@/lib/fetch-svg-source'
 
 type SceneSvgProps = {
@@ -34,8 +34,7 @@ function SceneSvg({ src, className, restartKey, paused, onError }: SceneSvgProps
   const [source, setSource] = useState<string | null>(null)
 
   // onError をそのまま effect の依存に置くと、呼び出し側が再レンダーするたび取得し直してしまう
-  const onErrorRef = useRef(onError)
-  onErrorRef.current = onError
+  const handleError = useEffectEvent(onError)
 
   useEffect(() => {
     let cancelled = false
@@ -44,7 +43,7 @@ function SceneSvg({ src, className, restartKey, paused, onError }: SceneSvgProps
         if (!cancelled) setSource(text)
       })
       .catch(() => {
-        if (!cancelled) onErrorRef.current()
+        if (!cancelled) handleError()
       })
     return () => {
       cancelled = true

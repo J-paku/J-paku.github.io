@@ -12,6 +12,8 @@ export function useActiveScene(count: number): {
   setSectionRef: (index: number) => (el: HTMLElement | null) => void
 } {
   const [activeIndex, setActiveIndex] = useState(0)
+  // 場面数の変化をレンダー中に検知するため、直前に受け取った場面数を覚えておく
+  const [prevCount, setPrevCount] = useState(count)
   const observerRef = useRef<IntersectionObserver | null>(null)
   const elementsRef = useRef(new Map<number, HTMLElement>())
   // index ごとの ref コールバックを保持する。毎レンダーで新しい関数を渡すと
@@ -47,10 +49,12 @@ export function useActiveScene(count: number): {
     }
   }, [])
 
-  // 場面数が変わった(=別の作品のストーリーへ遷移した)ら、古いインデックスを引きずらないよう先頭へ戻す
-  useEffect(() => {
+  // 場面数が変わった(=別の作品のストーリーへ遷移した)ら、古いインデックスを引きずらないよう先頭へ戻す。
+  // effect で戻すと古いインデックスのまま一度コミットしてから描き直すため、レンダー中に戻す
+  if (count !== prevCount) {
+    setPrevCount(count)
     setActiveIndex(0)
-  }, [count])
+  }
 
   const setSectionRef = useCallback((index: number) => {
     const cached = callbacksRef.current.get(index)

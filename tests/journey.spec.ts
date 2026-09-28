@@ -511,6 +511,11 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
     await focusVillage(page)
     await expect(root).toHaveAttribute('data-theme', 'dark')
     await trigger.click()
+    // サーバー描画は保存値を知れず light で描く。ハイドレーションの後にルート属性の dark で
+    // 描き直していなければ、属性は dark なのにメニューでは light が押された状態で並ぶ
+    await expect(
+      page.getByRole('group').getByRole('button', { name: settings.dark })
+    ).toHaveAttribute('aria-pressed', 'true')
     await page.getByRole('group').getByRole('button', { name: settings.light }).click()
     await expect(root).toHaveAttribute('data-theme', 'light')
   })

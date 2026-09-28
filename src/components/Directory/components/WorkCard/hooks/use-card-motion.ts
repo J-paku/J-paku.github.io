@@ -7,6 +7,7 @@ export function useCardMotion(work: Work) {
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
   const [isFinePointer, setIsFinePointer] = useState(false)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 書き出した HTML と揃えて初回は false で描き、mount 後に一度だけ実環境の値へ替えるため(useSyncExternalStore ではクライアント遷移の初回描画と途中の設定変更への追従が変わる)
     setPrefersReducedMotion(window.matchMedia('(prefers-reduced-motion: reduce)').matches)
     setIsFinePointer(window.matchMedia('(hover: hover) and (pointer: fine)').matches)
   }, [])

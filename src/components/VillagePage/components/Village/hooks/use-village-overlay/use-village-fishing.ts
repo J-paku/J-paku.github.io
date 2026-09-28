@@ -135,13 +135,10 @@ export function useVillageFishing({
     return null
   }, [phase, caught, text, roleLabels, exhausted])
 
-  // アンマウント時にタイマーを残さない
-  useEffect(() => reset, [reset])
-
-  // ワープ(ワールド変更)では釣りを持ち越さない
-  useEffect(() => {
-    reset()
-  }, [world, reset])
+  // ワープ(ワールド変更)とアンマウントでは釣りとタイマーを持ち越さない。
+  // world が変わると前の回の後始末として reset が走る。effect の本体で呼んでいた頃と同じ
+  // passive effect の一括処理の中なので、止まる時機は変わらない
+  useEffect(() => reset, [world, reset])
 
   return { phase, stop, at, exhausted, start, reset }
 }
