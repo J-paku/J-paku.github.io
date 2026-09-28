@@ -1,5 +1,5 @@
 // 雨と雪のシートを検証する。1 コマ 1 枚であること、2 コマが平行移動でつながること、
-// 時間帯で色が変わらないこと
+// 時間帯で色が変わらないこと、雨が決まった形の筋だけでできていること
 import { describe, expect, it } from 'vitest'
 import { TILE } from './art'
 import { buildWeatherSprites } from './sprites'
@@ -13,6 +13,21 @@ const DAY_COLORS: Record<'rain' | 'snow', readonly string[]> = {
   rain: ['#78c0e8', '#a0d0f8'],
   snow: ['#e5e5e5', '#fafafa'],
 }
+
+// 雨の筋 1 本の形。頭の暗いドット(n)からの [横, 縦, 文字]。下へ行くほど左へ寄る 5 ドット
+const RAIN_STREAK: readonly (readonly [number, number, string])[] = [
+  [0, 0, 'n'],
+  [0, 1, 'n'],
+  [-1, 2, 'v'],
+  [-1, 3, 'v'],
+  [-2, 4, 'v'],
+]
+
+// 雨のコマに入れる筋の本数。多いと町が見えにくくなる
+const RAIN_STREAKS = 2
+
+// 16 マスの輪の上での位置。端から出た座標を反対側の端へ回す
+const wrap = (at: number): number => ((at % TILE) + TILE) % TILE
 
 // 透明でないドットの色を重複なく昇順で返す
 const litColors = (uri: string): string[] => {
@@ -91,6 +106,30 @@ describe('天気のシート', () => {
   it('2 コマ目は 1 コマ目を半マス分ずらしたものなので、端で絵がつながる', () => {
     expect(weatherArt.rain[1]).toEqual(shift(weatherArt.rain[0], -4, 8))
     expect(weatherArt.snow[1]).toEqual(shift(weatherArt.snow[0], 1, 8))
+  })
+
+  // 平行移動の検査は 2 コマの関係しか見ない。1 コマ目で端をまたぐ筋の片側を描き忘れても、
+  // 2 コマ目を同じようにずらせば素通りする。ここでは筋の頭(真上が n でない n)ごとに
+  // 筋の形を端で折り返して描き直し、元の絵と 1 ドットも違わないことを見る
+  it('雨は同じ形の斜めの筋だけでできていて、端をまたぐ筋も反対側でつながる', () => {
+    weatherArt.rain.forEach((art, frame) => {
+      const heads: (readonly [number, number])[] = []
+      art.forEach((row, y) => {
+        Array.from(row).forEach((ch, x) => {
+          if (ch === 'n' && art[wrap(y - 1)][x] !== 'n') heads.push([x, y])
+        })
+      })
+      const redrawn = Array.from({ length: TILE }, () => Array.from({ length: TILE }, () => '.'))
+      for (const [x, y] of heads) {
+        for (const [dx, dy, ch] of RAIN_STREAK) redrawn[wrap(y + dy)][wrap(x + dx)] = ch
+      }
+
+      expect(heads, `rain-${frame}`).toHaveLength(RAIN_STREAKS)
+      expect(
+        redrawn.map(row => row.join('')),
+        `rain-${frame}`
+      ).toEqual(art)
+    })
   })
 
   it('粒はまばらで、地面を覆い隠さない', () => {

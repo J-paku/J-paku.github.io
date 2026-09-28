@@ -5,6 +5,8 @@
 .layer {
   /* 2 コマの見せ消しの周期。コマ送りの速さはここ 1 か所で決める */
   --weather-period: 0.5s;
+  /* 見えているコマの濃さ。コマ送りの山とコマ送りを止めたときの両方がこの値になる */
+  --weather-opacity: 1;
   position: absolute;
   inset: 0;
   z-index: 1;
@@ -14,23 +16,30 @@
   background-repeat: repeat;
   background-size: var(--cell) var(--cell);
   image-rendering: pixelated;
+  /* コマ送り中は下の animation が上書きする。効くのは動きを控える設定で animation を外したときだけ */
+  opacity: var(--weather-opacity);
   /* steps(1) なので区間の頭の値を保ち、区切りで瞬時に飛ぶ。中間の半透明は一切作らない */
   animation: weather-frame var(--weather-period) steps(1) infinite;
+}
+/* 雨は濃いままだと町が見えにくいので、雨の層だけ少し透かす。雪は 1 のまま */
+.layer[data-weather='rain'] {
+  --weather-opacity: 0.7;
 }
 /* 2 コマ目は半周期ぶん進めた状態で始める。1 コマ目と山谷が入れ替わり、常にどちらか一方だけが見える。
    animation の一括指定が delay を 0 に戻すため、.layer より詳細度を上げて確実に後勝ちさせる */
 .layer.second {
   animation-delay: calc(var(--weather-period) / -2);
 }
+/* 山の値は層ごとの --weather-opacity。keyframes の var() は再生している要素の値で解決される */
 @keyframes weather-frame {
   0% {
-    opacity: 1;
+    opacity: var(--weather-opacity);
   }
   50% {
     opacity: 0;
   }
   100% {
-    opacity: 1;
+    opacity: var(--weather-opacity);
   }
 }
 /* 動きを控える設定ではコマ送りを止める。止めると 2 コマが重なって粒が倍になるので、1 コマだけ残す */
