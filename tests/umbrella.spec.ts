@@ -51,8 +51,9 @@ const CLOSE_PREFIX = 'player-umbrella-close-'
 const UMBRELLA_PREFIX = 'player-umbrella-'
 // 傘を差した下向きの立ち姿。開き終えるとこのコマになる
 const STAND_DOWN = 'player-umbrella-down-0'
-// 傘を差して立つ・歩くコマ。上下は 0 が立ち・1 と 2 が足を替えた歩き、横は 0 が立ち・1 が歩き(左は右の反転)
-const UMBRELLA_POSE = /^player-umbrella-(up|down|right)-[0-2]$/
+// 傘を差して立つ・歩くコマ。上下は 0 が立ち・1 と 2 が足を替えた歩き、横は 0 が立ち・1 が歩き
+// (傘を差した左向きは原画の左向きの行を写したコマで、右の反転ではない)
+const UMBRELLA_POSE = /^player-umbrella-(up|down|right|left)-[0-2]$/
 
 // 動かなかった時の主人公の位置のずれの許容(px)。同じマスなら実測のまるめしか出ず、1 マス動けば
 // Village/utils/stage-scale.ts の下限(CELL_MIN = 12px)以上ずれるので取り違えようがない

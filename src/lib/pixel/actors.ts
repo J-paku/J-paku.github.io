@@ -3,9 +3,15 @@
 // 静止コマは 4〜23 行、歩行コマは全体が一段下がって 5〜23 行に収まり、最下行だけ脚を振る
 // シートへ焼くときはこの体を32×32の画布へ置き、余白へ描くのは傘を差したコマだけ(下のPLAYER_BODY_*と傘の見出し)
 // 輪郭は x(#181818)で描き、白い縁取りは scene.module.css の drop-shadow が付ける
-import { TILE } from './art'
+import { mirrorX, TILE } from './art'
 import type { PixelArt } from './art'
 import { backLantern, frontLantern, LANTERN_BODY_TOP, overlayLantern, sideLantern } from './lantern'
+import {
+  umbrellaDownOriginal,
+  umbrellaLeftOriginal,
+  umbrellaRightOriginal,
+  umbrellaUpOriginal,
+} from './umbrella-original'
 
 export const PLAYER_HEIGHT = 24
 
@@ -37,10 +43,12 @@ type PlayerFrames = {
   // 釣り上げ。pull で竿を起こし、結果の窓が出ている間は hoist のまま
   pull: FishingFrames
   hoist: FishingFrames
-  // 雨の外で傘を差したコマ。並びは up・down・right と同じ(静止・歩行 1・歩行 2、横向きは静止・歩行)
+  // 雨の外で傘を差したコマ。並びは up・down・right と同じ(静止・歩行 1・歩行 2、横向きは静止・歩行)。
+  // 原画に左向きの行があるので、傘を差したコマだけは左向きも反転で作らず持つ
   umbrellaUp: [PixelArt, PixelArt, PixelArt]
   umbrellaDown: [PixelArt, PixelArt, PixelArt]
   umbrellaRight: [PixelArt, PixelArt]
+  umbrellaLeft: [PixelArt, PixelArt]
   // 外へ出た直後に傘を出して開く動き(正面)。reach → draw → extend → half → raise の順に送り、
   // umbrellaDown の静止コマで締める
   umbrellaOpen: {
@@ -1035,7 +1043,7 @@ type Triple = [PixelArt, PixelArt, PixelArt]
 const framed3 = ([a, b, c]: Triple): Triple => [toFrame(a), toFrame(b), toFrame(c)]
 const framed2 = ([a, b]: [PixelArt, PixelArt]): [PixelArt, PixelArt] => [toFrame(a), toFrame(b)]
 
-// 素の立ち・歩きのコマ(16×24)。傘を差したコマも同じ体から組む
+// 素の立ち・歩きのコマ(16×24)
 const upFrames: Triple = [
   stand(upBody, upFeet),
   walk(upBody, '...xAAx..xZx....'),
@@ -1051,38 +1059,17 @@ const rightFrames: [PixelArt, PixelArt] = [
   walk(rightBody, '....xAAx.xAAx...'),
 ]
 
-// ここから下は雨の外で差す傘。利用者の指示で描き直した(前の傘は参照画像を16×24へ写したもので、
-// 頭に貼り付いた兜に見え、柄も手も見えなかった)。色は前の傘のまま、紺の布([)・陰と骨(])・光(=)、
-// 縁の白い房(~)、木の石突きと柄(^)の5文字だけで描き、灯り用・段階で色を変えない文字は使わない。
+// ここから下は雨の外で差す傘。差して立つ・歩くコマは、利用者から受け取った原画を写したumbrella-original.tsを
+// そのまま使い、ここでは1ドットも手を入れない(ADR 0008。写し方はumbrella-original.tsの見出し)。
+// 原画は正面・背面・右向き・左向きの4行を持ち、左向きの行は右向きの行を反転した絵と1ドットずつは一致しないので、
+// 傘を差したコマだけは左向きを右向きの反転で作らず、原画の左向きの行を使う(sprites-art.test.tsが食い違いを数えている)。
 // 夜は服と同じくphasePaletteで沈み、灯るのは重ねたランタンだけになる(夜専用の絵は無い)。
 //
-// 傘は体の箱に収まらないので、画布の余白へ描く。
-//  - 開いた天蓋は幅25(正面の頭の幅15の約1.7倍)。石突きから骨が縁の5つの先へ下り、先ごとに白い房が付く。
-//    左上から光が当たる向きで、左の面を明るく、右の面を陰にする。天蓋の縁と帽子の間は2行空け、そこに柄が見える
-//  - 柄を握るのは右手だけ。左手は夜にランタンを提げる手なので、ランタンの席(正面は右下、背面は左下、
-//    横向きは前下)へは腕も柄も入れない。握らない方の手は素のコマのまま下ろしておく
-//  - 正面と背面は、拳を肩の高さで頭の外へ出し、柄を4行ごとに1列ずつ頭の側へ傾けて天蓋の石突きへ向ける。
-//    柄は頭の輪郭の外側に沿って上り、顔の上を横切らない。天蓋はそのぶん握る手の側へ寄る
-//  - 横向きは胸の前で柄を握る。前へ突き出す拳の席は夜のランタンが塞いでいるため。
-//    柄は頭の後ろへ隠れ、拳と顎の間と、帽子と天蓋の間にだけ見える
-// どのコマも、素の体を画布へ置き、腕の型紙→天蓋→柄の順に重ねて組む。天蓋と柄は体の後ろへ回り
-// (元の絵が透明な升にだけ描く)、頭や顔のドットは1つも塗り替えない。
-// 歩くコマは体と一緒に腕・天蓋・柄も1行下げるので、歩くと傘が1ドット揺れ、拳は柄から離れない
+// ここで組むのは、原画に無い傘を出す・しまう途中のコマ(下の見出し)と、夜に重ねるランタンの位置だけ。
+// 原画の立ち姿は、正面は画面の右の手・背面は画面の左の手・横向きは前の手で柄を頭の横に立て、反対の手に灯りを提げる
 const UMBRELLA_WOOD = '^'
 
-// 開いた天蓋(幅25・高さ10)。最上行が石突き、1〜7行が布、8行が縁の波(骨の先が下へ尖る)、9行が房
-const canopyOpen: PixelArt = [
-  '............^............',
-  '..........xx^xx..........',
-  '.......xxx==][[xxx.......',
-  '.....xx[=[==][[]]]xx.....',
-  '...xx[[=[===][[[]]]]xx...',
-  '..x[[[=[====][[[[]]]]]x..',
-  '.x[[[=[=====][[[[[]]]]]x.',
-  'x[[[[[[[====][[[[[]]]]]]x',
-  'x]xxx]][xxx[]]xxx]]]xxx]x',
-  '~x...x~x...x~x...x~x...x~',
-]
+// ここから下の天蓋・畳んだ傘は、原画より前に実装が描いたもの。原画に無い出す・しまう途中のコマにだけ使う
 // 開ききる手前・閉じ始め(幅21)
 const canopyWide: PixelArt = [
   '..........^..........',
@@ -1135,107 +1122,57 @@ const foldedBack: PixelArt = [
 // 型紙の(x, y)の文字。型紙の外は'.'(元の絵を残す)として読む
 const cellOf = (patch: PixelArt, x: number, y: number): string =>
   y >= 0 && y < patch.length && x >= 0 && x < patch[y].length ? patch[y][x] : '.'
-// 画布の(left, top)から型紙を重ねる。'.'は元の絵を残し、ERASEは透明へ戻し、それ以外は塗る
-const paintAt = (art: PixelArt, patch: PixelArt, left: number, top: number): PixelArt =>
-  art.map((row, y) =>
-    [...row]
-      .map((ch, x) => {
-        const cell = cellOf(patch, x - left, y - top)
-        if (cell === '.') return ch
-        return cell === ERASE ? '.' : cell
-      })
-      .join('')
-  )
 // 元の絵が透明な升にだけ描く。体の後ろへ回る天蓋と柄に使う
 const paintBehind = (art: PixelArt, patch: PixelArt, left: number, top: number): PixelArt =>
   art.map((row, y) =>
     [...row].map((ch, x) => (ch === '.' ? cellOf(patch, x - left, y - top) : ch)).join('')
   )
 
-// 天蓋の縁の直下の行。柄はここから拳まで描き、ここより上は天蓋が隠す
-const SHAFT_TOP = 9
-// 柄の1本の線。SHAFT_TOP〜to行の各行でat(y)列に木の色を置いた画布
-const shaftLine = (at: (y: number) => number, to: number): PixelArt =>
-  Array.from({ length: PLAYER_FRAME_HEIGHT }, (_, y) =>
-    y < SHAFT_TOP || y > to
-      ? FRAME_BLANK
-      : FRAME_BLANK.slice(0, at(y)) + UMBRELLA_WOOD + FRAME_BLANK.slice(at(y) + 1)
-  )
+// ---- 傘を出す・しまう途中のコマ。原画に無いので実装が描いたコマ ----
+// 原画の立ち姿へそのままつながるよう、柄を扱う手は原画と同じ側(正面は画面の右、背面は画面の左)にそろえる。
+//  - 手を懐へ入れる・傘を引き出す(正面)と、柄を縮める・懐へしまう(背面)は、原画より前に描いた素の体のコマを
+//    左右に反転しただけのもの。傘が原画と同じ側の手へ移り、ドットは描き足していない
+//  - 柄を伸ばす・半開き・開ききる手前(正面)と、下ろす・すぼめる・閉じる(背面)は、原画の立ち姿から天蓋を外して、
+//    上の畳んだ傘・細い釣鐘・開ききる手前の天蓋に替えたもの。体・握った手・柄は原画の立ち姿のまま(13行目から下は同じ)。
+//    描き足したのは、天蓋が隠していた帽子の天辺を閉じる輪郭1行と、替えた天蓋の縁から原画の柄の上端までの柄だけ
 
-type Grip = {
-  // 天蓋の縁の下から拳までの柄
-  shaft: PixelArt
-  // 柄を握る腕・拳と、拳の下へ出る柄の端(正面と背面は鉤に曲げる)。画布のarmTop行目から重ねる
-  arm: PixelArt
-  armTop: number
-}
+// 原画の立ち姿で天蓋と縁の房が占める行(0〜12行)。13行目から下は帽子・体・柄
+const CANOPY_ROWS = 13
 // 置く天蓋。left・topは画布の列・行
 type Cover = { art: PixelArt; left: number; top: number }
 // 天蓋の石突き(最上行の^)を画布のcolumn列へ合わせて置く
-const coverAt = (art: PixelArt, column: number, top = 0): Cover => ({
+const coverAt = (art: PixelArt, column: number, top: number): Cover => ({
   art,
   left: column - art[0].indexOf(UMBRELLA_WOOD),
   top,
 })
+// 原画の柄の文字(palette.ts)
+const UMBRELLA_SHAFT = '|'
+// 天蓋を差し替えた立ち姿。capTopは天蓋に隠れていた帽子の天辺を閉じる輪郭の行(12行目)、
+// shaftは原画の柄の列で、替えた天蓋の縁の下から12行目まで柄を足す(体の後ろへ回るので透明な升にだけ描く)
+type Swap = { capTop: string; shaft: number }
+const swapCanopy = (stand: PixelArt, { capTop, shaft }: Swap, cover: Cover): PixelArt => {
+  const bare = [
+    ...Array.from({ length: CANOPY_ROWS - 1 }, () => FRAME_BLANK),
+    capTop,
+    ...stand.slice(CANOPY_ROWS),
+  ]
+  const covered = paintBehind(bare, cover.art, cover.left, cover.top)
+  const rim = cover.top + cover.art.length
+  return covered.map((row, y) =>
+    y >= rim && y < CANOPY_ROWS && row[shaft] === '.'
+      ? row.slice(0, shaft) + UMBRELLA_SHAFT + row.slice(shaft + 1)
+      : row
+  )
+}
+// 原画の立ち姿の柄は、正面が23列・背面が8列を縦に上る
+const frontSwap: Swap = { capTop: '...........xxxxxxxxxx...........', shaft: 23 }
+const backSwap: Swap = { capTop: '...........xxxxxxxxxxx..........', shaft: 8 }
 
-// 正面。右手(画面の左)を肩の高さで頭の外へ出し、拳(24・25行の5・6列)で柄を握る。
-// 柄は拳から4行ごとに1列ずつ右へ寄り、頭の輪郭の1列外を上って天蓋の石突き(12列)の下へ入る。
-// 腰へ下ろしていた手と腕は消し、胴の左の輪郭を閉じる。拳の下の柄は左へ曲がって鉤になる
-const frontGrip: Grip = {
-  shaft: shaftLine(y => 6 + Math.floor((25 - y) / 4), 25),
-  armTop: 23,
-  arm: [
-    '.....x.x........................',
-    '....xVVxxx......................',
-    '....xVVKQQq.....................',
-    '.....x^xxxxQ....................',
-    '....^.^..-xQ....................',
-    '.....^...-xQ....................',
-  ],
-}
-// 背面。正面と同じ形の握りで、右手は画面の右へ出る。拳は24・25行の25・26列で、柄は4行ごとに1列ずつ左へ寄る。
-// 背面の頭は正面より左右へ1列ずつ広いので、そのぶん正面より外で握る。石突きは画布の右端に天蓋が収まる19列
-const backGrip: Grip = {
-  shaft: shaftLine(y => 26 - Math.floor((25 - y) / 4), 25),
-  armTop: 23,
-  arm: [
-    '.........................x.x....',
-    '......................xxxVVx....',
-    '.....................MMMKVVx....',
-    '......................xxxx^x....',
-    '.....................--...^.^...',
-    '.....................--....^....',
-  ],
-}
-// 横向き。手前の腕を胸の高さへ上げ、胸の前の拳(26・27行の16・17列)で柄を握る。
-// 柄は16列をまっすぐ上り、顎から帽子までは頭の後ろに隠れる。拳の下には柄の端が2行覗く。
-// 前下(19列から先)はランタンの席なので、胴の前の輪郭(19列)は素のコマのまま触らず、
-// 拳もランタンから1列離す(同じ手で灯りと傘を提げているように見せない)
-const sideGrip: Grip = {
-  shaft: shaftLine(() => 16, 25),
-  armTop: 25,
-  arm: [
-    '................^...............',
-    '...............xVVQ.............',
-    '..............JYVVQ.............',
-    '..............JM^qQ.............',
-    '..............QM^...............',
-  ],
-}
-
-// 素の体(16×24)に傘を持たせる。dyは歩行コマで体と一緒に1行下げるぶん
-const holdUmbrella = (body: PixelArt, grip: Grip, cover: Cover, dy: number): PixelArt => {
-  const armed = paintAt(toFrame(body), grip.arm, 0, grip.armTop + dy)
-  const covered = paintBehind(armed, cover.art, cover.left, cover.top + dy)
-  return paintBehind(covered, grip.shaft, 0, dy)
-}
-
-// ---- 傘を差して歩く ----
-// 天蓋の石突きの列。正面は柄の線の上の12列、背面は柄の線の20列だと天蓋が画布の右端からはみ出すので19列、
-// 横向きは柄と同じ16列(頭の真上)
-const frontOpen = coverAt(canopyOpen, 12)
-const backOpen = coverAt(canopyOpen, 19)
-const sideOpen = coverAt(canopyOpen, 16)
+// 素の体のコマを左右に反転する。正面の体は0〜14列に描いてあるのでその15列だけ(軸足の交代と同じ)、
+// 背面の体は16列いっぱいに左右対称に描いてあるので16列ごと反転する。どちらも体の中心の列は動かない
+const mirrorFront = (art: PixelArt): PixelArt => art.map(mirrorArt)
+const mirrorBack = (art: PixelArt): PixelArt => mirrorX(art)
 
 // ---- 傘を出して開く(正面) ----
 // 上着の内へ手を入れる
@@ -1293,19 +1230,29 @@ const umbrellaDownDraw: PixelArt = [
   '....xx..xxx.....',
 ]
 
-// 柄を伸ばし、畳んだまま頭の横に立てる。ここから差して立つコマまで、拳と柄は同じ所に留まる
-const umbrellaDownExtend = holdUmbrella(downFrames[0], frontGrip, coverAt(foldedFront, 12, 1), 0)
+// 柄を伸ばし、畳んだまま頭の横に立てる。ここから差して立つコマまで、手と柄は原画の立ち姿と同じ所に留まる。
+// 天蓋は開くにつれて石突きを柄の真上(23列)から原画の天蓋の石突き(16列)へ寄せていく
+// (原画の柄は天蓋のまん中ではなく右寄りへ入っている)
+const umbrellaDownExtend = swapCanopy(
+  umbrellaDownOriginal[0],
+  frontSwap,
+  coverAt(foldedFront, 23, 4)
+)
 // 骨が立ち、細い釣鐘の形に半分開く
-const umbrellaDownHalf = holdUmbrella(downFrames[0], frontGrip, coverAt(canopyNarrow, 12), 0)
-// 開ききる手前。この次が差して立つコマ(umbrellaDownの静止)
-const umbrellaDownRaise = holdUmbrella(downFrames[0], frontGrip, coverAt(canopyWide, 12), 0)
+const umbrellaDownHalf = swapCanopy(
+  umbrellaDownOriginal[0],
+  frontSwap,
+  coverAt(canopyNarrow, 21, 1)
+)
+// 開ききる手前。この次が差して立つコマ(原画の正面の立ち)
+const umbrellaDownRaise = swapCanopy(umbrellaDownOriginal[0], frontSwap, coverAt(canopyWide, 18, 2))
 
 // ---- 傘を閉じてしまう(背面) ----
-// 差して立つコマ(umbrellaUpの静止)から、天蓋を開いたときの逆の順にすぼめる。拳と柄は同じ所に留まる
-const umbrellaUpLower = holdUmbrella(upFrames[0], backGrip, coverAt(canopyWide, 19), 0)
-const umbrellaUpHalf = holdUmbrella(upFrames[0], backGrip, coverAt(canopyNarrow, 19), 0)
+// 差して立つコマ(原画の背面の立ち)から、天蓋を開いたときの逆の順にすぼめる。手と柄は原画の立ち姿のまま
+const umbrellaUpLower = swapCanopy(umbrellaUpOriginal[0], backSwap, coverAt(canopyWide, 13, 2))
+const umbrellaUpHalf = swapCanopy(umbrellaUpOriginal[0], backSwap, coverAt(canopyNarrow, 10, 1))
 // 布を畳みきり、柄に沿って立てる。次のコマで柄を縮めて手元へ下ろす
-const umbrellaUpClosed = holdUmbrella(upFrames[0], backGrip, coverAt(foldedBack, 20, 1), 0)
+const umbrellaUpClosed = swapCanopy(umbrellaUpOriginal[0], backSwap, coverAt(foldedBack, 8, 4))
 
 // 柄を縮めて短くし、手元へ引き寄せる
 const umbrellaUpCompact: PixelArt = [
@@ -1415,24 +1362,15 @@ export const playerArt: PlayerFrames = {
     downPose(-1, downNeck, downFreeArmUp, downHoistRod),
     rightPose(-1, rightNeck, rightHoistRod),
   ]),
-  // 傘を差したコマは素の立ち・歩きのコマに傘を持たせる。歩行コマ(1・2)は体と一緒に傘も1行下がる
-  umbrellaUp: [
-    holdUmbrella(upFrames[0], backGrip, backOpen, 0),
-    holdUmbrella(upFrames[1], backGrip, backOpen, 1),
-    holdUmbrella(upFrames[2], backGrip, backOpen, 1),
-  ],
-  umbrellaDown: [
-    holdUmbrella(downFrames[0], frontGrip, frontOpen, 0),
-    holdUmbrella(downFrames[1], frontGrip, frontOpen, 1),
-    holdUmbrella(downFrames[2], frontGrip, frontOpen, 1),
-  ],
-  umbrellaRight: [
-    holdUmbrella(rightFrames[0], sideGrip, sideOpen, 0),
-    holdUmbrella(rightFrames[1], sideGrip, sideOpen, 1),
-  ],
+  // 傘を差して立つ・歩くコマは原画を写したまま(umbrella-original.ts)
+  umbrellaUp: umbrellaUpOriginal,
+  umbrellaDown: umbrellaDownOriginal,
+  umbrellaRight: umbrellaRightOriginal,
+  umbrellaLeft: umbrellaLeftOriginal,
+  // 出す・しまう途中のコマは原画に無いので実装が描いたもの(上の見出し)
   umbrellaOpen: {
-    reach: toFrame(umbrellaDownReach),
-    draw: toFrame(umbrellaDownDraw),
+    reach: toFrame(mirrorFront(umbrellaDownReach)),
+    draw: toFrame(mirrorFront(umbrellaDownDraw)),
     extend: umbrellaDownExtend,
     half: umbrellaDownHalf,
     raise: umbrellaDownRaise,
@@ -1441,8 +1379,8 @@ export const playerArt: PlayerFrames = {
     lower: umbrellaUpLower,
     half: umbrellaUpHalf,
     closed: umbrellaUpClosed,
-    compact: toFrame(umbrellaUpCompact),
-    stow: toFrame(umbrellaUpStow),
+    compact: toFrame(mirrorBack(umbrellaUpCompact)),
+    stow: toFrame(mirrorBack(umbrellaUpStow)),
   },
 }
 
@@ -1459,6 +1397,50 @@ const standLit = (art: PixelArt, lantern: PixelArt): PixelArt =>
   overlayLantern(art, onFrame(lantern), PLAYER_BODY_TOP + 4 + LANTERN_BODY_TOP)
 const walkLit = (art: PixelArt, lantern: PixelArt): PixelArt =>
   overlayLantern(art, onFrame(lantern), PLAYER_BODY_TOP + 5 + LANTERN_BODY_TOP)
+
+// 傘を差したコマのランタン。原画はランタンを提げた姿で描かれていて、写すときにそのランタンは抜いたので、
+// 抜いた所(原画のガラスがあった所)へlantern.tsの面を重ね直す。原画の灯りは柄を持たない方の手にあり、
+// 正面は画面の左、背面と左向きは画面の右、右向きは背中側(画面の左)に提がる。
+// 面は原画のランタンの見え方に近いものを選び(正面はfrontLantern、ほかは笠が張り出すsideLantern)、
+// 体の側に柱が来るよう必要なら左右を反転する。dxは面を体の箱から右へずらす列数、topは面の最上行の画布の行。
+// 灯りを体のドットへ重ねる位置は取れない(overlayLanternが落とす)ので、原画のガラスの中心にいちばん近い、
+// 体に掛からない位置を選んだ(ずれは縦横とも2升以内)。原画のランタンはコマごとに少しずつ動くので、コマごとに持つ
+type Hang = { face: PixelArt; mirrored: boolean; dx: number; top: number }
+const hangLantern = (art: PixelArt, { face, mirrored, dx, top }: Hang): PixelArt =>
+  overlayLantern(
+    art,
+    (mirrored ? mirrorX(face) : face).map(
+      row => '.'.repeat(PLAYER_BODY_LEFT + dx) + row + '.'.repeat(PLAYER_BODY_LEFT - dx)
+    ),
+    top
+  )
+// 原画の正面の立ち・歩き(1行目の3・2・5コマ目)は灯りを描いていないコマなので、
+// 同じ行で灯りを提げている6コマ目のガラスの位置(画布の8列・25〜26行)に合わせた
+const umbrellaHangs = {
+  down: [
+    { face: frontLantern, mirrored: true, dx: -1, top: 23 },
+    { face: frontLantern, mirrored: true, dx: -1, top: 23 },
+    { face: frontLantern, mirrored: true, dx: -2, top: 23 },
+  ],
+  up: [
+    { face: sideLantern, mirrored: false, dx: 1, top: 21 },
+    { face: sideLantern, mirrored: false, dx: 1, top: 23 },
+    { face: sideLantern, mirrored: false, dx: 2, top: 22 },
+  ],
+  right: [
+    { face: sideLantern, mirrored: true, dx: -1, top: 22 },
+    { face: sideLantern, mirrored: true, dx: -2, top: 22 },
+  ],
+  left: [
+    { face: sideLantern, mirrored: false, dx: 1, top: 22 },
+    { face: sideLantern, mirrored: false, dx: 2, top: 21 },
+  ],
+} satisfies Record<'down' | 'up' | 'right' | 'left', Hang[]>
+// 反転した素の体のコマ(手を懐へ入れる・引き出す・縮める・しまう)は、反転前と同じ面を同じ高さで、
+// 体と一緒に反転した位置へ提げる。正面の体は0〜14列を反転したので、16列の面の反転からさらに1列左へずらす
+const standTop = PLAYER_BODY_TOP + 4 + LANTERN_BODY_TOP
+const mirroredFrontHang: Hang = { face: frontLantern, mirrored: true, dx: -1, top: standTop }
+const mirroredBackHang: Hang = { face: backLantern, mirrored: true, dx: 0, top: standTop }
 
 // 釣りのコマは静止コマと同じ高さに、並び(上・下・右)どおりの面を提げる。場面が 9 つあるので
 // 向きとランタンの組をここ 1 箇所に置き、場面ごとに書き並べて面を取り違える余地を無くす
@@ -1492,35 +1474,39 @@ export const playerNightArt: PlayerFrames = {
   bite: litFishing(playerArt.bite),
   pull: litFishing(playerArt.pull),
   hoist: litFishing(playerArt.hoist),
-  // 傘のコマも昼の絵へ灯りを重ねるだけ。差して立つ・歩くコマは素のコマと同じ面と高さ、
-  // 出す動きは正面の静止、しまう動きは背面の静止と同じ高さに提げる。
-  // 傘や上げた腕がランタンの席へ入っていれば、釣りと同じく overlayLantern がここで落ちる
+  // 傘のコマも昼の絵へ灯りを重ねるだけ。差して立つ・歩くコマは原画のランタンの位置(umbrellaHangs)、
+  // 天蓋を替えた出す・しまう途中のコマはその元の立ち姿と同じ位置、反転した素の体のコマは体と一緒に反転した位置に提げる。
+  // 傘や手がランタンの席へ入っていれば、釣りと同じく overlayLantern がここで落ちる
   umbrellaUp: [
-    standLit(playerArt.umbrellaUp[0], backLantern),
-    walkLit(playerArt.umbrellaUp[1], backLantern),
-    walkLit(playerArt.umbrellaUp[2], backLantern),
+    hangLantern(playerArt.umbrellaUp[0], umbrellaHangs.up[0]),
+    hangLantern(playerArt.umbrellaUp[1], umbrellaHangs.up[1]),
+    hangLantern(playerArt.umbrellaUp[2], umbrellaHangs.up[2]),
   ],
   umbrellaDown: [
-    standLit(playerArt.umbrellaDown[0], frontLantern),
-    walkLit(playerArt.umbrellaDown[1], frontLantern),
-    walkLit(playerArt.umbrellaDown[2], frontLantern),
+    hangLantern(playerArt.umbrellaDown[0], umbrellaHangs.down[0]),
+    hangLantern(playerArt.umbrellaDown[1], umbrellaHangs.down[1]),
+    hangLantern(playerArt.umbrellaDown[2], umbrellaHangs.down[2]),
   ],
   umbrellaRight: [
-    standLit(playerArt.umbrellaRight[0], sideLantern),
-    walkLit(playerArt.umbrellaRight[1], sideLantern),
+    hangLantern(playerArt.umbrellaRight[0], umbrellaHangs.right[0]),
+    hangLantern(playerArt.umbrellaRight[1], umbrellaHangs.right[1]),
+  ],
+  umbrellaLeft: [
+    hangLantern(playerArt.umbrellaLeft[0], umbrellaHangs.left[0]),
+    hangLantern(playerArt.umbrellaLeft[1], umbrellaHangs.left[1]),
   ],
   umbrellaOpen: {
-    reach: standLit(playerArt.umbrellaOpen.reach, frontLantern),
-    draw: standLit(playerArt.umbrellaOpen.draw, frontLantern),
-    extend: standLit(playerArt.umbrellaOpen.extend, frontLantern),
-    half: standLit(playerArt.umbrellaOpen.half, frontLantern),
-    raise: standLit(playerArt.umbrellaOpen.raise, frontLantern),
+    reach: hangLantern(playerArt.umbrellaOpen.reach, mirroredFrontHang),
+    draw: hangLantern(playerArt.umbrellaOpen.draw, mirroredFrontHang),
+    extend: hangLantern(playerArt.umbrellaOpen.extend, umbrellaHangs.down[0]),
+    half: hangLantern(playerArt.umbrellaOpen.half, umbrellaHangs.down[0]),
+    raise: hangLantern(playerArt.umbrellaOpen.raise, umbrellaHangs.down[0]),
   },
   umbrellaClose: {
-    lower: standLit(playerArt.umbrellaClose.lower, backLantern),
-    half: standLit(playerArt.umbrellaClose.half, backLantern),
-    closed: standLit(playerArt.umbrellaClose.closed, backLantern),
-    compact: standLit(playerArt.umbrellaClose.compact, backLantern),
-    stow: standLit(playerArt.umbrellaClose.stow, backLantern),
+    lower: hangLantern(playerArt.umbrellaClose.lower, umbrellaHangs.up[0]),
+    half: hangLantern(playerArt.umbrellaClose.half, umbrellaHangs.up[0]),
+    closed: hangLantern(playerArt.umbrellaClose.closed, umbrellaHangs.up[0]),
+    compact: hangLantern(playerArt.umbrellaClose.compact, mirroredBackHang),
+    stow: hangLantern(playerArt.umbrellaClose.stow, mirroredBackHang),
   },
 }

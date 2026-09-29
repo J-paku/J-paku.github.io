@@ -213,6 +213,8 @@ describe('傘のコマ', () => {
       ),
       'player-umbrella-right-0',
       'player-umbrella-right-1',
+      'player-umbrella-left-0',
+      'player-umbrella-left-1',
       ...UMBRELLA_OPEN_STEPS.map(step => `player-umbrella-open-${step}`),
       ...UMBRELLA_CLOSE_STEPS.map(step => `player-umbrella-close-${step}`),
     ]
@@ -221,8 +223,9 @@ describe('傘のコマ', () => {
       return { phase, missing: expected.filter(key => !Object.hasOwn(index, key)) }
     })
 
-    // 差して立つ・歩く 8 枚、出す 5 段階、しまう 5 段階。段階の組が黙って縮んでも気付けるよう数で留める
-    expect(expected).toHaveLength(18)
+    // 差して立つ・歩く 10 枚(左向きは原画の行を持つ)、出す 5 段階、しまう 5 段階。
+    // 段階の組が黙って縮んでも気付けるよう数で留める
+    expect(expected).toHaveLength(20)
     expect(missing).toEqual(DAY_PHASES.map(phase => ({ phase, missing: [] })))
   })
 })

@@ -279,22 +279,25 @@ describe('playerPose', () => {
     open: 'player-umbrella',
     closing: 'player',
   }
+  // 時間表を過ぎた後の静止コマ。傘を差した左向きは原画の左向きのコマを反転せずに使い、
+  // 傘の無い左向きは右向きの反転
+  const settledPose = (phase: UmbrellaPosePhase, facing: (typeof facings)[number]) =>
+    umbrellaSettled[phase] === 'player-umbrella' && facing === 'left'
+      ? { key: 'player-umbrella-left-0', flip: false, animating: false }
+      : {
+          key: `${umbrellaSettled[phase]}-${facing === 'left' ? 'right' : facing}-0`,
+          flip: facing === 'left',
+          animating: false,
+        }
   for (const phase of umbrellaPhases) {
     it(`${phase} の傘のコマは経過で時間表どおりに進み、その間は向きに関わらず反転しない`, () => {
       for (const facing of facings) {
-        const direction = facing === 'left' ? 'right' : facing
         for (const [elapsed, cut] of umbrellaTimetable[phase]) {
           expect(
             playerPose({ ...state, facing }, false, null, 0, phase, elapsed),
             `${facing} ${elapsed}ms`
           ).toEqual(
-            cut === null
-              ? {
-                  key: `${umbrellaSettled[phase]}-${direction}-0`,
-                  flip: facing === 'left',
-                  animating: false,
-                }
-              : { key: cut, flip: false, animating: true }
+            cut === null ? settledPose(phase, facing) : { key: cut, flip: false, animating: true }
           )
         }
       }
@@ -318,17 +321,12 @@ describe('playerPose', () => {
   })
   it('reduced motion では広げる・畳むコマを飛ばし、最初から終えた後の立ちコマを出す', () => {
     for (const facing of facings) {
-      const direction = facing === 'left' ? 'right' : facing
       for (const phase of umbrellaPhases) {
         for (const elapsed of [0, 119, 120, 720, 879.9, 959.9, 5000]) {
           expect(
             playerPose({ ...state, facing, motion, stride: 1 }, true, null, 0, phase, elapsed),
             `${facing} ${phase} ${elapsed}ms`
-          ).toEqual({
-            key: `${umbrellaSettled[phase]}-${direction}-0`,
-            flip: facing === 'left',
-            animating: false,
-          })
+          ).toEqual(settledPose(phase, facing))
         }
       }
     }
@@ -362,10 +360,10 @@ describe('playerPose', () => {
       flip: false,
       animating: false,
     })
-    // 横向きは軸足によらず 1 番、左は右の絵を反転
+    // 横向きは軸足によらず 1 番。傘を差した左は原画の左向きのコマで、反転しない
     expect(open({ ...state, facing: 'left', motion, stride: 1 })).toEqual({
-      key: 'player-umbrella-right-1',
-      flip: true,
+      key: 'player-umbrella-left-1',
+      flip: false,
       animating: false,
     })
     const motions = [null, motion, { ...motion, progress: 0.49 }, { ...motion, progress: 0.5 }]
@@ -377,7 +375,15 @@ describe('playerPose', () => {
             const withUmbrella = (phase: UmbrellaPosePhase, elapsed: number) =>
               playerPose(moving, reduceMotion, null, 0, phase, elapsed)
             const plain = playerPose(moving, reduceMotion)
-            const covered = { ...plain, key: plain.key.replace(/^player-/, 'player-umbrella-') }
+            // 傘を差した左向きだけは右向きの反転ではなく原画の左向きのコマ
+            const covered =
+              facing === 'left'
+                ? {
+                    ...plain,
+                    key: plain.key.replace(/^player-right-/, 'player-umbrella-left-'),
+                    flip: false,
+                  }
+                : { ...plain, key: plain.key.replace(/^player-/, 'player-umbrella-') }
             const label = `${facing} ${stride} ${walk?.progress} ${reduceMotion}`
             expect(withUmbrella('open', 0), label).toEqual(covered)
             // 広げ終えた後は差したままと同じ

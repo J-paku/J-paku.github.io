@@ -20,6 +20,7 @@ import {
   SPRITE_ARTS,
 } from './sprites'
 import { bodyOf, charsOf, stitch } from './sprites.fixture'
+import { UMBRELLA_ORIGINAL_FRAMES } from './umbrella-original.fixture'
 import { DAY_PHASES } from '@/utils/day-phase'
 import type { Direction } from '@content/types/world'
 
@@ -161,8 +162,9 @@ describe('PLAYER_ARTS', () => {
 
     expect(sheet.uri.startsWith('data:image/png;base64,')).toBe(true)
     // 地形・建物と同じ理由で実測値を書く(コマ数を数える式を両辺に置くと何も守らない)。
-    // 傘のコマ 18 枚(差して立つ・歩く 8、出す 5、しまう 5)を足して 35 から更新
-    expect(sheet.count).toBe(53)
+    // 傘のコマ 18 枚(差して立つ・歩く 8、出す 5、しまう 5)を足して 35 から更新。
+    // 原画を写したときに傘を差した左向き 2 枚を足して 55 へ
+    expect(sheet.count).toBe(55)
     expect({ tile: sheet.tile, height: sheet.height }).toEqual({ tile: 32, height: 32 })
   })
 
@@ -209,14 +211,15 @@ describe('PLAYER_ARTS', () => {
   it('横向きは反転してもずれないよう 1〜14 列に収まる', () => {
     // 竿のコマも左向きは scaleX(-1) で作るので、同じ掟が要る。釣りの動きのコマも含めて横向きは全部見る。
     // 反転の軸は体の箱の真ん中なので、見るのは体の箱の1〜14列(画布の9〜22列)の外が空いていること。
-    // 傘の天蓋は体ではない(反転して前後が入れ替わってよい)ので、傘のコマは頭の天辺の行から下だけを見る
-    const rights = Object.entries(PLAYER_ARTS).filter(([key]) => key.includes('-right'))
-    // 静止・歩行の 2 枚、糸を垂らして待つ 1 枚、動きの場面の数だけ、傘を差した静止・歩行の 2 枚
-    expect(rights).toHaveLength(2 + 1 + FISHING_MOTIONS.length + 2)
+    // 傘を差した横向きは左向きも原画の行を持ち、反転して使わないのでこの掟の外
+    const rights = Object.entries(PLAYER_ARTS).filter(
+      ([key]) => key.includes('-right') && !key.startsWith('player-umbrella-')
+    )
+    // 静止・歩行の 2 枚、糸を垂らして待つ 1 枚、動きの場面の数だけ
+    expect(rights).toHaveLength(2 + 1 + FISHING_MOTIONS.length)
     const margin = '.'.repeat(PLAYER_BODY_LEFT + 1)
     for (const [key, art] of rights) {
-      const from = key.startsWith('player-umbrella-') ? PLAYER_BODY_TOP + 4 : 0
-      for (const row of art.slice(from)) {
+      for (const row of art) {
         expect(row.slice(0, PLAYER_BODY_LEFT + 1), key).toBe(margin)
         expect(row.slice(PLAYER_BODY_LEFT + TILE - 1), key).toBe(margin)
       }
@@ -443,267 +446,108 @@ describe('釣り糸', () => {
 
 describe('傘のコマ', () => {
   const umbrella = Object.entries(PLAYER_ARTS).filter(([key]) => key.startsWith('player-umbrella-'))
-  const FACINGS = ['up', 'down', 'right'] as const
-  type Facing = (typeof FACINGS)[number]
-  const umbrellaOf = (facing: Facing, frame: number): PixelArt =>
-    PLAYER_ARTS[`player-umbrella-${facing}-${frame}` as keyof typeof PLAYER_ARTS]
-  const plainOf = (facing: Facing, frame: number): PixelArt =>
-    PLAYER_ARTS[`player-${facing}-${frame}` as keyof typeof PLAYER_ARTS]
-  // 差して立つ・歩くコマ。上下は静止と歩行2枚、横向きは静止と歩行。歩行コマは体と一緒に1行下がる
-  const POSES = FACINGS.flatMap(facing =>
-    (facing === 'right' ? [0, 1] : [0, 1, 2]).map(frame => ({
-      facing,
-      frame,
-      dy: frame === 0 ? 0 : 1,
-    }))
-  )
+  const artOf = (key: string): PixelArt => PLAYER_ARTS[key as keyof typeof PLAYER_ARTS]
+  // 原画を写した差して立つ・歩くコマ。上下は静止と歩行2枚、横向きは左右とも静止と歩行
+  const ORIGINAL_KEYS = [
+    ...(['down', 'up'] as const).flatMap(facing =>
+      [0, 1, 2].map(frame => `player-umbrella-${facing}-${frame}`)
+    ),
+    ...(['right', 'left'] as const).flatMap(facing =>
+      [0, 1].map(frame => `player-umbrella-${facing}-${frame}`)
+    ),
+  ]
+  // 天蓋に使ってよい文字は輪郭(x)と傘の文字だけ
+  const CANOPY_CHARS = new Set(['.', 'x', '[', ']', '=', '}', '~', '^'])
+  const SHAFT = '|'
+  const SKIN = new Set(['K', 'V', 'Y'])
+  // 原画の立ち姿で天蓋が占める行(0〜12行)。出す・しまう途中のコマは13行目から下が立ち姿のまま
+  const BELOW_CANOPY = 13
 
-  // 静止コマの頭は画布の12〜24行(体の0〜12行)。帽子の天辺から顎まで
-  const HEAD_TOP = PLAYER_BODY_TOP + 4
-  const HEAD_ROWS = 13
-  // 天蓋に使ってよい文字は輪郭(x)と傘専用の5文字だけ
-  const CANOPY_CHARS = new Set(['.', 'x', '[', ']', '=', '~', '^'])
-  const WOOD = '^'
-  // 柄を握る腕の型紙が塗ってよい範囲(静止コマの画布の座標)。握る手の側の肩から先だけ
-  const ARM: Record<Facing, { x: [number, number]; y: [number, number] }> = {
-    down: { x: [3, 11], y: [23, 28] },
-    up: { x: [20, 28], y: [23, 28] },
-    right: { x: [14, 18], y: [25, 29] },
-  }
-
-  // 天蓋の最下行(白い房の行)
-  const canopyBottom = (art: PixelArt): number => art.findLastIndex(row => row.includes('~'))
+  const shaftCells = (art: PixelArt): [number, number][] =>
+    art.flatMap((row, y) =>
+      [...row].flatMap((ch, x): [number, number][] => (ch === SHAFT ? [[x, y]] : []))
+    )
   // 行の中で透明でない升の幅
   const spanOf = (row: string): number => {
     const first = row.search(/[^.]/)
     return first < 0 ? 0 : row.replace(/\.+$/, '').length - first
   }
-  // 素のコマから新しく'V'(手の色)になった升。柄を握る拳
-  const fistOf = (art: PixelArt, plain: PixelArt): string[] =>
-    art.flatMap((row, y) =>
-      [...row].flatMap((ch, x) => (ch === 'V' && plain[y][x] !== 'V' ? [`${x},${y}`] : []))
-    )
-  const near = (dot: string, diagonal: boolean): string[] => {
-    const [x, y] = dot.split(',').map(Number)
-    const steps = diagonal
-      ? [-1, 0, 1].flatMap(dy => [-1, 0, 1].map(dx => [dx, dy]))
-      : [
-          [1, 0],
-          [-1, 0],
-          [0, 1],
-          [0, -1],
-        ]
-    return steps.filter(([dx, dy]) => dx !== 0 || dy !== 0).map(([dx, dy]) => `${x + dx},${y + dy}`)
-  }
-  // startから、cellsの中を辿って届く升(diagonalなら斜めもつながりに数える)
-  const reach = (start: string[], cells: Set<string>, diagonal: boolean): Set<string> => {
-    const reached = new Set(start)
-    const queue = [...start]
-    for (let dot = queue.pop(); dot !== undefined; dot = queue.pop()) {
-      for (const next of near(dot, diagonal)) {
-        if (!cells.has(next) || reached.has(next)) continue
-        reached.add(next)
-        queue.push(next)
-      }
-    }
-    return reached
-  }
-  const woodOf = (art: PixelArt): Set<string> =>
-    new Set(
-      art.flatMap((row, y) => [...row].flatMap((ch, x) => (ch === WOOD ? [`${x},${y}`] : [])))
-    )
 
-  it('開いた天蓋は頭の幅の1.5倍より広く、頭から1〜3行離して浮かせ、その間に柄が見える', () => {
-    // 前の傘は頭と同じ幅の天蓋を帽子に貼り付けていて、兜に見えた。幅と間の行数を数で押さえる
-    const shapes = FACINGS.map(facing => {
-      const art = umbrellaOf(facing, 0)
-      const bottom = canopyBottom(art)
-      const head = plainOf(facing, 0).slice(HEAD_TOP, HEAD_TOP + HEAD_ROWS)
-      const gapRows = art.slice(bottom + 1, HEAD_TOP)
-      return {
-        facing,
-        wide:
-          Math.max(...art.slice(0, bottom + 1).map(spanOf)) / Math.max(...head.map(spanOf)) >= 1.5,
-        gap: gapRows.length,
-        shaftInGap: gapRows.some(row => row.includes(WOOD)),
-        // 頭の天辺の行は素のコマで最初に絵のある行
-        headTop: plainOf(facing, 0).findIndex(row => /[^.]/.test(row)),
-      }
-    })
-
-    expect(shapes).toEqual(
-      FACINGS.map(facing => ({ facing, wide: true, gap: 2, shaftInGap: true, headTop: HEAD_TOP }))
+  it('差して立つ・歩くコマは原画から写した直後の行列と1ドットも違わない', () => {
+    // 写した後に手で直すと(ADR 0008で禁じている)ここで落ちる。原画を差し替えたときはfixtureも写し直す
+    expect(Object.keys(UMBRELLA_ORIGINAL_FRAMES).sort()).toEqual([...ORIGINAL_KEYS].sort())
+    expect(Object.fromEntries(ORIGINAL_KEYS.map(key => [key, artOf(key)]))).toEqual(
+      Object.fromEntries(ORIGINAL_KEYS.map(key => [key, UMBRELLA_ORIGINAL_FRAMES[key].art]))
     )
   })
 
-  it('天蓋は石突き・紺の布・縁の白い房だけで描き、光と陰の面を持つ', () => {
-    for (const facing of FACINGS) {
-      const art = umbrellaOf(facing, 0)
-      const bottom = canopyBottom(art)
-      const canopy = art.slice(0, bottom + 1)
-      expect(
-        canopy.flatMap(row => [...row].filter(ch => !CANOPY_CHARS.has(ch))),
-        facing
-      ).toEqual([])
-      // 最上行は石突きだけ
-      expect(canopy[0], facing).toMatch(/^\.+\^\.+$/)
-      // 房は縁の下の1行だけに下がり、布の上には散らばらない
-      expect(
-        art.flatMap((row, y) => (row.includes('~') ? [y] : [])),
-        facing
-      ).toEqual([bottom])
-      // 明るい面(=)・地(=[)・陰(])がそろって初めて丸く見える。1色だけだと板に見える
-      expect(
-        ['=', '[', ']'].filter(ch => canopy.some(row => row.includes(ch))),
-        facing
-      ).toEqual(['=', '[', ']'])
+  it('左向きは原画の左向きの行で、右向きを反転した絵ではない', () => {
+    // 原画の左向きの行は右向きの行の反転と1ドットずつは一致しない。反転で作ると原画の左向きが1枚も出ない
+    for (const frame of [0, 1]) {
+      expect(artOf(`player-umbrella-left-${frame}`), `left-${frame}`).not.toEqual(
+        artOf(`player-umbrella-right-${frame}`).map(row => [...row].reverse().join(''))
+      )
     }
   })
 
-  it('頭と顔のドットは素のコマと1つも違わない(柄も天蓋も腕も頭の上を通らない)', () => {
-    // 柄を顔のまん中に通すと、傘ではなく顔に刺さった棒に見える。天蓋と柄は体の後ろへ回すので、
-    // 素のコマで絵のある升はどれも元の文字のまま残る
-    const covered = POSES.flatMap(({ facing, frame, dy }) => {
-      const art = umbrellaOf(facing, frame)
-      const plain = plainOf(facing, frame)
-      return plain.slice(HEAD_TOP + dy, HEAD_TOP + dy + HEAD_ROWS).flatMap((row, i) =>
-        [...row].flatMap((ch, x) => {
-          const y = HEAD_TOP + dy + i
-          return ch !== '.' && art[y][x] !== ch ? [`${facing}-${frame} ${x},${y}`] : []
-        })
+  it('柄は1列を途切れずに縦に上り、下の端の近くで手が握っている', () => {
+    // 柄は原画ではドットより細く、升の中央の色だけで写すと升の境目に掛かった所で消える。
+    // 柄の中心線が通る升へ置いたので、どのコマでも1本につながり、その下端のすぐ脇に手(肌の色)がある。
+    // 手を懐へ入れる・引き出す・縮める・しまうコマは柄を立てていないので除く
+    const holding = umbrella.filter(([key]) => !/-(reach|draw|compact|stow)$/.test(key))
+    const lines = holding.map(([key, art]) => {
+      const cells = shaftCells(art)
+      const columns = new Set(cells.map(([x]) => x))
+      const rows = cells.map(([, y]) => y).sort((a, b) => a - b)
+      const [x] = cells[0] ?? [0]
+      const bottom = rows.at(-1) ?? 0
+      // 原画の手は柄の下端の真下とは限らない。横向きは顔の前で握り、柄は頭の輪郭の陰へ隠れてから拳へ届くので、
+      // 下端から左右2升・下4升の内に手がある
+      const around = [-2, -1, 0, 1, 2].flatMap(dx =>
+        [0, 1, 2, 3, 4].map(dy => art[bottom + dy]?.[x + dx] ?? '.')
       )
-    })
-
-    expect(covered).toEqual([])
-  })
-
-  it('腕の型紙の外は素のコマのままで、握らない方の手は下ろした元の姿勢に残る', () => {
-    // 体のドットを塗り替えてよいのは、柄を握る側の肩から先だけ。それ以外で素のコマと違うのは
-    // 素のコマが透明だった升(天蓋・柄)だけで、そこも傘の文字しか置かない
-    const outside = POSES.flatMap(({ facing, frame, dy }) => {
-      const art = umbrellaOf(facing, frame)
-      const plain = plainOf(facing, frame)
-      const { x: xs, y: ys } = ARM[facing]
-      const inArm = (x: number, y: number): boolean =>
-        x >= xs[0] && x <= xs[1] && y >= ys[0] + dy && y <= ys[1] + dy
-      return art.flatMap((row, y) =>
-        [...row].flatMap((ch, x) => {
-          if (ch === plain[y][x] || inArm(x, y)) return []
-          if (plain[y][x] === '.' && CANOPY_CHARS.has(ch)) return []
-          return [`${facing}-${frame} ${x},${y} ${plain[y][x]}→${ch}`]
-        })
-      )
-    })
-
-    expect(outside).toEqual([])
-  })
-
-  it('柄を握る拳は1つで、柄に触れている', () => {
-    const grips = POSES.map(({ facing, frame }) => {
-      const art = umbrellaOf(facing, frame)
-      const fist = fistOf(art, plainOf(facing, frame))
-      const wood = woodOf(art)
       return {
-        pose: `${facing}-${frame}`,
-        // 拳の升が1つのかたまり(上下左右でつながる)にまとまっている = 手は1つ
-        oneHand: fist.length > 0 && reach([fist[0]], new Set(fist), false).size === fist.length,
-        size: fist.length,
-        // 拳の上下左右のどこかに柄(木の色)がある
-        holds: fist.some(dot => near(dot, false).some(next => wood.has(next))),
-      }
-    })
-
-    expect(grips).toEqual(
-      POSES.map(({ facing, frame }) => ({
-        pose: `${facing}-${frame}`,
-        oneHand: true,
-        size: 4,
-        holds: true,
-      }))
-    )
-  })
-
-  it('正面と背面は、天蓋の縁の下から拳まで柄が途切れずにつながる', () => {
-    // 頭の外を通す向きでは柄が端から端まで見える。歩いて体が1行下がっても拳から離れない
-    const lines = POSES.filter(({ facing }) => facing !== 'right').map(({ facing, frame }) => {
-      const art = umbrellaOf(facing, frame)
-      const wood = woodOf(art)
-      const start = [...wood].filter(dot => Number(dot.split(',')[1]) === canopyBottom(art) + 1)
-      const reached = reach(start, wood, true)
-      const fist = fistOf(art, plainOf(facing, frame))
-      return {
-        pose: `${facing}-${frame}`,
-        start: start.length,
-        toFist: [...reached].some(dot => near(dot, true).some(next => fist.includes(next))),
+        key,
+        oneColumn: columns.size === 1,
+        unbroken: rows.length >= 3 && rows.every((y, i) => i === 0 || y === rows[i - 1] + 1),
+        held: around.some(ch => SKIN.has(ch)),
       }
     })
 
     expect(lines).toEqual(
-      POSES.filter(({ facing }) => facing !== 'right').map(({ facing, frame }) => ({
-        pose: `${facing}-${frame}`,
-        start: 1,
-        toFist: true,
-      }))
+      holding.map(([key]) => ({ key, oneColumn: true, unbroken: true, held: true }))
     )
   })
 
-  it('横向きの柄は頭の後ろを1本の縦の線で通り、帽子の上と拳のすぐ上に同じ列で見える', () => {
-    // 胸の前の拳から真上へ上る柄は、顎から帽子までが頭の陰に入る。見える2か所が同じ列なら1本の柄に読める
-    for (const frame of [0, 1]) {
-      const art = umbrellaOf('right', frame)
-      const fist = fistOf(art, plainOf('right', frame))
-      const fistTop = Math.min(...fist.map(dot => Number(dot.split(',')[1])))
-      const columnsAt = (y: number): number[] =>
-        [...art[y]].flatMap((ch, x) => (ch === WOOD ? [x] : []))
-      const aboveHead = columnsAt(canopyBottom(art) + 1)
-      const aboveFist = columnsAt(fistTop - 1)
-
-      expect(aboveHead, `right-${frame}`).toHaveLength(1)
-      expect(aboveFist, `right-${frame}`).toEqual(aboveHead)
-    }
-  })
-
-  it('歩く間は天蓋・柄・拳が体と一緒に1行下がるだけで、形は静止コマと同じ', () => {
-    // 静止コマだけ描き直すと、歩いた途端に別の傘へ入れ替わったり拳が柄から離れたりする。
-    // 最下行は脚を振るので除く。軸足を替えた歩行2は歩行1と最下行だけが違う
-    for (const facing of FACINGS) {
-      const walk = umbrellaOf(facing, 1)
-      expect(walk[0], facing).toBe('.'.repeat(PLAYER_FRAME_WIDTH))
-      expect(walk.slice(1, -1), facing).toEqual(umbrellaOf(facing, 0).slice(0, -2))
-    }
-    for (const facing of ['up', 'down'] as const) {
-      expect(umbrellaOf(facing, 2).slice(0, -1), facing).toEqual(umbrellaOf(facing, 1).slice(0, -1))
-    }
-  })
-
-  it('出す・しまう途中のコマも、差して立つコマと同じ拳で同じ柄を握り、開く順に天蓋が広がる', () => {
-    // 柄を立ててから開き切るまで(しまう側は逆順)、拳と柄は差して立つコマと同じ所に留まる。
-    // 天蓋の縁より下(10行目から)は差して立つコマと1升も違わない
-    const BELOW_CANOPY = 10
+  it('出す・しまう途中のコマは原画の立ち姿の体と柄のままで、天蓋だけを替え、開く順に天蓋が広がる', () => {
+    // 原画に無いので実装が描いたコマ。手と柄の位置は原画の立ち姿から動かさない
+    // (動かすと、途中のコマから立ち姿へ移る所で手と柄が跳ぶ)
     const sequences = [
       {
         keys: ['extend', 'half', 'raise'],
         prefix: 'player-umbrella-open-',
-        stand: umbrellaOf('down', 0),
+        stand: artOf('player-umbrella-down-0'),
       },
       {
         keys: ['closed', 'half', 'lower'],
         prefix: 'player-umbrella-close-',
-        stand: umbrellaOf('up', 0),
+        stand: artOf('player-umbrella-up-0'),
       },
     ]
     for (const { keys, prefix, stand } of sequences) {
-      const frames = keys.map(key => PLAYER_ARTS[`${prefix}${key}` as keyof typeof PLAYER_ARTS])
+      const frames = keys.map(key => artOf(`${prefix}${key}`))
       for (const [i, art] of frames.entries()) {
         expect(art.slice(BELOW_CANOPY), `${prefix}${keys[i]}`).toEqual(stand.slice(BELOW_CANOPY))
         expect(
-          art.slice(0, BELOW_CANOPY).flatMap(row => [...row].filter(ch => !CANOPY_CHARS.has(ch))),
+          art
+            .slice(0, BELOW_CANOPY)
+            .flatMap(row => [...row].filter(ch => !CANOPY_CHARS.has(ch) && ch !== SHAFT)),
           `${prefix}${keys[i]}`
         ).toEqual([])
       }
       // 畳んだ傘 → 半開き → 開ききる手前 → 差して立つコマの順に、天蓋の幅が広がる
       const widths = [...frames, stand].map(art =>
-        Math.max(...art.slice(0, BELOW_CANOPY).map(spanOf))
+        Math.max(...art.slice(0, BELOW_CANOPY - 1).map(spanOf))
       )
       expect(widths, prefix).toEqual([...widths].sort((a, b) => a - b))
       expect(new Set(widths).size, prefix).toBe(widths.length)
@@ -726,7 +570,7 @@ describe('傘のコマ', () => {
     )
 
     // 鍵の拾い漏れがあると、黙って少ないコマだけを見て通ってしまう
-    expect(umbrella).toHaveLength(18)
+    expect(umbrella).toHaveLength(20)
     expect(reserved).toEqual([])
   })
 })

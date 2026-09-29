@@ -1,7 +1,7 @@
 // 夜だけ差し替える素材を検証する。鍵の集合と並び順が昼と揃っていること、
 // 主人公のランタンとポストの LED が夜にだけ灯ること
 import { describe, expect, it } from 'vitest'
-import { PLAYER_BODY_LEFT, PLAYER_BODY_TOP } from './actors'
+import { PLAYER_BODY_LEFT } from './actors'
 import { TILE } from './art'
 import type { PixelArt } from './art'
 import { LANTERN_GLASS, LANTERN_SHINE } from './lantern'
@@ -33,24 +33,25 @@ import type { DayPhase } from '@/utils/day-phase'
 // 発光色を黒へ書き換えても両辺が一緒に動いて素通りする(WHITE_METAL・WARM_GLASS と同じ考え)
 const LED_RED = '#ff5040'
 
-// 向きごとのランタンの升数。下向きは受け皿がいちばん広く写り、上向きは背中側へ半分隠れる
-const LANTERN_DOTS: Record<string, number> = { up: 11, down: 13, right: 12 }
+// 面ごとのランタンの升数。正面の面は受け皿がいちばん広く写り、背面の面は背中側へ半分隠れる
+const FACE_DOTS: Record<string, number> = { back: 11, front: 13, side: 12 }
+// 傘の無いコマは向きで面が決まる
+const FACE_OF_FACING: Record<string, string> = { up: 'back', down: 'front', right: 'side' }
 
-// 傘のコマ → ランタンを同じ所に提げるはずの素のコマ。差して立つ・歩くコマ(player-umbrella-{向き}-{番号})は
-// 同じ向き・同じ番号、出す動き(player-umbrella-open-{段階})は正面の静止、
-// しまう動き(player-umbrella-close-{段階})は背面の静止と同じ面を同じ高さに提げる(actors.ts の playerNightArt)
-const umbrellaBaseOf = (key: string): string => {
-  const [, , kind, frame] = key.split('-')
-  if (kind === 'open') return 'player-down-0'
-  if (kind === 'close') return 'player-up-0'
-  return `player-${kind}-${frame}`
+// 傘のコマの面(actors.ts の umbrellaHangs と反転した素の体のコマ)。原画のランタンの見え方に合わせたので
+// 向きとは対応しない: 正面と、正面の体で傘を出す途中は正面の面、背面・横向きと、背面の体で傘をしまう途中は
+// 笠が張り出す横向きの面、反転した素の背面の体(柄を縮める・しまう)は背面の面
+const umbrellaFaceOf = (key: string): string => {
+  if (/^player-umbrella-(down-\d|open-)/.test(key)) return 'front'
+  if (/^player-umbrella-close-(compact|stow)$/.test(key)) return 'back'
+  return 'side'
 }
 
-// 主人公のコマの鍵は player-{向き}-{番号} か player-fish-{向き}(-{場面})、傘のコマは上の対応で向きを決める
-const facingOf = (key: string): string => {
+// 主人公のコマの鍵は player-{向き}-{番号} か player-fish-{向き}(-{場面})
+const faceOf = (key: string): string => {
   const parts = key.split('-')
-  if (parts[1] === 'umbrella') return facingOf(umbrellaBaseOf(key))
-  return parts[1] === 'fish' ? parts[2] : parts[1]
+  if (parts[1] === 'umbrella') return umbrellaFaceOf(key)
+  return FACE_OF_FACING[parts[1] === 'fish' ? parts[2] : parts[1]]
 }
 
 // 昼と夜で違う升(位置と文字)。主人公の夜のコマは昼へ灯りを重ねるだけなので、これがランタンそのものになる
@@ -98,7 +99,7 @@ describe('夜だけ差し替える素材', () => {
     )
     for (const found of points) perKey[found.key] += 1
     expect(perKey, '主人公のランタンの升数がコマごとに合わない').toEqual(
-      Object.fromEntries(Object.keys(PLAYER_ARTS).map(key => [key, LANTERN_DOTS[facingOf(key)]]))
+      Object.fromEntries(Object.keys(PLAYER_ARTS).map(key => [key, FACE_DOTS[faceOf(key)]]))
     )
 
     const point = points[0]
@@ -246,15 +247,16 @@ describe('夜だけ差し替える素材', () => {
   })
 
   it('横向きの夜のコマも反転してずれないよう 1〜14 列に収まる', () => {
-    // 釣りの動きのコマも含めて横向きは全部見る。静止・歩行の 2 枚、待つ 1 枚、動きの場面の数だけ、
-    // 傘を差した静止・歩行の 2 枚がある。見方は昼(sprites-art.test.ts)と同じで、体の箱の1〜14列の外が空いていること。
-    // 傘の天蓋は体ではないので、傘のコマは頭の天辺の行から下だけを見る
-    const rights = Object.entries(PLAYER_NIGHT_ARTS).filter(([key]) => key.includes('-right'))
-    expect(rights).toHaveLength(2 + 1 + FISHING_MOTIONS.length + 2)
+    // 釣りの動きのコマも含めて横向きは全部見る。静止・歩行の 2 枚、待つ 1 枚、動きの場面の数だけある。
+    // 見方は昼(sprites-art.test.ts)と同じで、体の箱の1〜14列の外が空いていること。
+    // 傘を差した横向きは左向きも原画の行を持ち、反転して使わないのでこの掟の外
+    const rights = Object.entries(PLAYER_NIGHT_ARTS).filter(
+      ([key]) => key.includes('-right') && !key.startsWith('player-umbrella-')
+    )
+    expect(rights).toHaveLength(2 + 1 + FISHING_MOTIONS.length)
     const margin = '.'.repeat(PLAYER_BODY_LEFT + 1)
     for (const [key, art] of rights) {
-      const from = key.startsWith('player-umbrella-') ? PLAYER_BODY_TOP + 4 : 0
-      for (const row of art.slice(from)) {
+      for (const row of art) {
         expect(row.slice(0, PLAYER_BODY_LEFT + 1), key).toBe(margin)
         expect(row.slice(PLAYER_BODY_LEFT + TILE - 1), key).toBe(margin)
       }
@@ -282,18 +284,16 @@ describe('夜だけ差し替える素材', () => {
     ).toEqual(Object.fromEntries(fishing.map(([key]) => [key, standLit[key.split('-')[2]]])))
   })
 
-  it('傘の柄を握る拳はランタンから離れていて、灯りと傘を同じ手で持って見えない', () => {
-    // 傘は右手、ランタンは左手。夜のコマで灯りの升と拳の升が隣り合うと、1つの手が両方を提げて見える。
-    // 拳は素のコマから新しく手の色(V)になった升、灯りは昼と夜で違う升で、間を1升以上空ける(チェビシェフ距離2以上)
+  it('傘の柄とランタンは離れていて、灯りと傘を同じ手で持って見えない', () => {
+    // 原画は柄を持たない方の手に灯りを提げている。夜のコマで灯りの升が柄の升と隣り合うと、1つの手が両方を提げて見える。
+    // 柄は柄の文字(|)の升、灯りは昼と夜で違う升で、間を1升以上空ける(チェビシェフ距離2以上)
     const dayArts: Record<string, PixelArt> = PLAYER_ARTS
     const nightArts: Record<string, PixelArt> = PLAYER_NIGHT_ARTS
-    const holding = Object.keys(PLAYER_ARTS).filter(key =>
-      /^player-umbrella-(?:(?:up|down|right)-\d|open-(?:extend|half|raise)|close-(?:lower|half|closed))$/.test(
-        key
-      )
+    const holding = Object.keys(PLAYER_ARTS).filter(
+      key => key.startsWith('player-umbrella-') && dayArts[key].some(row => row.includes('|'))
     )
-    // 差して立つ・歩く8枚と、出す・しまう途中で柄を立てている6枚
-    expect(holding).toHaveLength(14)
+    // 差して立つ・歩く10枚と、出す・しまう途中で柄を立てている6枚
+    expect(holding).toHaveLength(16)
     const dotsOf = (cells: string[]): [number, number][] =>
       cells.map(cell => {
         const [x, y] = cell.split(',').map(Number)
@@ -301,43 +301,50 @@ describe('夜だけ差し替える素材', () => {
       })
     const gaps = holding.map(key => {
       const day = dayArts[key]
-      const plain = dayArts[umbrellaBaseOf(key)]
-      const fist = dotsOf(
-        day.flatMap((row, y) =>
-          [...row].flatMap((ch, x) => (ch === 'V' && plain[y][x] !== 'V' ? [`${x},${y}`] : []))
-        )
+      const shaft = day.flatMap((row, y) =>
+        [...row].flatMap((ch, x): [number, number][] => (ch === '|' ? [[x, y]] : []))
       )
       const lantern = dotsOf(litCells(day, nightArts[key]))
       const distance = Math.min(
-        ...fist.flatMap(([fx, fy]) =>
-          lantern.map(([lx, ly]) => Math.max(Math.abs(fx - lx), Math.abs(fy - ly)))
+        ...shaft.flatMap(([sx, sy]) =>
+          lantern.map(([lx, ly]) => Math.max(Math.abs(sx - lx), Math.abs(sy - ly)))
         )
       )
-      return { key, apart: fist.length > 0 && lantern.length > 0 && distance >= 2 }
+      return { key, apart: lantern.length > 0 && distance >= 2 }
     })
 
     expect(gaps).toEqual(holding.map(key => ({ key, apart: true })))
   })
 
-  it('傘のコマは昼の絵へランタンを重ねただけで、素のコマと同じ面を同じ所に提げる', () => {
-    // 傘の絵は昼夜で 1 ドットも変えない(夜専用の絵は無い)。灯りの面と高さも傘を持たないコマに揃えるので、
-    // 昼と夜で違う升が対応する素のコマと 1 升も違わなければ、傘が夜だけ描き変わってもいないし、
-    // 面の取り違えも高さのずれも無い
+  it('傘のコマは昼の絵へランタンを重ねただけで、天蓋を替えた途中のコマは元の立ち姿と同じ所に提げる', () => {
+    // 傘の絵は昼夜で 1 ドットも変えない(夜専用の絵は無い)。昼と夜で違う升はランタンの文字だけで、
+    // 天蓋だけを替えた出す・しまう途中のコマは、元にした原画の立ち姿と同じ升に灯りがある
     const dayArts: Record<string, PixelArt> = PLAYER_ARTS
     const nightArts: Record<string, PixelArt> = PLAYER_NIGHT_ARTS
     const umbrella = Object.keys(PLAYER_ARTS).filter(key => key.startsWith('player-umbrella-'))
     // 鍵の拾い漏れがあると、黙って少ないコマだけを見て通ってしまう
-    expect(umbrella).toHaveLength(18)
+    expect(umbrella).toHaveLength(20)
+    const lit = (key: string): string[] => litCells(dayArts[key], nightArts[key])
+    const lanternChars = new Set([LANTERN_GLASS, LANTERN_SHINE, 'i'])
 
     expect(
-      Object.fromEntries(umbrella.map(key => [key, litCells(dayArts[key], nightArts[key])]))
-    ).toEqual(
-      Object.fromEntries(
-        umbrella.map(key => {
-          const base = umbrellaBaseOf(key)
-          return [key, litCells(dayArts[base], nightArts[base])]
-        })
+      umbrella.flatMap(key =>
+        lit(key)
+          .map(cell => cell.split(',')[2])
+          .filter(ch => !lanternChars.has(ch))
+          .map(ch => `${key}: ${ch}`)
       )
+    ).toEqual([])
+    const swapped = {
+      'player-umbrella-open-extend': 'player-umbrella-down-0',
+      'player-umbrella-open-half': 'player-umbrella-down-0',
+      'player-umbrella-open-raise': 'player-umbrella-down-0',
+      'player-umbrella-close-lower': 'player-umbrella-up-0',
+      'player-umbrella-close-half': 'player-umbrella-up-0',
+      'player-umbrella-close-closed': 'player-umbrella-up-0',
+    }
+    expect(Object.fromEntries(Object.keys(swapped).map(key => [key, lit(key)]))).toEqual(
+      Object.fromEntries(Object.entries(swapped).map(([key, stand]) => [key, lit(stand)]))
     )
   })
 })

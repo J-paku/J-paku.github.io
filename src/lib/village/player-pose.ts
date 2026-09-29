@@ -180,5 +180,9 @@ export const playerPose = (
   // 広げる・畳むコマは正面か背面の絵なので、向きに関わらず反転しない
   if (step !== undefined) return { key: step[1], flip: false, animating: true }
   const body = umbrella === null ? 'player' : UMBRELLA_TIMELINES[umbrella].settled
+  // 傘を差した左向きは原画の左向きの行を写したコマがあるので、右向きを反転せずにそれを使う
+  if (body === 'player-umbrella' && state.facing === 'left') {
+    return { key: `${body}-left-${frame}`, flip: false, animating: false }
+  }
   return { key: `${body}-${direction}-${frame}`, flip, animating: false }
 }

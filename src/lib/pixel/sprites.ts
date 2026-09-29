@@ -56,6 +56,9 @@ type PlayerSpriteKey =
   | 'player-umbrella-right-1'
   | `player-umbrella-open-${UmbrellaOpenStep}`
   | `player-umbrella-close-${UmbrellaCloseStep}`
+  // 傘を差した左向き。原画に左向きの行があるので、傘のコマだけは右向きの反転で作らない
+  | 'player-umbrella-left-0'
+  | 'player-umbrella-left-1'
 
 export type SpriteKey =
   keyof typeof terrainArt | keyof typeof structureArt | keyof typeof fishingArt
@@ -144,6 +147,9 @@ const playerSpriteArts = (frames: PlayerFrames): Record<PlayerSpriteKey, PixelAr
   'player-umbrella-close-closed': frames.umbrellaClose.closed,
   'player-umbrella-close-compact': frames.umbrellaClose.compact,
   'player-umbrella-close-stow': frames.umbrellaClose.stow,
+  // 原画を写したときに足した左向き。前の鍵の index を動かさないよう末尾に並べる
+  'player-umbrella-left-0': frames.umbrellaLeft[0],
+  'player-umbrella-left-1': frames.umbrellaLeft[1],
 })
 
 // 釣りの小物は昼夜で絵が変わらないので、地形・建物と同じ 16×16 のシートへ並べるだけでよい
