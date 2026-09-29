@@ -32,6 +32,22 @@ const withoutTalk = pickStop('会話ボタンの文言なし', stop => stop.talk
 // 置換の結果を具体値で見るため、雛形だけを見分けやすい文字列に差し替える
 const probe: VillageText = { ...text, arriveAt: '到着:{place}!', headTo: '次は{place}へ' }
 
+// 雛形に{place}を2つ持たせた文言
+const twice: VillageText = {
+  ...text,
+  arriveAt: '{place}です。{place}!',
+  headTo: '次は{place}。{place}へ',
+}
+
+// 到着の文言を持たない地点の場所名だけを差し替えた文言。
+// 場所名に置換の記法($&・$1・$$)が含まれても、そのまま入るかを見る
+const withPlace = (place: string): VillageText => ({
+  ...probe,
+  stops: { ...text.stops, [withoutArrive.id]: { ...text.stops[withoutArrive.id], place } },
+})
+
+const specialPlaces = ['a$&b', 'a$1b', 'a$$b']
+
 describe('placeName', () => {
   it('時計の地点は卓上時計の地点名を返す', () => {
     expect(placeName(text, clockSpot)).toBe(text.clock.place)
@@ -75,6 +91,15 @@ describe('arriveSpeech', () => {
     expect(speech).toContain(text.stops[withoutArrive.id].place)
     expect(speech).not.toContain('{place}')
   })
+
+  it('arriveAtに{place}が2つあれば、両方に場所名を入れる', () => {
+    const place = text.stops[withoutArrive.id].place
+    expect(arriveSpeech(twice, withoutArrive)).toBe(`${place}です。${place}!`)
+  })
+
+  it.each(specialPlaces)('場所名%sの$記法を置換の記法とみなさず、そのまま入れる', place => {
+    expect(arriveSpeech(withPlace(place), withoutArrive)).toBe(`到着:${place}!`)
+  })
 })
 
 describe('talkLabelOf', () => {
@@ -109,5 +134,14 @@ describe('headToSpeech', () => {
     for (const spot of spots) {
       expect(headToSpeech(text, spot)).not.toContain('{place}')
     }
+  })
+
+  it('headToに{place}が2つあれば、両方に場所名を入れる', () => {
+    const place = text.stops[withoutArrive.id].place
+    expect(headToSpeech(twice, withoutArrive)).toBe(`次は${place}。${place}へ`)
+  })
+
+  it.each(specialPlaces)('場所名%sの$記法を置換の記法とみなさず、そのまま入れる', place => {
+    expect(headToSpeech(withPlace(place), withoutArrive)).toBe(`次は${place}へ`)
   })
 })

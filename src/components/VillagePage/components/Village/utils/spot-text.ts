@@ -11,12 +11,16 @@ export const placeName = (text: VillageText, spot: Spot): string =>
       ? text.fishing.place
       : text.stops[spot.id].place
 
+// 雛形の{place}を全て場所名に置き換える。関数で渡すので、場所名の$&・$$等を置換の記法として読まない
+const fillPlace = (template: string, place: string): string =>
+  template.replaceAll('{place}', () => place)
+
 // 地点に立った時の呼びかけ。地点ごとの文言があればそれ、無ければ arriveAt に場所名を入れる。
 // 釣り場の地点は地点の吹き出しを出さず水辺の吹き出し(waterBubble)にまとめるので、ここへは来ない
 export const arriveSpeech = (text: VillageText, spot: Spot): string =>
   spot.action === 'clock'
     ? text.clock.arrive
-    : (text.stops[spot.id].arrive ?? text.arriveAt.replace('{place}', placeName(text, spot)))
+    : (text.stops[spot.id].arrive ?? fillPlace(text.arriveAt, placeName(text, spot)))
 
 // 吹き出しの行動ボタン(A)の文言。釣り場の地点は arriveSpeech と同じ理由でここへ来ない
 export const talkLabelOf = (text: VillageText, spot: Spot): string =>
@@ -24,4 +28,4 @@ export const talkLabelOf = (text: VillageText, spot: Spot): string =>
 
 // 地点へ向かう時の案内「〇〇へ向かいます」
 export const headToSpeech = (text: VillageText, spot: Spot): string =>
-  text.headTo.replace('{place}', placeName(text, spot))
+  fillPlace(text.headTo, placeName(text, spot))
