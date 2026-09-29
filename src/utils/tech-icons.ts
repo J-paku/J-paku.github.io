@@ -30,6 +30,7 @@ const ICON_PATHS: Record<string, string> = {
 }
 
 // ラベル先頭の一致でロゴを引く。バージョン付き(Next.js 16 等)や派生表記(Git worktree)を拾うため前方一致。
+// ただし名前の直後が英数字なら別の技術の名前の途中とみなして一致させない(GitLab・Rustls)。
 // ロゴが無い技術(JSONL trace・静的エクスポート等)は undefined を返し、タグは文字だけで成立する
 const LABEL_PREFIX_TO_SLUG: readonly (readonly [string, string])[] = [
   ['claude', 'claude'],
@@ -48,8 +49,14 @@ const LABEL_PREFIX_TO_SLUG: readonly (readonly [string, string])[] = [
   ['swift', 'swift'],
 ]
 
+// 名前の続きとみなす文字。これ以外(文字列の終わり・空白・点・括弧・日本語等)は名前の切れ目
+const NAME_CHAR = /[a-z0-9]/
+
+const startsWithName = (lower: string, prefix: string): boolean =>
+  lower.startsWith(prefix) && !NAME_CHAR.test(lower.charAt(prefix.length))
+
 export const getTechIconPath = (label: string): string | undefined => {
   const lower = label.toLowerCase()
-  const hit = LABEL_PREFIX_TO_SLUG.find(([prefix]) => lower.startsWith(prefix))
+  const hit = LABEL_PREFIX_TO_SLUG.find(([prefix]) => startsWithName(lower, prefix))
   return hit === undefined ? undefined : ICON_PATHS[hit[1]]
 }

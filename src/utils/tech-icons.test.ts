@@ -1,5 +1,6 @@
 // ブランドロゴの引き当て(getTechIconPath)の単体テスト。ラベル先頭の大小無視の前方一致でロゴを引き、
-// 表に無い技術はundefinedを返す。パスデータは公開されていないので、どのロゴが返ったかはパスの先頭で見分ける
+// 名前の直後が英数字なら一致させず、表に無い技術はundefinedを返す。
+// パスデータは公開されていないので、どのロゴが返ったかはパスの先頭で見分ける
 import { describe, expect, it } from 'vitest'
 import { getTechIconPath } from './tech-icons'
 
@@ -75,6 +76,21 @@ const noIcon: string[] = [
   'Vercel SWR',
 ]
 
+// 表の名前の直後に英数字が続くラベル。前方一致だけだと別の技術の名前の途中で一致し、他のロゴを引く
+const glued: string[] = ['GitLab', 'Rustls']
+
+// タプル: [境界の文字, ラベル, 引くロゴ]。表の名前の直後が英数字でなければ、そこで名前が切れたとみなす
+const boundaries: Array<[string, string, Slug]> = [
+  ['空白', 'Swift UI', 'swift'],
+  ['数字の前の空白', 'Tauri 2', 'tauri'],
+  ['点', 'Claude.ai', 'claude'],
+  ['括弧', 'Rust(WASM)', 'rust'],
+  ['全角括弧', 'React(Hooks)', 'react'],
+  ['スラッシュ', 'Bash/Zsh', 'gnubash'],
+  ['ハイフン', 'Codex-CLI', 'openai'],
+  ['日本語', 'Git運用', 'git'],
+]
+
 describe('getTechIconPath', () => {
   it.each(canonical)('%sは%sのロゴを引く', (label, slug) => {
     expect(headOf(label, slug)).toBe(PATH_HEAD[slug])
@@ -88,13 +104,22 @@ describe('getTechIconPath', () => {
     expect(headOf(label, slug)).toBe(PATH_HEAD[slug])
   })
 
-  // 表はgithubをgitより先に置いている。順が入れ替わると'github'が先に'git'へ一致してGitのロゴになる
+  // 表はgithubをgitより先に置いている。'git'の直後の'h'が英数字なので、
+  // 順が入れ替わっても境界の判定でGitのロゴにはならない
   it('GitHubはGitのロゴにならない', () => {
     expect(getTechIconPath('GitHub')).not.toBe(getTechIconPath('Git'))
   })
 
   it.each(noIcon)('%sはロゴを持たずundefinedを返す', label => {
     expect(getTechIconPath(label)).toBeUndefined()
+  })
+
+  it.each(glued)('名前の直後に英数字が続く%sは他の技術のロゴを引かずundefinedを返す', label => {
+    expect(getTechIconPath(label)).toBeUndefined()
+  })
+
+  it.each(boundaries)('名前の直後が%sの%sは%sのロゴを引く', (_, label, slug) => {
+    expect(headOf(label, slug)).toBe(PATH_HEAD[slug])
   })
 
   it('空文字列は例外を投げずundefinedを返す', () => {
