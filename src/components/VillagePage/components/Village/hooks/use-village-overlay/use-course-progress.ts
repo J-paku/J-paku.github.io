@@ -54,7 +54,8 @@ export function useCourseProgress({
     // コースの全地点が揃った会話を閉じた瞬間だけ、一覧への案内に差し替えて焦点を移す
     if (!celebratedRef.current && visitedCourseCount === totalSpots) {
       celebratedRef.current = true
-      setSpeech(text.allSeen.replace('{list}', text.toList))
+      // {list}は全て置き換え、値は関数で渡して$記法として読まない(spot-textのfillPlaceと同じ)
+      setSpeech(text.allSeen.replaceAll('{list}', () => text.toList))
       // StopModal のアンマウント処理(返却先フォーカス)の後に上書きするため、次フレームまで待つ
       window.requestAnimationFrame(() => {
         const exit = document.querySelector<HTMLElement>('[data-village-exit]')

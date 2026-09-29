@@ -207,6 +207,25 @@ describe('catchToStop', () => {
     const caught = feature('単独')
     expect(catchToStop(caught, text, roleLabels, true)).toEqual({ ...singleStop, hook: '' })
   })
+  it('雛形に{date}・{tech}・{roles}が2つあれば、両方に機能の値を入れる', () => {
+    const twice: FishingText = {
+      ...text,
+      caughtClaim: '{date}/{date}',
+      caughtTech: '{tech}/{tech}',
+      caughtRoles: '{roles}/{roles}',
+    }
+    const stop = catchToStop(feature('単独'), twice, roleLabels)
+    expect(stop.claim).toBe('2025.03/2025.03')
+    expect(stop.proof).toBe('TypeScript/TypeScript')
+    expect(stop.detail).toBe('実装/実装')
+  })
+  it('機能の値に$&・$$があっても置換の記法とみなさず、そのまま入れる', () => {
+    const caught: CareerFeature = { date: 'a$&b', name: '単独', tech: ['c$$d'], roles: ['build'] }
+    const stop = catchToStop(caught, text, { ...roleLabels, build: 'e$&f' })
+    expect(stop.claim).toBe('a$&bに着手した機能です。')
+    expect(stop.proof).toBe('使った技術: c$$d')
+    expect(stop.detail).toBe('担当した工程: e$&f')
+  })
 })
 
 describe('釣りの待ち時間', () => {

@@ -61,10 +61,13 @@ export const catchToStop = (
 ): StopText => ({
   place: text.caughtPlace,
   title: feature.name,
-  claim: text.caughtClaim.replace('{date}', feature.date),
-  proof: text.caughtTech.replace('{tech}', feature.tech.join(' / ')),
+  // 雛形の{date}等は全て置き換える。値は関数で渡すので、値の$&・$$等を置換の記法として読まない
+  claim: text.caughtClaim.replaceAll('{date}', () => feature.date),
+  proof: text.caughtTech.replaceAll('{tech}', () => feature.tech.join(' / ')),
   // last は全部が揃う最後の 1 つ。もう投げないので「もう一度投げて」の一言を空にして描かせない
   hook: last ? '' : text.caughtHook,
   next: text.caughtNext,
-  detail: text.caughtRoles.replace('{roles}', feature.roles.map(r => roleLabels[r]).join('・')),
+  detail: text.caughtRoles.replaceAll('{roles}', () =>
+    feature.roles.map(r => roleLabels[r]).join('・')
+  ),
 })

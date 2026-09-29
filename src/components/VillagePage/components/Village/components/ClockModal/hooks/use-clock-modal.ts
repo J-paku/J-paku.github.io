@@ -118,7 +118,8 @@ export function useClockModal({
 
   const decide = () => {
     setCustomTime(hour, minute)
-    announce(text.setCustom.replace('{time}', formatClock(hour, minute)))
+    // {time}は全て置き換え、値は関数で渡して$記法として読まない(spot-textのfillPlaceと同じ)
+    announce(text.setCustom.replaceAll('{time}', () => formatClock(hour, minute)))
     onClose()
   }
 

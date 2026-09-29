@@ -4,6 +4,7 @@ import type { CSSProperties, Ref } from 'react'
 import type { World } from '@content/types/world'
 import type { MapEntry } from '@/lib/village/map-entries'
 
+import { fillPlace } from '../../../../utils/spot-text'
 import styles from '../../world-map.module.css'
 import { SpotGlyph } from '../SpotGlyph'
 
@@ -43,7 +44,7 @@ export function SpotButton({
       className={styles.spot}
       style={position}
       data-spot-id={entry.id}
-      aria-label={fastTravelLabel.replace('{place}', placeNames[entry.id])}
+      aria-label={fillPlace(fastTravelLabel, placeNames[entry.id])}
       onClick={() => onTravel(entry.id)}
     >
       <SpotGlyph visited={entry.visited} />

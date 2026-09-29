@@ -1,8 +1,8 @@
-// 地点の文言の引き先(placeName・arriveSpeech・talkLabelOf・headToSpeech)のテスト。
+// 地点の文言の引き先(placeName・fillPlace・arriveSpeech・talkLabelOf・headToSpeech)のテスト。
 // actionを持つ地点(時計・釣り場)はtext.stopsを持たないので、専用の欄から引けることを見る
 import { describe, expect, it, vi } from 'vitest'
 import type { Spot, StopText, VillageText } from '@content/types/world'
-import { arriveSpeech, headToSpeech, placeName, talkLabelOf } from './spot-text'
+import { arriveSpeech, fillPlace, headToSpeech, placeName, talkLabelOf } from './spot-text'
 
 // server-onlyはvitest(node環境)では無条件に例外を投げるので、中身を持たないmockに差し替える
 vi.mock('server-only', () => ({}))
@@ -69,6 +69,17 @@ describe('placeName', () => {
         expect(placeName(localized, spot)).not.toBe('')
       }
     }
+  })
+})
+
+// 地図の地点ボタンの読み上げ名(fastTravel)は地点を引かず、雛形と場所名をこの関数へ直接渡す
+describe('fillPlace', () => {
+  it('雛形の{place}を全て場所名に置き換える', () => {
+    expect(fillPlace('{place}へ移動。{place}!', '池')).toBe('池へ移動。池!')
+  })
+
+  it.each(specialPlaces)('場所名%sの$記法を置換の記法とみなさず、そのまま入れる', place => {
+    expect(fillPlace('{place}へ移動', place)).toBe(`${place}へ移動`)
   })
 })
 

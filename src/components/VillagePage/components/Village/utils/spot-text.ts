@@ -11,8 +11,9 @@ export const placeName = (text: VillageText, spot: Spot): string =>
       ? text.fishing.place
       : text.stops[spot.id].place
 
-// 雛形の{place}を全て場所名に置き換える。関数で渡すので、場所名の$&・$$等を置換の記法として読まない
-const fillPlace = (template: string, place: string): string =>
+// 雛形の{place}を全て場所名に置き換える。関数で渡すので、場所名の$&・$$等を置換の記法として読まない。
+// 地図の地点ボタンの読み上げ名(WorldMapのcomponents/SpotButton)もこれで埋める
+export const fillPlace = (template: string, place: string): string =>
   template.replaceAll('{place}', () => place)
 
 // 地点に立った時の呼びかけ。地点ごとの文言があればそれ、無ければ arriveAt に場所名を入れる。
