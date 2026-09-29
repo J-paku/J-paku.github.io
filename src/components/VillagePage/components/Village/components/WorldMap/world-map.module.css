@@ -136,7 +136,8 @@
 }
 
 /* 地点の番号の札。地図の上と下の一覧で同じ見た目にし、番号で対応を取る。
-   訪問前は黒地に白い数字、訪問後は地図の ✓ の字・ミニマップの印と同じ緑(Village/utils/marker-colors.ts の MARKER_COLORS.visited) */
+   訪問前は地図の?の字と同じ黒(MARKER_COLORS.unvisited)の地に白い数字、
+   訪問後は地図の ✓ の字・ミニマップの印と同じ緑(Village/utils/marker-colors.ts の MARKER_COLORS.visited) */
 .badge {
   display: grid;
   width: 22px;

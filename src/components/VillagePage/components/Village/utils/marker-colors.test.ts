@@ -1,6 +1,6 @@
 // 地図の印の色(MARKER_COLORS)のテスト。
 // 訪問済みの緑が地図の草と紛れないこと、白い下敷きの上で字が見えること、
-// CSSへ書き写した拡大地図の緑(番号の札・一覧の✓)が同じ値のままであることを見る
+// CSSへ書き写した拡大地図の緑(番号の札・一覧の✓)と黒(訪問前の番号の札)が同じ値のままであることを見る
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { MINI_COLORS } from '../components/MapSvg/utils/map-colors'
@@ -28,14 +28,14 @@ const contrast = (a: string, b: string): number => {
   return (light + 0.05) / (dark + 0.05)
 }
 
-// 拡大地図のCSS。CSSはTSの定数を読めないので、緑の値を書き写している
+// 拡大地図のCSS。CSSはTSの定数を読めないので、緑と黒の値を書き写している
 const worldMapCss = readFileSync(
   new URL('../components/WorldMap/world-map.module.css', import.meta.url),
   'utf8'
 )
-// セレクタ1つ分の宣言ブロックの中身を返す
+// セレクタ1つ分の宣言ブロックの中身を返す。行頭から探し、`.spot > .badge {`を`.badge`と取り違えない
 const blockOf = (selector: string): string => {
-  const start = worldMapCss.indexOf(`${selector} {`)
+  const start = worldMapCss.indexOf(`\n${selector} {`)
   if (start === -1) throw new Error(`world-map.module.cssに${selector}が無い`)
   return worldMapCss.slice(start, worldMapCss.indexOf('}', start))
 }
@@ -69,5 +69,11 @@ describe('MARKER_COLORS', () => {
 
   it('拡大地図の一覧の✓も同じ緑で描く', () => {
     expect(blockOf('.legendCheck')).toContain(`color: ${MARKER_COLORS.visited}`)
+  })
+
+  it('拡大地図の訪問前の番号の札は?の字と同じ黒を地と縁に使う', () => {
+    const badge = blockOf('.badge')
+    expect(badge).toContain(`background: ${MARKER_COLORS.unvisited}`)
+    expect(badge).toContain(`border: 2px solid ${MARKER_COLORS.unvisited}`)
   })
 })
