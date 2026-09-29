@@ -29,6 +29,14 @@ describe('spriteIndex', () => {
     expect(spriteIndex(sheet, '')).toBe(0)
     expect(spriteIndex(sheet, 'Locator')).toBe(0)
   })
+
+  // 添字表は平らなオブジェクトなので、Object.prototypeから継承した関数や原型を拾わないこと
+  it.each(['toString', 'constructor', '__proto__', 'hasOwnProperty', 'valueOf'])(
+    'Object.prototypeにある名前%sもシートに無い鍵として0を返す',
+    key => {
+      expect(spriteIndex(sheet, key)).toBe(0)
+    }
+  )
 })
 
 describe('spriteStyle', () => {
