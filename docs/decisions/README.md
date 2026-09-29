@@ -21,6 +21,7 @@ last_reviewed: 2026-09-21
 | [0005](0005-runtime-weather-fetch.md) | 村の天気だけ実行時に外部 API を呼ぶ | Accepted |
 | [0006](0006-jst-fixed-day-phase.md) | 昼夜の判定を JST 固定にする | Accepted |
 | [0007](0007-component-tests-happy-dom.md) | 環境で分かれるコンポーネントの出し分けを happy-dom の統合テストで見る | Accepted |
+| [0008](0008-verbatim-pixel-art-originals.md) | 村のドット絵の原画に外部生成物(LLMの出力)を採り、実装では1ドットも変えない | Accepted |
 
 ## 書くときの決まり
 
@@ -30,7 +31,7 @@ last_reviewed: 2026-09-21
 
 ## 記録が無いもの
 
-- **Vite + react-router から Next.js App Router 静的エクスポートへの移行**(2026-09-18、`8bccf34`)。
+- **Vite + react-router から Next.js App Router 静的エクスポートへの移行**(2026-09-18、`8de8f6b`)。
   そのコミットには本文が無く、取り込んだ Pull Request #1 の併合コミットの本文も PR の題名1行だけで、**理由を書いた一次資料がリポジトリ内に無い**ため ADR にしていない。
   同じ併合でトップが一覧から村へ替わっているので、移行はその改編の一部として進んだと見えるが、これは記録ではなく推測である。
   現在の構成そのものは [../architecture/overview.md](../architecture/overview.md) にある
