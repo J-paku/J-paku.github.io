@@ -27,7 +27,7 @@ export type WalkLoopOptions = {
   dom: VillageDom
   onFishingTarget: (cell: Cell | null) => void
   sprites: SheetLayout
-  // ワールドのスプライトシート。街灯の添字を引くのに使う(主人公の 16×24 シートとは別物)
+  // ワールドのスプライトシート。街灯の添字を引くのに使う(主人公の32×32の画布のシートとは別物)
   veilSprites: SheetLayout
   reduceMotion: boolean
   arrive: (cell: Cell) => void

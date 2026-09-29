@@ -40,7 +40,7 @@ describe('spriteBackgroundCss', () => {
   it('属性なしの既定の規則は昼のシートを指す', () => {
     expect(rules.slice(0, 2)).toEqual([
       [`.${SCENE.sprite}`, sheetUrl('sprite', 'day')],
-      [`.${SCENE.player}`, sheetUrl('player', 'day')],
+      [`.${SCENE.player}::before`, sheetUrl('player', 'day')],
     ])
   })
 
@@ -49,11 +49,11 @@ describe('spriteBackgroundCss', () => {
     const scope = (phase: string) => `.${SCENE.root}[data-phase='${phase}']`
     expect(rules.slice(2)).toEqual([
       [`${scope('dawn')} .${SCENE.sprite}`, sheetUrl('sprite', 'dawn')],
-      [`${scope('dawn')} .${SCENE.player}`, sheetUrl('player', 'dawn')],
+      [`${scope('dawn')} .${SCENE.player}::before`, sheetUrl('player', 'dawn')],
       [`${scope('dusk')} .${SCENE.sprite}`, sheetUrl('sprite', 'dusk')],
-      [`${scope('dusk')} .${SCENE.player}`, sheetUrl('player', 'dusk')],
+      [`${scope('dusk')} .${SCENE.player}::before`, sheetUrl('player', 'dusk')],
       [`${scope('night')} .${SCENE.sprite}`, sheetUrl('sprite', 'night')],
-      [`${scope('night')} .${SCENE.player}`, sheetUrl('player', 'night')],
+      [`${scope('night')} .${SCENE.player}::before`, sheetUrl('player', 'night')],
     ])
     expect(css).not.toContain(`[data-phase='day']`)
   })

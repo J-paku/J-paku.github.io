@@ -75,17 +75,36 @@
   transform-origin: 50% 50%;
 }
 /* 明るい輪郭を常に付け、草や屋根の上でも人物が沈まないようにする。
-   主人公のシートは 16×24(縦 1.5 マス)。足元をマスの下辺に揃え、頭は半マス上へはみ出す */
+   主人公の箱は体の16×24(縦1.5マス)。足元をマスの下辺に揃え、頭は半マス上へはみ出す。
+   箱の大きさ・位置は傘を描く前と同じにしてあり、立つマスの位置・反転の軸・E2Eが測る箱はここで決まる */
 .player {
+  position: absolute;
   top: calc(var(--cell) * -0.5);
   left: 0;
   z-index: 2;
+  width: var(--cell);
   height: calc(var(--cell) * 1.5);
-  background-size: calc(var(--cell) * var(--player-count)) calc(var(--cell) * 1.5);
   transform-origin: center;
   will-change: transform;
   filter: drop-shadow(1px 0 0 #fff) drop-shadow(-1px 0 0 #fff) drop-shadow(0 1px 0 #fff)
     drop-shadow(0 -1px 0 #fff);
+}
+/* 絵は32×32の画布(actors.tsのPLAYER_FRAME_*)で、体の箱の左右と上へ半マスずつはみ出す(2×2マス)。
+   傘は体の箱に収まらないのでこの余白に描く。傘の無いコマは余白が透明なので、体の見え方は箱だけで描いていた頃と同じ。
+   背景画像はVillagePageの<style>が.player::beforeへ当てる(sprite-css.ts)。はみ出した余白は透明でも
+   箱としてポインタを受けてしまうので、当たりは元の箱のままにする(pointer-events: none) */
+.player::before {
+  content: '';
+  position: absolute;
+  top: calc(var(--cell) * -0.5);
+  left: calc(var(--cell) * -0.5);
+  width: calc(var(--cell) * 2);
+  height: calc(var(--cell) * 2);
+  background-position: calc(var(--cell) * 2 * var(--i) * -1) 0;
+  background-repeat: no-repeat;
+  background-size: calc(var(--cell) * 2 * var(--player-count)) calc(var(--cell) * 2);
+  image-rendering: pixelated;
+  pointer-events: none;
 }
 /* ワープ後の読み込み中の覆い。枠全体を黒で覆い、中央で点 3 つが順に点滅する。
    data-show は useWalkLoop が DOM 直接で付け外しする(React は描画中で state を使えない) */

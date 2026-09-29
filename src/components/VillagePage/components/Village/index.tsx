@@ -32,7 +32,7 @@ type VillageProps = {
   text: VillageText
   // 配置用の添字と寸法だけ。画像 URI は VillagePage の <style> が持つので重複して送らない
   sprites: SheetLayout
-  // 主人公だけ 16×24 の別シート(頭がマスの上へ半マスはみ出す)の配置情報
+  // 主人公だけ32×32の画布の別シート(体の16×24の周りに傘を描く余白を持つ)の配置情報
   playerSprites: SheetLayout
   weatherSprites: WeatherSheets
   phaseSheets: PhaseSheets
@@ -213,7 +213,7 @@ function Village({
               ref={playerRef}
               data-village-player
               data-sprite={startPose.key}
-              className={`${styles.sprite} ${styles.player}`}
+              className={styles.player}
               style={playerStyle}
               aria-hidden='true'
             />

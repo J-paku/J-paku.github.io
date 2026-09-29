@@ -33,7 +33,7 @@ export type VillageOptions = {
   roleLabels: Record<CareerRole, string>
   // ワールドのスプライトシート。歩行ループが主人公に重なった街灯を重ねる時に添字を引く
   sprites: SheetLayout
-  // 主人公だけの 16×24 シート(歩行コマの添字に使う)
+  // 主人公だけの32×32の画布のシート(歩行コマの添字に使う)
   playerSprites: SheetLayout
   // 雨が降っているか。屋外で傘を差し、扉の出入りで傘を開け閉めする(雪は含めない)
   raining: boolean

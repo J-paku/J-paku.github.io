@@ -105,16 +105,18 @@ export const rasterize = (
 }
 
 // 全アートを横一列に並べた1枚のPNG(data URI)。index[key]=何枚目か。
-// height を渡すと縦長のタイル(幅は TILE のまま)になる
+// height を渡すと縦長のタイル(幅は TILE のまま)になる。
+// widthも渡すとその幅のタイルになる(主人公の32×32の画布。actors.tsのPLAYER_FRAME_*)
 export const buildSheet = (
   arts: Record<string, PixelArt>,
   palette: Palette,
-  height: number = TILE
+  height: number = TILE,
+  width: number = TILE
 ): Sheet => {
   const keys = Object.keys(arts)
   const index: Record<string, number> = {}
   keys.forEach((key, i) => {
-    const issues = validateArt(arts[key], palette, TILE, height)
+    const issues = validateArt(arts[key], palette, width, height)
     if (issues.length > 0) throw new Error(`${key}: ${issues.join('\n')}`)
     index[key] = i
   })
@@ -123,13 +125,13 @@ export const buildSheet = (
       rasterize(
         keys.map(key => arts[key]),
         palette,
-        TILE,
+        width,
         height
       )
     ),
     index,
     count: keys.length,
-    tile: TILE,
+    tile: width,
     height,
   }
 }

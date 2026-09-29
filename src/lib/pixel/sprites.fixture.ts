@@ -3,6 +3,7 @@
 // ここが唯一の正本(同じ復号を各所へ書き写すと、片方だけ直したとき別の絵を見ていることに気付けない)。
 // Vitest が拾うのは src/**/*.test.ts だけなので、この名前は検査として実行されない
 import { inflateSync } from 'node:zlib'
+import { PLAYER_BODY_LEFT, PLAYER_BODY_TOP } from './actors'
 import { TILE } from './art'
 import type { PixelArt, Sheet } from './art'
 import { LIGHT_KEYS } from './palette-phase'
@@ -23,6 +24,10 @@ export const stitch = (keys: readonly SpriteKey[], columns: number): PixelArt =>
 }
 
 export const charsOf = (art: PixelArt): Set<string> => new Set(art.join(''))
+
+// 主人公のコマ(32×32の画布)から体の箱(16×24)だけを切り出す。傘の無いコマでは、これが画布へ置く前の絵そのもの
+export const bodyOf = (art: PixelArt): PixelArt =>
+  art.slice(PLAYER_BODY_TOP).map(row => row.slice(PLAYER_BODY_LEFT, PLAYER_BODY_LEFT + TILE))
 
 // 灯り用の文字を 1 つでも含む素材のキーを昇順で返す。予約文字の漏れを見張るのに使う
 export const litKeys = (arts: Record<string, PixelArt>): string[] =>
@@ -54,11 +59,12 @@ export const decode = (uri: string): { width: number; height: number; data: Uint
   return { width, height, data }
 }
 
-// シートを 1 度だけ展開し、マスの中の座標を指定して #rrggbb を読む
+// シートを 1 度だけ展開し、マスの中の座標を指定して #rrggbb を読む。
+// 1コマの幅はシートのtile(地形は16、主人公は画布の32)で数える
 export const sampler = (sheet: Sheet): ((key: string, x: number, y: number) => string) => {
   const image = decode(sheet.uri)
   return (key, x, y) => {
-    const at = (y * image.width + sheet.index[key] * TILE + x) * 4
+    const at = (y * image.width + sheet.index[key] * sheet.tile + x) * 4
     return `#${[0, 1, 2].map(i => image.data[at + i].toString(16).padStart(2, '0')).join('')}`
   }
 }
@@ -71,7 +77,7 @@ export type Pixel = { hex: string; alpha: number }
 export const pixelSampler = (sheet: Sheet): ((key: string, x: number, y: number) => Pixel) => {
   const image = decode(sheet.uri)
   return (key, x, y) => {
-    const at = (y * image.width + sheet.index[key] * TILE + x) * 4
+    const at = (y * image.width + sheet.index[key] * sheet.tile + x) * 4
     return {
       hex: `#${[0, 1, 2].map(i => image.data[at + i].toString(16).padStart(2, '0')).join('')}`,
       alpha: image.data[at + 3],

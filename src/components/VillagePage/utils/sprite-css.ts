@@ -37,12 +37,13 @@ export const sheetUrl = (kind: SheetKind, phase: DayPhase): string =>
 // 町の684要素にカスタムプロパティ経由でURIを配ると再解析で約1秒止まる(実測)ため、
 // 段階の切替もこの<style>1本で済ませる。既定は昼、他の段階は data-phase の分だけ詳細度を上げて上書きする
 // クラス名は呼び出し側(VillagePage)が import した scene.module.css をそのまま受け取る。
-// ここで import すると scene.module.css の出力位置が動き、CSS の出力順が変わる
+// ここで import すると scene.module.css の出力位置が動き、CSS の出力順が変わる。
+// 主人公の絵は体の箱より大きい画布なので、箱(.player)ではなく箱からはみ出す::beforeへ当てる
 export const spriteBackgroundCss = (sceneStyles: Readonly<Record<string, string>>): string => {
-  const base = `.${sceneStyles.sprite}{background-image:url('${sheetUrl('sprite', 'day')}')}.${sceneStyles.player}{background-image:url('${sheetUrl('player', 'day')}')}`
+  const base = `.${sceneStyles.sprite}{background-image:url('${sheetUrl('sprite', 'day')}')}.${sceneStyles.player}::before{background-image:url('${sheetUrl('player', 'day')}')}`
   const overrides = NON_DEFAULT_PHASES.map(phase => {
     const scope = `.${sceneStyles.root}[data-phase='${phase}']`
-    return `${scope} .${sceneStyles.sprite}{background-image:url('${sheetUrl('sprite', phase)}')}${scope} .${sceneStyles.player}{background-image:url('${sheetUrl('player', phase)}')}`
+    return `${scope} .${sceneStyles.sprite}{background-image:url('${sheetUrl('sprite', phase)}')}${scope} .${sceneStyles.player}::before{background-image:url('${sheetUrl('player', phase)}')}`
   }).join('')
   return base + overrides
 }

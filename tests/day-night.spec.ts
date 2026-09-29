@@ -139,39 +139,43 @@ const SHEET_PATH = new RegExp(
 
 // 背景画像の URL を長さと簡易チェックサムへ畳んでから比べる。併せて「サイト内の焼いた
 // シート PNG を実際に読めているか」も返し、両方が none や 404 のときに
-// 「差がある」を取り逃さないようにする
-const sheetDigest = (page: Page, selector: string) =>
+// 「差がある」を取り逃さないようにする。
+// pseudoは背景を描く疑似要素。主人公の絵は箱からはみ出す::beforeが描く(scene.module.cssの.player::before)
+const sheetDigest = (page: Page, selector: string, pseudo: string | null = null) =>
   page
     .locator(selector)
     .first()
-    .evaluate(async (element, pathPattern) => {
-      const image = getComputedStyle(element).backgroundImage
-      let sum = 0
-      for (let i = 0; i < image.length; i += 1) sum = (sum * 31 + image.charCodeAt(i)) >>> 0
-      const digest = `${image.length}:${sum.toString(16)}`
+    .evaluate(
+      async (element, [pathPattern, pseudoElement]) => {
+        const image = getComputedStyle(element, pseudoElement).backgroundImage
+        let sum = 0
+        for (let i = 0; i < image.length; i += 1) sum = (sum * 31 + image.charCodeAt(i)) >>> 0
+        const digest = `${image.length}:${sum.toString(16)}`
 
-      // none・グラデーション・複数指定はここで落とす(url() 1本だけを認める)
-      const single = /^url\((['"]?)(.+)\1\)$/.exec(image)
-      if (single === null) return { sheet: false, digest }
-      let url: URL
-      try {
-        url = new URL(single[2], location.href)
-      } catch {
-        return { sheet: false, digest }
-      }
-      // 外部の画像を掴んでいないこと(配信元が同じ)と、焼いたシートの名前の規則に合っていること
-      if (url.origin !== location.origin || !new RegExp(pathPattern).test(url.pathname)) {
-        return { sheet: false, digest }
-      }
-      // URL の形だけでは「out/ に実体が無い(404)」を見逃す。実際に読めて寸法が出るまで確かめる
-      const drawable = await new Promise<boolean>(resolve => {
-        const probe = new Image()
-        probe.onload = () => resolve(probe.naturalWidth > 0 && probe.naturalHeight > 0)
-        probe.onerror = () => resolve(false)
-        probe.src = url.href
-      })
-      return { sheet: drawable, digest }
-    }, SHEET_PATH.source)
+        // none・グラデーション・複数指定はここで落とす(url() 1本だけを認める)
+        const single = /^url\((['"]?)(.+)\1\)$/.exec(image)
+        if (single === null) return { sheet: false, digest }
+        let url: URL
+        try {
+          url = new URL(single[2], location.href)
+        } catch {
+          return { sheet: false, digest }
+        }
+        // 外部の画像を掴んでいないこと(配信元が同じ)と、焼いたシートの名前の規則に合っていること
+        if (url.origin !== location.origin || !new RegExp(pathPattern).test(url.pathname)) {
+          return { sheet: false, digest }
+        }
+        // URL の形だけでは「out/ に実体が無い(404)」を見逃す。実際に読めて寸法が出るまで確かめる
+        const drawable = await new Promise<boolean>(resolve => {
+          const probe = new Image()
+          probe.onload = () => resolve(probe.naturalWidth > 0 && probe.naturalHeight > 0)
+          probe.onerror = () => resolve(false)
+          probe.src = url.href
+        })
+        return { sheet: drawable, digest }
+      },
+      [SHEET_PATH.source, pseudo] as const
+    )
 
 // 天気の層が敷くシートの指紋。地形・主人公と違って天気のシートは実ファイルではなく
 // data URI をカスタムプロパティ(--weather-sheet)で渡す作りなので、SHEET_PATH による
@@ -236,7 +240,7 @@ for (const { prefix, text } of JOURNEYS) {
       await openVillage(page, prefix)
       await expect(page.locator(VILLAGE_ROOT)).toHaveAttribute('data-phase', phase)
       const ground = await sheetDigest(page, GROUND_SPRITE)
-      const player = await sheetDigest(page, '[data-village-player]')
+      const player = await sheetDigest(page, '[data-village-player]', '::before')
       expect(ground.sheet, `${phase} の地形シートがサイト内の焼いたシートPNGである`).toBe(true)
       expect(player.sheet, `${phase} の主人公シートがサイト内の焼いたシートPNGである`).toBe(true)
       grounds.set(phase, ground.digest)

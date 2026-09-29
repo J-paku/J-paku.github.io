@@ -3,7 +3,11 @@ import { expect, test, type Page } from '@playwright/test'
 import { focusVillage, stubWeather } from './village.helpers'
 
 const ROOT = '[data-phase]'
-const SPRITES = ['[data-village-terrain] > div', '[data-village-player]']
+// 背景を描く要素と疑似要素。主人公の絵は箱からはみ出す::beforeが描く(scene.module.cssの.player::before)
+const SPRITES = [
+  { selector: '[data-village-terrain] > div', pseudo: null },
+  { selector: '[data-village-player]', pseudo: '::before' },
+] as const
 const START = new Date('2026-09-23T07:59:00Z')
 const TWO_HOURS_LATER = 2 * 60 * 60 * 1000 + 2 * 60 * 1000
 
@@ -17,19 +21,19 @@ const openDay = async (page: Page) => {
 }
 
 const expectDrawable = async (page: Page, phase: string) => {
-  for (const selector of SPRITES) {
+  for (const { selector, pseudo } of SPRITES) {
     const image = await page
       .locator(selector)
       .first()
-      .evaluate(async element => {
-        const background = getComputedStyle(element).backgroundImage
+      .evaluate(async (element, pseudoElement) => {
+        const background = getComputedStyle(element, pseudoElement).backgroundImage
         const match = /^url\(["']?(.+?)["']?\)$/.exec(background)
         if (match === null) return { background, width: 0 }
         const probe = new Image()
         probe.src = match[1]
         await probe.decode()
         return { background, width: probe.naturalWidth }
-      })
+      }, pseudo)
     expect(image.background).toContain(`-${phase}-`)
     expect(image.width).toBeGreaterThan(0)
   }

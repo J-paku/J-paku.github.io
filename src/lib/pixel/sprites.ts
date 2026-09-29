@@ -1,7 +1,7 @@
-// 全スプライトを型付き辞書へまとめる。地形・建物は 16×16 の1枚、主人公は 16×24 の別シート
+// 全スプライトを型付き辞書へまとめる。地形・建物は 16×16 の1枚、主人公は32×32の画布の別シート
 import { buildSheet } from './art'
 import type { PixelArt, Sheet } from './art'
-import { playerArt, playerNightArt, PLAYER_HEIGHT } from './actors'
+import { playerArt, playerNightArt, PLAYER_FRAME_HEIGHT, PLAYER_FRAME_WIDTH } from './actors'
 import { fishingArt } from './fishing-art'
 import { palette } from './palette'
 import { phasePalette } from './palette-phase'
@@ -183,7 +183,12 @@ export const buildSprites = (phase: DayPhase = 'day'): Sheet =>
 
 // 主人公も同じ段階の色を通す(夜に主人公だけ昼の色だと浮くため)
 export const buildPlayerSprites = (phase: DayPhase = 'day'): Sheet =>
-  buildSheet(playerArtsFor(phase), phasePalette(palette, phase), PLAYER_HEIGHT)
+  buildSheet(
+    playerArtsFor(phase),
+    phasePalette(palette, phase),
+    PLAYER_FRAME_HEIGHT,
+    PLAYER_FRAME_WIDTH
+  )
 
 // 雨・雪をコマごとに別シートで返す。時刻による色替えはしない(降る粒は地形ではない)。
 // 2 コマを 1 枚へ横に並べると CSS の繰り返し単位が 2 マス幅になり、コマを送っても模様全体が

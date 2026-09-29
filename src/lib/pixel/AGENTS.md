@@ -20,7 +20,7 @@
 ## 守ること
 
 1. **SVG に戻さない。** 数百マスが共有する `background-image` を SVG の data URI にすると、再描画のたびにマスごとの SVG 描画が走る(実測 約200ms)→ [../../../docs/decisions/0001-png-sprite-sheet.md](../../../docs/decisions/0001-png-sprite-sheet.md)
-2. **8×8 の部品4枚で 16×16 のメタタイルを作る。** 地形・建物は 16×16、主人公は 16×24 の別シート
+2. **8×8 の部品4枚で 16×16 のメタタイルを作る。** 地形・建物は 16×16、主人公は16×24の体を32×32の画布へ置いた別シート(余白へ描くのは傘だけ。寸法の正本は`actors.ts`の`PLAYER_*`)
 3. **`palette-phase.ts` が予約している文字を地形・主人公の絵に使わない。** 光源用が `LIGHT_KEYS`、段階に関わらず色を変えない文字が `FIXED_KEYS`。予約は `sprites.test.ts` が固定している
 4. **雨と雪のシートは時間帯で色を変えない。** 地形・主人公は `phasePalette` を通すが、天気は素の `palette` のまま焼く(降る粒は地形ではないため)。「夜なのに雪が暗くならない」は仕様。実際に見える色には `src/components/VillagePage/components/Village/components/Weather/` の CSS 側(2コマの opacity と重ね順)も関わる
 5. **`DayPhase` の正本は `src/utils/day-phase.ts`。** ここでは型を import するだけで再 export しない(レイヤー境界のため)

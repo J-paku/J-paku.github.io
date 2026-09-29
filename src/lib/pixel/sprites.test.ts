@@ -15,7 +15,7 @@ import {
   UMBRELLA_CLOSE_STEPS,
   UMBRELLA_OPEN_STEPS,
 } from './sprites'
-import { charsOf, litKeys, sampler } from './sprites.fixture'
+import { bodyOf, charsOf, litKeys, sampler } from './sprites.fixture'
 import { DAY_PHASES } from '@/utils/day-phase'
 
 describe('時刻ごとのシート', () => {
@@ -54,13 +54,17 @@ describe('時刻ごとのシート', () => {
   it('昼の主人公シートは 1 バイトも変わらない', () => {
     // 後から足した釣りの動き(投げ・当たり・釣り上げ)のコマを外して、既存の歩行・待機コマの同一性を守る。
     // 動きの場面は FISHING_MOTIONS から外すので、場面を足してもこの基準を焼き直さずに済む。
-    // 後から足した傘のコマ(player-umbrella-*)も同じ方針で外す
+    // 後から足した傘のコマ(player-umbrella-*)も同じ方針で外す。
+    // コマは傘のために32×32の画布へ置いたので、体の箱(16×24)を切り出して前と同じ寸法で焼く。
+    // 箱の外(余白)が空いていることはsprites-art.test.tsが見ている
     const arts = Object.fromEntries(
-      Object.entries(PLAYER_ARTS).filter(
-        ([key]) =>
-          !FISHING_MOTIONS.some(motion => key.endsWith(`-${motion}`)) &&
-          !key.startsWith('player-umbrella-')
-      )
+      Object.entries(PLAYER_ARTS)
+        .filter(
+          ([key]) =>
+            !FISHING_MOTIONS.some(motion => key.endsWith(`-${motion}`)) &&
+            !key.startsWith('player-umbrella-')
+        )
+        .map(([key, art]) => [key, bodyOf(art)])
     )
     const sheet = buildSheet(arts, phasePalette(palette, 'day'), 24)
 

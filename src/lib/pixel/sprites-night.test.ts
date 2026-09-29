@@ -1,6 +1,8 @@
 // 夜だけ差し替える素材を検証する。鍵の集合と並び順が昼と揃っていること、
 // 主人公のランタンとポストの LED が夜にだけ灯ること
 import { describe, expect, it } from 'vitest'
+import { PLAYER_BODY_LEFT, PLAYER_BODY_TOP } from './actors'
+import { TILE } from './art'
 import type { PixelArt } from './art'
 import { LANTERN_GLASS, LANTERN_SHINE } from './lantern'
 import { palette } from './palette'
@@ -245,13 +247,16 @@ describe('夜だけ差し替える素材', () => {
 
   it('横向きの夜のコマも反転してずれないよう 1〜14 列に収まる', () => {
     // 釣りの動きのコマも含めて横向きは全部見る。静止・歩行の 2 枚、待つ 1 枚、動きの場面の数だけ、
-    // 傘を差した静止・歩行の 2 枚がある
+    // 傘を差した静止・歩行の 2 枚がある。見方は昼(sprites-art.test.ts)と同じで、体の箱の1〜14列の外が空いていること。
+    // 傘の天蓋は体ではないので、傘のコマは頭の天辺の行から下だけを見る
     const rights = Object.entries(PLAYER_NIGHT_ARTS).filter(([key]) => key.includes('-right'))
     expect(rights).toHaveLength(2 + 1 + FISHING_MOTIONS.length + 2)
+    const margin = '.'.repeat(PLAYER_BODY_LEFT + 1)
     for (const [key, art] of rights) {
-      for (const row of art) {
-        expect(row[0], key).toBe('.')
-        expect(row[15], key).toBe('.')
+      const from = key.startsWith('player-umbrella-') ? PLAYER_BODY_TOP + 4 : 0
+      for (const row of art.slice(from)) {
+        expect(row.slice(0, PLAYER_BODY_LEFT + 1), key).toBe(margin)
+        expect(row.slice(PLAYER_BODY_LEFT + TILE - 1), key).toBe(margin)
       }
     }
   })
@@ -275,6 +280,43 @@ describe('夜だけ差し替える素材', () => {
     expect(
       Object.fromEntries(fishing.map(([key, day]) => [key, litCells(day, nightArts[key])]))
     ).toEqual(Object.fromEntries(fishing.map(([key]) => [key, standLit[key.split('-')[2]]])))
+  })
+
+  it('傘の柄を握る拳はランタンから離れていて、灯りと傘を同じ手で持って見えない', () => {
+    // 傘は右手、ランタンは左手。夜のコマで灯りの升と拳の升が隣り合うと、1つの手が両方を提げて見える。
+    // 拳は素のコマから新しく手の色(V)になった升、灯りは昼と夜で違う升で、間を1升以上空ける(チェビシェフ距離2以上)
+    const dayArts: Record<string, PixelArt> = PLAYER_ARTS
+    const nightArts: Record<string, PixelArt> = PLAYER_NIGHT_ARTS
+    const holding = Object.keys(PLAYER_ARTS).filter(key =>
+      /^player-umbrella-(?:(?:up|down|right)-\d|open-(?:extend|half|raise)|close-(?:lower|half|closed))$/.test(
+        key
+      )
+    )
+    // 差して立つ・歩く8枚と、出す・しまう途中で柄を立てている6枚
+    expect(holding).toHaveLength(14)
+    const dotsOf = (cells: string[]): [number, number][] =>
+      cells.map(cell => {
+        const [x, y] = cell.split(',').map(Number)
+        return [x, y]
+      })
+    const gaps = holding.map(key => {
+      const day = dayArts[key]
+      const plain = dayArts[umbrellaBaseOf(key)]
+      const fist = dotsOf(
+        day.flatMap((row, y) =>
+          [...row].flatMap((ch, x) => (ch === 'V' && plain[y][x] !== 'V' ? [`${x},${y}`] : []))
+        )
+      )
+      const lantern = dotsOf(litCells(day, nightArts[key]))
+      const distance = Math.min(
+        ...fist.flatMap(([fx, fy]) =>
+          lantern.map(([lx, ly]) => Math.max(Math.abs(fx - lx), Math.abs(fy - ly)))
+        )
+      )
+      return { key, apart: fist.length > 0 && lantern.length > 0 && distance >= 2 }
+    })
+
+    expect(gaps).toEqual(holding.map(key => ({ key, apart: true })))
   })
 
   it('傘のコマは昼の絵へランタンを重ねただけで、素のコマと同じ面を同じ所に提げる', () => {
