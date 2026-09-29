@@ -16,7 +16,7 @@
 
 | 座席マップデモ | チーム標準のAI開発基盤 |
 |---|---|
-| [![座席マップデモ](https://j-paku.github.io/shots/seatmap-demo.svg)](https://j-paku.github.io/seatmap-demo/) | [![チーム標準のAI開発基盤](https://j-paku.github.io/shots/ai-harness.svg)](https://j-paku.github.io/ai-harness/) |
+| [![座席マップデモ](https://j-paku.github.io/shots/seatmap-demo.svg)](https://j-paku.github.io/seatmap-demo/) | [![チーム標準のAI開発基盤](https://j-paku.github.io/shots/ai-harness.webp)](https://j-paku.github.io/ai-harness/) |
 
 > コードエージェント(Claude Code・Codex・Cursor など)で作業する場合は [AGENTS.md](AGENTS.md) から読んでください。
 > 設計・規約・検証の文書は [docs/](docs/README.md) にあります。
