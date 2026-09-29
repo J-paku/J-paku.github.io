@@ -38,7 +38,7 @@ jobs:
       # ブラウザ本体は lock ファイルの版ごとに使い回す。OS 側の依存はキャッシュできないので hit でも入れる
       - name: Cache Playwright browsers
         id: playwright-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
@@ -57,7 +57,7 @@ jobs:
       # apt のアーカイブ(/var/cache/apt)は root 所有で cache アクションが復元できないので、.deb を利用者側に落として持ち回る
       - name: Cache CJK font package
         id: fonts-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/apt-fonts
           key: ${{ runner.os }}-fonts-noto-cjk-v1
