@@ -4,8 +4,9 @@ read_when:
   - 村の描画が重い・入力が落ちるとき
   - 画像やスプライトの持ち方を変えるとき
   - 依存や書体の読み込み方を変えるとき
+  - Lighthouse CIが落ちたとき・その基準を変えるとき
 source_of_truth: true
-last_reviewed: 2026-09-27
+last_reviewed: 2026-09-29
 ---
 
 # 性能
@@ -69,3 +70,20 @@ budoux の `browser` フィールドを Turbopack も webpack も当てないた
 ```bash
 node -e 'const fs=require("fs");const html=fs.readFileSync("out/index.html","utf8");const js=[...new Set([...html.matchAll(/\/_next\/static\/[^"\x27 ]+\.js/g)].map(m=>m[0]))];let t=0;for(const j of js){const s=fs.statSync("out"+j).size;t+=s;console.log(j.split("/").pop(),(s/1024).toFixed(0)+"KB")}console.log("total",(t/1024).toFixed(0)+"KB")'
 ```
+
+## Lighthouse CIの基準
+
+**測る経路・回数・各分類の下限の正本は`lighthouserc.json`。** CIでは`.github/workflows/deploy.yml`のaxeの直後に走り、どれかの分類が下限を割るとそこで止まる。
+
+根拠は2026-09-29のローカル実測(モバイルの既定設定で、axeと同じ6経路を3回ずつ測った中央値)。
+
+| 分類 | 実測の中央値 | 下限 |
+|---|---|---|
+| performance | 56〜68(一番低いのは`/list/`と`/ko/list/`の56) | 0.51 |
+| accessibility | 6経路とも100 | 0.95 |
+| best-practices | 6経路とも100 | 0.95 |
+| seo | 6経路とも100 | 0.95 |
+
+- 下限は各分類で一番低い中央値から5pt引いた値。判定は3回のうち中央値の回で見る(`aggregationMethod: median-run`)
+- CIの実行機では成績(特にperformance)が手元と違うことがあるので、最初のCIの実測を見て下限を直すことがある
+- 報告は外へ上げない(`upload`を設定しない)。公開の一時保管先へ載せないため

@@ -4,7 +4,7 @@ read_when:
   - どのコマンドを走らせるか決めるとき
   - CI が落ちた原因を切り分けるとき
 source_of_truth: true
-last_reviewed: 2026-09-21
+last_reviewed: 2026-09-29
 ---
 
 # コマンド
@@ -18,6 +18,7 @@ last_reviewed: 2026-09-21
 | `npm run lint` | ESLint。レイヤー境界とバレル禁止の違反もここで落ちる | 整形(Prettier は別) |
 | `npm run format:check` | Prettier の整形。CI が落とす | `*.md`(整形対象外) |
 | `npm run test` | Vitest。`src/**/*.test.ts` の**純粋関数だけ**。DOM 環境を持たない | コンポーネントの描画・ブラウザ挙動 |
+| `npm run test:coverage` | `npm run test`と同じテストをv8のカバレッジ付きで走らせ、`vitest.config.ts`の床(`coverage.thresholds`)を下回ると落ちる。CIはこちら | `src/`の外(`content/`・`scripts/`)のカバレッジ。E2Eが通ったコードも数えない |
 | `npm run build` | `next build` + `scripts/verify-export.mjs`。content の整合性検査もここで走る | 画面の見た目・操作 |
 | `npm run test:e2e` | Playwright。`out/` を静的配信して実操作で確かめる | **`out/` は作らない。先に `npm run build`** |
 | `npm run docs:check` | 文書の相対リンク・参照ファイル・`npm run` 名・frontmatter の実在。**実在は git の追跡対象で判定する**(まだ `git add` していないファイルは「無い」と出る) | 文書の内容が正しいかどうか |
@@ -27,10 +28,11 @@ last_reviewed: 2026-09-21
 
 `npm run test:e2e` が配信に使うポートは既定 `:4173` で、`E2E_PORT` で変えられる(`npm run start` は `:4173` 固定)。
 
-CI だけが走らせるものが2つある(`scripts/check-a11y.mjs` と `scripts/check-ja-linebreak.mjs`)。
-どちらも**配信中のサーバが要る**(`npm run start` を先に上げ、`npx wait-on http://localhost:4173` を挟む)。
+CI だけが走らせるものが3つある(`scripts/check-a11y.mjs` と `scripts/check-ja-linebreak.mjs`、Lighthouse CI)。
+どれも**配信中のサーバが要る**(`npm run start` を先に上げ、`npx wait-on http://localhost:4173` を挟む)。
 **引数のパス列の正本は `.github/workflows/deploy.yml`**、そのまま貼れる実行例は
 [../operations/deployment.md](../operations/deployment.md) の「ローカルで CI を再現する」にある。
+Lighthouse CIだけは測る経路と基準の正本が`lighthouserc.json`で、基準の根拠は[../quality/performance.md](../quality/performance.md)。
 
 ## 落ちたときの読み方
 
@@ -39,3 +41,5 @@ CI だけが走らせるものが2つある(`scripts/check-a11y.mjs` と `script
 - `verify-export:` で始まる → [../operations/deployment.md](../operations/deployment.md)
 - axe の違反 → [../quality/accessibility.md](../quality/accessibility.md)
 - 改行検査の違反 → [../quality/japanese-typography.md](../quality/japanese-typography.md)
+- `does not meet global threshold`(カバレッジが床を下回った)→ [../quality/test-strategy.md](../quality/test-strategy.md)
+- Lighthouse CIの`assert`が落ちた → [../quality/performance.md](../quality/performance.md)

@@ -4,7 +4,7 @@ read_when:
   - 変更を確かめる前
   - 「完了」と報告する前
 source_of_truth: true
-last_reviewed: 2026-09-21
+last_reviewed: 2026-09-29
 ---
 
 # 何を走らせるか
@@ -26,6 +26,8 @@ last_reviewed: 2026-09-21
 | 本文の折り返しに関わる CSS | `npm run build` → 日本語改行検査 → [../quality/japanese-typography.md](../quality/japanese-typography.md) |
 | import の向き・フォルダ構成 | `npm run lint` → `npm run typecheck` → `npm run build` |
 | 設定(`next.config.ts` / `tsconfig.json` / `eslint.config.mjs` / `vitest.config.ts` / `playwright.config.ts`) | `npm run typecheck` → `npm run lint` → `npm run build` → `npm run test:e2e` 全体 |
+| `vitest.config.ts`の`coverage`(測る範囲・床) | `npm run test:coverage`。床を変えたら、一度だけ実測より上に置いて落ちるのを見てから戻す |
+| `lighthouserc.json`(経路・下限) | `npm run build` → `npm run start`と`npx wait-on http://localhost:4173` → `npx -y @lhci/cli@0.15.1 collect && npx -y @lhci/cli@0.15.1 assert`(版の正本は`.github/workflows/deploy.yml`) |
 | `scripts/` | そのスクリプトを実際に引数付きで実行 |
 | `.github/workflows/` | ローカルで CI 相当を再現 → [../operations/deployment.md](../operations/deployment.md) |
 | 文書(`docs/` / `*.md`) | `npm run docs:check` |

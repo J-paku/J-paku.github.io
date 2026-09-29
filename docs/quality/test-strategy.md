@@ -4,7 +4,7 @@ read_when:
   - テストを足す・直すとき
   - どのテストを走らせるか決めるとき
 source_of_truth: true
-last_reviewed: 2026-09-28
+last_reviewed: 2026-09-29
 ---
 
 # テスト
@@ -13,8 +13,8 @@ last_reviewed: 2026-09-28
 
 | 層 | 置き場 | 対象 | 環境 |
 |---|---|---|---|
-| 単体(Vitest) | 対象ファイルの隣 `*.test.ts` | **純粋関数**と、`fetch`・Storage を `vi.stubGlobal` で差し替えて測る `src/lib/` の入口 | `environment: 'node'`(既定)。DOM を持たない |
-| 統合(Vitest + React Testing Library) | 対象コンポーネントの隣 `index.test.tsx` | **環境で分かれるコンポーネントの出し分け**。いまは作品カード(`src/components/Directory/components/WorkCard/index.test.tsx`)だけ | ファイル先頭の `// @vitest-environment happy-dom` でそのファイルだけ DOM を持つ |
+| 単体(Vitest) | 対象ファイルの隣 `*.test.ts` | **純粋関数**と、`fetch`・Storage を `vi.stubGlobal` で差し替えて測る `src/lib/` の入口。DOMへ書くutils(歩行ループの部品など)と、DOMに触れないフックを`renderHook`で呼ぶテストもこの層 | `environment: 'node'`(既定)。DOM を持たない。DOMへ書くutilsと`renderHook`のテストだけは、ファイル先頭の`// @vitest-environment happy-dom`でそのファイルだけhappy-domで走る |
+| 統合(Vitest + React Testing Library) | 対象コンポーネントの隣 `index.test.tsx` | **環境・props・操作で分かれるコンポーネントの出し分け**。いまは作品カード(`src/components/Directory/components/WorkCard/index.test.tsx`)とその部品のLinksOverlay・WorkLinks・ShotMedia、経歴のCareerDetail、設定メニューのSettingsMenu | ファイル先頭の `// @vitest-environment happy-dom` でそのファイルだけ DOM を持つ |
 | E2E(Playwright) | `tests/**/*.spec.ts` | 実際のクリック・キー操作 | `out/` を `:4173` で静的配信 |
 
 - E2E の配信ポートは既定 `:4173` で、`E2E_PORT` で変えられる(`playwright.config.ts`)
@@ -28,9 +28,11 @@ last_reviewed: 2026-09-28
 - **計算だけ**(入力が同じなら出力も同じ)→ 単体
 - **環境で分かれるコンポーネントの出し分け**(URL のハッシュ・`matchMedia`・`IntersectionObserver` の有無)→ 統合。
   実ブラウザでは作りにくい環境(`IntersectionObserver` が無い等)を `vi.stubGlobal` で作り、画面に何が出るかを見る
+- **props・操作で変わるコンポーネントの出力**(任意の項目を渡すと節が出て外すと消える、押すと開閉してフォーカスが戻る)→ 統合
 - **実際の配置・寸法・スクロール・rAF・歩行** → E2E。happy-dom は配置を計算しない(作品カードの `getBoundingClientRect()` は幅・高さとも 0 だった)
 - **村(`src/components/VillagePage/`)は統合の対象にしない。** 描画が実際の寸法と rAF の歩行ループに依存するため、
-  happy-dom では確かめたいものが再現しない。村の出し分けは E2E で見るか、純粋関数へ切り出して単体で見る
+  happy-dom では確かめたいものが再現しない。村の出し分けは E2E で見るか、純粋関数へ切り出して単体で見る。
+  これはコンポーネントを描く統合テストの話で、寸法やrAFの実物に頼らないフック(`renderHook`)と、DOMへ書くutils(rAFと`performance.now`を偽物に替えた歩行ループの部品など)を単体で測るのは当てはまらない
 
 ### 統合テストの約束
 
@@ -44,7 +46,7 @@ last_reviewed: 2026-09-28
 
 | ファイル | 見るもの |
 |---|---|
-| `tests/journey.spec.ts` | 村の導線。会話 → 扉 → 作品 → 一覧、8か所のコースの完走、地図の高速移動(番号の印と凡例・自室と池への移動)、位置と訪問の保存、テーマ、当たり判定を ja/ko 双方で |
+| `tests/journey.spec.ts` | 村の導線。会話 → 扉 → 作品 → 一覧、8か所のコースの完走、地図の高速移動(番号の印と凡例・自室と池への移動)、位置と訪問の保存、テーマ、当たり判定を ja/ko 双方で。地点の物を押すと話しかけるマスまで歩いて会話が開くこと(`/`だけ) |
 | `tests/layout.spec.ts` | 舞台の寸法。PC・縦持ち・横持ち・タブレットで操作帯の配置が崩れないか |
 | `tests/day-night.spec.ts` | 時計を4段階に固定した空と、4段階ぶんの焼いたシートがどれも別物であること、Open-Meteo の応答を差し替えた雨・雪の有無 |
 | `tests/night-transition.spec.ts` | 再読み込みせずに時間帯が変わるとき。開いたまま2時間進めて夜へ移っても地形と主人公が描けるか、夜の画像が 404 の間は直前の村を残し通信が戻れば夜へ移るか、片方の画像だけ遅れても両方そろうまで昼を残すか |
@@ -65,6 +67,13 @@ E2E は `out/` を配る。**先に `npm run build` を済ませる。**
 - **天気は既定で晴れ。** `@playwright/test` ではなく `tests/village.helpers.ts` の `test` を使うと、context に晴れの応答が敷かれ、実際の天気を待たない。雨・雪や取得失敗を確かめるテストは `stubWeather(page, 'rain' | 'snow' | 'error')` で上書きする(page の route が context の route より先に効く。同じ page に重ねたときは後から敷いた方が勝つ)。axe と日本語改行の検査スクリプトも同じ形の応答に差し替えて測る
 - **歩くのは `walk(page, key, cells)`。** 1 マスごとに保存位置(sessionStorage)が変わるまで待ち、変わらない回(ぶつかった・向きだけ変えた)は `SETTLE_MS` で見切る。戻り値は到着したマス数
 - 保存を塞ぐ `tests/storage-blocked.spec.ts` だけは `walk` を使えない(保存位置が変わらず、読むことも投げる)。1 マス分押して離し、主人公の描かれた位置が隣のマスへ移るのを待つ
+
+## カバレッジの床
+
+`npm run test:coverage`は`npm run test`と同じテストをv8のカバレッジ付きで走らせ、床を下回ると落ちる。CIはこちらを走らせる(手元の`npm run test`は測らない)。
+
+- 測る範囲・外す名前(テスト・`*.fixture.ts`・`*.test-helper.ts`)・床の値の正本は`vitest.config.ts`の`coverage`。数値はここへ書き写さない
+- 床は目標値ではなく、テストを消したり測られないコードを増やしたりしたときに落とすためのもの。決め方(実測から2pt引いて切り捨て)は`vitest.config.ts`の注釈にある
 
 ## 新しい検査は必ず一度落とす
 

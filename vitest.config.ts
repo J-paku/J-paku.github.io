@@ -22,5 +22,17 @@ export default defineConfig({
     env: { TZ: 'UTC' },
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     exclude: [...configDefaults.exclude, '**/.claude/**', 'src/_v1-pages/**', 'tests/**'],
+    // 測るのは--coverageを付けたとき(npm run test:coverage、CIはこちら)だけ。npm run testは今までどおり速く回す
+    coverage: {
+      provider: 'v8',
+      enabled: false,
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/**/*.test.{ts,tsx}', 'src/**/*.fixture.ts', 'src/**/*.test-helper.ts'],
+      reporter: ['text-summary'],
+      reportsDirectory: 'coverage',
+      // 2026-09-29の実測(statements 57.34%・branches 61.11%・functions 56.62%・lines 57.14%)から2pt引いて切り捨てた値。
+      // 目標値ではなく、テストを消したり使われないコードを増やしたりしたときに落とすための床
+      thresholds: { statements: 55, branches: 59, functions: 54, lines: 55 },
+    },
   },
 })

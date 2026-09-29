@@ -29,7 +29,8 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run format:check
-      - run: npm run test
+      # カバレッジが床を下回ったらここで止まる(基準の正本はvitest.config.tsのcoverage.thresholds)
+      - run: npm run test:coverage
       # 計測先 URL はリポジトリに書かず、GitHub の変数から渡す(未設定なら計測タグを出さない)
       - name: Build
         run: npm run build
@@ -54,6 +55,10 @@ jobs:
       - run: npx wait-on http://localhost:4173
       - name: axe accessibility check
         run: node scripts/check-a11y.mjs http://localhost:4173 / /ko/ /list/ /ko/list/ /works/meishi-cross-platform/ /ko/works/meishi-cross-platform/
+      # 測る先は前段が:4173で上げた配信をそのまま使う(経路と基準の正本はlighthouserc.json)。
+      # 基準の根拠はdocs/quality/performance.md。報告は外へ上げない(uploadを設定しない)
+      - name: Lighthouse CI
+        run: npx -y @lhci/cli@0.15.1 collect && npx -y @lhci/cli@0.15.1 assert
       # apt のアーカイブ(/var/cache/apt)は root 所有で cache アクションが復元できないので、.deb を利用者側に落として持ち回る
       - name: Cache CJK font package
         id: fonts-cache

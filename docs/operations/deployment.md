@@ -5,7 +5,7 @@ read_when:
   - 配信が反映されないとき
   - 配信を戻したいとき
 source_of_truth: true
-last_reviewed: 2026-09-24
+last_reviewed: 2026-09-29
 ---
 
 # 配信
@@ -18,10 +18,10 @@ last_reviewed: 2026-09-24
 ```
 push to main
   → build ジョブ(直列。前段が落ちたら後段は走らない)
-      docs:check → typecheck → lint → format:check → test → build
+      docs:check → typecheck → lint → format:check → test:coverage(カバレッジの床) → build
       → Playwright Chromium をキャッシュから戻す(miss なら入れる)→ test:e2e
       → out/ を :4173 で配信 → wait-on
-      → axe(全ルート) → CJK フォントの .deb をキャッシュから戻して入れる → 日本語改行検査
+      → axe(全ルート) → Lighthouse CI(同じ6経路) → CJK フォントの .deb をキャッシュから戻して入れる → 日本語改行検査
       → upload-pages-artifact
   → deploy ジョブ(GitHub Pages)
 ```
@@ -30,6 +30,8 @@ push to main
 - `concurrency: pages` + `cancel-in-progress` なので、連続 push では後の1本だけが生き残る
 - Pages の設定は **Settings → Pages → Source = GitHub Actions**
 - 計測先は **Settings → Secrets and variables → Actions → Variables** の `GOATCOUNTER_URL`。build step が `NEXT_PUBLIC_GOATCOUNTER_URL` として渡し、未設定なら計測タグを出さない
+- カバレッジの床の正本は`vitest.config.ts`([../quality/test-strategy.md](../quality/test-strategy.md))、Lighthouse CIの経路と基準の正本は`lighthouserc.json`([../quality/performance.md](../quality/performance.md))。Lighthouse CIの報告は外へ上げない(`upload`を設定しない)
+- 依存の更新は`.github/dependabot.yml`がnpmとGitHub Actionsの両方を毎週PRで知らせる。このワークフローはPRでは走らないので、取り込む前に下の「ローカルで CI を再現する」を通す
 
 ## キャッシュ
 
@@ -52,11 +54,12 @@ push to main
 push する前にこれを通しておく。落ちる場所は CI と同じ順に出る。
 
 ```bash
-npm run docs:check && npm run typecheck && npm run lint && npm run format:check && npm run test && npm run build
+npm run docs:check && npm run typecheck && npm run lint && npm run format:check && npm run test:coverage && npm run build
 npm run test:e2e
 npm run start &
 npx wait-on http://localhost:4173
 node scripts/check-a11y.mjs http://localhost:4173 / /ko/ /list/ /ko/list/ /works/meishi-cross-platform/ /ko/works/meishi-cross-platform/
+npx -y @lhci/cli@0.15.1 collect && npx -y @lhci/cli@0.15.1 assert
 node scripts/check-ja-linebreak.mjs http://localhost:4173 / /ko/ /list/ /ko/list/ /works/meishi-cross-platform/ /ko/works/meishi-cross-platform/
 ```
 

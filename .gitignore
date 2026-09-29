@@ -41,3 +41,7 @@ playwright-report
 # .claude/ 配下の同名フォルダは上の .claude/ で既に外れている
 /probe/
 /tmp/
+
+# npm run test:coverageとLighthouse CIが書き出す報告。生成物なのでソースには入れない
+/coverage/
+/.lighthouseci/
