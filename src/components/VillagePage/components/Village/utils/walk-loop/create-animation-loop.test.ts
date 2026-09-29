@@ -180,6 +180,43 @@ describe('createAnimationLoop', () => {
     expect(cancelFrame).not.toHaveBeenCalled()
   })
 
+  it('回っている間にstopしたループは、wakeしても次のフレームを頼まない', () => {
+    const tick = vi.fn((_elapsed: number) => true)
+    const loop = createAnimationLoop(tick, makeFrameRef())
+    loop.start()
+    runFrame(1016)
+    // 2つ目のフレームを頼んだまま止める(外したeffectの後始末)
+    loop.stop()
+    loop.wake()
+    expect(requestFrame).toHaveBeenCalledTimes(2)
+    expect(pending).toHaveLength(0)
+    expect(tick).toHaveBeenCalledTimes(1)
+  })
+
+  it('眠っている間にstopしたループは、wakeしても次のフレームを頼まない', () => {
+    const tick = vi.fn((_elapsed: number) => false)
+    const loop = createAnimationLoop(tick, makeFrameRef())
+    loop.start()
+    runFrame(1016)
+    // 頼んであるフレームが無いまま止める。止めた時の状態でwakeの効き方を変えない
+    loop.stop()
+    loop.wake()
+    expect(requestFrame).toHaveBeenCalledTimes(1)
+    expect(pending).toHaveLength(0)
+    expect(tick).toHaveBeenCalledTimes(1)
+  })
+
+  it('フレームの処理中にstopされたら、tickがtrueでも次のフレームを頼まない', () => {
+    const loop: AnimationLoop = createAnimationLoop(() => {
+      loop.stop()
+      return true
+    }, makeFrameRef())
+    loop.start()
+    runFrame(1016)
+    expect(requestFrame).toHaveBeenCalledTimes(1)
+    expect(pending).toHaveLength(0)
+  })
+
   it('枠の印は変わった時だけ書く', () => {
     // 前のループ(開発時のeffectの二度実行など)が既にrunningを書いた枠
     const frameRef = makeFrameRef()

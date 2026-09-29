@@ -15,7 +15,7 @@ export type AnimationLoop = {
   wake: () => void
   // 最初のフレームを頼む
   start: () => void
-  // 頼んであるフレームを取り消す
+  // 頼んであるフレームを取り消す。止めたループは以後wakeされても回らない
   stop: () => void
 }
 
@@ -29,6 +29,9 @@ export const createAnimationLoop = (
   // フレームの処理中か。処理中に起こされた時は(到着でワールドが替わった等)眠るのを 1 回見送る
   let inFrame = false
   let wokenInFrame = false
+  // stopされたか。止めた後はwakeにも処理中のフレームの続きにも次のフレームを頼ませない。
+  // 回っている間・眠っている間のどちらで止めても同じにし、外したループにrAFを残さない
+  let stopped = false
   let last = performance.now()
 
   const loop = (now: number) => {
@@ -46,6 +49,7 @@ export const createAnimationLoop = (
       // 途中で投げても、次に起こされた時に回り直せるようにする
       inFrame = false
     }
+    if (stopped) return
     if (busy || wokenInFrame) {
       raf = window.requestAnimationFrame(loop)
       return
@@ -55,6 +59,7 @@ export const createAnimationLoop = (
 
   // 眠っていれば次のフレームを頼む。回っている間は何もしない
   const wake = () => {
+    if (stopped) return
     if (inFrame) {
       wokenInFrame = true
       return
@@ -72,7 +77,9 @@ export const createAnimationLoop = (
   }
 
   const stop = () => {
+    stopped = true
     if (raf !== null) window.cancelAnimationFrame(raf)
+    raf = null
   }
 
   return { wake, start, stop }
