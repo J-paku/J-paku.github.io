@@ -174,13 +174,19 @@ export function useWalkLoop({
 
   // タップ → 経路を作って次のステップへ渡す。通れない場所は無視(壁の扉は隣まで歩いてぶつかる)。
   // 経路が付いた時だけ押したマスに行き先の印を立てる(経路は押したマスちょうどで終わるので、着けば到着の処理が下ろす。
-  // 壁の扉には着かずにぶつかるので、その先のワールドの移動が下ろす)
+  // 壁の扉には着かずにぶつかるので、その先のワールドの移動が下ろす)。
+  // 地点の物を押した時は、印を物ではなく話しかけるマスに立てる(着けば到着の処理が下ろして話しかける)。
+  // もうそのマスに止まっていれば歩かずに話しかける(次へで地点にもう立っていた時と同じ)
   useEffect(() => {
     if (tapped === null) return
-    if (queueTapRoute(runtime, tapped)) {
-      runtime.destination.current = tapped
-      setDestination(tapped)
+    const plan = queueTapRoute(runtime, tapped)
+    if (plan?.kind === 'walk') {
+      runtime.destination.current = plan.goal
+      setDestination(plan.goal)
       runtime.wake.current()
+    } else if (plan?.kind === 'talk') {
+      runtime.activeSpot.current = plan.spot
+      runtime.actions.current.onTalk()
     }
     consumeTap()
   }, [tapped, consumeTap, runtime, setDestination])

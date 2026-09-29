@@ -14,6 +14,7 @@ import { meishiCrossPlatform as meishiWorkKo } from '@content/ko/works/meishi-cr
 import { isWalkable } from '@/lib/village/collision'
 import { findPath } from '@/lib/village/path'
 import { mapEntries } from '@/lib/village/map-entries'
+import { objectSpotAt, spotAt } from '@/lib/village/spot'
 import { spotToward } from '@/components/VillagePage/components/Village/components/WorldMap/utils/spot-navigation'
 // 村を開く手順・歩く walk(1 マスごとに到着を待つ)・押下と到着待ちの間合い・既定で晴れを敷く test は
 // 他の村の spec と共用。正本は village.helpers.ts
@@ -25,6 +26,7 @@ import {
   stubWeather,
   test,
   walk,
+  type WalkKey,
 } from './village.helpers'
 
 type SettingsLabels = { menu: string; light: string; dark: string }
@@ -1510,4 +1512,153 @@ test.describe('ポストの下から話しかける (/)', () => {
     })
     expect(tops.bubble).toBeGreaterThanOrEqual(tops.frame)
   })
+})
+
+// 舞台で地点の物を押すと、その物に話しかけられるマスのうち最短の所まで歩き、着いたら話しかける。
+// 部屋の机(PC)と卓上時計で見る。歩く道筋と着くマスは言語では変わらないのでjaだけ見る
+const roomOrUndefined = worldSet.worlds.room
+if (roomOrUndefined === undefined) throw new Error('worldSetにroomが無い')
+const room = roomOrUndefined
+// 押す机のマス(3×2の机の下の段の真ん中)と、時計の右(8,2)から机へ向かう時に着く机の右の辺
+const DESK = { x: 4, y: 3 }
+const BESIDE_CLOCK = { x: 8, y: 2 }
+const DESK_SIDE = { x: 6, y: 3 }
+// 押す時計のマスと、机の前(4,4)から時計へ向かう時に着く手前のマス
+const CLOCK = { x: 7, y: 2 }
+const CLOCK_FRONT = { x: 7, y: 3 }
+
+// ワールド層の位置が数フレーム動かなくなるまで待ち、その原点と--cellからマスの真ん中の画面位置を返す
+const settledCellPoint = (page: Page, target: { x: number; y: number }) =>
+  page.locator('[data-world]').evaluate(async (layer, cell) => {
+    let previous = ''
+    let still = 0
+    while (still < 5) {
+      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+      const rect = layer.getBoundingClientRect()
+      const position = `${rect.x},${rect.y}`
+      still = position === previous ? still + 1 : 0
+      previous = position
+    }
+    const rect = layer.getBoundingClientRect()
+    const size = parseFloat(getComputedStyle(layer).getPropertyValue('--cell'))
+    return { x: rect.x + (cell.x + 0.5) * size, y: rect.y + (cell.y + 0.5) * size, size }
+  }, target)
+
+// 押す位置にボタン・リンクが重なっていないこと(重なっていれば入力側がタップ移動にしない)
+const clearOfControls = (page: Page, point: { x: number; y: number }) =>
+  page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('button, a') === null, point)
+
+// 行き先の印が1つだけ、指定したマスに立つまで待つ(left/topはマスの左上)
+const waitMarkerAt = (page: Page, target: { x: number; y: number }, cellSize: number) =>
+  page.waitForFunction(
+    ({ x, y, size }) => {
+      const found = document.querySelectorAll('[data-world] [data-village-destination]')
+      if (found.length !== 1) return false
+      const style = getComputedStyle(found[0])
+      return (
+        Math.abs(parseFloat(style.left) - x * size) <= 0.5 &&
+        Math.abs(parseFloat(style.top) - y * size) <= 0.5
+      )
+    },
+    { x: target.x, y: target.y, size: cellSize },
+    { polling: 'raf', timeout: 2_000 }
+  )
+
+// 隣のマスへ歩く方向キー
+const keyToward = (from: { x: number; y: number }, to: { x: number; y: number }): WalkKey => {
+  if (to.x > from.x) return 'ArrowRight'
+  if (to.x < from.x) return 'ArrowLeft'
+  if (to.y > from.y) return 'ArrowDown'
+  return 'ArrowUp'
+}
+
+// 保存された位置の生の値。到着したマスでだけ書かれるので、変わらなければ1マスも歩いていない
+const readSavedRaw = (page: Page) => page.evaluate(key => sessionStorage.getItem(key), POS_KEY)
+
+test('離れた机を押すと、話しかけられる最短のマスまで歩いて会話窓が開く (/)', async ({ page }) => {
+  // 押すマスは机の地点の物で、着くマスはその地点に話しかけられるマス
+  expect(objectSpotAt(room, DESK)?.id).toBe('home')
+  expect(spotAt(room, DESK_SIDE)?.id).toBe('home')
+  await openVillage(page, '')
+  // 机の前(4,4)から右4・上2で時計の右(8,2)。ここから机へは右の辺(6,3)が3歩で最短(机の前は6歩)
+  expect(await walk(page, 'ArrowRight', 4)).toBe(4)
+  expect(await walk(page, 'ArrowUp', 2)).toBe(2)
+  expect(await readCell(page)).toEqual({ worldId: 'room', cell: BESIDE_CLOCK })
+  const point = await settledCellPoint(page, DESK)
+  expect(await clearOfControls(page, point)).toBe(true)
+  await page.mouse.click(point.x, point.y)
+  // 印は押した机ではなく、向かう机の右の辺に立つ
+  await waitMarkerAt(page, DESK_SIDE, point.size)
+  await expect(
+    page.getByRole('dialog').getByRole('heading', { name: villageJa.stops.home.title })
+  ).toBeVisible()
+  expect(await readCell(page)).toEqual({ worldId: 'room', cell: DESK_SIDE })
+  await expect(page.locator('[data-world] [data-village-destination]')).toHaveCount(0)
+})
+
+test('机に話しかけられるマスに立ったまま机を押すと、歩かずに会話窓が開く (/)', async ({ page }) => {
+  await openVillage(page, '')
+  // 机の前(4,4)から右2・上1で机の右の辺(6,3)。正規の会話マスではないが机に話しかけられる
+  expect(await walk(page, 'ArrowRight', 2)).toBe(2)
+  expect(await walk(page, 'ArrowUp', 1)).toBe(1)
+  expect(await readCell(page)).toEqual({ worldId: 'room', cell: DESK_SIDE })
+  const saved = await readSavedRaw(page)
+  const point = await settledCellPoint(page, DESK)
+  expect(await clearOfControls(page, point)).toBe(true)
+  await page.mouse.click(point.x, point.y)
+  await expect(
+    page.getByRole('dialog').getByRole('heading', { name: villageJa.stops.home.title })
+  ).toBeVisible()
+  // 1マスも歩かず、行き先の印も立てない
+  expect(await readSavedRaw(page)).toBe(saved)
+  await expect(page.locator('[data-world] [data-village-destination]')).toHaveCount(0)
+})
+
+test('机へ歩く途中で方向キーを押すと、机の横に着いても会話窓は開かない (/)', async ({ page }) => {
+  await openVillage(page, '')
+  expect(await walk(page, 'ArrowRight', 4)).toBe(4)
+  expect(await walk(page, 'ArrowUp', 2)).toBe(2)
+  expect(await readCell(page)).toEqual({ worldId: 'room', cell: BESIDE_CLOCK })
+  const saved = await readSavedRaw(page)
+  const point = await settledCellPoint(page, DESK)
+  expect(await clearOfControls(page, point)).toBe(true)
+  await page.mouse.click(point.x, point.y)
+  // 割り込む前に、机へ向かって本当に歩き出したことを1マス目の到着(位置の保存)で確かめる
+  await page.waitForFunction(
+    ([key, previous]) => sessionStorage.getItem(key) !== previous,
+    [POS_KEY, saved] as const,
+    { polling: 'raf', timeout: 3_000 }
+  )
+  await page.keyboard.down('ArrowDown')
+  await page.waitForTimeout(HOLD_MS)
+  await page.keyboard.up('ArrowDown')
+  await page.waitForTimeout(1_000)
+  const dialog = page.getByRole('dialog')
+  await expect(dialog).toHaveCount(0)
+  // 止まった所から自分で机の右の辺まで歩いても開かない。取り消しが効いていないと、
+  // 残った行き先(印のマス)に着いた所で自動の会話が開いてしまう
+  const here = await readCell(page)
+  if (here === null) throw new Error('位置が保存されていない')
+  const path = findPath(room, here.cell, DESK_SIDE)
+  if (path === null) throw new Error('止まった所から机の右の辺へ歩けない')
+  let from = here.cell
+  for (const next of path) {
+    expect(await walk(page, keyToward(from, next), 1)).toBe(1)
+    from = next
+  }
+  expect(await readCell(page)).toEqual({ worldId: 'room', cell: DESK_SIDE })
+  await page.waitForTimeout(500)
+  await expect(dialog).toHaveCount(0)
+})
+
+test('卓上時計を押すと手前まで歩いて時計の窓が開く (/)', async ({ page }) => {
+  expect(objectSpotAt(room, CLOCK)?.id).toBe('clock')
+  await openVillage(page, '')
+  // 机の前(4,4)から時計へは手前(7,3)が4歩で最短
+  const point = await settledCellPoint(page, CLOCK)
+  expect(await clearOfControls(page, point)).toBe(true)
+  await page.mouse.click(point.x, point.y)
+  await waitMarkerAt(page, CLOCK_FRONT, point.size)
+  await expect(page.locator('[data-village-clock]')).toBeVisible()
+  expect(await readCell(page)).toEqual({ worldId: 'room', cell: CLOCK_FRONT })
 })

@@ -1,7 +1,16 @@
-// 会話地点 spotAt・allSpots・nextSpot・spotWorldId・talkAnchor のテスト
+// 会話地点spotAt・allSpots・nextSpot・spotWorldId・talkAnchor・objectSpotAt・routeToSpotのテスト
 import { vi } from 'vitest'
 import type { Spot, World, WorldSet } from '@content/types/world'
-import { spotAt, allSpots, nextSpot, spotWorldId, talkAnchor, type TalkAnchor } from './spot'
+import {
+  spotAt,
+  allSpots,
+  nextSpot,
+  objectSpotAt,
+  routeToSpot,
+  spotWorldId,
+  talkAnchor,
+  type TalkAnchor,
+} from './spot'
 
 // server-only は Next.js のビルド境界専用ガードで、vitest(node 環境)では無条件に例外を投げる。
 // テストでは中身を持たない mock に差し替え、読み込み専用の @/lib/content/read を素通しにする
@@ -403,5 +412,125 @@ describe('talkAnchor (実際の worldSet — 正規の会話マス)', () => {
   })
   it.each(realSpots)('$key', ({ key, world, spot }) => {
     expect(talkAnchor(world, spot, spot.cell)).toEqual(CANONICAL_ANCHORS[key])
+  })
+})
+
+// 家を1軒だけ置いた野原。屋根はy1、壁はy2-3、入口はx4-5の2マス
+const houseField: World = {
+  ...field,
+  structures: [
+    {
+      id: 'h',
+      kind: 'house',
+      roof: 'red',
+      area: { x: 2, y: 1, w: 6, h: 3 },
+      solid: { x: 2, y: 2, w: 6, h: 2 },
+      doorX: 4,
+      doorWidth: 2,
+    },
+  ],
+  spots: [{ id: 'house', structureId: 'h', cell: { x: 4, y: 4 }, facing: 'up', order: 1 }],
+}
+
+// 舞台で押したマスが、どの地点の物か
+describe('objectSpotAt', () => {
+  it.each([
+    { x: 3, y: 3 },
+    { x: 4, y: 3 },
+    { x: 3, y: 4 },
+    { x: 4, y: 4 },
+  ])('テーブル(2×2)のどのマスを押してもテーブルの地点: %o', cell => {
+    expect(objectSpotAt(field, cell)?.id).toBe('table')
+  })
+  it('物の無いマスと、地点に結び付かない物はnull', () => {
+    const withRobot: World = {
+      ...field,
+      structures: [...field.structures, { id: 'r', kind: 'robot', cell: { x: 8, y: 1 } }],
+    }
+    expect(objectSpotAt(withRobot, { x: 5, y: 4 })).toBeNull()
+    expect(objectSpotAt(withRobot, { x: 8, y: 1 })).toBeNull()
+  })
+  it('家は壁の行だけを当て、屋根の行は当てない', () => {
+    expect(objectSpotAt(houseField, { x: 2, y: 2 })?.id).toBe('house')
+    expect(objectSpotAt(houseField, { x: 7, y: 3 })?.id).toBe('house')
+    expect(objectSpotAt(houseField, { x: 4, y: 1 })).toBeNull()
+  })
+  it('実際の町と部屋では地点の物を拾い、自宅・街灯・ベッドは拾わない', () => {
+    const realRoom = realWorldSet.worlds.room
+    expect(objectSpotAt(realTown, { x: 8, y: 15 })?.id).toBe('robot')
+    expect(objectSpotAt(realTown, { x: 9, y: 15 })?.id).toBe('campfire')
+    expect(objectSpotAt(realTown, { x: 17, y: 3 })?.id).toBe('monument')
+    expect(objectSpotAt(realTown, { x: 6, y: 5 })?.id).toBe('meishi')
+    // 自宅の壁(13,10)・西の街灯の柱の根元(9,9)
+    expect(objectSpotAt(realTown, { x: 13, y: 10 })).toBeNull()
+    expect(objectSpotAt(realTown, { x: 9, y: 9 })).toBeNull()
+    expect(objectSpotAt(realRoom, { x: 4, y: 3 })?.id).toBe('home')
+    expect(objectSpotAt(realRoom, { x: 7, y: 2 })?.id).toBe('clock')
+    expect(objectSpotAt(realRoom, { x: 0, y: 5 })).toBeNull()
+  })
+})
+
+// 押した物に話しかけられるマスまでの経路。着いたマスでspotAtがその地点を返すこと
+describe('routeToSpot', () => {
+  const table = field.spots[0]
+  it('正規の会話マスより近い辺があれば、そちらで止まる', () => {
+    // (8,4)からテーブルの右の辺(5,4)まで3歩。正規の会話マス(4,2)は6歩
+    expect(routeToSpot(field, { x: 8, y: 4 }, table)).toEqual([
+      { x: 7, y: 4 },
+      { x: 6, y: 4 },
+      { x: 5, y: 4 },
+    ])
+  })
+  it('同じ歩数なら正規の会話マスを選ぶ', () => {
+    // 正規の会話マスを右の辺(5,4)に置く。(6,5)からは(5,4)も下の辺(4,5)も2歩
+    const right: Spot = { id: 'table', structureId: 't', cell: { x: 5, y: 4 }, facing: 'left' }
+    const route = routeToSpot({ ...field, spots: [right] }, { x: 6, y: 5 }, right)
+    expect(route).toHaveLength(2)
+    expect(route?.at(-1)).toEqual({ x: 5, y: 4 })
+  })
+  it('もう話しかけられるマスに立っていれば空の経路', () => {
+    expect(routeToSpot(field, { x: 2, y: 3 }, table)).toEqual([])
+  })
+  it('別の地点の立ち位置と重なる辺には止まらない', () => {
+    // (5,4)はspotAtが明示された立ち位置のsignを返すので、テーブルへは次に近い(5,3)で止まる
+    const overlap: World = {
+      ...field,
+      spots: [...field.spots, { id: 'sign', cell: { x: 5, y: 4 }, facing: 'left' }],
+    }
+    const route = routeToSpot(overlap, { x: 8, y: 4 }, table)
+    expect(route).toHaveLength(4)
+    expect(route?.at(-1)).toEqual({ x: 5, y: 3 })
+  })
+  it('家は入口の列で止まり、壁の横には止まらない', () => {
+    // (8,2)は壁の右隣だが話しかけられないので、入口の近い方(5,4)まで歩く
+    const route = routeToSpot(houseField, { x: 8, y: 2 }, houseField.spots[0])
+    expect(route).toHaveLength(5)
+    expect(route?.at(-1)).toEqual({ x: 5, y: 4 })
+  })
+  it('届かない・物の無い地点はnull', () => {
+    // (8,6)の上下左右を水で塞ぐ
+    const tiles = field.tiles.map(row => [...row])
+    tiles[6][7] = 'water'
+    tiles[6][9] = 'water'
+    tiles[5][8] = 'water'
+    tiles[7][8] = 'water'
+    expect(routeToSpot({ ...field, tiles }, { x: 8, y: 6 }, table)).toBeNull()
+    const lone: Spot = { id: 'lone', cell: { x: 8, y: 6 }, facing: 'up' }
+    expect(routeToSpot({ ...field, spots: [lone] }, { x: 0, y: 0 }, lone)).toBeNull()
+  })
+  // E2E(tests/journey.spec.tsの物を押すテスト)が歩く道筋と同じ
+  it('実際の部屋では、時計の右(8,2)から机へは右の辺(6,3)まで3歩、机の前(4,4)から時計へは手前(7,3)まで4歩', () => {
+    const realRoom = realWorldSet.worlds.room
+    const spotOf = (id: string) => {
+      const spot = realRoom.spots.find(s => s.id === id)
+      if (spot === undefined) throw new Error(`${id}が無い`)
+      return spot
+    }
+    const toDesk = routeToSpot(realRoom, { x: 8, y: 2 }, spotOf('home'))
+    expect(toDesk).toHaveLength(3)
+    expect(toDesk?.at(-1)).toEqual({ x: 6, y: 3 })
+    const toClock = routeToSpot(realRoom, { x: 4, y: 4 }, spotOf('clock'))
+    expect(toClock).toHaveLength(4)
+    expect(toClock?.at(-1)).toEqual({ x: 7, y: 3 })
   })
 })

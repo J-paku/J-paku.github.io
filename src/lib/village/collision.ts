@@ -13,7 +13,7 @@ const WALKABLE_TILES: readonly Tile[] = [
   'mat',
 ]
 
-const inRect = (r: Rect, c: Cell): boolean =>
+export const inRect = (r: Rect, c: Cell): boolean =>
   c.x >= r.x && c.x < r.x + r.w && c.y >= r.y && c.y < r.y + r.h
 
 // 構造物が占有する矩形。家は area 全体、机は 3×2、ベッドは縦 2、テーブル・経歴碑は 2×2、

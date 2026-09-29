@@ -1,6 +1,8 @@
 // ポインタの入力(押しっぱなし・タップ)を経路に変えて、次のステップへ渡す置き場に入れる。
 // 経路探索そのものは lib の routeToCell に任せ、ここは「いつ作り直すか」と「作った経路をどこへ置くか」だけを決める
-import type { Cell, Direction } from '@content/types/world'
+// (地点の物を押したタップはlibのobjectSpotAt・routeToSpotで話しかけるマスまでの経路にする)
+import type { Cell, Direction, Spot } from '@content/types/world'
+import { objectSpotAt, routeToSpot } from '@/lib/village/spot'
 import { routeToCell } from '@/lib/village/warp'
 import type { MoveRefs, WalkFrameState } from './types'
 
@@ -49,8 +51,14 @@ export const replanTowardPointer = (
   }
 }
 
+// タップの結果。walkは経路を置いた(goalに行き先の印を立てる)、talkはもう物に話しかけられるマスに止まっていて、
+// 歩かずにその地点へ話しかける
+type TapPlan = { kind: 'walk'; goal: Cell } | { kind: 'talk'; spot: Spot }
+
 // タップ → 経路を作って次のステップへ渡す。通れない場所は無視(壁の扉は隣まで歩いてぶつかる)。
-// 経路を置いた時だけ true を返し、呼ぶ側はその時だけループを起こす
+// 地点の物(机・ロボット・家の壁など)を押した時は、話しかけられるマスのうち最短の所まで歩き、
+// 着いたら話しかける(autoTalk。次へと同じく到着の処理が開く)。水・木・地点の無い物は無視。
+// 経路を置いた時だけwalkを返し、呼ぶ側はその時だけループを起こす
 export const queueTapRoute = (
   {
     world: worldRef,
@@ -60,18 +68,30 @@ export const queueTapRoute = (
     autoTalk: autoTalkRef,
   }: Pick<MoveRefs, 'world' | 'state' | 'pendingRoute' | 'pendingFast' | 'autoTalk'>,
   tapped: Cell
-): boolean => {
+): TapPlan | null => {
   // 移動中は向かっているマスから経路を作る(理由は replanTowardPointer と同じ)
   const s = stateRef.current
   const from = s.motion !== null ? s.motion.to : s.cell
   const route = routeToCell(worldRef.current, from, tapped)
-  // 向かっているマスそのものをタップした時は経路が空でも「そのマスへ行く」ので、残りの経路を空で差し替えて true を返す
+  // 向かっているマスそのものをタップした時は経路が空でも「そのマスへ行く」ので、残りの経路を空で差し替えてwalkを返す
   if (route !== null && (route.length > 0 || s.motion !== null)) {
     pendingRouteRef.current = route
     pendingFastRef.current = false
     // 利用者の入力で経路が捨てられたら自動で開くのも取り消す
     autoTalkRef.current = false
-    return true
+    return { kind: 'walk', goal: tapped }
   }
-  return false
+  const spot = objectSpotAt(worldRef.current, tapped)
+  const talkRoute = spot === null ? null : routeToSpot(worldRef.current, from, spot)
+  if (spot === null || talkRoute === null) return null
+  if (talkRoute.length === 0 && s.motion === null) {
+    // 前に置いた自動の会話は、このタップで置き換える
+    autoTalkRef.current = false
+    return { kind: 'talk', spot }
+  }
+  // 話しかけるマスへ向かっている途中なら経路は空。残りの経路を空で差し替え、着いた所で話しかける
+  pendingRouteRef.current = talkRoute
+  pendingFastRef.current = false
+  autoTalkRef.current = true
+  return { kind: 'walk', goal: talkRoute.at(-1) ?? from }
 }

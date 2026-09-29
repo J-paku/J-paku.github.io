@@ -1,8 +1,10 @@
 // 会話地点の判定。家具の上下左右に隣接する通路なら、プレイヤーの向きを問わず話せる。
+// 押した物の地点(objectSpotAt)と、その物に話しかけられる最短のマスまでの経路(routeToSpot)もここに置く。
 // コース順(order)は全ワールド通しの通番なので、次の地点はワールドをまたいで探す
-import type { Cell, Direction, Rect, Spot, World, WorldSet } from '@content/types/world'
+import type { Cell, Direction, Rect, Spot, Structure, World, WorldSet } from '@content/types/world'
 
-import { isWalkable, structureRect } from './collision'
+import { inRect, isWalkable, structureRect } from './collision'
+import { findPath } from './path'
 
 export type SpotRef = { worldId: string; spot: Spot }
 
@@ -88,6 +90,38 @@ export const spotAt = (world: World, cell: Cell): Spot | null => {
       return beside || aboveOrBelow
     }) ?? null
   )
+}
+
+// 押して当てる物の範囲。家は壁の行(solid)、ほかは占有矩形。家の屋根の行は物として当てない
+const objectRect = (structure: Structure): Rect =>
+  structure.kind === 'house' ? structure.solid : structureRect(structure)
+
+// 押したマスに置かれた物を話し相手に持つ地点。地点に結び付かない物(自宅・街灯・ベッドなど)や
+// 物の無いマスはnull
+export const objectSpotAt = (world: World, cell: Cell): Spot | null =>
+  world.spots.find(spot => {
+    const structure = world.structures.find(s => s.id === spot.structureId)
+    return structure !== undefined && inRect(objectRect(structure), cell)
+  }) ?? null
+
+// 地点の物へ話しかけられるマス(spotAtがその地点を返すマス)のうち、fromから歩いて最短の所までの経路。
+// 候補は正規の会話マス(spot.cell)と物を上下左右から囲むマスで、同じ歩数なら正規の会話マスを選ぶ。
+// 別の地点の立ち位置と重なるマスはspotAtがそちらを返すので候補から外れる。
+// fromがもう話しかけられるマスなら空の経路、物が無い・届かないならnull
+export const routeToSpot = (world: World, from: Cell, spot: Spot): Cell[] | null => {
+  const structure = world.structures.find(s => s.id === spot.structureId)
+  if (structure === undefined) return null
+  const r = objectRect(structure)
+  const candidates: Cell[] = [spot.cell]
+  for (let x = r.x; x < r.x + r.w; x++) candidates.push({ x, y: r.y - 1 }, { x, y: r.y + r.h })
+  for (let y = r.y; y < r.y + r.h; y++) candidates.push({ x: r.x - 1, y }, { x: r.x + r.w, y })
+  let best: Cell[] | null = null
+  for (const side of candidates) {
+    if (spotAt(world, side)?.id !== spot.id) continue
+    const path = findPath(world, from, side)
+    if (path !== null && (best === null || path.length < best.length)) best = path
+  }
+  return best
 }
 
 // 全ワールドの地点を order 昇順で。order の無い地点(コース外)は含まない
