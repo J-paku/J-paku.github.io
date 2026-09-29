@@ -5,6 +5,8 @@
 
 # J-paku.github.io
 
+[![deploy](https://github.com/J-paku/J-paku.github.io/actions/workflows/deploy.yml/badge.svg)](https://github.com/J-paku/J-paku.github.io/actions/workflows/deploy.yml)
+
 ポートフォリオのハブサイト。GitHub Pagesのユーザーサイトとして`https://j-paku.github.io/`に配信しています。トップは**歩いて回る小さな村**です。1分で「何を作ったか」より「どんな問題を解くか」が分かる構成にしています。村を飛ばしたい人のために、「作品一覧へ」から従来の一覧画面(`/list/`)へいつでも行けます。
 
 **まずこの2つ。** どちらもブラウザだけで、そのまま触れます。
