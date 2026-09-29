@@ -65,6 +65,9 @@ node scripts/check-ja-linebreak.mjs http://localhost:4173 / /ko/ /list/ /ko/list
 
 **ワークフローの引数(検査するパスの列)を変えたら、上のコマンドも合わせる。**
 
+**WSLで`lhci collect`を回すと、今いるディレクトリにChromeのプロファイルのフォルダが残る。** 名前はWindowsの一時フォルダのパス(`C:\Users\…\AppData\Local\lighthouse.<数字>`)そのままで、2026-09-29の実測では`lighthouserc.json`の6経路×3回で18個・ファイル約2800個だった。
+リポジトリの外の作業用ディレクトリで`collect`と`assert`の両方に`--config=<リポジトリ>/lighthouserc.json`を付けて回すか、終わったらそのフォルダを消す(`.gitignore`で外してあるのは`/.lighthouseci/`だけで、このフォルダは外れない)。
+
 ## `scripts/verify-export.mjs` が見ているもの
 
 `npm run build` の後段。`out/` の自己整合性を確かめる。

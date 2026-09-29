@@ -17,7 +17,7 @@ last_reviewed: 2026-09-29
 | `npm run typecheck` | `tsc --noEmit`。ja/ko の翻訳キーの過不足もここで落ちる | 実行時の挙動・配信物 |
 | `npm run lint` | ESLint。レイヤー境界とバレル禁止の違反もここで落ちる | 整形(Prettier は別) |
 | `npm run format:check` | Prettier の整形。CI が落とす | `*.md`(整形対象外) |
-| `npm run test` | Vitest。`src/**/*.test.ts` の**純粋関数だけ**。DOM 環境を持たない | コンポーネントの描画・ブラウザ挙動 |
+| `npm run test` | Vitest。`src/**/*.test.{ts,tsx}`を走らせる。既定はDOMを持たないnode環境で、ファイル先頭に`// @vitest-environment happy-dom`があるもの(統合テストの部品・DOMへ書くutils・`renderHook`で呼ぶフック)だけhappy-domで走る | 実ブラウザでの配置・寸法・スクロール(happy-domは配置を計算しない) |
 | `npm run test:coverage` | `npm run test`と同じテストをv8のカバレッジ付きで走らせ、`vitest.config.ts`の床(`coverage.thresholds`)を下回ると落ちる。CIはこちら | `src/`の外(`content/`・`scripts/`)のカバレッジ。E2Eが通ったコードも数えない |
 | `npm run build` | `next build` + `scripts/verify-export.mjs`。content の整合性検査もここで走る | 画面の見た目・操作 |
 | `npm run test:e2e` | Playwright。`out/` を静的配信して実操作で確かめる | **`out/` は作らない。先に `npm run build`** |

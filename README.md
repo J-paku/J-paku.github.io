@@ -64,7 +64,7 @@
 
 ### 品質とCI
 
-`main`へのpushでGitHub Actionsがビルドし、**配信物に対して**typecheck・lint・format・単体テスト・E2E・axe・日本語改行の検査を通してからPagesへ公開します。ローカルのPASSだけでは完了と見なさず、配信版でも同じ確認を繰り返す運用です。走らせ方は [docs/agents/verification.md](docs/agents/verification.md)、配信の仕組みは [docs/operations/deployment.md](docs/operations/deployment.md) にあります。
+`main`へのpushでGitHub Actionsがビルドし、**配信物に対して**typecheck・lint・format・単体テストとカバレッジの床・E2E・axe・Lighthouse CI・日本語改行の検査を通してからPagesへ公開します。ローカルのPASSだけでは完了と見なさず、配信版でも同じ確認を繰り返す運用です。走らせ方は [docs/agents/verification.md](docs/agents/verification.md)、配信の仕組みは [docs/operations/deployment.md](docs/operations/deployment.md) にあります。
 
 ### 技術スタック
 
