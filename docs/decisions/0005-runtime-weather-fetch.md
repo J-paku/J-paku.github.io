@@ -10,7 +10,7 @@ last_reviewed: 2026-09-21
 
 ## Status
 
-Accepted(2026-09-20、`5fcd9a1` 「村に昼夜と天気を追加し描画と転送量を最適化」。実装は `src/lib/weather.ts`)
+Accepted(2026-09-20、`683a7bb` 「村に昼夜と天気を追加し描画と転送量を最適化」。実装は `src/lib/weather.ts`)
 
 ## Context
 

@@ -10,7 +10,7 @@ last_reviewed: 2026-09-21
 
 ## Status
 
-Accepted(2026-09-20、`5fcd9a1`。実装は `src/utils/day-phase.ts`)
+Accepted(2026-09-20、`683a7bb`。実装は `src/utils/day-phase.ts`)
 
 ## Context
 

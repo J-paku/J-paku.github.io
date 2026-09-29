@@ -19,7 +19,7 @@ Accepted(2026-09-28。`vitest.config.ts` と `src/components/Directory/component
 作品カードは環境で表示が分かれる — `#<slug>` 付きで到着すると詳細が開いている、動きを控える設定では動画もリールも出さない、
 `IntersectionObserver` が無ければカードを隠さず写真も色付きで描く。どれも mount 後に決まり、
 単体テストにも E2E(`tests/directory.spec.ts` はリンクと slug の直接アクセスだけ)にもこの分岐を見る検査が無かった。
-しかもこの分岐は `6acf8ec` で、effect 本文の同期 setState を理由付きの `eslint-disable-next-line` で残した箇所
+しかもこの分岐は `0ecfac3` で、effect 本文の同期 setState を理由付きの `eslint-disable-next-line` で残した箇所
 (`use-detail-open.ts`・`use-card-motion.ts`・`src/hooks/use-reveal.ts`)と、`useSyncExternalStore` へ移した
 `use-fully-visible.ts` に当たる。lint の例外として残した以上、振る舞いは別の手段で止めておく必要があった。
 

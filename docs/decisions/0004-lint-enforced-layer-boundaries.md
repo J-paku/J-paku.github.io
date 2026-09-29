@@ -11,7 +11,7 @@ last_reviewed: 2026-09-21
 
 ## Status
 
-Accepted(`eslint.config.mjs`。Next.js 移行と同じコミット `8bccf34` で導入)
+Accepted(`eslint.config.mjs`。Next.js 移行と同じコミット `8de8f6b` で導入)
 
 ## Context
 
