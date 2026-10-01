@@ -4,7 +4,7 @@ read_when:
   - 既存の設計を置き換えようとするとき
   - なぜこの作りなのかを問われたとき
 source_of_truth: false
-last_reviewed: 2026-09-21
+last_reviewed: 2026-10-01
 ---
 
 # decisions/(ADR)
@@ -20,8 +20,10 @@ last_reviewed: 2026-09-21
 | [0004](0004-lint-enforced-layer-boundaries.md) | レイヤー境界を ESLint で機械的に守らせる | Accepted |
 | [0005](0005-runtime-weather-fetch.md) | 村の天気だけ実行時に外部 API を呼ぶ | Accepted |
 | [0006](0006-jst-fixed-day-phase.md) | 昼夜の判定を JST 固定にする | Accepted |
-| [0007](0007-component-tests-happy-dom.md) | 環境で分かれるコンポーネントの出し分けを happy-dom の統合テストで見る | Accepted |
-| [0008](0008-verbatim-pixel-art-originals.md) | 村のドット絵の原画に外部生成物(LLMの出力)を採り、実装では1ドットも変えない | Accepted |
+| [0007](0007-component-tests-happy-dom.md) | 環境で分かれるコンポーネントの出し分けを happy-dom の統合テストで見る | Superseded by 0009 |
+| [0008](0008-verbatim-pixel-art-originals.md) | 村のドット絵の原画に外部生成物(LLMの出力)を採り、実装では1ドットも変えない | Superseded by 0010(色の写し方と格子の扱い、読み取り時の除去・移動) |
+| [0009](0009-widen-happy-dom-test-scope.md) | happy-dom で見るテストを、props・操作で分かれる部品、DOM を使う utils、寸法・rAF の実物に頼らない村のフック・部品へ広げる | Accepted |
+| [0010](0010-read-originals-by-dot-pitch.md) | 原画はドットの間隔を測った格子で読み、色は近い既存の文字へ写して、近似できない色だけ文字を足す | Accepted |
 
 ## 書くときの決まり
 

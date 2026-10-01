@@ -4,14 +4,16 @@ read_when:
   - コンポーネントのテストの置き場や DOM 環境を変えようとするとき
   - 統合テストの対象を広げようとするとき
 source_of_truth: false
-last_reviewed: 2026-09-28
+last_reviewed: 2026-10-01
 ---
 
 # 0007. 環境で分かれるコンポーネントの出し分けを、happy-dom の統合テストで見る
 
 ## Status
 
-Accepted(2026-09-28。`vitest.config.ts` と `src/components/Directory/components/WorkCard/index.test.tsx`)
+Superseded by [0009](0009-widen-happy-dom-test-scope.md)(対象の範囲。2026-09-29 の`148a540`・`532f480`・`00326c0`・`69b92e0`・`11764fc`から、環境で分かれる出し分けの外と、村のフック・歩行ループの部品・DOM を使う utils へ広がった)
+
+採った時点: Accepted(2026-09-28。`vitest.config.ts` と `src/components/Directory/components/WorkCard/index.test.tsx`)
 
 ## Context
 
