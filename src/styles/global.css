@@ -3,7 +3,7 @@
  *
  * import は次ラウンド（App.tsx / main.tsx 担当）が行う。
  * 書体の @font-face はこのリポジトリでは持たない。Google Fonts の配信CSSを
- * index.html の <link> から読み込む（ロケール別の差し替えは scripts/emit-routes.mjs）。
+ * src/app/html-shell.tsx の <link> から読み込む（ロケール別の URL は同ファイルの FONT_HREF）。
  */
 
 *,

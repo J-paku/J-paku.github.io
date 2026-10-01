@@ -112,7 +112,7 @@ export function useVillageArrive({
       const previousSpot = runtime.activeSpot.current
       runtime.activeSpot.current = spot
       setActiveSpot(spot)
-      // 地点への呼びかけは物の上の吹き出しが出す。会話窓は目的地の案内か既定文
+      // 地点への呼びかけは物の上の吹き出しが出す。案内文は目的地の案内か既定文
       // 目的地の地点。別ワールドの地点へ扉を目指して歩いている間も、その案内を保つ
       const goalSpot =
         (runtime.destination.current === null ? null : spotAt(here, runtime.destination.current)) ??

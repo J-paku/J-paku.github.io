@@ -107,7 +107,7 @@ type UseVillage = {
   // A/B の行き先の正本。画面の A/B ボタンとキーボードの Z/X が同じものを呼ぶ
   pressA: () => void
   pressB: () => void
-  // 会話窓(role='status')の一言を差し替える手。時計の設定窓が結果を伝えるのに使う
+  // 案内文(SpeechBox・role='status')の一言を差し替える手。時計の設定窓が結果を伝えるのに使う
   announce: (message: string) => void
 }
 

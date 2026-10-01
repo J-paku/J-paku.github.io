@@ -175,7 +175,8 @@ export function useVillageInput({ runtime, cam }: VillageInputOptions): UseVilla
       const cellSize = cellSizeOf(event)
       const origin = cam.current
       if (runtime.locked.current || cellSize <= 0) return
-      // マップに重ねたボタン(ミニマップ・会話窓)の操作はタップ移動にしない
+      // マップに重ねたボタン(ミニマップ・吹き出しの行動ボタン)の操作はタップ移動にしない。
+      // 会話窓・時計の設定窓は開いている間 locked なので、ここへ来る前に返る
       const target = event.target
       if (target instanceof Element && target.closest('button, a') !== null) return
       const { x, y } = cellAt(event, cellSize, origin)

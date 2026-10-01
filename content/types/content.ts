@@ -202,7 +202,7 @@ export type CareerDetail = {
 export type CareerAssignment = { period: string; label: string }
 
 export type Career = {
-  // 右列の差し替え対象を指す安定キー。表示しないので社名を含めない。ja/koで同じ値
+  // 左列のトリガーから右列の詳細パネル(#career-<id>)を指す安定キー。表示しないので社名を含めない。ja/koで同じ値
   id: string
   company: string
   period: string
@@ -213,7 +213,7 @@ export type Career = {
   role: string
   summary: string
   highlights: string[]
-  // 右列に差し替えで出す担当業務の詳細。持たない経歴はトリガー自体を出さない
+  // 右列に展開して並べる担当業務の詳細。持たない経歴はトリガー自体を出さない
   detail?: CareerDetail
 }
 

@@ -48,7 +48,7 @@ type UseVillageOverlay = {
   travelTo: (cell: Cell) => void
   // 話せる相手がいない所で話しかけた時の一言。無ければ null
   hintText: string | null
-  // 会話窓(role='status')の一言を差し替える手。時計の設定窓が結果を伝えるのに使う
+  // 案内文(SpeechBox・role='status')の一言を差し替える手。時計の設定窓が結果を伝えるのに使う
   announce: (message: string) => void
   // 釣りの進み具合と、結果窓に出す文言、浮きを置く水のマス、全部を釣り上げたか。
   // 出す物が無ければ stop は null
@@ -149,7 +149,7 @@ export function useVillageOverlay({
   const closeOverlay = useCallback(() => {
     // 完走の演出は会話窓を閉じた時だけ。時計の設定窓・地図はここを通っても数えない
     const wasTalk = mode === 'talk'
-    // 釣りを閉じた時は途中のタイマーごと捨て、会話窓を既定文へ戻す(「……」を残さない)。
+    // 釣りを閉じた時は途中のタイマーごと捨て、案内文を既定文へ戻す(「……」を残さない)。
     // 竿の印は effect を待たずにここでも下ろす — 次の 1 フレームだけ竿を持ったまま残るのを防ぐ。
     // ここで空にしておくので、すぐ投げ直しても次の casting は必ず新しい時刻から数える
     if (mode === 'fishing') {

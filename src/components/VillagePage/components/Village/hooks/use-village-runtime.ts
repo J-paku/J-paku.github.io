@@ -55,7 +55,7 @@ export type VillageRuntime = {
 
 export type VillageDom = {
   frame: RefObject<HTMLDivElement | null>
-  // カメラで動く層。この中にだけ地面・人物・目印を入れ、会話窓とミニマップは枠に残す
+  // カメラで動く層。この中にだけ地面・人物・目印を入れ、案内文とミニマップは枠に残す
   worldLayer: RefObject<HTMLDivElement | null>
   player: RefObject<HTMLDivElement | null>
   locator: RefObject<HTMLDivElement | null>

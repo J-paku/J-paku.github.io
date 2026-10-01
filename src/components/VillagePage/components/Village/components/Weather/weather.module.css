@@ -1,6 +1,6 @@
 /* 表示枠(.frame)いっぱいに敷く雨・雪のタイル。枠は overflow:hidden なのでここで切り取られる。
    ジョイスティックと枠が触作を持つので、ここは常に pointer-events:none。
-   z-index 1 は world 層(auto)より上、モーダルの覆い(2)・会話窓(3)・ミニマップ(4)・
+   z-index 1 は world 層(auto)より上、モーダルの覆い(2)・案内文(3)・ミニマップ(4)・
    読み込みの覆い(4)より下。scene.module.css と stop-modal.module.css の対応する値を参照 */
 .layer {
   /* 2 コマの見せ消しの周期。コマ送りの速さはここ 1 か所で決める */

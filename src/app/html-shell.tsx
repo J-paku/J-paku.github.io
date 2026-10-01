@@ -1,5 +1,6 @@
-// 言語ルート共通の <html> 枠。(ja)/(ko) の layout はこれに locale を渡すだけにし、
-// lang 属性と本文書体(Noto JP / KR)の差し替えだけをここで持つ。globals.css は各 layout 側で読む
+// 言語ルート共通の <html> 枠。(ja)/(ko) の layout は locale-routes.tsx の createRootLayout に
+// locale を渡すだけにし(そこからこれへ渡る)、lang 属性と本文書体(Noto JP / KR)の差し替えだけをここで持つ。
+// globals.css は各 layout 側で読む
 import type { ReactNode } from 'react'
 import type { Locale } from '@content/types/content'
 import PageviewCounter from '@/components/ui/PageviewCounter'

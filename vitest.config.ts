@@ -1,8 +1,8 @@
 import { defineConfig, configDefaults } from 'vitest/config'
 import { fileURLToPath, URL } from 'node:url'
 
-// 既定の環境は node(純粋関数と src/lib の入口)。DOM が要るコンポーネントのテスト(*.test.tsx)だけが
-// ファイル先頭の `// @vitest-environment happy-dom` で自分の環境を切り替える。
+// 既定の環境は node(純粋関数と src/lib の入口)。ファイル先頭に `// @vitest-environment happy-dom` を書いたテスト
+// (コンポーネントの *.test.tsx と、DOM を読む・書く/DOMParser/renderHook を使う *.test.ts)だけが happy-dom で走る。
 // 既定を替えないのは、単体テストを書かれたとおり DOM の無い node で走らせ続けるため
 export default defineConfig({
   resolve: {

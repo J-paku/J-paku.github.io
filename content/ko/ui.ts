@@ -43,7 +43,7 @@ export const ui: UiStrings = {
     pauseScene: '자동 넘김 일시정지',
     resumeScene: '자동 넘김 재개',
   },
-  // 左列の経歴から右列に差し替える担当業務詳細パネルの文言(11段階)。作品一覧タブのラベルは work.index を再利用する
+  // 左列の経歴トリガーと、右列に全件展開する担当業務詳細パネルの文言(11段階)
   career: {
     openDetail: '담당 업무 상세',
     tabDetail: '담당 업무',

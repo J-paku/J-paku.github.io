@@ -15,7 +15,7 @@ import styles from './clock-modal.module.css'
 export type ClockModalProps = {
   text: ClockText
   lang: Locale
-  // 結果の一言を村の会話窓(role='status')へ流す手
+  // 結果の一言を枠の下端の案内文(role='status')へ流す手
   announce: (message: string) => void
   onClose: () => void
   returnTo: RefObject<HTMLElement | null>
@@ -137,7 +137,7 @@ export function ClockModal({
                 <button type='button' onClick={chooseCustom}>
                   {text.custom}
                 </button>
-                {/* 1 段目の「やめる」は何も変えずに閉じるだけ。会話窓の一言も書き換えない */}
+                {/* 1 段目の「やめる」は何も変えずに閉じるだけ。案内文の一言も書き換えない */}
                 <button type='button' onClick={onClose}>
                   {text.cancel}
                 </button>

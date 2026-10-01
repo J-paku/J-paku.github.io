@@ -279,7 +279,7 @@ function Village({
               returnTo={frameRef}
             />
           ) : null}
-          {/* 卓上時計の設定窓。会話窓と同じく枠の中に重ね、結果は会話窓の一言として伝える */}
+          {/* 卓上時計の設定窓。会話窓と同じく枠の中に重ね、結果は案内文の一言として伝える */}
           {mode === 'clock' ? (
             <ClockModal
               text={text.clock}

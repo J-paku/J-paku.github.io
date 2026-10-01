@@ -93,15 +93,15 @@
      --f-mono     ラテンの数字・記号だけのラベル(NO.01 / PORTFOLIO — 2026 / MEASURED)。
                   将来CJKが混ざっても環境依存にならないよう Noto Sans を後段に置く
 
-     実体は Google Fonts の配信CSS(index.html の <link>、ko は emit-routes.mjs が差し替える)。
+     実体は Google Fonts の配信CSS(src/app/html-shell.tsx の FONT_HREF がロケールごとに <link> で読む)。
      unicode-range で分割済みなので、そのページで描かれる符号位置のスライスだけが落ちてくる。
      ここに書いたファミリ名が <link> の family= と食い違うと、その書体だけ
-     システムフォントへ落ちる — 名前を変えるときは index.html と emit-routes.mjs も直す。 */
+     システムフォントへ落ちる — 名前を変えるときは html-shell.tsx の FONT_HREF も直す。 */
   --f-display: 'Playfair Display', 'Noto Serif JP', 'Yu Mincho', serif;
   --f-title: 'Noto Serif JP', 'Hiragino Mincho ProN', 'Yu Mincho', serif;
   /* 末尾の 'Noto Sans KR' は言語切替の『한국어』専用。Noto Sans JP はハングルのグリフを
      持たないので、これが無いとその1語だけシステムフォント(Windows なら Malgun Gothic)で描かれる。
-     index.html が text= で3文字だけを要求しているため、実体は 1KB に満たない */
+     ただし ja の FONT_HREF(html-shell.tsx)は Noto Sans KR を要求していないので、効くのは端末に入っている場合だけ */
   --f-body:
     'Inter', 'Noto Sans JP', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI',
     'Hiragino Sans', 'Yu Gothic UI', sans-serif;
@@ -143,13 +143,13 @@
  *
  * 両方を1本のチェーンに並べない。並べると、そのページが1文字も描かないほうの書体まで
  * 候補に入り、ダウンロードの機会が増えるため。配信CSS自体もロケール別に分けており、
- * index.html が ja の1枚を持ち、/ko/ 用の差し替えは scripts/emit-routes.mjs が行う。
+ * src/app/html-shell.tsx の FONT_HREF が ja / ko の1枚ずつを持つ。
  * ja のチェーン末尾にだけ 'Noto Sans KR' があるのは言語切替の『한국어』のため
  * (上の --f-body のコメント参照。逆向きは Noto Sans KR が漢字を持つので不要)。
  *
- * lang は LocaleContext が pathname から立てるが、それはJSが動いた後になる。
- * 初回ペイントで ja のチェーンを引かないよう、/ko/ の静的HTMLには
- * scripts/emit-routes.mjs が lang="ko" を焼き込んでいる。
+ * lang は src/app/html-shell.tsx が <html lang> に出す。locale は (ja)/(ko) の layout が
+ * src/app/locale-routes.tsx の createRootLayout へ渡すリテラルなので、/ko/ の静的HTMLには
+ * lang="ko" が焼き込まれ、初回ペイントから ja のチェーンを引かない。
  */
 :root[lang='ko'] {
   --f-display: 'Playfair Display', 'Noto Serif KR', 'Nanum Myeongjo', serif;

@@ -16,7 +16,7 @@ type RootStyle = CSSProperties & {
 }
 type FrameStyle = CSSProperties & { '--minimap-w': string; '--minimap-h': string }
 
-// ミニマップは 1 マス 4px + 内側余白と枠で 8px。会話窓はこの幅だけ右を空ける
+// ミニマップは 1 マス 4px + 内側余白と枠で 8px。案内文はこの幅だけ右を空ける
 const MINIMAP_SCALE = 4
 const MINIMAP_CHROME = 8
 
