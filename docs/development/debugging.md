@@ -5,7 +5,7 @@ read_when:
   - 検査は通るのに画面がおかしいとき
   - 実機だけで起きる症状を追うとき
 source_of_truth: true
-last_reviewed: 2026-09-21
+last_reviewed: 2026-10-01
 ---
 
 # 調べ方
@@ -14,7 +14,7 @@ last_reviewed: 2026-09-21
 実際に測定器の側が壊れていた事例である。
 
 実行するコマンドそのものは [commands.md](commands.md)、どこまで走らせるかは [../agents/verification.md](../agents/verification.md)、
-E2E の6本が何を見ているかは [../quality/test-strategy.md](../quality/test-strategy.md) にある。
+E2E の各 spec が何を見ているかは [../quality/test-strategy.md](../quality/test-strategy.md) にある。
 
 ## 直したのに変わらない
 

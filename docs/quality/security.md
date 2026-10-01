@@ -4,7 +4,7 @@ read_when:
   - 画面のキャプチャや実データを載せようとするとき
   - 外部への通信を足そうとするとき
 source_of_truth: true
-last_reviewed: 2026-09-21
+last_reviewed: 2026-10-01
 ---
 
 # 公開してよいものの線引き
@@ -31,10 +31,13 @@ last_reviewed: 2026-09-21
 
 ## 外部への通信を足すとき
 
-静的エクスポートの自己完結に対する例外は現在1つだけ。増やす前に次を満たすか確かめる。
+静的エクスポートの自己完結に対する例外は現在3つ。取りに行く=村の天気(Open-Meteo、`src/lib/weather.ts`)、
+送る=アクセス計測(GoatCounter、`src/lib/analytics.ts` と `src/app/html-shell.tsx`)、読み込む=Web フォント(Google Fonts、`src/app/html-shell.tsx`)。
+窓口と失敗時の振る舞いは [../architecture/data-flow.md](../architecture/data-flow.md)。増やす前に次を満たすか確かめる。
 
 1. 認証情報を要さない
-2. 訪問者の情報を送らない
+2. 訪問者を見分ける値をこちらから足して送らない(Cookie・利用者 ID・端末の位置情報を使わない)。
+   接続元の IP と User-Agent は通信である以上相手に届く(GoatCounter はそのハッシュで訪問を数え、Cookie は使わない → `src/lib/analytics.ts`)
 3. **落ちても画面が止まらない**(失敗を無害な既定値へ丸められる)
 
 3つ目を満たせないなら、実行時ではなくビルド時に取り込む方法を先に検討する。

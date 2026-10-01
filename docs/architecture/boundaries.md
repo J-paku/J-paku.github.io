@@ -5,13 +5,15 @@ read_when:
   - 'use client' を足す・動かすとき
   - 新しいレイヤーやフォルダを作ろうとするとき
 source_of_truth: true
-last_reviewed: 2026-09-21
+last_reviewed: 2026-10-01
 ---
 
 # 境界
 
 このリポジトリには3種類の境界がある。**レイヤー(import の向き)**、**server と client**、**データとコード**。
-1つ目は ESLint が機械的に守らせる。残り2つは規約として守る。
+1つ目は ESLint が機械的に守らせる。残り2つも一部は機械化済みで、`content/` から `src/` への import は ESLint が落とし(`eslint.config.mjs`)、
+`src/lib/content/read.ts` をクライアントへ持ち込むと先頭の `import 'server-only'` でビルドが落ちる。
+それ以外(`'use client'` を島だけに置く・`content/` に判定・検証を持ち込まない)は規約として守る。
 
 ## レイヤー(機械が守らせる)
 
@@ -60,4 +62,4 @@ utils ← lib ← hooks ← components ← app
 ## データとコード
 
 `content/` は「コードツリーの外に置いたデータ」。ja / ko の対称を目で確認できる状態を保つのが目的で、
-ロジックを持ち込まない。編集の決まりは [../../content/AGENTS.md](../../content/AGENTS.md)。
+置いてよい処理はデータを組み立てるだけの展開(`content/world.ts` の `expandBlocks`)まで。判定・検証は `src/lib/` に置く。編集の決まりは [../../content/AGENTS.md](../../content/AGENTS.md)。

@@ -4,7 +4,7 @@ read_when:
   - 環境を作り直すとき
   - 開発サーバや実機確認で詰まったとき
 source_of_truth: true
-last_reviewed: 2026-09-21
+last_reviewed: 2026-10-01
 ---
 
 # セットアップ
@@ -30,7 +30,7 @@ npx playwright install --with-deps chromium
 **受け入れの確認は `out/` を静的配信して行う。**
 
 ```bash
-npm run build   # next build + scripts/verify-export.mjs
+npm run build   # scripts/build-sprites.mjs(スプライトシートの PNG を焼く)→ next build → scripts/verify-export.mjs
 npm run start   # out/ を :4173 で配信(Playwright の baseURL と同じ)
 ```
 

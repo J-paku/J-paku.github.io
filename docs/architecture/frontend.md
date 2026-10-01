@@ -4,19 +4,20 @@ read_when:
   - コンポーネントやフックを追加・分割するとき
   - スタイル・色・テーマを触るとき
 source_of_truth: true
-last_reviewed: 2026-09-21
+last_reviewed: 2026-10-01
 ---
 
 # 画面とコンポーネント
 
-画面は3つ。それぞれ `src/components/` 直下の1フォルダが本体で、`src/app/` 側はルート定義だけを持つ。
+画面は3つ。それぞれ `src/components/` 直下の1フォルダが本体で、`src/app/` 側はルート定義と、ja/ko が共有する枠・組み立て
+(`src/app/html-shell.tsx` / `src/app/locale-routes.tsx`)を持ち、画面本体は持たない。
 
 | 画面 | 本体 |
 |---|---|
 | 村 | `src/components/VillagePage/`(詳細は [village.md](village.md)) |
 | 一覧 | `src/components/Directory/` |
 | 作品ストーリー | `src/components/Story/` |
-| 横断部品 | `src/components/ui/`(2画面以上から使う部品だけを置く) |
+| 横断部品 | `src/components/ui/`(複数の画面にまたがって使う部品か、2箇所以上から使う部品を置く。同じ画面の中の2箇所でもよい。全画面に掛かる殻(`src/app/html-shell.tsx`)や他の横断部品から使う部品は、import が1箇所でも複数の画面にまたがるものとして数える) |
 
 どこまでがサーバで、どこからがクライアントの島かは [boundaries.md](boundaries.md) にまとめてある。
 
@@ -29,7 +30,7 @@ last_reviewed: 2026-09-21
 ```
 src/components/Directory/components/WorkCard/
   index.tsx            入口。Props を受け、下位部品へ配る
-  work-card.module.css このフォルダ専用のスタイル。ファイル名はフォルダ名の kebab-case
+  work-card.module.css このフォルダのスタイル(下位部品と共有してよい)。ファイル名はフォルダ名の kebab-case
   components/          このカード専用の下位部品
   hooks/               このカード専用のフック
 ```
@@ -37,19 +38,29 @@ src/components/Directory/components/WorkCard/
 - フォルダ名は **PascalCase**、その中のファイル名は **kebab-case**(`index.tsx` を除く)
 - Props の型は `index.tsx` の中に直接書く。このリポジトリに `type.ts` を置く前例は無い
 - **バレルを作らない**(理由と正確な条件は [boundaries.md](boundaries.md))
-- 2箇所以上から使い始めた部品・フック・純粋関数は、その時点で上位(`src/components/ui/`・`src/hooks/`・`src/utils/`)へ引き上げる
+- 2箇所以上から使い始めた部品・フック・純粋関数は、その時点で上位(`src/components/ui/`・`src/hooks/`・`src/utils/`)へ引き上げる。
+  部品は、import が1箇所でも、そこが全画面に掛かる殻(`src/app/html-shell.tsx`)や他の横断部品で複数の画面にまたがるなら
+  `src/components/ui/` に置く(`PageviewCounter` は殻から、`SettingsMenu` は `Navigation` から使う)
 
 ## フック
 
 - **フックのフォルダには `index.ts` を作らない**(不変ルール4)。呼び出し側はファイルを直接指す
-- 画面専用のフックはその画面のフォルダの `<画面>/hooks/` に、横断するものだけ `src/hooks/` に置く
+- 画面専用のフックは、それを使う部品のフォルダの中の `hooks` フォルダに置く(`src/components/VillagePage/components/Village/hooks/`・
+  `src/components/Directory/components/WorkCard/hooks/` など。`src/components/Story/hooks/` のように画面のフォルダ直下に置き、
+  下位部品(`StoryBody`)から使う例もある)。横断するものだけ `src/hooks/` に置く
 - 命名は `use-` 始まりの kebab-case
 - `hooks` フォルダには `use-` 始まりのフック(と `.test.ts`)以外を置かない。純粋関数・レンダラーは `utils` フォルダへ
 - ファイル名は動詞-名詞の kebab-case、3語まで(例: `paint-camera.ts`)。長い名前を付けない
 
 ## スタイル
 
-- CSS Modules。1つのコンポーネントフォルダに1つの `*.module.css`
+- CSS Modules。1つのコンポーネントフォルダに `*.module.css` は1つまでで、ファイル名はフォルダ名の kebab-case
+- 下位部品は自分の `*.module.css` を持たずに親のものを読んでよい(`CareerDetail` の下位部品 → `career-detail.module.css`、
+  `WorldMap` の下位部品 → `world-map.module.css`、`Story` の `StoryBody` → `story.module.css`)
+- ファイルの置き方の例外は村に2つある。`src/components/VillagePage/components/Boot/boot.css` は CSS Modules ではなく、`#boot` の id で当てる大域 CSS。
+  `src/components/VillagePage/components/Village/scene.module.css` はフォルダ名(`Village`)と違う名前で、下位部品
+  (`Ground`・`LampVeil`・`FishingFloat`。後の2つは自分の `*.module.css` と両方読む)に加えて親の `src/components/VillagePage/index.tsx` も
+  読む(スプライトの背景 CSS のクラス名に使う。`src/components/VillagePage/utils/sprite-css.ts`)
 - **新しく書く CSS に色リテラル(`#rrggbb` / `rgb()` / `hsl()`)を置かない。** 色の定義は `src/styles/tokens.css` に置き、参照は `var(--...)` で行う
 - テーマは `<html data-theme="light|dark">` の1属性だけで決まる。`prefers-color-scheme` の分岐は持たない
   - 初回ペイント前に `src/app/html-shell.tsx` のインラインスクリプトが `localStorage` の保存値を反映する(ちらつき回避)

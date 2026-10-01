@@ -3,7 +3,7 @@ status: active
 read_when:
   - コードやコンテンツに出てくる語の意味が分からないとき
 source_of_truth: true
-last_reviewed: 2026-09-21
+last_reviewed: 2026-10-01
 ---
 
 # 用語
@@ -40,11 +40,11 @@ last_reviewed: 2026-09-21
 | locale | `Locale` | `'ja'` か `'ko'`。URL だけで決まる |
 | 作品 | `Work` | 一覧のカード1枚。`slug` が同一性の鍵 |
 | 状態 | `WorkStatus` | `'published'`(公開)か `'wip'`(制作中) |
-| 折りたたみ詳細 | `Work.detail` | カード内で開く「症状 → 原因 → 解決」の節の列 |
+| 折りたたみ詳細 | `Work.detail` | カード内で開く、見出し+段落の節の列。節の立て方は作品ごとに自由 |
 | ストーリー | `Work.story` | 専用ページ(`/works/<slug>/`)の中身。`detail` とは別物 |
 | 場面 | `WorkStoryScene` | ストーリーの1コマ。SVG 1枚 + 技術チップ |
 | 経歴 | `Career` | 在籍1社分。`id` が ja/ko 共通の安定キー |
-| 派遣先 | `CareerDetailAssignment` | 在籍1社の中で替わった現場1件 |
+| 派遣先 | `CareerAssignment` / `CareerDetailAssignment` | 在籍1社の中で替わった現場1件。`Career.assignments` の `CareerAssignment` は左列に出す期間付きの1行、`CareerDetail.assignments` の `CareerDetailAssignment` は担当業務の詳細の中の派遣先1件分 |
 
 ## 言い換えないもの
 

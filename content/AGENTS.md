@@ -1,6 +1,6 @@
 # content/ で作業するとき
 
-ここは**データ**。`src/` を import しない。ロジックを置かない。
+ここは**データ**。`src/` を import しない。置いてよい処理はデータを組み立てるだけの展開(`world.ts` の `expandBlocks`)まで。判定・検証は `src/lib/` に置く。
 フォルダの読み方は [README.md](README.md)、型の関係は [../docs/product/domain-model.md](../docs/product/domain-model.md)。
 
 | 直したいもの | ファイル |
@@ -29,4 +29,5 @@ npm run typecheck   # キーの過不足
 npm run build       # 登録漏れ・地点と文言のずれ・村の到達性と歩数
 ```
 
-落ちるときのメッセージと上限値の一覧は [../docs/product/business-rules.md](../docs/product/business-rules.md)。
+検査される決まりと上限の定数名は [../docs/product/business-rules.md](../docs/product/business-rules.md)。
+落ちるときのメッセージの正本は `src/lib/content/validate.ts`(ja/ko の対称・登録表)と `src/lib/content/validate-world.ts`(村)と `src/lib/content/read.ts`(地点の story リンク先が無いとき・検査結果を包む見出し)、上限の値の正本は `src/lib/content/validate-world.ts`。

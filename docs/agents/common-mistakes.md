@@ -4,7 +4,7 @@ read_when:
   - 実装に入る直前
   - 同じ場所を2度直しているとき
 source_of_truth: false
-last_reviewed: 2026-09-21
+last_reviewed: 2026-10-01
 ---
 
 # このリポジトリでよくある間違い
@@ -27,7 +27,7 @@ last_reviewed: 2026-09-21
 | やりがちなこと | 正本 |
 |---|---|
 | バレル(`index.ts` の再 export)を作る。フックのフォルダにも作る | [../architecture/boundaries.md](../architecture/boundaries.md) |
-| `src/utils/` に I/O を置く / `src/lib/` に純粋関数を置く | [../architecture/data-flow.md](../architecture/data-flow.md) |
+| `src/utils/` に I/O を置く | [../architecture/data-flow.md](../architecture/data-flow.md) |
 | 下の層の型を上の層から再 export する | [../architecture/boundaries.md](../architecture/boundaries.md) |
 | `'use client'` を必要より上に置く | [../architecture/boundaries.md](../architecture/boundaries.md) |
 | `read.ts` をクライアントから読む(`server-only` が落とす) | [../architecture/data-flow.md](../architecture/data-flow.md) |

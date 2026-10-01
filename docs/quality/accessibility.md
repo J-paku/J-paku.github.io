@@ -4,18 +4,19 @@ read_when:
   - axe が違反を出したとき
   - モーダル・トグル・装飾要素を足すとき
 source_of_truth: true
-last_reviewed: 2026-09-21
+last_reviewed: 2026-10-01
 ---
 
 # アクセシビリティ
 
-CI は配信物の全ルートに axe を当て、**WCAG 適合の違反 0 件**をゲートにしている(`scripts/check-a11y.mjs`)。
+CI は配信物のうち `.github/workflows/deploy.yml` に並べた6経路(村・一覧・作品ページの日韓)に axe を当て、**WCAG 適合の違反 0 件**をゲートにしている(`scripts/check-a11y.mjs`)。
+404 ページ(`out/404.html`)は対象に入っていない。
 `best-practice` タグの指摘は別集計で、終了コードには反映しない。**ゲートになるタグの正本はそのスクリプト。**
 
 ## 守っていること
 
 - **村を操作しなくても同じ内容に届く。** スキップリンク(`skipVillage`)と作品ショートカットを消さない
-- 会話窓は `role='status'` + `aria-live='polite'`。更新を読み上げさせる
+- 村の枠の下端の案内文(`SpeechBox`)は `role='status'` + `aria-live='polite'`。更新を読み上げさせる
 - モーダルは2通りある。作品ストーリーの場面モーダルは**ネイティブ `<dialog>` の `showModal()`**(フォーカストラップと背景の不活性化をブラウザが保証する)、村の会話・地図は `role='dialog'` の固定配置。**新しいモーダルを足すなら前者を選ぶ**
   - 例外は**村の枠の中に収める窓**。村の会話・地図に加えて**卓上時計の設定窓(`ClockModal`)**も `role='dialog'` の手製トラップで作る —
     枠の中に収めて操作帯(`--band`)を覆わない要件があり、top layer へ出る `showModal()` では満たせないため

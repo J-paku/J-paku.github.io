@@ -15,7 +15,9 @@ Next.js 16(App Router)の静的エクスポートで、サーバもデータベ�
 5. **wip 作品は詳細ページを作らない。** カードにリンクを付けず、slug 直接アクセスは NotFound
 6. **1段階 = 1セッション**(大きな改修を1回のセッションに詰め込まない)
 
-理由と機械化の状況は [docs/architecture/boundaries.md](docs/architecture/boundaries.md) にある。
+決めた理由は 1 が [docs/decisions/0002-locale-from-url-only.md](docs/decisions/0002-locale-from-url-only.md)、2 が [docs/decisions/0003-content-outside-src.md](docs/decisions/0003-content-outside-src.md) にある。
+3〜5 の詳しい決まりは [docs/architecture/data-flow.md](docs/architecture/data-flow.md)・[docs/architecture/frontend.md](docs/architecture/frontend.md)・[docs/product/business-rules.md](docs/product/business-rules.md) にある。
+レイヤー境界(import の向き)と、そのうち機械が守らせている範囲は [docs/architecture/boundaries.md](docs/architecture/boundaries.md)。
 
 ## 作業の種類 → 読む文書
 
@@ -72,6 +74,6 @@ Next.js 16(App Router)の静的エクスポートで、サーバもデータベ�
 
 ## コミット
 
-- 形式: `<type>: <日本語の要約>` + 本文は日本語の箇条書き。type は `feat` / `fix` / `hotfix` / `refactor` / `docs`
+- 形式: `<type>: <日本語の要約>` + 本文は日本語の箇条書き。type は `feat` / `fix` / `hotfix` / `refactor` / `docs` / `test` / `chore` / `ci` / `perf`
 - **AI 署名を入れない**(`Co-Authored-By` も `Claude-Session` も書かない)
 - **エージェントは自分でコミットしない。** 利用者が明示的に指示したときだけ実行する

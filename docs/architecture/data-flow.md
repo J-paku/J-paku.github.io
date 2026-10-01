@@ -4,13 +4,13 @@ read_when:
   - コンテンツの読み込み・検証を変えるとき
   - ブラウザ保存や外部 API 取得を足すとき
 source_of_truth: true
-last_reviewed: 2026-09-21
+last_reviewed: 2026-10-01
 ---
 
 # データの流れ
 
-このアプリのデータは3種類しかない。**ビルド時に確定するコンテンツ**、**ブラウザにだけ残る設定と進行**、
-**実行時に外から取る天気**。それぞれ入口が1つに決まっている。
+このアプリのデータの出入りは3種類しかない。**ビルド時に確定するコンテンツ**、**ブラウザにだけ残る設定と進行**、
+**実行時の外との通信**(天気を取る・アクセス計測を送る・Web フォントを読む)。それぞれ窓口になるファイルが決まっている。
 
 ## 1. コンテンツ(ビルド時)
 
@@ -45,7 +45,11 @@ content/ja/*.ts  content/ko/*.ts  content/world.ts
 
 ## 3. 外部への通信(実行時)
 
-静的エクスポートの自己完結に対する**唯一の例外**が村の天気。`src/lib/weather.ts` が Open-Meteo(API キー不要)を呼ぶ。
+静的エクスポートの自己完結に対する例外は3つ。取りに行く=村の天気(Open-Meteo、`src/lib/weather.ts`)、
+送る=アクセス計測(GoatCounter、`src/lib/analytics.ts` と `src/app/html-shell.tsx`)、読み込む=Web フォント(Google Fonts、`src/app/html-shell.tsx`)。
+どれも落ちても画面は動く。
+
+村の天気は `src/lib/weather.ts` が Open-Meteo(API キー不要)を呼ぶ。
 
 - 呼ぶのはクライアント。村を描いたあと `use-weather.ts` がマウント時に1回だけ実行する
 - 送るのは固定の緯度経度(大阪)だけ。訪問者の位置情報は扱わない。応答は保存しない
@@ -57,7 +61,17 @@ content/ja/*.ts  content/ko/*.ts  content/world.ts
 next/link による移動はタグから見えないため、`src/components/ui/PageviewCounter/` が pathname の変わるたびに `src/lib/analytics.ts` の送信関数を呼ぶ
 (マウント時は送らず、読み込み時の1件と二重にしない)。Cookie は使わない。計測が落ちても画面は動く。
 
+Web フォントは `src/app/html-shell.tsx` が Google Fonts の配信 CSS を `<link>` で読む(自前の `@font-face` は持たない)。
+Inter・Playfair Display は共通で、Noto Sans・Noto Serif だけ locale で JP / KR を切り替える。
+読めなくても、`src/styles/tokens.css` の書体指定の後段にあるシステム書体で文字は描かれる。
+
 ## 外の世界に触れてよい場所
 
-`src/lib/` だけ。`src/utils/` は同じ入力に同じ出力を返す純粋関数と定数に限る。
+`src/lib/` だけ。例外は `src/app/html-shell.tsx` が `<head>` に直書きする次の3つに限る。
+
+- 初回ペイント前にテーマを当てるインラインスクリプト(`localStorage` を読む。不変ルール3の例外 → 2節)
+- Google Fonts へつなぐ `<link>`(preconnect と配信 CSS → 3節)
+- GoatCounter の計測タグの `<script>`(計測先 URL が設定されたときだけ出る → 3節)
+
+`src/utils/` は同じ入力に同じ出力を返す純粋関数と定数に限る。
 DOM の実測(`ResizeObserver` など)はページが閉じれば消えるので「外」ではなく、フックに置く。

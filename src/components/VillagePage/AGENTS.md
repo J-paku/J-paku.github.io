@@ -7,11 +7,13 @@
 
 1. **`'use client'` を `index.tsx` へ上げない。** サーバで組み立てる部分(content の読み出し・シート合成)が巻き込まれる
 2. **`components/Village/hooks/use-village.ts` のフックを呼ぶ順を入れ替えない。** 寸法 → 入力 → 復元 → rAF → 重ね表示 の順がそのまま effect の実行順になる
-3. **移動・衝突・経路・地点判定のロジックをここに書かない。** `src/lib/village/` の純粋関数に置く(単体テストが書けるのはそちらだけ)
+3. **移動・衝突・経路・地点判定のロジックをここに書かない。** `src/lib/village/` の純粋関数に置く(React・DOM なしで網羅的にテストできるため)
 4. **保存は `src/lib/preferences.ts` 経由。** `sessionStorage` を直接触らない
 5. 歩行ループ(`components/Village/hooks/use-walk-loop/use-walk-loop.ts`。フレームの中身は `components/Village/utils/walk-loop/` に分けてある)は rAF の中で **DOM へ直接書く**。React state を経由させない(再レンダーで駒が飛ぶ)
 6. `components/Village/hooks/use-stage-scale.ts` は `--cell` と `--band` を実測で書く(寸法の計算式は `components/Village/utils/stage-scale.ts`)。重ね表示(会話窓・地図)は `--band` を超えて操作帯を覆わない
-7. 新しいモーダルはネイティブ `<dialog>` の `showModal()` を使う → [../../../docs/quality/accessibility.md](../../../docs/quality/accessibility.md)
+7. 村の枠の中に出す窓(会話窓 `StopModal`・卓上時計の窓 `ClockModal`・拡大地図 `WorldMap`)は `role='dialog'` + `aria-modal='true'` の `div` と手製のフォーカストラップ(`components/Village/hooks/use-dialog-focus.ts`)で作る。
+   ネイティブ `<dialog>` の `showModal()` は top layer へ出て操作帯(`--band`)を覆うので使わない(守ること 6)。
+   `showModal()` を使うのは村の外の全画面モーダル(作品ストーリーの場面モーダル `src/components/Story/components/SceneModal/`)だけ → [../../../docs/quality/accessibility.md](../../../docs/quality/accessibility.md)
 8. **街灯だけは主人公の上にも描く層がある** — `components/Village/components/LampVeil/`(`.world` の中・`.terrain` の外・z 3)。
    街灯は柱の立つ下のマスだけが通行不可で、灯のある上のマス(笠の裏)に立つと主人公(z 2)が街灯を塗り潰すので、重なった 1 本を 2 マス分まとめて半透明で重ね直す。
    どの街灯かは `src/lib/village/lamp-veil.ts` が決め、位置と表示は `components/Village/utils/walk-loop/paint-lamp-veil.ts` が重なりの変わった時だけ DOM へ書く

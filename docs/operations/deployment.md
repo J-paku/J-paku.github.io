@@ -5,7 +5,7 @@ read_when:
   - 配信が反映されないとき
   - 配信を戻したいとき
 source_of_truth: true
-last_reviewed: 2026-09-29
+last_reviewed: 2026-10-01
 ---
 
 # 配信
@@ -21,8 +21,8 @@ push to main
       docs:check → typecheck → lint → format:check → test:coverage(カバレッジの床) → build
       → Playwright Chromium をキャッシュから戻す(miss なら入れる)→ test:e2e
       → out/ を :4173 で配信 → wait-on
-      → axe(全ルート) → Lighthouse CI(同じ6経路) → CJK フォントの .deb をキャッシュから戻して入れる → 日本語改行検査
-      → upload-pages-artifact
+      → axe(6経路) → Lighthouse CI(同じ6経路) → CJK フォントの .deb をキャッシュから戻して入れる → 日本語改行検査
+      → configure-pages → upload-pages-artifact
   → deploy ジョブ(GitHub Pages)
 ```
 
@@ -45,9 +45,9 @@ push to main
 - **無効化の仕方。** Playwright は `package-lock.json` が変われば自動で作り直される。フォントはキーの `v1` を上げる(版を固定していないので、新しい版を拾いたいときも同じ)
 - hit したかどうかは Actions のログで、各 cache step の出力(`Cache restored from key` か `Cache not found`)を見る
 
-**トレードオフ。** 利用者1人のリポジトリで push の頻度が低く、これまではキャッシュを管理する手間のほうが短縮される時間より大きかったので入れていなかった。
+**トレードオフ。** `setup-node` の `cache: npm` は `deploy.yml` を作った最初のコミットから入っている。Playwright のブラウザ本体と CJK フォントは、利用者1人のリポジトリで push の頻度が低く、これまではキャッシュを管理する手間のほうが短縮される時間より大きかったので入れていなかった。
 2026-09-24 に入れたのは、Playwright のブラウザ本体(約 150MB)の取得と CJK フォントの apt 導入が毎回繰り返されてビルド時間の固定費になっており、cache アクション 2 step で済むので管理の手間も小さくなったから。
-チームで回すなら、Playwright の公式イメージ(ブラウザと依存を焼き込んだコンテナ)と `setup-node` のキャッシュから先に入れる。
+チームで回すなら、Playwright の公式イメージ(ブラウザと依存を焼き込んだコンテナ)から先に入れる。
 
 ## ローカルで CI を再現する
 
@@ -73,9 +73,11 @@ node scripts/check-ja-linebreak.mjs http://localhost:4173 / /ko/ /list/ /ko/list
 `npm run build` の後段。`out/` の自己整合性を確かめる。
 
 - 必須ページ(両言語のトップ・一覧・作品ストーリー・`404.html`)が実在する
-- HTML が参照する css / js が同じツリーに実在する。**参照が0件なら「全部揃っている」ではなく「検査できていない」として落とす**
+- HTML が参照する css / js が同じツリーに実在し、空(0 バイト)でない。**参照が0件なら「全部揃っている」ではなく「検査できていない」として落とす**
+- HTML が参照するスプライトシート(`scripts/build-sprites.mjs` が焼いた `/sprites/*.png`)が `out/` に実在し、空でない PNG(先頭が PNG の署名)である。参照が0件なら同じく落とす
 - `next build` が上書きしてしまう `out/404.html` を `public/404.html`(二言語版)から戻し、中身が二言語で村の画面を含まないことを確かめる。`out/404/index.html` も noindex で村の画面を含まないか見る
-- HTML が参照する同一オリジンの静的ファイル(`public/` のロゴ・画像・favicon など拡張子付きのもの)が `out/` に実在し空でない
+- HTML が参照する同一オリジンの静的ファイル(`public/` のロゴ・画像・favicon など拡張子付きのもの)が `out/` に実在し空でない。参照が0件なら同じく落とす
+- 入口(`out/index.html`・`out/ko/index.html`)の本文に村の舞台の印(`data-village-terrain`・`data-village-player`)が焼かれている。参照の整合だけでは中身が空の殻を配っても通るため
 
 ## 反映されない・戻したい
 

@@ -1,4 +1,4 @@
-<!-- content/ の読み方と、実装セッションへの引き継ぎメモ -->
+<!-- content/ の読み方 -->
 
 # content/
 
@@ -27,7 +27,7 @@ content/
 ```
 
 型の定義元は `content/types/content.ts` と `content/types/world.ts` の2箇所(データ側が型を持ち、`src/` はそれを参照する)。`ko` は `ja` と同じ型を満たすため、キーの過不足は `tsc --noEmit` で落ちる。
-`village.ts` の `stops` のキーは `world.ts` の `spots[].id` と一致させる(ずれは build 時の `validateVillageText` が落とす)。
+`village.ts` の `stops` のキーは `world.ts` の `spots[].id` のうち、`action` を持つ地点(卓上時計・池)を除いたものと一致させる(その2つの文言は `text.clock` / `text.fishing` が持つ。ずれは build 時の `validateVillageText` が落とす)。
 
 ## works の集約
 

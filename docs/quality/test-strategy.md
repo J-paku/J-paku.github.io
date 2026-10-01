@@ -4,7 +4,7 @@ read_when:
   - テストを足す・直すとき
   - どのテストを走らせるか決めるとき
 source_of_truth: true
-last_reviewed: 2026-09-29
+last_reviewed: 2026-10-01
 ---
 
 # テスト
@@ -13,7 +13,7 @@ last_reviewed: 2026-09-29
 
 | 層 | 置き場 | 対象 | 環境 |
 |---|---|---|---|
-| 単体(Vitest) | 対象ファイルの隣 `*.test.ts` | **純粋関数**と、`fetch`・Storage を `vi.stubGlobal` で差し替えて測る `src/lib/` の入口。DOMへ書くutils(歩行ループの部品など)と、DOMに触れないフックを`renderHook`で呼ぶテストもこの層 | `environment: 'node'`(既定)。DOM を持たない。DOMへ書くutilsと`renderHook`のテストだけは、ファイル先頭の`// @vitest-environment happy-dom`でそのファイルだけhappy-domで走る |
+| 単体(Vitest) | 対象ファイルの隣 `*.test.ts` | **純粋関数**と、`fetch`・Storage を `vi.stubGlobal` で差し替えて測る `src/lib/` の入口。DOMを使う(読む・書く・DOMParser)utils(歩行ループの部品など)と、DOMに触れないフックを`renderHook`で呼ぶテストもこの層 | `environment: 'node'`(既定)。DOM を持たない。DOMを使う(読む・書く・DOMParser)utilsと`renderHook`のテストだけは、ファイル先頭の`// @vitest-environment happy-dom`でそのファイルだけhappy-domで走る |
 | 統合(Vitest + React Testing Library) | 対象コンポーネントの隣 `index.test.tsx` | **環境・props・操作で分かれるコンポーネントの出し分け**。いまは作品カード(`src/components/Directory/components/WorkCard/index.test.tsx`)とその部品のLinksOverlay・WorkLinks・ShotMedia、経歴のCareerDetail、設定メニューのSettingsMenu | ファイル先頭の `// @vitest-environment happy-dom` でそのファイルだけ DOM を持つ |
 | E2E(Playwright) | `tests/**/*.spec.ts` | 実際のクリック・キー操作 | `out/` を `:4173` で静的配信 |
 
@@ -32,7 +32,7 @@ last_reviewed: 2026-09-29
 - **実際の配置・寸法・スクロール・rAF・歩行** → E2E。happy-dom は配置を計算しない(作品カードの `getBoundingClientRect()` は幅・高さとも 0 だった)
 - **村(`src/components/VillagePage/`)は統合の対象にしない。** 描画が実際の寸法と rAF の歩行ループに依存するため、
   happy-dom では確かめたいものが再現しない。村の出し分けは E2E で見るか、純粋関数へ切り出して単体で見る。
-  これはコンポーネントを描く統合テストの話で、寸法やrAFの実物に頼らないフック(`renderHook`)と、DOMへ書くutils(rAFと`performance.now`を偽物に替えた歩行ループの部品など)を単体で測るのは当てはまらない
+  これはコンポーネントを描く統合テストの話で、寸法やrAFの実物に頼らないフック(`renderHook`)と、DOMを使うutils(rAFと`performance.now`を偽物に替えた歩行ループの部品など)を単体で測るのは当てはまらない
 
 ### 統合テストの約束
 

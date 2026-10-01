@@ -4,7 +4,7 @@ read_when:
   - content の型を足す・変えるとき
   - どこに値を置けばよいか迷うとき
 source_of_truth: false
-last_reviewed: 2026-09-21
+last_reviewed: 2026-10-01
 ---
 
 # ドメインモデル
@@ -19,8 +19,9 @@ Content                      locale ごとに1つ
 ├── ui: UiStrings            ボタン名・読み上げ名などの UI 文言
 ├── profile: Profile         名前・肩書き・守備範囲・リンク
 │   ├── careers: Career[]        在籍1社 = 1件。id が ja/ko 共通の安定キー
-│   │   ├── assignments[]        在籍中に替わった派遣先(持たない経歴もある)
-│   │   └── detail: CareerDetail 右列に差し替えで出す担当業務の詳細
+│   │   ├── assignments: CareerAssignment[] 左列に出す派遣先の1行(持たない経歴もある)
+│   │   └── detail: CareerDetail 右列に展開して並べる担当業務の詳細
+│   │       └── assignments: CareerDetailAssignment[] 派遣先ごとの担当内容(派遣先が複数の経歴だけ)
 │   └── strengths: Strength[]
 ├── skills: SkillCategory[]  項目ごとに evidence(根拠の作品 slug)を持つ
 ├── now: NowEntry[]          日付 + 1行
@@ -52,13 +53,18 @@ WorldSet
 
 VillageText(locale ごと)
 ├── 画面の文言(intro / hint / arriveAt ...)
-└── stops: Record<spot.id, StopText>   ← spots と過不足なく一致させる
+└── stops: Record<spot.id, StopText>   ← action を持つ地点(卓上時計・池)を除いた地点 ID と一致させる
 ```
 
 `World` は言語共通(`content/world.ts`)、文言だけが locale 別(`content/{ja,ko}/village.ts`)。
 地点を足すときは **world 側の `spots` と両言語の `stops` を同時に**足す。片方だけだとビルドが落ちる。
-建物の無い出口の地点は `structureId` の代わりに `arrivalArea` を持つ。その範囲への到着で会話窓を開く。
+ただし `action` を持つ地点(卓上時計・池)は `stops` に入れない。文言は `text.clock` / `text.fishing` が持ち、
+`stops` に入れると「未知の地点」としてビルドが落ちる(`src/lib/content/validate-world.ts` の `validateVillageText`)。
+構造物を持たない地点は `structureId` の代わりに、`arrivalArea`(建物の無い出口。その範囲への到着で会話窓を開く)か
+`action`(池。話しかけると会話窓ではなく釣りが始まる)のどちらかを持つ。どちらも無いとビルドが落ちる(`src/lib/content/validate-world.ts`)。
 
 構造物の種類ごとの寸法は `content/types/world.ts` の `Structure` のコメントに書いてある。
-ただし**通行判定の正本は `src/lib/village/collision.ts`**(家は `area` 全体が通行不可で、`solid` は見た目の境界にしか使わない)。
+ただし**通行判定の正本は `src/lib/village/collision.ts`**(家は `area` 全体が通行不可で、`solid` は通行判定には使わない)。
+家の `solid` は見た目の壁の境界のほか、`src/lib/village/spot.ts` で会話マス(`spotAt`)・吹き出しの位置(`talkAnchor`)・
+押した物の判定(`objectSpotAt` / `routeToSpot`)に使う。
 型のコメントは見た目の説明を含むので、当たり判定を変えるときは `collision.ts` を読む。
