@@ -96,7 +96,7 @@ describe('planFlight', () => {
       { x: 0, y: 0 },
     ]
     expect(planFlight(world, { x: 0, y: 2 }, route, 0)).toEqual({
-      flight: { from: { x: 0, y: 2 }, to: { x: 0, y: 0 }, durationMs: 544, elapsedMs: 0 },
+      flight: { from: { x: 0, y: 2 }, to: { x: 0, y: 0 }, durationMs: 1180, elapsedMs: 0 },
       facing: 'up',
       rest: [],
     })
@@ -109,7 +109,7 @@ describe('planFlight', () => {
       { x: 1, y: 0 },
     ]
     expect(planFlight(world, { x: 0, y: 2 }, route, 0)).toEqual({
-      flight: { from: { x: 0, y: 2 }, to: { x: 1, y: 0 }, durationMs: 552, elapsedMs: 0 },
+      flight: { from: { x: 0, y: 2 }, to: { x: 1, y: 0 }, durationMs: 1201, elapsedMs: 0 },
       facing: 'up',
       rest: [],
     })
@@ -133,7 +133,7 @@ describe('planFlight', () => {
       { x: 2, y: 0 },
     ]
     expect(planFlight(warped, { x: 0, y: 2 }, route, 0)).toEqual({
-      flight: { from: { x: 0, y: 2 }, to: { x: 2, y: 0 }, durationMs: 571, elapsedMs: 0 },
+      flight: { from: { x: 0, y: 2 }, to: { x: 2, y: 0 }, durationMs: 1255, elapsedMs: 0 },
       facing: 'right',
       rest: [],
     })
@@ -146,7 +146,7 @@ describe('planFlight', () => {
       { x: 2, y: 1 },
     ]
     expect(planFlight(world, { x: 0, y: 0 }, route, 0)).toEqual({
-      flight: { from: { x: 0, y: 0 }, to: { x: 2, y: 0 }, durationMs: 544, elapsedMs: 0 },
+      flight: { from: { x: 0, y: 0 }, to: { x: 2, y: 0 }, durationMs: 1180, elapsedMs: 0 },
       facing: 'right',
       rest: [{ x: 2, y: 1 }],
     })
@@ -158,7 +158,7 @@ describe('planFlight', () => {
       { x: 2, y: 1 },
     ]
     expect(planFlight(world, { x: 0, y: 2 }, route, 0)).toEqual({
-      flight: { from: { x: 0, y: 2 }, to: { x: 0, y: 0 }, durationMs: 544, elapsedMs: 0 },
+      flight: { from: { x: 0, y: 2 }, to: { x: 0, y: 0 }, durationMs: 1180, elapsedMs: 0 },
       facing: 'up',
       rest: [{ x: 2, y: 1 }],
     })
@@ -172,17 +172,17 @@ describe('planFlight', () => {
       { x: 2, y: 2 },
     ]
     expect(planFlight(world, { x: 0, y: 0 }, route, 0)).toEqual({
-      flight: { from: { x: 0, y: 0 }, to: { x: 2, y: 2 }, durationMs: 571, elapsedMs: 0 },
+      flight: { from: { x: 0, y: 0 }, to: { x: 2, y: 2 }, durationMs: 1255, elapsedMs: 0 },
       facing: 'right',
       rest: [],
     })
   })
 
   it('距離は出発と着地の差から測る(どちらの座標も0でない組)', () => {
-    // 横の差 -1・縦の差 -2 で √5。和で測ると √13 になり 595ms になる
-    expect(planFlight(world, { x: 2, y: 2 }, [{ x: 1, y: 0 }], 0)?.flight.durationMs).toBe(552)
+    // 横の差 -1・縦の差 -2 で √5。和で測ると √13 になり 1324ms になる
+    expect(planFlight(world, { x: 2, y: 2 }, [{ x: 1, y: 0 }], 0)?.flight.durationMs).toBe(1201)
     // 横の差 -2・縦の差 -1 で √5
-    expect(planFlight(world, { x: 2, y: 2 }, [{ x: 0, y: 1 }], 0)?.flight.durationMs).toBe(552)
+    expect(planFlight(world, { x: 2, y: 2 }, [{ x: 0, y: 1 }], 0)?.flight.durationMs).toBe(1201)
   })
 
   it('前のマスから持ち越した時間を飛び立った時の経過にする', () => {
@@ -198,29 +198,29 @@ describe('tickFlight', () => {
   const flight: Flight = {
     from: { x: 0, y: 2 },
     to: { x: 0, y: 0 },
-    durationMs: 544,
+    durationMs: 1180,
     elapsedMs: 100,
   }
 
   it('飛ぶ時間に届くまでは経過を足すだけ', () => {
     expect(tickFlight(flight, 16)).toEqual({ landed: false, flight: { ...flight, elapsedMs: 116 } })
-    expect(tickFlight(flight, 443)).toEqual({
+    expect(tickFlight(flight, 1079)).toEqual({
       landed: false,
-      flight: { ...flight, elapsedMs: 543 },
+      flight: { ...flight, elapsedMs: 1179 },
     })
   })
 
   it('ちょうど飛ぶ時間に届いた歩みで着地のマスを返す', () => {
-    expect(tickFlight(flight, 444)).toEqual({ landed: true, cell: { x: 0, y: 0 } })
+    expect(tickFlight(flight, 1080)).toEqual({ landed: true, cell: { x: 0, y: 0 } })
   })
 
   it('飛ぶ時間を過ぎた歩みでも着地のマスだけを返し、余りの時間は返さない', () => {
-    expect(tickFlight(flight, 500)).toEqual({ landed: true, cell: { x: 0, y: 0 } })
+    expect(tickFlight(flight, 1500)).toEqual({ landed: true, cell: { x: 0, y: 0 } })
   })
 })
 
 describe('takeOff', () => {
-  // (0,0) から (2,1) の水のマス(扉の代わり)へ向かう経路。立てる最後のマス (2,0) まで直線で2マス、544ms
+  // (0,0) から (2,1) の水のマス(扉の代わり)へ向かう経路。立てる最後のマス (2,0) まで直線で2マス、1180ms
   const resting: MoveState = {
     cell: { x: 0, y: 0 },
     facing: 'up',
@@ -245,7 +245,7 @@ describe('takeOff', () => {
       route: [{ x: 2, y: 1 }],
       fast: true,
       fly: false,
-      flight: { from: { x: 0, y: 0 }, to: { x: 2, y: 0 }, durationMs: 544, elapsedMs: 37 },
+      flight: { from: { x: 0, y: 0 }, to: { x: 2, y: 0 }, durationMs: 1180, elapsedMs: 37 },
       turnRemainingMs: 0,
       stride: 1,
     })
@@ -264,7 +264,7 @@ describe('advanceFlight', () => {
   const flight: Flight = {
     from: { x: 0, y: 0 },
     to: { x: 2, y: 0 },
-    durationMs: 544,
+    durationMs: 1180,
     elapsedMs: 100,
   }
   // 飛び立った後の状態。経路には着地の後にぶつかる1歩が残っている
@@ -281,7 +281,7 @@ describe('advanceFlight', () => {
   }
 
   it('飛ぶ時間に届くまでは経過だけを足し、今のマスも残りの経路も変えない', () => {
-    expect(advanceFlight(flying, flight, 443)).toEqual({
+    expect(advanceFlight(flying, flight, 1079)).toEqual({
       state: {
         cell: { x: 0, y: 0 },
         facing: 'right',
@@ -289,7 +289,7 @@ describe('advanceFlight', () => {
         route: [{ x: 2, y: 1 }],
         fast: true,
         fly: false,
-        flight: { from: { x: 0, y: 0 }, to: { x: 2, y: 0 }, durationMs: 544, elapsedMs: 543 },
+        flight: { from: { x: 0, y: 0 }, to: { x: 2, y: 0 }, durationMs: 1180, elapsedMs: 1179 },
         turnRemainingMs: 0,
         stride: 1,
       },
@@ -309,7 +309,7 @@ describe('advanceFlight', () => {
       turnRemainingMs: 0,
       stride: 1,
     }
-    expect(advanceFlight(flying, flight, 444)).toEqual({
+    expect(advanceFlight(flying, flight, 1080)).toEqual({
       state: landedState,
       landed: { x: 2, y: 0 },
     })
@@ -324,7 +324,7 @@ describe('advanceFlight', () => {
 describe('flightPose', () => {
   const aloft = (facing: Direction, elapsedMs: number): Pick<MoveState, 'flight' | 'facing'> => ({
     facing,
-    flight: { from: { x: 0, y: 2 }, to: { x: 2, y: 0 }, durationMs: 571, elapsedMs },
+    flight: { from: { x: 0, y: 2 }, to: { x: 2, y: 0 }, durationMs: 1255, elapsedMs },
   })
 
   it('飛んでいなければ null', () => {
@@ -334,14 +334,14 @@ describe('flightPose', () => {
 
   it.each([
     ['up', 0, 'player-fly-up-0', false],
-    ['up', 120, 'player-fly-up-1', false],
+    ['up', 320, 'player-fly-up-1', false],
     ['down', 0, 'player-fly-down-0', false],
-    ['down', 120, 'player-fly-down-1', false],
+    ['down', 320, 'player-fly-down-1', false],
     ['right', 0, 'player-fly-right-0', false],
-    ['right', 120, 'player-fly-right-1', false],
+    ['right', 320, 'player-fly-right-1', false],
     // 左向きの絵は持たないので右向きを反転する
     ['left', 0, 'player-fly-right-0', true],
-    ['left', 120, 'player-fly-right-1', true],
+    ['left', 320, 'player-fly-right-1', true],
   ] as const)('%s 向きで %s ms なら %s(反転 %s)', (facing, elapsedMs, key, flip) => {
     expect(flightPose(aloft(facing, elapsedMs), false)).toEqual({ key, flip, animating: true })
   })
@@ -352,8 +352,8 @@ describe('flightPose', () => {
     ['right', 'player-fly-right-0', false],
     ['left', 'player-fly-right-0', true],
   ] as const)('動きを控える設定では %s 向きも最初のコマ %s で止める', (facing, key, flip) => {
-    // 位置は時間で動くので、羽ばたきを止めても animating のまま
-    expect(flightPose(aloft(facing, 120), true)).toEqual({ key, flip, animating: true })
+    // 位置は時間で動くので、雲の動きを止めても animating のまま
+    expect(flightPose(aloft(facing, 320), true)).toEqual({ key, flip, animating: true })
   })
 })
 
@@ -362,7 +362,7 @@ describe('isFlying', () => {
     const flight: Flight = {
       from: { x: 0, y: 2 },
       to: { x: 0, y: 0 },
-      durationMs: 544,
+      durationMs: 1180,
       elapsedMs: 0,
     }
     expect(isFlying({ flight })).toBe(true)

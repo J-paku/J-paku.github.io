@@ -12,6 +12,8 @@ import { ui as uiKo } from '@content/ko/ui'
 import { meishiCrossPlatform as meishiWorkJa } from '@content/ja/works/meishi-cross-platform'
 import { meishiCrossPlatform as meishiWorkKo } from '@content/ko/works/meishi-cross-platform'
 import { isWalkable } from '@/lib/village/collision'
+// 飛ぶ長さは lib 側が正本。ここに数値を書き写すと片方だけ動いた時に気付けない
+import { flightDurationMs } from '@/lib/village/flight-curve'
 import { findPath } from '@/lib/village/path'
 import { mapEntries } from '@/lib/village/map-entries'
 import { objectSpotAt, spotAt } from '@/lib/village/spot'
@@ -488,10 +490,12 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
       box.y + ((cell.y + 0.5) / town.height) * box.height
     )
     await expect(map).toHaveCount(0)
-    // 地図からの移動は飛ぶ(飛び方は tests/flight.spec.ts)。飛ぶ長さはこのマス数を 1 マス 256ms で
-    // 歩き切る長さより短いので、その長さに押してから動き出すまでの余裕を足した上限で待つ
+    // 地図からの移動は飛ぶ(飛び方は tests/flight.spec.ts)。直線距離はこのマス数を超えないので、飛ぶ長さは
+    // flightDurationMs(steps) を超えない。近すぎて飛ばない時は 1 マス 256ms で歩き切る。
+    // その長い方に、押してから動き出すまでの余裕を足した上限で待つ
+    const moveMs = Math.max(steps * 256, flightDurationMs(steps))
     await expect
-      .poll(() => readCell(page), { timeout: steps * 256 + 2_000 })
+      .poll(() => readCell(page), { timeout: moveMs + 2_000 })
       .toEqual({ worldId: 'town', cell })
   })
 

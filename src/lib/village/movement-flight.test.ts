@@ -6,14 +6,14 @@ import { world, idle } from './movement.fixture'
 // world の通れるマスは (0,0) (1,0) (2,0) (0,1) (1,1) (0,2) (2,2)。(2,1) は水、(1,2) は木
 const at = (cell: Cell): MoveState => ({ ...createMoveState(world), cell, facing: 'up' })
 const travel = (route: Cell[]) => ({ held: null, route, fast: true, fly: true })
-// (0,2) から北の端を回って (2,0) へ。直線で √8 マス、571ms
+// (0,2) から北の端を回って (2,0) へ。直線で √8 マス、1255ms
 const corner: Cell[] = [
   { x: 0, y: 1 },
   { x: 0, y: 0 },
   { x: 1, y: 0 },
   { x: 2, y: 0 },
 ]
-// (0,0) から (2,1) の扉(水のマスに置いたワープ)へ。扉の隣 (2,0) まで直線で2マス、544ms
+// (0,0) から (2,1) の扉(水のマスに置いたワープ)へ。扉の隣 (2,0) まで直線で2マス、1180ms
 const doorWorld: World = {
   ...world,
   warps: [
@@ -42,7 +42,7 @@ describe('step (飛行の開始)', () => {
     expect(r.state.flight).toEqual({
       from: { x: 0, y: 2 },
       to: { x: 2, y: 0 },
-      durationMs: 571,
+      durationMs: 1255,
       elapsedMs: 0,
     })
     expect(r.state.facing).toBe('right')
@@ -101,7 +101,7 @@ describe('step (飛行の開始)', () => {
   })
 
   it('歩いている間に来た fly の経路は、今のマスに着いた歩みで余りの時間を持ち越して飛び立つ', () => {
-    // (1,1) → (0,1) を等速で歩き始め、途中で (0,1) から (2,0) への fly の経路が来る(直線 √5、552ms)
+    // (1,1) → (0,1) を等速で歩き始め、途中で (0,1) から (2,0) への fly の経路が来る(直線 √5、1201ms)
     const r1 = step(world, at({ x: 1, y: 1 }), { ...idle, route: [{ x: 0, y: 1 }] }, 16)
     const route = [
       { x: 0, y: 0 },
@@ -117,7 +117,7 @@ describe('step (飛行の開始)', () => {
     expect(r3.state.flight).toEqual({
       from: { x: 0, y: 1 },
       to: { x: 2, y: 0 },
-      durationMs: 552,
+      durationMs: 1201,
       elapsedMs: 16,
     })
     expect(r3.state.facing).toBe('right')
@@ -172,8 +172,8 @@ describe('step (着地)', () => {
       if (r.arrived !== null) arrivals.push(r.arrived)
       expect(r.bumped).toBeNull()
     }
-    // 571ms を 16ms ずつ: 35 歩みで 560ms、36 歩みめで着地
-    expect(frames).toBe(36)
+    // 1255ms を 16ms ずつ: 78 歩みで 1248ms、79 歩みめで着地
+    expect(frames).toBe(79)
     expect(arrivals).toEqual([{ x: 2, y: 0 }])
     expect(state.cell).toEqual({ x: 2, y: 0 })
     expect(state.facing).toBe('right')
@@ -186,9 +186,9 @@ describe('step (着地)', () => {
 
   it('飛ぶ時間ちょうどの歩みで着地する', () => {
     const launched = step(world, at({ x: 0, y: 2 }), travel(corner), 16).state
-    const before = step(world, launched, idle, 570)
+    const before = step(world, launched, idle, 1254)
     expect(before.arrived).toBeNull()
-    expect(before.state.flight?.elapsedMs).toBe(570)
+    expect(before.state.flight?.elapsedMs).toBe(1254)
     const landed = step(world, before.state, idle, 1)
     expect(landed.arrived).toEqual({ x: 2, y: 0 })
     expect(landed.state.flight).toBeNull()
@@ -196,7 +196,7 @@ describe('step (着地)', () => {
 
   it('扉へ向かう経路は扉の隣に着地した歩みで、残った1歩で扉へぶつかる', () => {
     const launched = step(doorWorld, at({ x: 0, y: 0 }), travel(toDoor), 16).state
-    const r = step(doorWorld, launched, idle, 544)
+    const r = step(doorWorld, launched, idle, 1180)
     expect(r.arrived).toEqual({ x: 2, y: 0 })
     expect(r.bumped).toEqual({ x: 2, y: 1 })
     expect(r.state.cell).toEqual({ x: 2, y: 0 })
@@ -209,7 +209,7 @@ describe('step (着地)', () => {
   it('着地を大きく過ぎた歩みでも、残りの経路は歩き出さずに扉へぶつかって止まる', () => {
     // 着地のマスは経路のうち立てる最後のマスなので、余りの時間があっても次のマスへ歩き出す先が無い
     const launched = step(doorWorld, at({ x: 0, y: 0 }), travel(toDoor), 16).state
-    const r = step(doorWorld, launched, idle, 1000)
+    const r = step(doorWorld, launched, idle, 5000)
     expect(r.arrived).toEqual({ x: 2, y: 0 })
     expect(r.bumped).toEqual({ x: 2, y: 1 })
     expect(r.state.cell).toEqual({ x: 2, y: 0 })
@@ -221,7 +221,7 @@ describe('step (着地)', () => {
   it('着地した歩みでは押した向きを読まず、次の歩みから読む', () => {
     const launched = step(doorWorld, at({ x: 0, y: 0 }), travel(toDoor), 16).state
     const held = { ...idle, held: 'left' as const }
-    const landed = step(doorWorld, launched, held, 600)
+    const landed = step(doorWorld, launched, held, 1500)
     // 扉への1歩は押した向きに捨てられず、ぶつかって向きも扉の方
     expect(landed.bumped).toEqual({ x: 2, y: 1 })
     expect(landed.state.facing).toBe('down')
@@ -233,7 +233,7 @@ describe('step (着地)', () => {
 
   it('着地の後は stride を変えない(歩いた一歩ではない)', () => {
     const launched = step(world, { ...at({ x: 0, y: 2 }), stride: 1 }, travel(corner), 16).state
-    const landed = step(world, launched, idle, 571)
+    const landed = step(world, launched, idle, 1255)
     expect(landed.state.stride).toBe(1)
   })
 })

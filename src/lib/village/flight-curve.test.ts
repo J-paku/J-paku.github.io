@@ -18,27 +18,31 @@ describe('飛行の定数', () => {
 
 describe('flightDurationMs', () => {
   it.each([
-    [-100, 480],
-    [-0.001, 480],
-    [0, 480],
-    [0.015, 480],
-    [0.015625, 481],
-    [1, 512],
-    [1.999, 544],
-    [2, 544],
-    [2.001, 544],
-    [2.015, 544],
-    [2.015625, 545],
-    [Math.sqrt(8), 571],
-    [3.125, 580],
-    [5, 640],
-    [15, 960],
-    [29.96875, 1439],
-    [29.984375, 1440],
-    [30, 1440],
-    [30.03125, 1440],
-    [36, 1440],
-    [1000, 1440],
+    [-100, 1000],
+    [-0.001, 1000],
+    [0, 1000],
+    [0.0055, 1000],
+    [0.0056, 1001],
+    [1, 1090],
+    [1.999, 1180],
+    [2, 1180],
+    [2.001, 1180],
+    [2.0055, 1180],
+    [2.0056, 1181],
+    [Math.sqrt(8), 1255],
+    [3, 1270],
+    [3.125, 1281],
+    [5, 1450],
+    [8, 1720],
+    [15, 2350],
+    [20, 2800],
+    [22.21, 2999],
+    [22.216, 2999],
+    [22.217, 3000],
+    [200 / 9, 3000],
+    [22.23, 3000],
+    [36, 3000],
+    [1000, 3000],
   ])('距離 %s マスの時間は %s msになる', (distance, expected) => {
     expect(flightDurationMs(distance)).toBe(expected)
   })
@@ -49,8 +53,8 @@ describe('flightDurationMs', () => {
       const duration = flightDurationMs(i / 100)
       expect(Number.isInteger(duration)).toBe(true)
       expect(duration).toBeGreaterThanOrEqual(previous)
-      expect(duration).toBeGreaterThanOrEqual(480)
-      expect(duration).toBeLessThanOrEqual(1440)
+      expect(duration).toBeGreaterThanOrEqual(1000)
+      expect(duration).toBeLessThanOrEqual(3000)
       previous = duration
     }
   })
@@ -186,40 +190,40 @@ describe('flightShadowScale', () => {
 
 describe('flightFrame', () => {
   it.each([
-    [-241, 0],
-    [-120, 0],
+    [-641, 0],
+    [-320, 0],
     [-0.001, 0],
     [0, 0],
     [1, 0],
-    [60, 0],
-    [119, 0],
-    [119.999, 0],
-    [120, 1],
-    [120.001, 1],
-    [180, 1],
-    [239, 1],
-    [239.999, 1],
-    [240, 0],
-    [240.001, 0],
-    [359.999, 0],
-    [360, 1],
-    [479.999, 1],
-    [480, 0],
-    [1319.999, 0],
-    [1320, 1],
-    [1439.999, 1],
-    [1440, 0],
-    [1000000079.999, 1],
-    [1000000080, 0],
-    [1000000200, 1],
+    [160, 0],
+    [319, 0],
+    [319.999, 0],
+    [320, 1],
+    [320.001, 1],
+    [480, 1],
+    [639, 1],
+    [639.999, 1],
+    [640, 0],
+    [640.001, 0],
+    [959.999, 0],
+    [960, 1],
+    [1279.999, 1],
+    [1280, 0],
+    [3519.999, 0],
+    [3520, 1],
+    [3839.999, 1],
+    [3840, 0],
+    [1000000319.999, 0],
+    [1000000320, 1],
+    [1000000640, 0],
   ])('%s msでコマ %s を出す', (elapsedMs, expected) => {
     expect(flightFrame(elapsedMs)).toBe(expected)
   })
 
-  it('240ms周期で同じコマを繰り返す', () => {
-    for (let elapsedMs = 0; elapsedMs < 1440; elapsedMs += 1) {
-      expect(flightFrame(elapsedMs + 240)).toBe(flightFrame(elapsedMs))
-      expect(flightFrame(elapsedMs + 120)).toBe(1 - flightFrame(elapsedMs))
+  it('640ms周期で同じコマを繰り返す', () => {
+    for (let elapsedMs = 0; elapsedMs < 3000; elapsedMs += 1) {
+      expect(flightFrame(elapsedMs + 640)).toBe(flightFrame(elapsedMs))
+      expect(flightFrame(elapsedMs + 320)).toBe(1 - flightFrame(elapsedMs))
     }
   })
 })

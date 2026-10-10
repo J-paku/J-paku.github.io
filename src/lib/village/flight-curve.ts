@@ -4,12 +4,12 @@
 export const FLIGHT_LIFT_CELLS = 2.5
 export const FLIGHT_MIN_DISTANCE = 2
 
-// 短距離にも離着陸の間を残し、町の対角線でも1.44秒以内に収める
-const FLIGHT_BASE_MS = 480
-const FLIGHT_CELL_MS = 32
-const FLIGHT_MAX_MS = 1440
-// [0,120)ms は0、[120,240)ms は1。以後は240msごとに繰り返す
-const FLIGHT_FRAME_MS = 120
+// 短距離にも離着陸の間を残し、町を眺める長距離でも3秒以内に収める
+const FLIGHT_BASE_MS = 1000
+const FLIGHT_CELL_MS = 90
+const FLIGHT_MAX_MS = 3000
+// [0,320)ms は0、[320,640)ms は1。雲の縁だけが640ms周期でゆっくり膨らむ
+const FLIGHT_FRAME_MS = 320
 
 const clampRatio = (value: number): number => Math.min(1, Math.max(0, value))
 

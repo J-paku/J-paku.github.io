@@ -397,22 +397,22 @@ describe('playerPose', () => {
       }
     }
   })
-  // 飛んでいる最中の状態。羽ばたきのコマは飛び立ってからの経過で決まる
+  // 飛んでいる最中の状態。雲のコマは飛び立ってからの経過で決まる
   const flying = (facing: (typeof facings)[number], elapsedMs: number): MoveState => ({
     ...state,
     facing,
-    flight: { from: { x: 0, y: 2 }, to: { x: 2, y: 0 }, durationMs: 571, elapsedMs },
+    flight: { from: { x: 0, y: 2 }, to: { x: 2, y: 0 }, durationMs: 1255, elapsedMs },
   })
-  it('飛んでいる間は向きごとの羽ばたきのコマを 120ms ごとに交互に出し、左は右の反転', () => {
+  it('飛んでいる間は向きごとの雲のコマを 320ms ごとに交互に出し、左は右の反転', () => {
     // [経過 ms, コマ]。境界は直前(x.9)とちょうどの両方を置く
     const wings = [
       [0, 0],
-      [119.9, 0],
-      [120, 1],
-      [239.9, 1],
-      [240, 0],
-      [360, 1],
-      [570, 0],
+      [319.9, 0],
+      [320, 1],
+      [639.9, 1],
+      [640, 0],
+      [960, 1],
+      [1254, 1],
     ] as const
     for (const facing of facings) {
       const direction = facing === 'left' ? 'right' : facing
@@ -425,10 +425,10 @@ describe('playerPose', () => {
       }
     }
   })
-  it('動きを控える設定では羽ばたきを最初のコマで止めるが、位置が動くので animating のまま', () => {
+  it('動きを控える設定では雲を最初のコマで止めるが、位置が動くので animating のまま', () => {
     for (const facing of facings) {
       const direction = facing === 'left' ? 'right' : facing
-      for (const elapsed of [0, 120, 360]) {
+      for (const elapsed of [0, 320, 960]) {
         expect(playerPose(flying(facing, elapsed), true), `${facing} ${elapsed}ms`).toEqual({
           key: `player-fly-${direction}-0`,
           flip: facing === 'left',
@@ -437,12 +437,12 @@ describe('playerPose', () => {
       }
     }
   })
-  it('雨の日も飛んでいる間は傘の段階に関わらず同じ羽ばたきのコマを出す', () => {
+  it('雨の日も飛んでいる間は傘の段階に関わらず同じ雲のコマを出す', () => {
     for (const phase of umbrellaPhases) {
       for (const facing of facings) {
         const direction = facing === 'left' ? 'right' : facing
         // 傘の時間表の途中(広げる・畳むコマが出る時刻)でも飛行のコマが勝つ
-        expect(playerPose(flying(facing, 120), false, null, 0, phase, 300)).toEqual({
+        expect(playerPose(flying(facing, 320), false, null, 0, phase, 300)).toEqual({
           key: `player-fly-${direction}-1`,
           flip: facing === 'left',
           animating: true,
@@ -451,7 +451,7 @@ describe('playerPose', () => {
     }
   })
   it('釣りのコマは飛行より優先する', () => {
-    expect(playerPose(flying('down', 120), false, 'casting', FISHING_SWING_MS)).toEqual({
+    expect(playerPose(flying('down', 320), false, 'casting', FISHING_SWING_MS)).toEqual({
       key: 'player-fish-down',
       flip: false,
       animating: false,
