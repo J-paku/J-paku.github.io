@@ -2,6 +2,7 @@
 // 長いフレームで壁を飛び越えないための上限。マスをまたいだ余りの時間は次のマスへ持ち越す
 import type { Cell, Direction, World } from '@content/types/world'
 import { isWalkable } from './collision'
+import type { Flight } from './flight'
 
 export type Motion = { from: Cell; to: Cell; progress: number }
 export type MoveState = {
@@ -10,10 +11,19 @@ export type MoveState = {
   motion: Motion | null
   route: Cell[]
   fast: boolean
+  // 経路の最初の1歩を決める時に飛んでよいか。経路と一緒に受け取り、判定した時点で使い切る
+  fly: boolean
+  // 飛んでいる最中だけ値を持つ。その間 motion は null のまま
+  flight: Flight | null
   turnRemainingMs: number
   stride: 0 | 1
 }
-export type MoveInput = { held: Direction | null; route: Cell[] | null; fast: boolean }
+export type MoveInput = {
+  held: Direction | null
+  route: Cell[] | null
+  fast: boolean
+  fly: boolean
+}
 export type StepResult = { state: MoveState; arrived: Cell | null; bumped: Cell | null }
 
 // 歩行は 1 マス 256ms。携帯機RPGの歩行(16フレーム≒267ms)に合わせる
@@ -36,6 +46,8 @@ export const createMoveState = (world: World): MoveState => ({
   motion: null,
   route: [],
   fast: false,
+  fly: false,
+  flight: null,
   turnRemainingMs: 0,
   stride: 0,
 })

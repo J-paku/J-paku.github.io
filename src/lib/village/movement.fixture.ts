@@ -17,4 +17,4 @@ export const world: World = {
   spots: [],
   warps: [],
 }
-export const idle = { held: null, route: null, fast: false }
+export const idle = { held: null, route: null, fast: false, fly: false }

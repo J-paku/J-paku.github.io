@@ -8,7 +8,12 @@ describe('step (経路追従)', () => {
       { x: 0, y: 1 },
       { x: 0, y: 0 },
     ]
-    const r1 = step(world, createMoveState(world), { held: null, route, fast: false }, 16)
+    const r1 = step(
+      world,
+      createMoveState(world),
+      { held: null, route, fast: false, fly: false },
+      16
+    )
     expect(r1.state.motion?.to).toEqual({ x: 0, y: 1 })
     const r2 = step(world, r1.state, idle, CELL_MS)
     expect(r2.arrived).toEqual({ x: 0, y: 1 })
@@ -19,10 +24,15 @@ describe('step (経路追従)', () => {
     const r1 = step(
       world,
       createMoveState(world),
-      { held: null, route: [{ x: 1, y: 0 }], fast: false },
+      { held: null, route: [{ x: 1, y: 0 }], fast: false, fly: false },
       16
     )
-    const r2 = step(world, r1.state, { held: null, route: [{ x: 0, y: 1 }], fast: false }, 16)
+    const r2 = step(
+      world,
+      r1.state,
+      { held: null, route: [{ x: 0, y: 1 }], fast: false, fly: false },
+      16
+    )
     expect(r2.state.motion?.to).toEqual({ x: 1, y: 0 })
     expect(r2.state.route).toEqual([{ x: 0, y: 1 }])
   })
@@ -30,14 +40,19 @@ describe('step (経路追従)', () => {
     const r1 = step(
       world,
       createMoveState(world),
-      { held: null, route: [{ x: 1, y: 0 }], fast: false },
+      { held: null, route: [{ x: 1, y: 0 }], fast: false, fly: false },
       16
     )
     const r2 = step(world, r1.state, idle, CELL_MS)
-    const r3 = step(world, r2.state, { held: 'left', route: null, fast: false }, 16)
+    const r3 = step(world, r2.state, { held: 'left', route: null, fast: false, fly: false }, 16)
     expect(r3.state.route).toEqual([])
     expect(r3.state.motion).toBeNull()
-    const r4 = step(world, r3.state, { held: 'left', route: null, fast: false }, TURN_MS)
+    const r4 = step(
+      world,
+      r3.state,
+      { held: 'left', route: null, fast: false, fly: false },
+      TURN_MS
+    )
     expect(r4.state.motion?.to).toEqual({ x: 0, y: 0 })
   })
 })
@@ -47,7 +62,7 @@ describe('step (高速移動)', () => {
     const r1 = step(
       world,
       createMoveState(world),
-      { held: null, route: [{ x: 1, y: 0 }], fast: true },
+      { held: null, route: [{ x: 1, y: 0 }], fast: true, fly: false },
       16
     )
     expect(r1.state.fast).toBe(true)
@@ -61,7 +76,12 @@ describe('step (高速移動)', () => {
       { x: 0, y: 1 },
       { x: 0, y: 0 },
     ]
-    const r1 = step(world, createMoveState(world), { held: null, route, fast: true }, 16)
+    const r1 = step(
+      world,
+      createMoveState(world),
+      { held: null, route, fast: true, fly: false },
+      16
+    )
     const r2 = step(world, r1.state, idle, CELL_MS / FAST_DIVISOR)
     expect(r2.arrived).toEqual({ x: 0, y: 1 })
     expect(r2.state.fast).toBe(true)
@@ -74,8 +94,13 @@ describe('step (高速移動)', () => {
       { x: 0, y: 1 },
       { x: 0, y: 0 },
     ]
-    const r1 = step(world, createMoveState(world), { held: null, route, fast: true }, 16)
-    const r2 = step(world, r1.state, { held: 'up', route: null, fast: false }, 16)
+    const r1 = step(
+      world,
+      createMoveState(world),
+      { held: null, route, fast: true, fly: false },
+      16
+    )
+    const r2 = step(world, r1.state, { held: 'up', route: null, fast: false, fly: false }, 16)
     expect(r2.state.fast).toBe(false)
     expect(r2.state.route).toEqual([])
   })
@@ -86,7 +111,7 @@ describe('step (防御)', () => {
     const r = step(
       world,
       createMoveState(world),
-      { held: null, route: [{ x: 0, y: 0 }], fast: false },
+      { held: null, route: [{ x: 0, y: 0 }], fast: false, fly: false },
       16
     )
     expect(r.state.motion).toBeNull()
@@ -97,7 +122,7 @@ describe('step (防御)', () => {
     const r = step(
       world,
       createMoveState(world),
-      { held: null, route: [{ x: 2, y: 1 }], fast: false },
+      { held: null, route: [{ x: 2, y: 1 }], fast: false, fly: false },
       16
     )
     expect(r.state.motion).toBeNull()

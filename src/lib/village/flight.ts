@@ -1,4 +1,5 @@
 // 自動移動の直線飛行。経路から着地するマスを決め、出発から着地までを時間で進める。
+// 飛び立つ・飛んでいる1歩み・着地の移動状態の書き換えもここが持ち、movement.ts は呼ぶのと着地の後の残りの経路を辿るだけ。
 // 描く側が使う表示位置・浮き上がり・影の倍率・羽ばたきのコマ・カメラの持ち上げもここで状態から引く。時間は呼び出し側(rAF)が渡す。
 // 浮き上がりはワールドの上端の近くで、絵が画面の上へ出ない高さまでに抑える(flightLiftLimit)。
 // 曲線・高さ・時間の数値は flight-curve.ts が持ち、ここは経路と状態への当てはめだけを持つ
@@ -12,6 +13,8 @@ import {
   flightLift,
   flightShadowScale,
 } from './flight-curve'
+// movement.ts はこのファイルの関数を値で読むので、こちらからは型だけを読む(値の循環を作らない)
+import type { MoveState } from './movement'
 
 // 飛んでいる最中の状態。elapsedMs は飛び立ってからの経過で、durationMs に届いた歩みで着地する
 export type Flight = { from: Cell; to: Cell; durationMs: number; elapsedMs: number }
@@ -57,6 +60,16 @@ export const planFlight = (
   }
 }
 
+// 止まっているマスから経路の最初の1歩を決める時に、飛び立つかを決める。飛んでよい経路(fly)でなければ、
+// また planFlight が飛ばないと決めたら null を返し、呼び出し側は経路の先頭へ歩く。
+// 飛び立つ時は許可を使い切り、経路を着地の後に辿る残り(扉への1歩)へ置き換える。startMs は前のマスから持ち越した時間
+export const takeOff = (world: World, state: MoveState, startMs: number): MoveState | null => {
+  if (!state.fly) return null
+  const plan = planFlight(world, state.cell, state.route, startMs)
+  if (plan === null) return null
+  return { ...state, fly: false, flight: plan.flight, facing: plan.facing, route: plan.rest }
+}
+
 // 経過を足し、飛ぶ時間に届いた歩みで着地のマスを返す。着地を過ぎた余りの時間は返さない
 // (着地の後に歩き出すことは無いので使い道が無い。advanceFlight を参照)
 export const tickFlight = (flight: Flight, elapsedMs: number): FlightTick => {
@@ -65,6 +78,23 @@ export const tickFlight = (flight: Flight, elapsedMs: number): FlightTick => {
     return { landed: false, flight: { ...flight, elapsedMs: elapsed } }
   return { landed: true, cell: flight.to }
 }
+
+// 飛んでいる最中の移動状態を1歩みぶん進める。着地した歩みでは今のマスを着地のマスへ移して飛行を終え、
+// landed に着地のマスを返す(それ以外の歩みは null)。経路(route)は飛び立った時に残した分のままで、
+// 呼び出し側が着地と同じ歩みで辿る。着地のマスは経路のうち立てる最後のマスなので、残りの経路は
+// 通れないマスだけでできていて、ぶつかるか止まるかで終わり、歩き出すことは無い
+export const advanceFlight = (
+  state: MoveState,
+  flight: Flight,
+  elapsedMs: number
+): { state: MoveState; landed: Cell | null } => {
+  const tick = tickFlight(flight, elapsedMs)
+  if (!tick.landed) return { state: { ...state, flight: tick.flight }, landed: null }
+  return { state: { ...state, cell: tick.cell, flight: null }, landed: tick.cell }
+}
+
+// 飛んでいる最中か。歩いている間(motion)は数えない。地図を開く操作は飛んでいる間だけ止める
+export const isFlying = ({ flight }: Pick<MoveState, 'flight'>): boolean => flight !== null
 
 const ratio = (flight: Flight): number => flight.elapsedMs / flight.durationMs
 

@@ -1,18 +1,24 @@
 // 直線飛行の着地の決め方・向き・時間の進め方・移動状態の書き換えと、描く側へ渡す位置・高さ・影・コマ・カメラの持ち上げを検査する。
+// 高さはワールドの上端の近くで上限に抑える所(絵が画面の上へ出ない・立っているだけで出る所では浮かない・途中で跳ばない)と、
+// 飛んでいる最中かの判定(isFlying。地図を開く操作を止めるのに使う)も見る。
 // 期待値は flight-curve の関数で計算し直さず数で書く(同じ式で計算し直すと、式を壊した変異が生き残る)
 import type { World } from '@content/types/world'
 import {
+  advanceFlight,
   flightCameraLift,
   flightFacing,
   flightLiftCells,
   flightLiftLimit,
   flightPosition,
   flightShadow,
+  isFlying,
   planFlight,
+  takeOff,
   tickFlight,
   type Flight,
 } from './flight'
 import { FLIGHT_LIFT_CELLS } from './flight-curve'
+import type { MoveState } from './movement'
 import { world } from './movement.fixture'
 
 // world の通れるマスは (0,0) (1,0) (2,0) (0,1) (1,1) (0,2) (2,2)。(2,1) は水、(1,2) は木
@@ -209,6 +215,136 @@ describe('tickFlight', () => {
 
   it('飛ぶ時間を過ぎた歩みでも着地のマスだけを返し、余りの時間は返さない', () => {
     expect(tickFlight(flight, 500)).toEqual({ landed: true, cell: { x: 0, y: 0 } })
+  })
+})
+
+describe('takeOff', () => {
+  // (0,0) から (2,1) の水のマス(扉の代わり)へ向かう経路。立てる最後のマス (2,0) まで直線で2マス、544ms
+  const resting: MoveState = {
+    cell: { x: 0, y: 0 },
+    facing: 'up',
+    motion: null,
+    route: [
+      { x: 1, y: 0 },
+      { x: 2, y: 0 },
+      { x: 2, y: 1 },
+    ],
+    fast: true,
+    fly: true,
+    flight: null,
+    turnRemainingMs: 0,
+    stride: 1,
+  }
+
+  it('飛んでよい経路なら許可を使い切って飛び立ち、経路を着地の後にぶつかる1歩だけにする', () => {
+    expect(takeOff(world, resting, 37)).toEqual({
+      cell: { x: 0, y: 0 },
+      facing: 'right',
+      motion: null,
+      route: [{ x: 2, y: 1 }],
+      fast: true,
+      fly: false,
+      flight: { from: { x: 0, y: 0 }, to: { x: 2, y: 0 }, durationMs: 544, elapsedMs: 37 },
+      turnRemainingMs: 0,
+      stride: 1,
+    })
+  })
+
+  it('飛んでよい経路でなければ飛び立たない', () => {
+    expect(takeOff(world, { ...resting, fly: false }, 0)).toBeNull()
+  })
+
+  it('飛んでよくても、直線で2マスに届かない経路なら飛び立たない', () => {
+    expect(takeOff(world, { ...resting, route: [{ x: 1, y: 0 }] }, 0)).toBeNull()
+  })
+})
+
+describe('advanceFlight', () => {
+  const flight: Flight = {
+    from: { x: 0, y: 0 },
+    to: { x: 2, y: 0 },
+    durationMs: 544,
+    elapsedMs: 100,
+  }
+  // 飛び立った後の状態。経路には着地の後にぶつかる1歩が残っている
+  const flying: MoveState = {
+    cell: { x: 0, y: 0 },
+    facing: 'right',
+    motion: null,
+    route: [{ x: 2, y: 1 }],
+    fast: true,
+    fly: false,
+    flight,
+    turnRemainingMs: 0,
+    stride: 1,
+  }
+
+  it('飛ぶ時間に届くまでは経過だけを足し、今のマスも残りの経路も変えない', () => {
+    expect(advanceFlight(flying, flight, 443)).toEqual({
+      state: {
+        cell: { x: 0, y: 0 },
+        facing: 'right',
+        motion: null,
+        route: [{ x: 2, y: 1 }],
+        fast: true,
+        fly: false,
+        flight: { from: { x: 0, y: 0 }, to: { x: 2, y: 0 }, durationMs: 544, elapsedMs: 543 },
+        turnRemainingMs: 0,
+        stride: 1,
+      },
+      landed: null,
+    })
+  })
+
+  it('着地の歩みで今のマスを着地のマスへ移して飛行を終え、残りの経路はそのまま渡す', () => {
+    const landedState: MoveState = {
+      cell: { x: 2, y: 0 },
+      facing: 'right',
+      motion: null,
+      route: [{ x: 2, y: 1 }],
+      fast: true,
+      fly: false,
+      flight: null,
+      turnRemainingMs: 0,
+      stride: 1,
+    }
+    expect(advanceFlight(flying, flight, 444)).toEqual({
+      state: landedState,
+      landed: { x: 2, y: 0 },
+    })
+    // 飛ぶ時間を大きく過ぎた歩みでも同じ。余りの時間はどこにも持ち越さない
+    expect(advanceFlight(flying, flight, 5000)).toEqual({
+      state: landedState,
+      landed: { x: 2, y: 0 },
+    })
+  })
+})
+
+describe('isFlying', () => {
+  it('飛んでいる間だけ true', () => {
+    const flight: Flight = {
+      from: { x: 0, y: 2 },
+      to: { x: 0, y: 0 },
+      durationMs: 544,
+      elapsedMs: 0,
+    }
+    expect(isFlying({ flight })).toBe(true)
+    expect(isFlying({ flight: null })).toBe(false)
+  })
+
+  it('歩いている間(motion)は飛んでいると数えない', () => {
+    const walking: MoveState = {
+      cell: { x: 0, y: 0 },
+      facing: 'right',
+      motion: { from: { x: 0, y: 0 }, to: { x: 1, y: 0 }, progress: 0.5 },
+      route: [],
+      fast: false,
+      fly: false,
+      flight: null,
+      turnRemainingMs: 0,
+      stride: 1,
+    }
+    expect(isFlying(walking)).toBe(false)
   })
 })
 

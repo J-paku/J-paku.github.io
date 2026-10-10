@@ -21,6 +21,8 @@ describe('playerPose', () => {
     motion: null,
     route: [],
     fast: false,
+    fly: false,
+    flight: null,
     turnRemainingMs: 0,
     stride: 0,
   }

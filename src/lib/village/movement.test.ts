@@ -7,7 +7,7 @@ describe('step', () => {
   it('押下方向へ1マスの移動を開始し、CELL_MS 経過で到着する', () => {
     const s0 = createMoveState(world)
     expect(s0.fast).toBe(false)
-    const r1 = step(world, s0, { held: 'up', route: null, fast: false }, 16)
+    const r1 = step(world, s0, { held: 'up', route: null, fast: false, fly: false }, 16)
     expect(r1.state.facing).toBe('up')
     expect(r1.state.motion?.to).toEqual({ x: 1, y: 0 })
     expect(r1.arrived).toBeNull()
@@ -18,21 +18,41 @@ describe('step', () => {
     expect(r2.state.motion).toBeNull()
   })
   it('壁方向は向きだけ変えて動かず、bumped にそのマスを返す', () => {
-    const r = step(world, createMoveState(world), { held: 'right', route: null, fast: false }, 16)
+    const r = step(
+      world,
+      createMoveState(world),
+      { held: 'right', route: null, fast: false, fly: false },
+      16
+    )
     expect(r.state.facing).toBe('right')
     expect(r.state.motion).toBeNull()
     expect(r.state.cell).toEqual({ x: 1, y: 1 })
     expect(r.bumped).toEqual({ x: 2, y: 1 })
   })
   it('木に向かって歩くと bumped になる', () => {
-    const r = step(world, createMoveState(world), { held: 'down', route: null, fast: false }, 16)
+    const r = step(
+      world,
+      createMoveState(world),
+      { held: 'down', route: null, fast: false, fly: false },
+      16
+    )
     expect(r.bumped).toEqual({ x: 1, y: 2 })
     expect(r.state.facing).toBe('down')
     expect(r.state.motion).toBeNull()
   })
   it('長いフレームでも1ステップで1マスしか進まない', () => {
-    const r1 = step(world, createMoveState(world), { held: 'up', route: null, fast: false }, 16)
-    const r2 = step(world, r1.state, { held: 'up', route: null, fast: false }, CELL_MS * 5)
+    const r1 = step(
+      world,
+      createMoveState(world),
+      { held: 'up', route: null, fast: false, fly: false },
+      16
+    )
+    const r2 = step(
+      world,
+      r1.state,
+      { held: 'up', route: null, fast: false, fly: false },
+      CELL_MS * 5
+    )
     expect(r2.state.cell).toEqual({ x: 1, y: 0 })
     expect(r2.state.motion).toBeNull()
   })
@@ -45,7 +65,12 @@ describe('step (連続歩行)', () => {
       { x: 0, y: 1 },
       { x: 0, y: 0 },
     ]
-    const r1 = step(world, createMoveState(world), { held: null, route, fast: false }, 16)
+    const r1 = step(
+      world,
+      createMoveState(world),
+      { held: null, route, fast: false, fly: false },
+      16
+    )
     const r2 = step(world, r1.state, idle, 16)
     // 16 + CELL_MS で1マスを16ms超過。超過分だけ次のマスが進んでいる
     const r3 = step(world, r2.state, idle, CELL_MS)
@@ -54,7 +79,7 @@ describe('step (連続歩行)', () => {
     expect(r3.state.motion?.progress).toBeCloseTo(16 / CELL_MS)
   })
   it('押し続けている間は到着フレームでも motion が途切れない', () => {
-    const held = { held: 'up' as const, route: null, fast: false }
+    const held = { held: 'up' as const, route: null, fast: false, fly: false }
     let state: MoveState = { ...createMoveState(world), cell: { x: 0, y: 2 }, facing: 'up' }
     let arrivals = 0
     let stalls = 0
@@ -71,7 +96,7 @@ describe('step (連続歩行)', () => {
     expect(state.cell).toEqual({ x: 0, y: 0 })
   })
   it('押し続けたまま壁の手前へ到着したら bumped だけ返して動かない', () => {
-    const held = { held: 'up' as const, route: null, fast: false }
+    const held = { held: 'up' as const, route: null, fast: false, fly: false }
     const r1 = step(world, createMoveState(world), held, 16)
     const r2 = step(world, r1.state, held, CELL_MS)
     expect(r2.arrived).toEqual({ x: 1, y: 0 })
@@ -80,7 +105,7 @@ describe('step (連続歩行)', () => {
     expect(r2.state.cell).toEqual({ x: 1, y: 0 })
   })
   it('通れる次のマスへ繋ぐ長いフレームでも、持ち越した進捗は1マス分を超えない', () => {
-    const held = { held: 'up' as const, route: null, fast: false }
+    const held = { held: 'up' as const, route: null, fast: false, fly: false }
     // (0,2) から上は (0,1)・(0,0) と 2 マス続けて通れる。連結先が通行不可だと余りが捨てられ、上限を通らない
     const start: MoveState = { ...createMoveState(world), cell: { x: 0, y: 2 }, facing: 'up' }
     const r1 = step(world, start, held, 16)
@@ -96,7 +121,12 @@ describe('step (連続歩行)', () => {
       { x: 0, y: 1 },
       { x: 0, y: 0 },
     ]
-    let state = step(world, createMoveState(world), { held: null, route, fast: false }, 16).state
+    let state = step(
+      world,
+      createMoveState(world),
+      { held: null, route, fast: false, fly: false },
+      16
+    ).state
     const seen: Cell[] = []
     for (let i = 0; i < 40; i += 1) {
       const r = step(world, state, idle, 16)
