@@ -33,6 +33,7 @@ type UmbrellaOpenStep = (typeof UMBRELLA_OPEN_STEPS)[number]
 type UmbrellaCloseStep = (typeof UMBRELLA_CLOSE_STEPS)[number]
 
 type PlayerSpriteKey =
+  | `player-fly-${'down' | 'up' | 'right'}-${0 | 1}`
   | 'player-up-0'
   | 'player-up-1'
   | 'player-up-2'
@@ -150,6 +151,13 @@ const playerSpriteArts = (frames: PlayerFrames): Record<PlayerSpriteKey, PixelAr
   // 原画を写したときに足した左向き。前の鍵の index を動かさないよう末尾に並べる
   'player-umbrella-left-0': frames.umbrellaLeft[0],
   'player-umbrella-left-1': frames.umbrellaLeft[1],
+  // 飛行のコマを末尾へ足し、既存の索引を保つ
+  'player-fly-down-0': frames.flyDown[0],
+  'player-fly-down-1': frames.flyDown[1],
+  'player-fly-up-0': frames.flyUp[0],
+  'player-fly-up-1': frames.flyUp[1],
+  'player-fly-right-0': frames.flyRight[0],
+  'player-fly-right-1': frames.flyRight[1],
 })
 
 // 釣りの小物は昼夜で絵が変わらないので、地形・建物と同じ 16×16 のシートへ並べるだけでよい

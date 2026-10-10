@@ -164,17 +164,18 @@ describe('PLAYER_ARTS', () => {
     // 地形・建物と同じ理由で実測値を書く(コマ数を数える式を両辺に置くと何も守らない)。
     // 傘のコマ 18 枚(差して立つ・歩く 8、出す 5、しまう 5)を足して 35 から更新。
     // 原画を写したときに傘を差した左向き 2 枚を足して 55 へ
-    expect(sheet.count).toBe(55)
+    // 飛行の3方向2コマを足して61へ
+    expect(sheet.count).toBe(61)
     expect({ tile: sheet.tile, height: sheet.height }).toEqual({ tile: 32, height: 32 })
   })
 
-  it('傘の無いコマは画布の余白に何も描かず、体の箱の中だけに収まる', () => {
-    // 余白へ描いてよいのは傘だけ。ここへ漏れると、画面では体の箱の外へ絵がはみ出して見える。
+  it('傘と飛行以外は画布の余白に何も描かず、体の箱の中だけに収まる', () => {
+    // 傘と飛行は余白も使う。飛行の画布と反転はflight-art.test.tsで確かめる
     // 体の箱の中身が変わっていないことはsprites.test.tsの基準画像が見ている
     const inBody = (x: number, y: number): boolean =>
       y >= PLAYER_BODY_TOP && x >= PLAYER_BODY_LEFT && x < PLAYER_BODY_LEFT + TILE
     const leaks = Object.entries(PLAYER_ARTS)
-      .filter(([key]) => !key.startsWith('player-umbrella-'))
+      .filter(([key]) => !key.startsWith('player-umbrella-') && !key.startsWith('player-fly-'))
       .flatMap(([key, art]) =>
         art.flatMap((row, y) =>
           [...row].flatMap((ch, x) => (ch === '.' || inBody(x, y) ? [] : [`${key} ${x},${y}`]))
@@ -212,8 +213,12 @@ describe('PLAYER_ARTS', () => {
     // 竿のコマも左向きは scaleX(-1) で作るので、同じ掟が要る。釣りの動きのコマも含めて横向きは全部見る。
     // 反転の軸は体の箱の真ん中なので、見るのは体の箱の1〜14列(画布の9〜22列)の外が空いていること。
     // 傘を差した横向きは左向きも原画の行を持ち、反転して使わないのでこの掟の外
+    // 飛行は32×32の外周と昼夜の反転をflight-art.test.tsで検査する
     const rights = Object.entries(PLAYER_ARTS).filter(
-      ([key]) => key.includes('-right') && !key.startsWith('player-umbrella-')
+      ([key]) =>
+        key.includes('-right') &&
+        !key.startsWith('player-umbrella-') &&
+        !key.startsWith('player-fly-')
     )
     // 静止・歩行の 2 枚、糸を垂らして待つ 1 枚、動きの場面の数だけ
     expect(rights).toHaveLength(2 + 1 + FISHING_MOTIONS.length)

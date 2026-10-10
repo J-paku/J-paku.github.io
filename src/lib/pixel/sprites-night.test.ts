@@ -51,6 +51,8 @@ const umbrellaFaceOf = (key: string): string => {
 const faceOf = (key: string): string => {
   const parts = key.split('-')
   if (parts[1] === 'umbrella') return umbrellaFaceOf(key)
+  // 飛行の背面は灯りを胴の外へ出すので正面の型紙を使う
+  if (parts[1] === 'fly') return parts[2] === 'right' ? 'side' : 'front'
   return FACE_OF_FACING[parts[1] === 'fish' ? parts[2] : parts[1]]
 }
 
@@ -250,8 +252,12 @@ describe('夜だけ差し替える素材', () => {
     // 釣りの動きのコマも含めて横向きは全部見る。静止・歩行の 2 枚、待つ 1 枚、動きの場面の数だけある。
     // 見方は昼(sprites-art.test.ts)と同じで、体の箱の1〜14列の外が空いていること。
     // 傘を差した横向きは左向きも原画の行を持ち、反転して使わないのでこの掟の外
+    // 飛行は32×32の外周と昼夜の反転をflight-art.test.tsで検査する
     const rights = Object.entries(PLAYER_NIGHT_ARTS).filter(
-      ([key]) => key.includes('-right') && !key.startsWith('player-umbrella-')
+      ([key]) =>
+        key.includes('-right') &&
+        !key.startsWith('player-umbrella-') &&
+        !key.startsWith('player-fly-')
     )
     expect(rights).toHaveLength(2 + 1 + FISHING_MOTIONS.length)
     const margin = '.'.repeat(PLAYER_BODY_LEFT + 1)

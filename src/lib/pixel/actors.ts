@@ -1,10 +1,11 @@
 // 主人公: 深緑のキャップにゴーグル、茶髪、緑のジャケットと斜め掛けの革ストラップ(参照画像を 15×20 で写した二頭身)
 // タイルは幅 16・高さ 24。足元をマスの下辺に揃え、頭はマスの上へ半マス(8 行)はみ出す。
 // 静止コマは 4〜23 行、歩行コマは全体が一段下がって 5〜23 行に収まり、最下行だけ脚を振る
-// シートへ焼くときはこの体を32×32の画布へ置き、余白へ描くのは傘を差したコマだけ(下のPLAYER_BODY_*と傘の見出し)
+// シートへ焼くときはこの体を32×32の画布へ置き、傘と飛行のコマは余白も使う(下のPLAYER_BODY_*)
 // 輪郭は x(#181818)で描き、白い縁取りは scene.module.css の drop-shadow が付ける
 import { mirrorX, TILE } from './art'
 import type { PixelArt } from './art'
+import { flightArt } from './flight-art'
 import { backLantern, frontLantern, LANTERN_BODY_TOP, overlayLantern, sideLantern } from './lantern'
 import {
   umbrellaDownOriginal,
@@ -16,7 +17,7 @@ import {
 export const PLAYER_HEIGHT = 24
 
 // シートの1コマは32×32の画布。16×24の体を左右8列・上8行の余白の下辺中央へ置き、足元は画布の下辺のまま。
-// 余白へ描くのは傘を差したコマだけで、傘の無いコマは余白を空けたまま、体のドットも立つ位置も16×24の頃と変わらない。
+// 傘と飛行以外は余白を空けたまま、体のドットも立つ位置も16×24の頃と変わらない。
 // 画面ではscene.module.cssの.playerが体の箱(1×1.5マス)のまま立ち、::beforeがこの画布を左右と上へ半マスずつはみ出させて描く
 export const PLAYER_BODY_LEFT = 8
 export const PLAYER_BODY_TOP = 8
@@ -27,6 +28,10 @@ export const PLAYER_FRAME_HEIGHT = PLAYER_HEIGHT + PLAYER_BODY_TOP
 type FishingFrames = [PixelArt, PixelArt, PixelArt]
 
 type PlayerFrames = {
+  // 飛行の2コマ。既に32×32の画布へ描かれている
+  flyDown: [PixelArt, PixelArt]
+  flyUp: [PixelArt, PixelArt]
+  flyRight: [PixelArt, PixelArt]
   up: [PixelArt, PixelArt, PixelArt]
   down: [PixelArt, PixelArt, PixelArt]
   right: [PixelArt, PixelArt]
@@ -1311,6 +1316,9 @@ const umbrellaUpStow: PixelArt = [
 ]
 
 export const playerArt: PlayerFrames = {
+  flyDown: [flightArt['player-fly-down-0'], flightArt['player-fly-down-1']],
+  flyUp: [flightArt['player-fly-up-0'], flightArt['player-fly-up-1']],
+  flyRight: [flightArt['player-fly-right-0'], flightArt['player-fly-right-1']],
   up: framed3(upFrames),
   down: framed3(downFrames),
   right: framed2(rightFrames),
@@ -1452,6 +1460,19 @@ const litFishing = ([up, down, right]: FishingFrames): FishingFrames => [
 
 // 夜のコマ。コマ数も並びも playerArt と同じで、違いは灯りのドットだけ
 export const playerNightArt: PlayerFrames = {
+  // 手から提げる(正面は手の真下、横向きは吊り手を手の真横、背面は前へ伸ばした手の斜め下)。手は2コマで固定し、灯りが体を削らない余白へ置く
+  flyDown: [
+    hangLantern(playerArt.flyDown[0], { face: frontLantern, mirrored: false, dx: 2, top: 19 }),
+    hangLantern(playerArt.flyDown[1], { face: frontLantern, mirrored: false, dx: 2, top: 19 }),
+  ],
+  flyUp: [
+    hangLantern(playerArt.flyUp[0], { face: frontLantern, mirrored: false, dx: 4, top: 7 }),
+    hangLantern(playerArt.flyUp[1], { face: frontLantern, mirrored: false, dx: 4, top: 7 }),
+  ],
+  flyRight: [
+    hangLantern(playerArt.flyRight[0], { face: sideLantern, mirrored: false, dx: 6, top: 20 }),
+    hangLantern(playerArt.flyRight[1], { face: sideLantern, mirrored: false, dx: 6, top: 20 }),
+  ],
   up: [
     standLit(playerArt.up[0], backLantern),
     walkLit(playerArt.up[1], backLantern),

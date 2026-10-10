@@ -3,6 +3,7 @@
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { buildSheet, TILE } from './art'
+import { playerArt, playerNightArt } from './actors'
 import { palette } from './palette'
 import { phasePalette } from './palette-phase'
 import {
@@ -33,6 +34,17 @@ describe('時刻ごとのシート', () => {
   // 釣り竿を持つ 3 コマ(上・下・右)を足したので更新
   const PLAYER_BASELINE = { count: 11, length: 1538, sha256: '16c42e43a1810762' }
 
+  it.each([
+    [playerArt, '11968cb72c70609467417eeaf6489fcf50d51880298a4fbe8ffc7262d04f8925'],
+    [playerNightArt, '4d10029e5b9eddcb155345bda192864a78a69ff5e16078ed7d9379821a63c2e5'],
+  ] as const)('飛行を足しても既存55コマの全文字を昼夜とも保つ', (frames, hash) => {
+    // 飛行追加前のHEADから採った行列の指紋。傘と釣りの全コマも含み、既存の原画を守る
+    const entries = Object.entries(frames)
+      .filter(([key]) => !['flyDown', 'flyUp', 'flyRight'].includes(key))
+      .sort(([a], [b]) => a.localeCompare(b))
+    expect(createHash('sha256').update(JSON.stringify(entries)).digest('hex')).toBe(hash)
+  })
+
   it('昼のシートは消灯レンズと経歴碑を含む基準画像と一致する', () => {
     const arts = Object.fromEntries(
       Object.entries(SPRITE_ARTS).filter(
@@ -54,7 +66,7 @@ describe('時刻ごとのシート', () => {
   it('昼の主人公シートは 1 バイトも変わらない', () => {
     // 後から足した釣りの動き(投げ・当たり・釣り上げ)のコマを外して、既存の歩行・待機コマの同一性を守る。
     // 動きの場面は FISHING_MOTIONS から外すので、場面を足してもこの基準を焼き直さずに済む。
-    // 後から足した傘のコマ(player-umbrella-*)も同じ方針で外す。
+    // 後から足した傘と飛行のコマも同じ方針で外す。
     // コマは傘のために32×32の画布へ置いたので、体の箱(16×24)を切り出して前と同じ寸法で焼く。
     // 箱の外(余白)が空いていることはsprites-art.test.tsが見ている
     const arts = Object.fromEntries(
@@ -62,7 +74,8 @@ describe('時刻ごとのシート', () => {
         .filter(
           ([key]) =>
             !FISHING_MOTIONS.some(motion => key.endsWith(`-${motion}`)) &&
-            !key.startsWith('player-umbrella-')
+            !key.startsWith('player-umbrella-') &&
+            !key.startsWith('player-fly-')
         )
         .map(([key, art]) => [key, bodyOf(art)])
     )
