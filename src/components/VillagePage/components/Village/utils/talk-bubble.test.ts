@@ -61,6 +61,52 @@ describe('resolveTalkBubble', () => {
     })
   })
 
+  it('地点の外で水を向いて立てば、水辺の吹き出しを頭上に出す', () => {
+    const playerCell = { x: 4, y: 6 }
+    expect(
+      resolveTalkBubble({ ...base, activeSpot: null, fishingTarget: { x: 4, y: 7 }, playerCell })
+    ).toEqual({
+      canFish: true,
+      talkAt: { x: 4.5, y: 5.5 },
+      talkText: text.fishing.prompt,
+      talkLabel: text.fishing.go,
+      talkKind: 'speech',
+    })
+  })
+
+  it('地点の外で水を向いていなければ、どの吹き出しも出さない', () => {
+    expect(resolveTalkBubble({ ...base, activeSpot: null, playerCell: { x: 4, y: 6 } })).toEqual({
+      canFish: false,
+      talkAt: null,
+      talkText: null,
+      talkLabel: undefined,
+      talkKind: 'speech',
+    })
+  })
+
+  it('釣り場でない地点に立てば、水を向いていても地点の吹き出しを出して釣りにはしない', () => {
+    expect(
+      resolveTalkBubble({
+        ...base,
+        activeSpot: lab,
+        fishingTarget: { x: lab.cell.x, y: lab.cell.y + 1 },
+        playerCell: lab.cell,
+      })
+    ).toEqual({
+      canFish: false,
+      talkAt: talkAnchor(town, lab, lab.cell),
+      talkText: arriveSpeech(text, lab),
+      talkLabel: talkLabelOf(text, lab),
+      talkKind: 'speech',
+    })
+  })
+
+  it('全部を釣り上げた後でも、釣り場でない地点の吹き出しは考え事にしない', () => {
+    expect(
+      resolveTalkBubble({ ...base, activeSpot: lab, playerCell: lab.cell, exhausted: true })
+    ).toMatchObject({ canFish: false, talkKind: 'speech' })
+  })
+
   it('釣れる中身が無い・歩行中でない時は水辺の吹き出しを出さない', () => {
     const empty = {
       canFish: false,

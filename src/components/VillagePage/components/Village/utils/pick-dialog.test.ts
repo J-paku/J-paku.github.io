@@ -56,4 +56,8 @@ describe('pickDialog', () => {
     expect(pickDialog({ ...base, mode: 'walk', activeSpot: lab, fishingStop })).toBeNull()
     expect(pickDialog({ ...base, mode: 'fishing', activeSpot: null, fishingStop: null })).toBeNull()
   })
+
+  it('会話中でも話している地点が無ければ、釣りの結果があっても何も出さない', () => {
+    expect(pickDialog({ ...base, mode: 'talk', activeSpot: null, fishingStop })).toBeNull()
+  })
 })

@@ -40,7 +40,7 @@ export const resolveTalkBubble = ({
   // 釣り場の地点(action: 'fishing')に立った時は、地点の吹き出しを出さず水辺の吹き出し 1 つにまとめる。
   // 釣れる中身が無ければ投げられないので、吹き出しごと出さない
   const atFishingSpot = activeSpot?.action === 'fishing'
-  const spotBubble = activeSpot !== null && !atFishingSpot ? activeSpot : null
+  const spotBubble = atFishingSpot ? null : activeSpot
   const canFish =
     mode === 'walk' &&
     catchCount > 0 &&
@@ -57,7 +57,8 @@ export const resolveTalkBubble = ({
     spotBubble !== null ? arriveSpeech(text, spotBubble) : canFish ? water.text : null
   const talkLabel =
     spotBubble !== null ? talkLabelOf(text, spotBubble) : canFish ? water.label : undefined
-  const talkKind = spotBubble === null && canFish ? water.kind : 'speech'
+  // 水辺の吹き出しを出す時(canFish)は地点の吹き出しが無い(釣り場の地点か、地点の外)ので、形は水辺の側だけで決まる
+  const talkKind = canFish ? water.kind : 'speech'
 
   return { canFish, talkAt, talkText, talkLabel, talkKind }
 }

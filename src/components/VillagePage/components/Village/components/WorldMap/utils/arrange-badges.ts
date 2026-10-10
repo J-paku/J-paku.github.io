@@ -21,16 +21,25 @@ const centerOf = (box: BadgeBox) => ({
   y: (box.top + box.bottom) / 2,
 })
 
-// 向き(-1 / +1)へ、a に触れなくなるまで b を動かす量。0 の差は +1(右・下)とみなす
-const clearance = (a: BadgeBox, b: BadgeBox, axis: 'x' | 'y', sign: number) => {
-  if (axis === 'x') return sign > 0 ? a.right + BADGE_GAP - b.left : a.left - BADGE_GAP - b.right
-  return sign > 0 ? a.bottom + BADGE_GAP - b.top : a.top - BADGE_GAP - b.bottom
-}
+// a に触れなくなるまで b を横へ動かす量。back なら左へ、そうでなければ右へ
+const clearanceX = (a: BadgeBox, b: BadgeBox, back: boolean) =>
+  back ? a.left - BADGE_GAP - b.right : a.right + BADGE_GAP - b.left
 
-const shifted = (box: BadgeBox, axis: 'x' | 'y', amount: number): BadgeBox =>
-  axis === 'x'
-    ? { ...box, left: box.left + amount, right: box.right + amount }
-    : { ...box, top: box.top + amount, bottom: box.bottom + amount }
+// a に触れなくなるまで b を縦へ動かす量。back なら上へ、そうでなければ下へ
+const clearanceY = (a: BadgeBox, b: BadgeBox, back: boolean) =>
+  back ? a.top - BADGE_GAP - b.bottom : a.bottom + BADGE_GAP - b.top
+
+const shiftedX = (box: BadgeBox, amount: number): BadgeBox => ({
+  ...box,
+  left: box.left + amount,
+  right: box.right + amount,
+})
+
+const shiftedY = (box: BadgeBox, amount: number): BadgeBox => ({
+  ...box,
+  top: box.top + amount,
+  bottom: box.bottom + amount,
+})
 
 const insideBox = (box: BadgeBox, frame: BadgeBox) =>
   box.left >= frame.left &&
@@ -80,13 +89,11 @@ export const arrangeBadges = (canvas: HTMLElement) => {
       const to = centerOf(box)
       const dx = to.x - from.x
       const dy = to.y - from.y
-      const signX = dx < 0 ? -1 : 1
-      const signY = dy < 0 ? -1 : 1
-      const first = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y'
-      const second = first === 'x' ? 'y' : 'x'
-      const sign = (axis: 'x' | 'y') => (axis === 'x' ? signX : signY)
-      const tryFirst = shifted(box, first, clearance(hit, box, first, sign(first)))
-      const trySecond = shifted(box, second, clearance(hit, box, second, sign(second)))
+      // 中心の差が負の軸は左・上へ押す。0 の差は右・下とみなす
+      const towardX = shiftedX(box, clearanceX(hit, box, dx < 0))
+      const towardY = shiftedY(box, clearanceY(hit, box, dy < 0))
+      const [tryFirst, trySecond] =
+        Math.abs(dx) >= Math.abs(dy) ? [towardX, towardY] : [towardY, towardX]
       box = insideBox(tryFirst, frame) || !insideBox(trySecond, frame) ? tryFirst : trySecond
     }
     placed.push(box)

@@ -141,6 +141,12 @@ describe('cameraOffset', () => {
     // -floor((10-6)/2)=-2・-floor((9-5)/2)=-2
     expect(cameraOffset({ width: 6, height: 5 }, { x: 0, y: 4 })).toEqual({ x: -2, y: -2 })
   })
+  it('表示枠とちょうど同じ大きさのワールドは焦点を読まず、どこに立っても原点0のまま', () => {
+    // 同寸は中央寄せの側で扱い、焦点から原点を求めない。焦点が数でなくても(NaN)原点は0から動かない
+    const view = { width: VIEW_COLS, height: VIEW_ROWS }
+    expect(cameraOffset(view, { x: 9, y: 8 })).toEqual({ x: 0, y: 0 })
+    expect(cameraOffset(view, { x: Number.NaN, y: Number.NaN })).toEqual({ x: 0, y: 0 })
+  })
 })
 
 describe('approachCamera', () => {
@@ -168,6 +174,11 @@ describe('approachCamera', () => {
     const far = { x: CAM_SNAP_CELLS + 0.5, y: 0.2 }
     expect(approachCamera({ x: 0, y: 0 }, far, 16)).toEqual(far)
   })
+  it('y だけが CAM_SNAP_CELLS を超えても両軸とも即座に目標へ', () => {
+    // 縦のワープ・地図移動。x の差は補間する距離でも、y に揃えて一緒に飛ばす
+    const far = { x: 0.2, y: -(CAM_SNAP_CELLS + 0.5) }
+    expect(approachCamera({ x: 0, y: 0 }, far, 16)).toEqual(far)
+  })
   it('差がちょうど CAM_SNAP_CELLS なら飛ばさず補間する', () => {
     // 閾値は「超えたら」飛ばす。ちょうどの値は補間側に残るので、ここで即到達すると
     // 判定が > から >= へ緩んだことになる(閾値+0.5 だけ見ていると気付けない)
@@ -191,5 +202,17 @@ describe('approachCamera', () => {
     const target = { x: 5, y: 3 }
     const next = approachCamera({ x: 5 - 1 / (CELL_MAX * 8), y: 3 }, target, 16)
     expect(next).toEqual(target)
+  })
+  it('残差がちょうど半px(1/(CELL_MAX*2)マス)なら吸着せず補間する', () => {
+    // 吸着は半pxを「切ったら」。ちょうどの値は補間側に残るので、両軸とも目標へ届かない。
+    // 1/128 は二進小数で割り切れるので、差は厳密に半pxになる
+    const half = 1 / (CELL_MAX * 2)
+    const current = { x: 5 - half, y: 3 + half }
+    const next = approachCamera(current, { x: 5, y: 3 }, 16)
+    const ratio = 1 - Math.exp(-16 / CAM_TAU)
+    expect(next.x).toBeCloseTo(current.x + half * ratio, 12)
+    expect(next.y).toBeCloseTo(current.y - half * ratio, 12)
+    expect(next.x).toBeLessThan(5)
+    expect(next.y).toBeGreaterThan(3)
   })
 })

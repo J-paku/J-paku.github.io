@@ -68,6 +68,11 @@ describe('readStickVector', () => {
     expect(readStickVector(MAX, 0, MAX).knob).toEqual({ x: MAX, y: 0 })
   })
 
+  it('土台の幅が0で倒せる距離が0でも、ずれが無ければつまみは中央(0を0で割らない)', () => {
+    // 倒せる距離ちょうどを縮める側へ回すと 0 / 0 で NaN になり、transform が壊れる
+    expect(readStickVector(0, 0, 0)).toEqual({ knob: { x: 0, y: 0 }, direction: null })
+  })
+
   it('倒せる距離を超えたずれは、向きを保ったまま縁まで縮める', () => {
     // 距離50を25へ縮めるので、両軸とも半分になる
     expect(readStickVector(30, 40, 25)).toEqual({ knob: { x: 15, y: 20 }, direction: 'down' })

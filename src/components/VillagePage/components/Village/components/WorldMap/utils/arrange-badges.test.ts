@@ -67,6 +67,44 @@ describe('arrangeBadges', () => {
     expect(nudgeOf(close.buttons[1])).toEqual({ x: '1px', y: '' })
   })
 
+  it('左・上・下でも、5pxしか空いていなければ触れて押し出す', () => {
+    const left = makeCanvas(WIDE, [[square(100, 100)], [square(75, 100)]])
+    arrangeBadges(left.canvas)
+    expect(nudgeOf(left.buttons[1])).toEqual({ x: '-1px', y: '' })
+
+    const above = makeCanvas(WIDE, [[square(100, 100)], [square(100, 75)]])
+    arrangeBadges(above.canvas)
+    expect(nudgeOf(above.buttons[1])).toEqual({ x: '', y: '-1px' })
+
+    const below = makeCanvas(WIDE, [[square(100, 100)], [square(100, 125)]])
+    arrangeBadges(below.canvas)
+    expect(nudgeOf(below.buttons[1])).toEqual({ x: '', y: '1px' })
+  })
+
+  it('左・上・下にちょうど6px空いた印は、もう一方の軸で重なっていても触れていない', () => {
+    // どれも中心の差は空いた軸より他方の軸の方が大きい。触れたとみなすと、他方の軸へ6px押し出してしまう
+    const left = makeCanvas(WIDE, [
+      [square(100, 100)],
+      [{ left: 74, top: 120, right: 94, bottom: 160 }],
+    ])
+    arrangeBadges(left.canvas)
+    expect(nudgeOf(left.buttons[1])).toEqual(NONE)
+
+    const above = makeCanvas(WIDE, [
+      [square(100, 100)],
+      [{ left: 120, top: 74, right: 160, bottom: 94 }],
+    ])
+    arrangeBadges(above.canvas)
+    expect(nudgeOf(above.buttons[1])).toEqual(NONE)
+
+    const below = makeCanvas(WIDE, [
+      [square(100, 100)],
+      [{ left: 120, top: 126, right: 160, bottom: 146 }],
+    ])
+    arrangeBadges(below.canvas)
+    expect(nudgeOf(below.buttons[1])).toEqual(NONE)
+  })
+
   it('右にある後の印を右へ、6pxの隙間を空けるまで押し出す。前の印は動かさない', () => {
     const { canvas, buttons } = makeCanvas(WIDE, [[square(100, 100)], [square(110, 100)]])
     arrangeBadges(canvas)
@@ -90,6 +128,13 @@ describe('arrangeBadges', () => {
     expect(nudgeOf(above.buttons[1])).toEqual({ x: '', y: '-16px' })
   })
 
+  it('縦の差が横の差より少しでも大きければ縦へ押し出す', () => {
+    // 中心の差は横9・縦10
+    const { canvas, buttons } = makeCanvas(WIDE, [[square(100, 100)], [square(109, 110)]])
+    arrangeBadges(canvas)
+    expect(nudgeOf(buttons[1])).toEqual({ x: '', y: '16px' })
+  })
+
   it('縦横の差が同じなら横へ押し出す', () => {
     const { canvas, buttons } = makeCanvas(WIDE, [[square(100, 100)], [square(105, 105)]])
     arrangeBadges(canvas)
@@ -110,6 +155,46 @@ describe('arrangeBadges', () => {
     expect(nudgeOf(buttons[1])).toEqual({ x: '', y: '24px' })
   })
 
+  it('左・上へ押すと枠の外へ出るなら、もう一方の軸へ押し出す', () => {
+    // 左へ押すと左端が-16pxで外へ出るので下へ
+    const left = makeCanvas(WIDE, [[square(10, 100)], [square(5, 102)]])
+    arrangeBadges(left.canvas)
+    expect(nudgeOf(left.buttons[1])).toEqual({ x: '', y: '24px' })
+
+    // 上へ押すと上端が-16pxで外へ出るので右へ
+    const above = makeCanvas(WIDE, [[square(100, 10)], [square(102, 5)]])
+    arrangeBadges(above.canvas)
+    expect(nudgeOf(above.buttons[1])).toEqual({ x: '24px', y: '' })
+  })
+
+  it('縦の差が0で横へ押すと枠の外なら、下へ押し出す(差0は下とみなす)', () => {
+    const frame = { left: 0, top: 0, right: 130, bottom: 400 }
+    const { canvas, buttons } = makeCanvas(frame, [[square(100, 100)], [square(105, 100)]])
+    arrangeBadges(canvas)
+    expect(nudgeOf(buttons[1])).toEqual({ x: '', y: '26px' })
+  })
+
+  it('押した先が枠の端にちょうど接するなら枠の中とみなし、先に試した軸のまま置く', () => {
+    // 146px角の枠。どの場合も、もう一方の軸へ押した先も枠に収まる
+    const frame = square(0, 0, 146)
+
+    const toLeft = makeCanvas(frame, [[square(26, 100)], [square(21, 102)]])
+    arrangeBadges(toLeft.canvas)
+    expect(nudgeOf(toLeft.buttons[1])).toEqual({ x: '-21px', y: '' })
+
+    const toTop = makeCanvas(frame, [[square(100, 26)], [square(102, 21)]])
+    arrangeBadges(toTop.canvas)
+    expect(nudgeOf(toTop.buttons[1])).toEqual({ x: '', y: '-21px' })
+
+    const toRight = makeCanvas(frame, [[square(100, 100)], [square(105, 102)]])
+    arrangeBadges(toRight.canvas)
+    expect(nudgeOf(toRight.buttons[1])).toEqual({ x: '21px', y: '' })
+
+    const toBottom = makeCanvas(frame, [[square(100, 100)], [square(102, 105)]])
+    arrangeBadges(toBottom.canvas)
+    expect(nudgeOf(toBottom.buttons[1])).toEqual({ x: '', y: '21px' })
+  })
+
   it('どちらの軸へ押しても枠の外なら、先に試した軸のまま置く', () => {
     const { canvas, buttons } = makeCanvas(square(0, 0, 130), [
       [square(100, 100)],
@@ -125,6 +210,35 @@ describe('arrangeBadges', () => {
     const { canvas, buttons } = makeCanvas(WIDE, [[square(100, 100), badge], [square(132, 100)]])
     arrangeBadges(canvas)
     expect(nudgeOf(buttons[1])).toEqual({ x: '2px', y: '' })
+  })
+
+  it('後から置く印も字と札を合わせた外接矩形で測る(左端と下端は字、上端は札)', () => {
+    // 札は字の右上へはみ出す(上へ6px・右へ8px)
+    const badgeOf = (glyph: Box): Box => ({
+      left: glyph.left + 18,
+      top: glyph.top - 6,
+      right: glyph.left + 28,
+      bottom: glyph.top + 4,
+    })
+    const glyphOf = (left: number, top: number) => {
+      const glyph = square(left, top)
+      return [glyph, badgeOf(glyph)]
+    }
+
+    // 左端は字の110px。札の左端128pxで測ると前の印から6px以上離れて見える
+    const right = makeCanvas(WIDE, [[square(100, 100)], glyphOf(110, 100)])
+    arrangeBadges(right.canvas)
+    expect(nudgeOf(right.buttons[1])).toEqual({ x: '16px', y: '' })
+
+    // 上端は札の110px。下へ押す量は前の印の下端+6pxから上端を引いた分
+    const below = makeCanvas(WIDE, [[square(100, 100)], glyphOf(100, 116)])
+    arrangeBadges(below.canvas)
+    expect(nudgeOf(below.buttons[1])).toEqual({ x: '', y: '16px' })
+
+    // 下端は字の100px。札の下端84pxで測ると前の印から6px以上離れて見える
+    const above = makeCanvas(WIDE, [[square(100, 100)], glyphOf(100, 80)])
+    arrangeBadges(above.canvas)
+    expect(nudgeOf(above.buttons[1])).toEqual({ x: '', y: '-6px' })
   })
 
   it('子を持たない地点はずらしを書かず、前回のずらしも外す', () => {

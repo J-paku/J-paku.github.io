@@ -29,9 +29,11 @@ export const readStickVector = (deltaX: number, deltaY: number, maxRadius: numbe
     return { knob, direction: null }
   }
 
+  // 向きを決める軸のずれはここでは 0 にならない(両軸とも 0 なら DEAD_ZONE 未満で返している)。
+  // 0 を負に含めるかの区別が要らないので、`< 0` ではなく符号が -1 かで比べる(変異テストで見分けの付かない境目を作らない)
   if (Math.abs(deltaX) >= Math.abs(deltaY)) {
-    return { knob, direction: deltaX < 0 ? 'left' : 'right' }
+    return { knob, direction: Math.sign(deltaX) === -1 ? 'left' : 'right' }
   }
 
-  return { knob, direction: deltaY < 0 ? 'up' : 'down' }
+  return { knob, direction: Math.sign(deltaY) === -1 ? 'up' : 'down' }
 }
