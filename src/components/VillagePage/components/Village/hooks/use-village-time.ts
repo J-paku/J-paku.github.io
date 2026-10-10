@@ -8,37 +8,23 @@
 // メモリだけで持っていてもその間は保持される。保存は src/lib/preferences.ts 一箇所だけ、
 // という不変ルールにも合う
 import { create } from 'zustand'
-import { wrapWithin } from '@/utils/wrap-within'
+import {
+  customClockTime,
+  initialClockTime,
+  realtimeClockTime,
+  type ClockTime,
+} from '../utils/set-clock-time'
 
-export type TimeMode = 'realtime' | 'custom'
-
-export type VillageTimeState = {
-  timeMode: TimeMode
-  customHour: number | null
-  customMinute: number | null
+export type VillageTimeState = ClockTime & {
   setRealtime: () => void
   setCustomTime: (hour: number, minute: number) => void
   resetTimeState: () => void
 }
 
-// 初期値は実時刻。サーバ描画と初回ペイント前のインラインスクリプトが実時刻前提で動くので、
-// 起動直後にここが custom だと最初の空だけ食い違う
-const INITIAL_TIME_STATE = {
-  timeMode: 'realtime',
-  customHour: null,
-  customMinute: null,
-} satisfies Pick<VillageTimeState, 'timeMode' | 'customHour' | 'customMinute'>
-
+// 状態の移り方(初期値・実時刻へ戻す・時刻を決める)は utils/set-clock-time.ts が決め、ここは set へ渡すだけ
 export const useVillageTime = create<VillageTimeState>()(set => ({
-  ...INITIAL_TIME_STATE,
-  // 実時刻へ戻すときも customHour・customMinute は残す。時計の針の位置を覚えておかないと、
-  // 再び机上時計へ切り替えた瞬間に針が跳ぶ。値を消したいときは resetTimeState を使う
-  setRealtime: () => set({ timeMode: 'realtime' }),
-  setCustomTime: (hour, minute) =>
-    set({
-      timeMode: 'custom',
-      customHour: wrapWithin(hour, 24),
-      customMinute: wrapWithin(minute, 60),
-    }),
-  resetTimeState: () => set({ ...INITIAL_TIME_STATE }),
+  ...initialClockTime(),
+  setRealtime: () => set(realtimeClockTime()),
+  setCustomTime: (hour, minute) => set(customClockTime(hour, minute)),
+  resetTimeState: () => set(initialClockTime()),
 }))
