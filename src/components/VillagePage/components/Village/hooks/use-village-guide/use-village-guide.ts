@@ -30,6 +30,8 @@ type UseVillageGuide = {
   // タッチ端末か(pointer: coarse)。枠の aria-label の案内文を切り替える
   coarse: boolean
   activeSpot: Spot | null
+  // 会話地点を書き換える手。到着の処理のほか、飛び立った時に歩行ループが下ろすのに使う
+  setActiveSpot: Dispatch<SetStateAction<Spot | null>>
   speech: string
   setSpeech: Dispatch<SetStateAction<string>>
   reduceMotion: boolean
@@ -97,6 +99,7 @@ export function useVillageGuide({
     // タッチ端末か。枠の aria-label の案内文を切り替える
     coarse,
     activeSpot,
+    setActiveSpot,
     speech,
     setSpeech,
     reduceMotion,

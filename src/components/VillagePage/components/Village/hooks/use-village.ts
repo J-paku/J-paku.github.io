@@ -158,6 +158,7 @@ export function useVillage({
     visited,
     setVisited,
     activeSpot,
+    setActiveSpot,
     speech,
     setSpeech,
     coarse,
@@ -188,6 +189,7 @@ export function useVillage({
     tapped,
     consumeTap,
     setDestination,
+    setActiveSpot,
     onFishingTarget: setFishingTarget,
   })
 

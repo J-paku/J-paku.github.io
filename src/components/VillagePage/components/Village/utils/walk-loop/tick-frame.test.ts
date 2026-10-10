@@ -1,6 +1,6 @@
 // 1フレーム分を進める部品(tickFrame)のテスト。止めている間・ワープ直後の入力を捨てる印・傘の最中の扱いと、
-// 到着と衝突の知らせ方、眠ってよいかの判定を確かめる。移動規則はlibのstepをそのまま通し、
-// フック側の処理(描く・知らせる)はモックで数える
+// 到着と衝突・飛び立ちの知らせ方、自動の経路を飛ぶか・飛んでいる間の入力の錠、眠ってよいかの判定を確かめる。
+// 移動規則はlibのstepをそのまま通し、フック側の処理(描く・知らせる)はモックで数える
 import { describe, expect, it, vi } from 'vitest'
 import type { Cell, Direction } from '@content/types/world'
 import { createMoveState, type MoveState } from '@/lib/village/movement'
@@ -24,6 +24,19 @@ const walking = (from: Cell, to: Cell, progress: number, route: Cell[] = []): Mo
   route,
 })
 
+// (3,3)から(3,7)へ600msかけて飛んでいる最中の状態。elapsedMsは飛び立ってからの経過
+const flying = (elapsedMs = 0): MoveState => ({
+  ...createMoveState(field),
+  flight: { from: { x: 3, y: 3 }, to: { x: 3, y: 7 }, durationMs: 600, elapsedMs },
+})
+
+// (3,3)から下へまっすぐ3マス。最後のマスまで直線で3マスなので、飛んでよければ飛ぶ
+const straightRoute = (): Cell[] => [
+  { x: 3, y: 4 },
+  { x: 3, y: 5 },
+  { x: 3, y: 6 },
+]
+
 const makeRefs = (state: MoveState = resting()): MoveRefs => ({
   world: { current: field },
   state: { current: state },
@@ -42,6 +55,7 @@ const makeSteps = (overrides: Partial<FrameSteps> = {}) => ({
   arrive: vi.fn((_cell: Cell) => {}),
   bump: vi.fn((_cell: Cell) => {}),
   retarget: vi.fn((_cell: Cell) => {}),
+  liftOff: vi.fn(() => {}),
   umbrellaBusy: vi.fn((): boolean => false),
   ...overrides,
 })
@@ -56,9 +70,9 @@ describe('tickFrame', () => {
       refs.pendingRoute.current = [{ x: 3, y: 4 }]
       const frameState = makeFrameState()
       const animating = makeSteps({ applyPose: vi.fn(() => true) })
-      expect(tickFrame(frameState, refs, animating, 16)).toBe(true)
+      expect(tickFrame(frameState, refs, animating, false, 16)).toBe(true)
       const settled = makeSteps({ applyPose: vi.fn(() => false) })
-      expect(tickFrame(frameState, refs, settled, 16)).toBe(false)
+      expect(tickFrame(frameState, refs, settled, false, 16)).toBe(false)
       // 歩みも描画も進めず、置いてある経路もワールドの覚えもそのまま
       expect(animating.paint).not.toHaveBeenCalled()
       expect(settled.paint).not.toHaveBeenCalled()
@@ -76,7 +90,7 @@ describe('tickFrame', () => {
       const frameState = makeFrameState({ enteredWorld: yard, plannedTarget: { x: 1, y: 1 } })
       const steps = makeSteps()
       // 離したのを見届けるまで眠らない
-      expect(tickFrame(frameState, refs, steps, 16)).toBe(true)
+      expect(tickFrame(frameState, refs, steps, false, 16)).toBe(true)
       expect(frameState.enteredWorld).toBe(field)
       expect(frameState.ignoreHeld).toBe(true)
       expect(frameState.staleTarget).toBe(true)
@@ -91,7 +105,7 @@ describe('tickFrame', () => {
     it('起動時のように何も押していなければ、捨てる印は立てずに作った経路の覚えだけ消す', () => {
       const refs = makeRefs()
       const frameState = makeFrameState({ plannedTarget: { x: 1, y: 1 } })
-      expect(tickFrame(frameState, refs, makeSteps(), 16)).toBe(false)
+      expect(tickFrame(frameState, refs, makeSteps(), false, 16)).toBe(false)
       expect(frameState.enteredWorld).toBe(field)
       expect(frameState.ignoreHeld).toBe(false)
       expect(frameState.staleTarget).toBe(false)
@@ -102,16 +116,16 @@ describe('tickFrame', () => {
       const refs = makeRefs()
       const frameState = makeFrameState({ enteredWorld: field, ignoreHeld: true })
       refs.held.current = 'down'
-      tickFrame(frameState, refs, makeSteps(), 16)
+      tickFrame(frameState, refs, makeSteps(), false, 16)
       expect(refs.state.current.motion).toBeNull()
       expect(frameState.ignoreHeld).toBe(true)
 
       refs.held.current = null
-      tickFrame(frameState, refs, makeSteps(), 16)
+      tickFrame(frameState, refs, makeSteps(), false, 16)
       expect(frameState.ignoreHeld).toBe(false)
 
       refs.held.current = 'down'
-      tickFrame(frameState, refs, makeSteps(), 16)
+      tickFrame(frameState, refs, makeSteps(), false, 16)
       expect(refs.state.current.motion?.to).toEqual({ x: 3, y: 4 })
     })
 
@@ -120,18 +134,18 @@ describe('tickFrame', () => {
       const frameState = makeFrameState({ enteredWorld: field, staleTarget: true })
       refs.pointerTarget.current = { x: 3, y: 6 }
       const stale = makeSteps()
-      tickFrame(frameState, refs, stale, 16)
+      tickFrame(frameState, refs, stale, false, 16)
       expect(refs.state.current.motion).toBeNull()
       expect(stale.retarget).not.toHaveBeenCalled()
       expect(frameState.staleTarget).toBe(true)
 
       refs.pointerTarget.current = null
-      tickFrame(frameState, refs, makeSteps(), 16)
+      tickFrame(frameState, refs, makeSteps(), false, 16)
       expect(frameState.staleTarget).toBe(false)
 
       refs.pointerTarget.current = { x: 3, y: 6 }
       const fresh = makeSteps()
-      tickFrame(frameState, refs, fresh, 16)
+      tickFrame(frameState, refs, fresh, false, 16)
       expect(fresh.retarget).toHaveBeenCalledWith({ x: 3, y: 6 })
       expect(refs.state.current.motion?.to).toEqual({ x: 3, y: 4 })
     })
@@ -141,7 +155,9 @@ describe('tickFrame', () => {
     it('押しっぱなしの向きは自動で開く予約を取り消し、その向きへ歩き出す', () => {
       const refs = makeRefs()
       refs.held.current = 'down'
-      expect(tickFrame(makeFrameState({ enteredWorld: field }), refs, makeSteps(), 16)).toBe(true)
+      expect(tickFrame(makeFrameState({ enteredWorld: field }), refs, makeSteps(), false, 16)).toBe(
+        true
+      )
       expect(refs.autoTalk.current).toBe(false)
       expect(refs.state.current.motion).toEqual({
         from: { x: 3, y: 3 },
@@ -157,7 +173,8 @@ describe('tickFrame', () => {
         { x: 3, y: 5 },
       ]
       refs.pendingFast.current = true
-      tickFrame(makeFrameState({ enteredWorld: field }), refs, makeSteps(), 16)
+      // 高速の経路は飛ぶので、飛ばない設定(動きを控える)で歩きへ渡る経路と速度を見る
+      tickFrame(makeFrameState({ enteredWorld: field }), refs, makeSteps(), true, 16)
       expect(refs.state.current.motion?.to).toEqual({ x: 3, y: 4 })
       expect(refs.state.current.fast).toBe(true)
       expect(refs.state.current.route).toEqual([{ x: 3, y: 5 }])
@@ -169,7 +186,7 @@ describe('tickFrame', () => {
       // 0.9から100ms(256msで1マス)進めば着く
       const refs = makeRefs(walking({ x: 3, y: 3 }, { x: 3, y: 4 }, 0.9))
       const steps = makeSteps()
-      tickFrame(makeFrameState({ enteredWorld: field }), refs, steps, 100)
+      tickFrame(makeFrameState({ enteredWorld: field }), refs, steps, false, 100)
       expect(steps.arrive).toHaveBeenCalledTimes(1)
       expect(steps.arrive).toHaveBeenCalledWith({ x: 3, y: 4 })
       expect(steps.bump).not.toHaveBeenCalled()
@@ -181,7 +198,7 @@ describe('tickFrame', () => {
       const refs = makeRefs({ ...resting(), cell: { x: 3, y: 0 }, facing: 'up' })
       refs.held.current = 'up'
       const steps = makeSteps()
-      tickFrame(makeFrameState({ enteredWorld: field }), refs, steps, 16)
+      tickFrame(makeFrameState({ enteredWorld: field }), refs, steps, false, 16)
       expect(steps.bump).toHaveBeenCalledTimes(1)
       expect(steps.bump).toHaveBeenCalledWith({ x: 3, y: -1 })
       expect(steps.arrive).not.toHaveBeenCalled()
@@ -195,7 +212,7 @@ describe('tickFrame', () => {
           refs.world.current = yard
         }),
       })
-      tickFrame(makeFrameState({ enteredWorld: field }), refs, steps, 100)
+      tickFrame(makeFrameState({ enteredWorld: field }), refs, steps, false, 100)
       expect(steps.arrive).toHaveBeenCalledWith({ x: 3, y: 0 })
       expect(steps.bump).not.toHaveBeenCalled()
     })
@@ -203,7 +220,7 @@ describe('tickFrame', () => {
     it('到着でワールドが替わらなければ、同じフレームの衝突はbumpへ渡す', () => {
       const refs = makeRefs(walking({ x: 3, y: 1 }, { x: 3, y: 0 }, 0.9, [{ x: 3, y: -1 }]))
       const steps = makeSteps()
-      tickFrame(makeFrameState({ enteredWorld: field }), refs, steps, 100)
+      tickFrame(makeFrameState({ enteredWorld: field }), refs, steps, false, 100)
       expect(steps.arrive).toHaveBeenCalledWith({ x: 3, y: 0 })
       expect(steps.bump).toHaveBeenCalledWith({ x: 3, y: -1 })
     })
@@ -217,7 +234,7 @@ describe('tickFrame', () => {
       refs.pendingRoute.current = [{ x: 3, y: 4 }]
       refs.pendingFast.current = true
       const steps = makeSteps({ umbrellaBusy: vi.fn(() => true) })
-      expect(tickFrame(makeFrameState({ enteredWorld: field }), refs, steps, 16)).toBe(true)
+      expect(tickFrame(makeFrameState({ enteredWorld: field }), refs, steps, false, 16)).toBe(true)
       expect(steps.paint).toHaveBeenCalledTimes(1)
       expect(steps.paint).toHaveBeenCalledWith(16)
       expect(refs.state.current).toBe(state)
@@ -229,37 +246,195 @@ describe('tickFrame', () => {
     })
   })
 
+  describe('自動の経路を飛ぶか', () => {
+    it('高速の経路(次へ・地図からの移動)は飛び立ち、着地するマスまで直線で飛ぶ', () => {
+      const refs = makeRefs()
+      refs.pendingRoute.current = straightRoute()
+      refs.pendingFast.current = true
+      tickFrame(makeFrameState({ enteredWorld: field }), refs, makeSteps(), false, 16)
+      expect(refs.state.current.flight?.from).toEqual({ x: 3, y: 3 })
+      expect(refs.state.current.flight?.to).toEqual({ x: 3, y: 6 })
+      expect(refs.state.current.motion).toBeNull()
+      expect(refs.pendingRoute.current).toBeNull()
+      expect(refs.pendingFast.current).toBe(false)
+    })
+
+    it('動きを控える設定では高速の経路でも飛ばず、速い歩きで1マスずつ辿る', () => {
+      const refs = makeRefs()
+      refs.pendingRoute.current = straightRoute()
+      refs.pendingFast.current = true
+      tickFrame(makeFrameState({ enteredWorld: field }), refs, makeSteps(), true, 16)
+      expect(refs.state.current.flight).toBeNull()
+      expect(refs.state.current.motion?.to).toEqual({ x: 3, y: 4 })
+      expect(refs.state.current.fast).toBe(true)
+    })
+
+    it('等速の経路(舞台のタップ)は飛ばずに歩く', () => {
+      const refs = makeRefs()
+      refs.pendingRoute.current = straightRoute()
+      tickFrame(makeFrameState({ enteredWorld: field }), refs, makeSteps(), false, 16)
+      expect(refs.state.current.flight).toBeNull()
+      expect(refs.state.current.motion?.to).toEqual({ x: 3, y: 4 })
+    })
+  })
+
+  describe('飛んでいる間', () => {
+    it('押した向きでは自動で開く予約を取り消さず、歩き出しもしない', () => {
+      const refs = makeRefs(flying())
+      refs.held.current = 'left'
+      tickFrame(makeFrameState({ enteredWorld: field }), refs, makeSteps(), false, 16)
+      expect(refs.autoTalk.current).toBe(true)
+      expect(refs.state.current.flight?.elapsedMs).toBe(16)
+      expect(refs.state.current.motion).toBeNull()
+    })
+
+    it('押しっぱなしのポインタへ経路を作り直さず、行き先の印も動かさない', () => {
+      const refs = makeRefs(flying())
+      refs.pointerTarget.current = { x: 6, y: 3 }
+      const frameState = makeFrameState({ enteredWorld: field })
+      const steps = makeSteps()
+      tickFrame(frameState, refs, steps, false, 16)
+      expect(steps.retarget).not.toHaveBeenCalled()
+      expect(frameState.plannedTarget).toBeNull()
+      expect(refs.autoTalk.current).toBe(true)
+      expect(refs.state.current.flight?.to).toEqual({ x: 3, y: 7 })
+    })
+
+    it('入力が無く描き終えていても、飛んでいる間は眠らない', () => {
+      const refs = makeRefs(flying())
+      expect(tickFrame(makeFrameState({ enteredWorld: field }), refs, makeSteps(), false, 16)).toBe(
+        true
+      )
+    })
+
+    it('着地したフレームで、着地したマスをarriveへ知らせる', () => {
+      // 600msのうち550ms飛んだ所から100ms進めば着地する
+      const refs = makeRefs(flying(550))
+      const steps = makeSteps()
+      tickFrame(makeFrameState({ enteredWorld: field }), refs, steps, false, 100)
+      expect(steps.arrive).toHaveBeenCalledTimes(1)
+      expect(steps.arrive).toHaveBeenCalledWith({ x: 3, y: 7 })
+      expect(refs.state.current.flight).toBeNull()
+      expect(refs.state.current.cell).toEqual({ x: 3, y: 7 })
+    })
+  })
+
+  describe('飛び立ちの知らせ', () => {
+    it('止まっていたマスから飛び立ったフレームで1回だけliftOffを呼び、飛んでいる続きのフレームでは呼ばない', () => {
+      const refs = makeRefs()
+      refs.pendingRoute.current = straightRoute()
+      refs.pendingFast.current = true
+      const frameState = makeFrameState({ enteredWorld: field })
+      const steps = makeSteps()
+      tickFrame(frameState, refs, steps, false, 16)
+      expect(refs.state.current.flight?.to).toEqual({ x: 3, y: 6 })
+      expect(steps.liftOff).toHaveBeenCalledTimes(1)
+      // 飛び立ちは到着ではない(立っていたマスにも降りるマスにもまだ着いていない)
+      expect(steps.arrive).not.toHaveBeenCalled()
+      tickFrame(frameState, refs, steps, false, 16)
+      expect(refs.state.current.flight?.elapsedMs).toBe(16)
+      expect(steps.liftOff).toHaveBeenCalledTimes(1)
+    })
+
+    it('歩き出したフレーム・動きを控える設定の速い歩き・着地したフレームでは呼ばない', () => {
+      const tapped = makeRefs()
+      tapped.pendingRoute.current = straightRoute()
+      const walkSteps = makeSteps()
+      tickFrame(makeFrameState({ enteredWorld: field }), tapped, walkSteps, false, 16)
+      expect(tapped.state.current.motion?.to).toEqual({ x: 3, y: 4 })
+      expect(walkSteps.liftOff).not.toHaveBeenCalled()
+
+      const reduced = makeRefs()
+      reduced.pendingRoute.current = straightRoute()
+      reduced.pendingFast.current = true
+      const reducedSteps = makeSteps()
+      tickFrame(makeFrameState({ enteredWorld: field }), reduced, reducedSteps, true, 16)
+      expect(reduced.state.current.motion?.to).toEqual({ x: 3, y: 4 })
+      expect(reducedSteps.liftOff).not.toHaveBeenCalled()
+
+      const landing = makeRefs(flying(550))
+      const landSteps = makeSteps()
+      tickFrame(makeFrameState({ enteredWorld: field }), landing, landSteps, false, 100)
+      expect(landing.state.current.flight).toBeNull()
+      expect(landSteps.liftOff).not.toHaveBeenCalled()
+    })
+
+    it('歩き終えたマスへの到着と飛び立ちが同じフレームに重なると、arriveの後にliftOffを呼ぶ', () => {
+      // (3,2)から(3,3)へ0.9まで歩いた所に高速の経路が届く。速い歩き(128msで1マス)で100ms進めば(3,3)に着き、
+      // 同じフレームで(3,6)へ飛び立つ
+      const refs = makeRefs(walking({ x: 3, y: 2 }, { x: 3, y: 3 }, 0.9))
+      refs.pendingRoute.current = straightRoute()
+      refs.pendingFast.current = true
+      const order: string[] = []
+      const steps = makeSteps({
+        arrive: vi.fn((cell: Cell) => {
+          order.push(`arrive ${cell.x},${cell.y}`)
+        }),
+        liftOff: vi.fn(() => {
+          order.push('liftOff')
+        }),
+      })
+      tickFrame(makeFrameState({ enteredWorld: field }), refs, steps, false, 100)
+      expect(refs.state.current.flight?.from).toEqual({ x: 3, y: 3 })
+      expect(order).toEqual(['arrive 3,3', 'liftOff'])
+    })
+
+    it('到着でワールドが替われば、同じフレームで飛び立っていても知らせない', () => {
+      // 着いたマスが扉で、到着の処理が新しいワールドの移動状態(飛んでいない)へ作り直した形
+      const refs = makeRefs(walking({ x: 3, y: 2 }, { x: 3, y: 3 }, 0.9))
+      refs.pendingRoute.current = straightRoute()
+      refs.pendingFast.current = true
+      const steps = makeSteps({
+        arrive: vi.fn((_cell: Cell) => {
+          refs.world.current = yard
+          refs.state.current = createMoveState(yard)
+        }),
+      })
+      tickFrame(makeFrameState({ enteredWorld: field }), refs, steps, false, 100)
+      expect(steps.arrive).toHaveBeenCalledTimes(1)
+      expect(steps.liftOff).not.toHaveBeenCalled()
+    })
+  })
+
   describe('眠ってよいか', () => {
     it('入力も経路も無く描き終えたら、経過を描画へ渡してfalseを返す', () => {
       const steps = makeSteps()
-      expect(tickFrame(makeFrameState({ enteredWorld: field }), makeRefs(), steps, 16)).toBe(false)
+      expect(tickFrame(makeFrameState({ enteredWorld: field }), makeRefs(), steps, false, 16)).toBe(
+        false
+      )
       expect(steps.paint).toHaveBeenCalledWith(16)
     })
 
     it('描き終えていなければ、入力が無くても眠らない', () => {
       const steps = makeSteps({ paint: vi.fn((_dtMs: number) => false) })
-      expect(tickFrame(makeFrameState({ enteredWorld: field }), makeRefs(), steps, 16)).toBe(true)
+      expect(tickFrame(makeFrameState({ enteredWorld: field }), makeRefs(), steps, false, 16)).toBe(
+        true
+      )
     })
 
     it('捨てている向きでも押したままなら眠らない(離したのを見届けるため)', () => {
       const refs = makeRefs()
       refs.held.current = 'down'
       const frameState = makeFrameState({ enteredWorld: field, ignoreHeld: true })
-      expect(tickFrame(frameState, refs, makeSteps(), 16)).toBe(true)
+      expect(tickFrame(frameState, refs, makeSteps(), false, 16)).toBe(true)
       expect(refs.state.current.motion).toBeNull()
     })
 
     it('ポインタを押したままなら、立つマスの上で経路が無くても眠らない', () => {
       const refs = makeRefs()
       refs.pointerTarget.current = { x: 3, y: 3 }
-      expect(tickFrame(makeFrameState({ enteredWorld: field }), refs, makeSteps(), 16)).toBe(true)
+      expect(tickFrame(makeFrameState({ enteredWorld: field }), refs, makeSteps(), false, 16)).toBe(
+        true
+      )
       expect(refs.state.current.motion).toBeNull()
       expect(refs.pendingRoute.current).toBeNull()
     })
 
     it('歩いている途中は描き終えていても眠らない', () => {
       const refs = makeRefs(walking({ x: 3, y: 3 }, { x: 3, y: 4 }, 0.1))
-      expect(tickFrame(makeFrameState({ enteredWorld: field }), refs, makeSteps(), 16)).toBe(true)
+      expect(tickFrame(makeFrameState({ enteredWorld: field }), refs, makeSteps(), false, 16)).toBe(
+        true
+      )
     })
 
     it('到着の処理が次の経路を置いたら眠らない', () => {
@@ -269,7 +444,7 @@ describe('tickFrame', () => {
           refs.pendingRoute.current = [{ x: 3, y: 5 }]
         }),
       })
-      expect(tickFrame(makeFrameState({ enteredWorld: field }), refs, steps, 100)).toBe(true)
+      expect(tickFrame(makeFrameState({ enteredWorld: field }), refs, steps, false, 100)).toBe(true)
       expect(refs.state.current.motion).toBeNull()
     })
   })

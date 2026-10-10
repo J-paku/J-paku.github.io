@@ -5,7 +5,7 @@
 // このファイルは React との継ぎ目(ref・effect・依存配列)だけを持ち、1 フレームの中身は utils/walk-loop/ の部品へ任せる。
 // 部品を平らな関数にしておくと、どの値がフレームをまたいで残るのか(WalkFrameState)が 1 か所で見える
 import { useCallback, useEffect, useRef } from 'react'
-import type { Cell } from '@content/types/world'
+import type { Cell, Spot } from '@content/types/world'
 import type { SheetLayout } from '@/lib/pixel/art'
 import { umbrellaBusy } from '@/lib/village/player-pose'
 import type { VillageDom, VillageRuntime } from '../use-village-runtime'
@@ -36,6 +36,8 @@ export type WalkLoopOptions = {
   consumeTap: () => void
   // 行き先の印(赤いピン)を立てる。地図からの移動と同じく、着いた時に到着の処理が下ろす
   setDestination: (cell: Cell | null) => void
+  // 会話地点(吹き出しの元)を書き換える。到着の処理が立て、飛び立った時はここが下ろす
+  setActiveSpot: (spot: Spot | null) => void
 }
 
 export function useWalkLoop({
@@ -50,6 +52,7 @@ export function useWalkLoop({
   tapped,
   consumeTap,
   setDestination,
+  setActiveSpot,
 }: WalkLoopOptions): void {
   // フレームをまたいで残す値。各項目の意味は WalkFrameState の型に書いてある
   const frameStateRef = useRef<WalkFrameState>({
@@ -132,6 +135,13 @@ export function useWalkLoop({
     [runtime, setDestination]
   )
 
+  // 飛び立った時、立っていたマスの会話地点を下ろす。吹き出しとその行動ボタンは会話地点から描くので一緒に消える。
+  // 歩きなら次のマスへの到着が下ろすが、飛ぶ間は着地まで到着しないので、飛び立った 1 回だけここで下ろす
+  const leaveSpot = useCallback(() => {
+    runtime.activeSpot.current = null
+    setActiveSpot(null)
+  }, [runtime, setActiveSpot])
+
   // 傘を開け閉めしている最中か。その間は新しい移動を始めない。時刻で決まるので毎フレーム聞き直す
   const isUmbrellaBusy = useCallback((): boolean => {
     const { umbrellaPose: umbrellaPoseRef } = runtime
@@ -144,7 +154,16 @@ export function useWalkLoop({
         tickFrame(
           frameStateRef.current,
           runtime,
-          { applyPose, paint, arrive, bump, retarget, umbrellaBusy: isUmbrellaBusy },
+          {
+            applyPose,
+            paint,
+            arrive,
+            bump,
+            retarget,
+            liftOff: leaveSpot,
+            umbrellaBusy: isUmbrellaBusy,
+          },
+          reduceMotion,
           elapsed
         ),
       dom.frame
@@ -157,7 +176,18 @@ export function useWalkLoop({
       // 外したループを起こさない。後始末の後に届いた入力で、描く先の無いループが回り出すのを防ぐ
       if (runtime.wake.current === wake) runtime.wake.current = () => {}
     }
-  }, [arrive, bump, paint, applyPose, retarget, isUmbrellaBusy, runtime, dom])
+  }, [
+    arrive,
+    bump,
+    paint,
+    applyPose,
+    retarget,
+    leaveSpot,
+    isUmbrellaBusy,
+    reduceMotion,
+    runtime,
+    dom,
+  ])
 
   // 枠の幅を覚え、変わったらループを起こして新しいマス寸法で描き直させる。
   // 幅を読むのは大きさが変わった時だけで、描く側は毎フレーム覚えた値を使う
