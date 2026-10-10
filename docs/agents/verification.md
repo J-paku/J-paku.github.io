@@ -37,23 +37,34 @@ last_reviewed: 2026-10-11
 
 ## commit の直前
 
-そこまでに触った範囲に関係なく、**1回だけ全体を通す**。
+そこまでに触った範囲に関係なく、**`npm run verify` を1回通す**。
+中身は docs:check → lint → format:check → test:coverage → test:boundary → build の直列で、前段が落ちたら後段は走らない(正本は `package.json` の `scripts`)。
 
-```bash
-npm run docs:check && npm run typecheck && npm run lint && npm run format:check && npm run test:coverage && npm run test:boundary && npm run test:mutation && npm run build && npm run test:e2e
-```
+これに、上の表で変えた範囲が指すものだけを足す。
 
-`npm run test:mutation` は既定で前回の結果を引き継ぎ、変わった変異体だけを走らせる。変異体を全部走らせるのは週1回、手で `npm run test:mutation -- --force`
-([../decisions/0013-incremental-mutation-on-push.md](../decisions/0013-incremental-mutation-on-push.md))。
+- E2E は表が指す spec だけ(`npx playwright test tests/journey.spec.ts` のように)
+- `npm run test:mutation` は、`stryker.config.mjs` の `mutate` に挙げたファイルかそのテストを変えたときだけ。
+  既定は前回の結果を引き継ぎ、変わった変異体だけを走らせる。git のフックで毎回走らせることはしない。
+  変異体を全部走らせるのは週1回、手で `npm run test:mutation -- --force`([../decisions/0013-incremental-mutation-on-push.md](../decisions/0013-incremental-mutation-on-push.md))
+
+`npm run typecheck` を入れないのは、`npm run build` の `next build` が同じ `tsconfig.json` で型を検査するから。
+2026-10-11 に src のソース・単体テスト(`src/lib/village/is-moving.test.ts`)・E2E の spec(`tests/flight.spec.ts`)へそれぞれわざと型の誤りを入れ、`tsc --noEmit` と `next build` が3つとも同じ誤り(TS2322)で落ちるのを確かめた。
+`typecheck` は反復中の速い確認として上の表に残す。
+
+表が指していないかぎり、**E2E の全体・変異テスト・axe・Lighthouse CI・日本語改行検査は手元で走らせない。**
+CI(`.github/workflows/deploy.yml`)が `main` への push のたびにこれらを走らせ、`deploy` ジョブは `needs: build` なので、どれか1つでも落ちれば公開されない。
+手元で同じものを回すのは、同じ門を2回通るだけである。そのかわり**完了は CI が通ったことで言う**(ローカルの PASS だけで完了と言わない)。
+
+例外は、表の「依存の版」と「`.github/workflows/`」の行。そのときは門そのもの(道具の版・CI の手順)が変わるので、表のとおり push の前に手元で CI を丸ごと再現する。
 
 配信に関わる変更なら、さらに配信版で受け入れ確認を繰り返す([../operations/deployment.md](../operations/deployment.md))。
 
 ## 反復中の走らせ方
 
-E2E とビルドは1分を超える。修理のたびに全体を回さない。
+E2E の全体は数分かかる(2026-10-11 の手元の実測で約3分44秒)。修理のたびに全体を回さない。
 
 - 反復中: 落ちた spec と新しく書いた spec だけ(`npx playwright test tests/journey.spec.ts -g '<名前>'`)
-- 全体は commit の直前に1回。そこで新しく落ちたものが出たら、その spec だけを狭く直してからもう一度全体
+- E2E の全体は手元では回さず、push で CI が回す。CI で落ちた spec が出たら、その spec だけを手元で狭く直してから push し直す
 
 ## 走らせたと言ってよい条件
 

@@ -5,7 +5,7 @@ read_when:
   - 配信が反映されないとき
   - 配信を戻したいとき
 source_of_truth: true
-last_reviewed: 2026-10-01
+last_reviewed: 2026-10-11
 ---
 
 # 配信
@@ -18,12 +18,14 @@ last_reviewed: 2026-10-01
 ```
 push to main
   → build ジョブ(直列。前段が落ちたら後段は走らない)
-      docs:check → typecheck → lint → format:check → test:coverage(カバレッジの床) → build
+      docs:check → typecheck → lint → format:check → test:coverage(カバレッジの床) → test:boundary
+      → Stryker の前回の結果をキャッシュから戻す → test:mutation(変わった変異体だけ) → 結果をキャッシュへ保存(test:mutation が落ちても保存する)
+      → build
       → Playwright Chromium をキャッシュから戻す(miss なら入れる)→ test:e2e
       → out/ を :4173 で配信 → wait-on
       → axe(6経路) → Lighthouse CI(同じ6経路) → CJK フォントの .deb をキャッシュから戻して入れる → 日本語改行検査
       → configure-pages → upload-pages-artifact
-  → deploy ジョブ(GitHub Pages)
+  → deploy ジョブ(GitHub Pages。needs: build なので build ジョブが通ったときだけ走る)
 ```
 
 - Node は `.nvmrc`。ローカルと同じ版を使う
@@ -51,7 +53,7 @@ push to main
 
 ## ローカルで CI を再現する
 
-push する前にこれを通しておく。落ちる場所は CI と同じ順に出る。
+依存の版・ワークフローを変えたときは、push する前にこれを通しておく(それ以外の変更は CI に任せる。[../agents/verification.md](../agents/verification.md))。落ちる場所は CI と同じ順に出る。
 
 ```bash
 npm run docs:check && npm run typecheck && npm run lint && npm run format:check && npm run test:coverage && npm run build

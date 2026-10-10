@@ -102,7 +102,8 @@ E2E は `out/` を配る。**先に `npm run build` を済ませる。**
 - カバレッジは「テストがその行を通ったか」しか見ない。ミューテーションは「その行を壊したらテストが落ちるか」を見る。
   [新しい検査は必ず一度落とす](#新しい検査は必ず一度落とす)を、対象ファイルのすべての変異について機械が繰り返す形
 - 落とせない変異が出たら、テストを足して落とす。`mutate`から外す・`break`を下げるにはADRが要る
-- 走らせ方は3段([../decisions/0013-incremental-mutation-on-push.md](../decisions/0013-incremental-mutation-on-push.md))。commitの前には走らせない。
+- 走らせ方は3段([../decisions/0013-incremental-mutation-on-push.md](../decisions/0013-incremental-mutation-on-push.md))。gitのフックでcommitのたびに走らせることはしない。
+  `mutate`のファイルかそのテストを変えたときだけ、commitの直前に手で走らせる([../agents/verification.md](../agents/verification.md))。
   push(CI)と手元の既定の実行は`incremental`で前回の結果を引き継ぎ、変わった変異体だけを走らせる(CIは結果をキャッシュで持ち回り、キャッシュが無い最初のpushでは全部が走る)。
   全部を走らせるのは週1回、手で`npm run test:mutation -- --force`
 - `incremental`が前回と比べるのは`mutate`のファイルとテストファイルだけ。`mutate`のファイルがimportする別のファイル・依存パッケージ・設定だけが変わっても気付かない。
@@ -129,4 +130,4 @@ PASS は調査を止めるので、FAIL より危険である。
 ## 走らせる範囲
 
 反復中は落ちた spec だけを狭く走らせる(`npx playwright test tests/journey.spec.ts -g '<名前>'`)。
-**全体は commit の直前に1回**。詳しくは [../agents/verification.md](../agents/verification.md)。
+**E2E の全体は手元では回さず、push で CI が回す**(E2E で commit の直前に走らせるのは、変えた範囲が指す spec だけ)。詳しくは [../agents/verification.md](../agents/verification.md)。

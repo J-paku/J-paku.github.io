@@ -24,6 +24,7 @@ last_reviewed: 2026-10-11
 | `npm run build` | `scripts/build-sprites.mjs`(スプライトシートの PNG を焼く)→ `next build` → `scripts/verify-export.mjs`。content の整合性検査もここで走る | 画面の見た目・操作 |
 | `npm run test:e2e` | Playwright。`out/` を静的配信して実操作で確かめる | **`out/` は作らない。先に `npm run build`** |
 | `npm run docs:check` | 文書の相対リンク・参照パス・`npm run` 名の実在、`docs/` の frontmatter、どこからもリンクされない `docs/` の文書(孤児)、[../quality/test-strategy.md](../quality/test-strategy.md) の E2E 一覧と見出しの本数が `tests/` の spec の実物と合うか。項目の正本は `scripts/check-docs.mjs` の冒頭。**実在は git の追跡対象で判定する**(まだ `git add` していないファイルは「無い」と出る) | 文書の内容が正しいかどうか |
+| `npm run verify` | commit の直前に1回通すもの([../agents/verification.md](../agents/verification.md) の「commit の直前」)。docs:check → lint → format:check → test:coverage → test:boundary → build を直列で走らせ、前段が落ちたら後段は走らない。型は build の中の `next build` が同じ `tsconfig.json` で検査するので、`npm run typecheck` は含めない | E2E・変異テスト・axe・Lighthouse CI・日本語改行検査(CI が push のたびに走らせる)。変えた範囲が指す spec と `npm run test:mutation` は別に足す |
 | `npm run dev` | 開発サーバ(`:3000`) | 配信物。→ [setup.md](setup.md) |
 | `npm run start` | `out/` を `:4173` で配信 | — |
 | `npm run lint:fix` / `npm run format` | 自動修正 | — |
