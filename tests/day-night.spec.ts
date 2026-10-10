@@ -420,7 +420,7 @@ for (const { prefix, text } of JOURNEYS) {
     await expect(dialog.getByRole('heading', { name: meishi.title })).toBeVisible({
       timeout: 10_000,
     })
-    // 自動歩行で町(屋外)へ出た最初の地点。ここから完走まで雨が降り続けるはず
+    // 自動の移動(飛んで扉を出る)で町(屋外)へ出た最初の地点。ここから完走まで雨が降り続けるはず
     await expect(page.locator(RAIN_LAYERS), '町へ出た時点で雨が降っている').toHaveCount(
       WEATHER_LAYER_COUNT
     )

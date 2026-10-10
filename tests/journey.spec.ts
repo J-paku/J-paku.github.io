@@ -461,7 +461,7 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
     )
   })
 
-  test(`地図の地点でないマスを押すと、そのマスまで歩く (${label})`, async ({ page }) => {
+  test(`地図の地点でないマスを押すと、そのマスへ移る (${label})`, async ({ page }) => {
     await openVillage(page, prefix)
     await leaveRoom(page)
     expect(await readCell(page)).toEqual({ worldId: 'town', cell: TOWN_ENTRY })
@@ -488,7 +488,8 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
       box.y + ((cell.y + 0.5) / town.height) * box.height
     )
     await expect(map).toHaveCount(0)
-    // 1 マス 256ms で歩き切る長さに、押してから歩き出すまでの余裕を足して待つ
+    // 地図からの移動は飛ぶ(飛び方は tests/flight.spec.ts)。飛ぶ長さはこのマス数を 1 マス 256ms で
+    // 歩き切る長さより短いので、その長さに押してから動き出すまでの余裕を足した上限で待つ
     await expect
       .poll(() => readCell(page), { timeout: steps * 256 + 2_000 })
       .toEqual({ worldId: 'town', cell })
@@ -549,7 +550,7 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
     await expect(map.getByRole('heading', { name: text.mapTitle })).toBeVisible()
     await map.locator('ol').getByRole('button').filter({ hasText: home.place }).click()
     await expect(map).toHaveCount(0)
-    // 自宅前 → 扉 (14,11) → 部屋の出口手前 (4,6) → PC の前 (4,4) と自動で歩く。
+    // 自宅前 → 扉 (14,11) → 部屋の出口手前 (4,6) → PC の前 (4,4) と自動で移る(自宅前は扉の隣なので、町では飛ばずに扉へぶつかる)。
     // 扉をくぐる前に止まる・町に取り残される壊れ方は、部屋のワールドに着かないのでここで落ちる
     await expect
       .poll(() => readCell(page), { timeout: 10_000 })
@@ -672,39 +673,46 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
     await expect(page.locator('[data-village-bubble]')).toHaveCount(0)
   })
 
-  test(`次へボタンで名刺工房まで自動で歩き、着いたら会話が開く (${label})`, async ({ page }) => {
+  test(`次へボタンで名刺工房まで自動で移り、着いたら会話が開く (${label})`, async ({ page }) => {
     await openVillage(page, prefix)
     await page.keyboard.press('e')
     const dialog = page.getByRole('dialog')
     await expect(dialog.getByRole('heading', { name: home.title })).toBeVisible()
     await dialog.getByRole('button', { name: home.next }).click()
-    // 部屋の中 3 マス + 扉 + 町 14 マスを 128ms/マスで自動歩行してから会話窓が開く
+    // 部屋の出口のマットまで飛んで町へ出て、名刺工房の前まで自動で移ってから会話窓が開く
+    // (飛び方は tests/flight.spec.ts)
     await expect(dialog.getByRole('heading', { name: meishi.title })).toBeVisible({
       timeout: 10_000,
     })
     expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 6, y: 6 } })
   })
 
-  test(`途中で歩くと自動の会話は開かない (${label})`, async ({ page }) => {
-    await openVillage(page, prefix)
-    await page.keyboard.press('e')
-    const dialog = page.getByRole('dialog')
-    await expect(dialog.getByRole('heading', { name: home.title })).toBeVisible()
-    await dialog.getByRole('button', { name: home.next }).click()
-    // 割り込む前に、自動歩行が本当に動き出したことを 1 マス目の到着(位置の保存)で確かめる。
-    // 「開かない・歩いていない」だけを見ると、自動歩行がそもそも始まらない壊れ方まで通ってしまう
-    await page.waitForFunction(key => sessionStorage.getItem(key) !== null, POS_KEY, {
-      polling: 'raf',
-      timeout: 3_000,
+  // 次へは飛んで移り、飛んでいる間は方向キーを読まない(tests/flight.spec.ts)。動きを控える設定では
+  // 飛ばずに今までどおり 1 マスずつ高速で歩くので、自動で歩いている途中への割り込みはこの設定で確かめる
+  test.describe(`動きを控える設定の次へ (${label})`, () => {
+    test.use({ reducedMotion: 'reduce' })
+
+    test(`途中で歩くと自動の会話は開かない`, async ({ page }) => {
+      await openVillage(page, prefix)
+      await page.keyboard.press('e')
+      const dialog = page.getByRole('dialog')
+      await expect(dialog.getByRole('heading', { name: home.title })).toBeVisible()
+      await dialog.getByRole('button', { name: home.next }).click()
+      // 割り込む前に、自動歩行が本当に動き出したことを 1 マス目の到着(位置の保存)で確かめる。
+      // 「開かない・歩いていない」だけを見ると、自動歩行がそもそも始まらない壊れ方まで通ってしまう
+      await page.waitForFunction(key => sessionStorage.getItem(key) !== null, POS_KEY, {
+        polling: 'raf',
+        timeout: 3_000,
+      })
+      expect(await readCell(page)).toEqual({ worldId: 'room', cell: { x: 4, y: 5 } })
+      // 部屋の中(3 マス分の途中)で割り込む
+      await page.keyboard.down('ArrowRight')
+      await page.waitForTimeout(150)
+      await page.keyboard.up('ArrowRight')
+      await page.waitForTimeout(3_000)
+      await expect(dialog).toHaveCount(0)
+      expect((await readCell(page))?.worldId).toBe('room')
     })
-    expect(await readCell(page)).toEqual({ worldId: 'room', cell: { x: 4, y: 5 } })
-    // 部屋の中(3 マス分の途中)で割り込む
-    await page.keyboard.down('ArrowRight')
-    await page.waitForTimeout(150)
-    await page.keyboard.up('ArrowRight')
-    await page.waitForTimeout(3_000)
-    await expect(dialog).toHaveCount(0)
-    expect((await readCell(page))?.worldId).toBe('room')
   })
 
   test(`8 か所すべて話すと案内が変わり一覧のボタンへ焦点が移る (${label})`, async ({ page }) => {
@@ -871,7 +879,7 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
     const dialog = page.getByRole('dialog')
     const title = dialog.getByRole('heading', { name: home.title })
     await expect(title).toBeVisible()
-    // 焦点が見出し(本文)にある間の Z は次へボタンと同じ。自動で歩いた先で名刺工房の会話が開く
+    // 焦点が見出し(本文)にある間の Z は次へボタンと同じ。自動で飛んで着いた先で名刺工房の会話が開く
     await expect(title).toBeFocused()
     await page.keyboard.press('KeyZ')
     await expect(dialog.getByRole('heading', { name: meishi.title })).toBeVisible({
@@ -979,7 +987,7 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
       await scrollPanelToBottom(page, panel)
       expect(await panelAtBottom(panel)).toBe(true)
       await expect(dialog.getByRole('button', { name: home.next })).toBeFocused()
-      // 焦点の当たったボタンを A で押す。次の地点まで自動で歩き、名刺工房の会話が開く
+      // 焦点の当たったボタンを A で押す。次の地点まで自動で飛び、名刺工房の会話が開く
       await page.getByRole('button', { name: text.buttonA }).tap()
       await expect(dialog.getByRole('heading', { name: meishi.title })).toBeVisible({
         timeout: 10_000,
@@ -987,7 +995,7 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
     })
 
     test(`本文にリンクがある地点では、リンク・次へボタンの順に焦点が移る`, async ({ page }) => {
-      // 名刺工房までの自動歩行(10s 待ち)に本文送りが続くので、既定の 30s では足りない
+      // 名刺工房までの自動の移動(10s 待ち)に本文送りが続くので、既定の 30s では足りない
       test.setTimeout(60_000)
       const link = meishi.link
       if (link === undefined) throw new Error('名刺工房の link が無い')
@@ -995,7 +1003,7 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
       const dialog = page.getByRole('dialog')
       await page.getByRole('button', { name: text.buttonA }).tap()
       await expect(dialog.getByRole('heading', { name: home.title })).toBeVisible()
-      // モーダルが開いている間の A は次へボタンと同じ。自動で歩いた先で名刺工房の会話が開く
+      // モーダルが開いている間の A は次へボタンと同じ。自動で飛んで着いた先で名刺工房の会話が開く
       await page.getByRole('button', { name: text.buttonA }).tap()
       await expect(dialog.getByRole('heading', { name: meishi.title })).toBeVisible({
         timeout: 10_000,
