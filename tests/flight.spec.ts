@@ -31,7 +31,7 @@ const PLAYER = '[data-village-player]'
 const SHADOW = '[data-flight-shadow]'
 // 地点の上の吹き出しと、話せる相手がいない時の頭上の考え事(どちらも TalkBubble)
 const BUBBLE = '[data-village-bubble]'
-// 飛ぶコマの頭。続きは向き(down / up / right。左は right の反転)と羽ばたきの 0 / 1
+// 飛ぶコマの頭。続きは向き(down / up / right。左は right の反転)と、雲の縁だけが変わる 0 / 1
 const FLY_PREFIX = 'player-fly-'
 // 普段の歩きのコマのうち足を出したもの(1・2)。歩いた証拠に使う。左向きは right の反転なので up / down / right だけ
 const WALKING = /^player-(up|down|right)-[12]$/
@@ -515,7 +515,7 @@ test('地図で遠い地点を選ぶと飛んで向かい、降りると歩く�
   const { samples } = await travelToMonument(page)
   const { before, flying } = flightOf(samples)
   expect(before.flying, '飛ぶ前の影は地上の印').toBe('false')
-  // 飛ぶ間は上向きの羽ばたく 2 コマを交互に出す
+  // 飛ぶ間は上向きの雲に座った 2 コマを交互に出す
   const flyingSprites = distinct(flying.map(s => s.sprite))
   expect(flyingSprites, '飛ぶ間のコマ').toEqual(['player-fly-up-0', 'player-fly-up-1'])
   // 飛ぶコマと影の印は、記録したどのフレームでも揃う(片方だけ書き忘れる・遅れる配線はここで落ちる)
@@ -677,7 +677,7 @@ test('町で最も上の地点へ飛ぶ間も、浮き上がりで絵が枠の�
   const { cell, samples } = await travelOnMap(page, TOP_PLACE, goal)
   const { flying } = flightOf(samples)
   expect(raisedPastTop(flying, cell), '浮き上がりで枠の上辺より上へ出たフレーム').toEqual([])
-  // 上限で浮き上がりを抑えても飛ぶこと自体は残る。飛ぶ間は上向きの羽ばたくコマで、途中では高く浮く
+  // 上限で浮き上がりを抑えても飛ぶこと自体は残る。飛ぶ間は上向きの雲に座ったコマで、途中では高く浮く
   const flyingSprites = distinct(flying.map(s => s.sprite))
   expect(flyingSprites, '最も上の地点へ飛ぶ間のコマ').toEqual([
     'player-fly-up-0',

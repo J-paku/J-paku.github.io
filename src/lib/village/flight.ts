@@ -1,6 +1,6 @@
 // 自動移動の直線飛行。経路から着地するマスを決め、出発から着地までを時間で進める。
 // 飛び立つ・飛んでいる1歩み・着地の移動状態の書き換えもここが持ち、movement.ts は呼ぶのと着地の後の残りの経路を辿るだけ。
-// 描く側が使う表示位置・浮き上がり・影の倍率・羽ばたきのコマ・カメラの持ち上げもここで状態から引く。時間は呼び出し側(rAF)が渡す。
+// 描く側が使う表示位置・浮き上がり・影の倍率・雲のコマ・カメラの持ち上げもここで状態から引く。時間は呼び出し側(rAF)が渡す。
 // 浮き上がりはワールドの上端の近くで、絵が画面の上へ出ない高さまでに抑える(flightLiftLimit)。
 // 曲線・高さ・時間の数値は flight-curve.ts が持ち、ここは経路と状態への当てはめだけを持つ
 import type { Cell, Direction, World } from '@content/types/world'
@@ -138,8 +138,9 @@ export const flightLiftCells = ({ flight }: Flying): number => {
 export const flightShadow = (state: Flying): number =>
   flightShadowScale(flightLiftCells(state) / FLIGHT_LIFT_CELLS)
 
-// 飛んでいる間に出す羽ばたきのコマ。飛び立ってからの経過で2コマを交互に出し、動きを控える設定では最初のコマで止める。
-// 左向きの絵は持たないので右向きを反転する。位置は時間で動くので、羽ばたきを止めても animating のまま。
+// 飛んでいる間に出す雲のコマ(黄金色の雲に座る姿)。飛び立ってからの経過で雲の形だけが違う2コマを交互に出し、
+// 動きを控える設定では最初のコマで止める。
+// 左向きの絵は持たないので右向きを反転する。位置は時間で動くので、雲の動きを止めても animating のまま。
 // 飛んでいなければ null を返し、呼び出し側は傘・歩行のコマを選ぶ
 export const flightPose = (
   { flight, facing }: Pick<MoveState, 'flight' | 'facing'>,

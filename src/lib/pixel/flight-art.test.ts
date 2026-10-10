@@ -1,10 +1,10 @@
-// 飛行6コマの画布・配色・風の差分と、夜の灯り・シートへの登録を検証する。
+// 飛行6コマの画布・配色・雲の差分と、夜の灯り・シートへの登録を検証する。
 import { describe, expect, it } from 'vitest'
 import { PLAYER_FRAME_HEIGHT, PLAYER_FRAME_WIDTH, playerArt, playerNightArt } from './actors'
 import { mirrorX, validateArt } from './art'
 import type { PixelArt } from './art'
 import { flightArt } from './flight-art'
-import { frontLantern, LANTERN_GLASS, LANTERN_SHINE, sideLantern } from './lantern'
+import { frontLantern, LANTERN_GLASS, LANTERN_SHINE } from './lantern'
 import { palette } from './palette'
 import { LIGHT_KEYS, phasePalette } from './palette-phase'
 import { buildPlayerSprites, PLAYER_ARTS, PLAYER_NIGHT_ARTS } from './sprites'
@@ -21,12 +21,44 @@ const KEYS = [
 ] as const
 const DIRECTIONS = ['down', 'up', 'right'] as const
 const FRAMES = [0, 1] as const
-// 手の色の文字(palette.tsのV)
-const HAND = 'V'
+type Direction = (typeof DIRECTIONS)[number]
+type Box = { top: number; bottom: number; left: number; right: number }
+// 雲の文字(palette.tsの黄・淡い金・褐色の金・白・渦の橙茶・陰の中間の金)
+const CLOUD = 'FpPh&@'
+// 主人公の文字
+const BODY = 'qQjLIJAZKVMBYz'
+// 頭(立ち姿の体の0〜12行を16列ごと)を置いた画布の位置。横向きは尾を画布へ収めるため4列右へ寄せた
+const HEAD: Record<Direction, { top: number; left: number }> = {
+  down: { top: 1, left: 8 },
+  up: { top: 2, left: 8 },
+  right: { top: 3, left: 12 },
+}
+const HEAD_ROWS = 13
+// 雲の上に載せた灯りの外枠。正面は画面の右、背面は画面の左、横向きは顔の前。
+// 受け皿を雲の上の輪郭のすぐ上へ置くので、膨らみの低いコマ(背面と横向きの1)は同じ列のまま2行下がる
+const LAMP: Record<(typeof KEYS)[number], Box> = {
+  'player-fly-down-0': { top: 10, bottom: 15, left: 24, right: 26 },
+  'player-fly-down-1': { top: 10, bottom: 15, left: 24, right: 26 },
+  'player-fly-up-0': { top: 10, bottom: 15, left: 4, right: 6 },
+  'player-fly-up-1': { top: 12, bottom: 17, left: 4, right: 6 },
+  'player-fly-right-0': { top: 12, bottom: 17, left: 27, right: 29 },
+  'player-fly-right-1': { top: 14, bottom: 19, left: 27, right: 29 },
+}
 
-// 絵の中でcharが置かれた升の座標
-const cellsOf = (art: PixelArt, char: string): { x: number; y: number }[] =>
-  art.flatMap((row, y) => [...row].flatMap((cell, x) => (cell === char ? [{ x, y }] : [])))
+// 絵の中でcharsのどれかが置かれた升の座標
+const cellsOf = (art: PixelArt, chars: string): { x: number; y: number }[] =>
+  art.flatMap((row, y) => [...row].flatMap((cell, x) => (chars.includes(cell) ? [{ x, y }] : [])))
+const directionOf = (key: string): Direction => key.split('-')[2] as Direction
+// 頭の13行・16列の窓
+const headOf = (art: PixelArt, direction: Direction): PixelArt => {
+  const { top, left } = HEAD[direction]
+  return art.slice(top, top + HEAD_ROWS).map(row => row.slice(left, left + 16))
+}
+// 夜に灯りとして足された升
+const lampOf = (day: PixelArt, night: PixelArt) =>
+  night.flatMap((row, y) =>
+    [...row].flatMap((char, x) => (char === day[y][x] ? [] : [{ x, y, char }]))
+  )
 
 describe('飛行の絵', () => {
   it('約束した3方向2コマだけを持ち、左向きや傘の別コマを増やさない', () => {
@@ -34,11 +66,11 @@ describe('飛行の絵', () => {
     expect(Object.keys(PLAYER_ARTS).filter(key => key.startsWith('player-fly-'))).toEqual(KEYS)
   })
 
-  it.each(KEYS)('%sは32×32で、主人公の既存の配色だけを使う', key => {
+  it.each(KEYS)('%sは32×32で、主人公と雲の既存の配色だけを使う', key => {
     const art = flightArt[key]
     expect([PLAYER_FRAME_WIDTH, PLAYER_FRAME_HEIGHT]).toEqual([32, 32])
     expect(validateArt(art, palette, 32, 32)).toEqual([])
-    expect(art.join('')).toMatch(/^[.xqQjLIJAZKVMBYz]+$/)
+    expect(art.join('')).toMatch(/^[.xqQjLIJAZKVMBYzFpPh&@]+$/)
     expect([...LIGHT_KEYS, 'm'].filter(char => art.join('').includes(char))).toEqual([])
     expect(art.join('')).toContain('A')
     expect(art.join('')).toContain('M')
@@ -51,25 +83,37 @@ describe('飛行の絵', () => {
     expect(art.some(row => /[^.]/.test(row.slice(0, 8) + row.slice(24)))).toBe(true)
   })
 
-  it.each(DIRECTIONS)('%sの0と1は平行移動ではなく、髪・脚・裾の形が変わる', direction => {
-    const first = flightArt[`player-fly-${direction}-0`]
-    const second = flightArt[`player-fly-${direction}-1`]
-    const changes = first.flatMap((row, y) =>
-      [...row].flatMap((char, x) => (char === second[y][x] ? [] : [char, second[y][x]]))
-    )
-    expect(changes.length).toBeGreaterThan(12)
-    expect(changes).toContain('A')
-    expect(changes).toContain('z')
-    // 帽子の上部を固定し、体全体の上下動に置き換わるのを防ぐ
-    const top = { down: 8, up: 7, right: 6 }[direction]
-    expect(first.slice(top, top + 3)).toEqual(second.slice(top, top + 3))
-  })
+  it.each(DIRECTIONS)(
+    '%sの0と1は雲の形・渦・尾だけが変わり、頭と体は1ドットも動かない',
+    direction => {
+      const first = flightArt[`player-fly-${direction}-0`]
+      const second = flightArt[`player-fly-${direction}-1`]
+      const changes = first.flatMap((row, y) =>
+        [...row].flatMap((char, x) => (char === second[y][x] ? [] : [char, second[y][x]]))
+      )
+      expect(changes.length).toBeGreaterThan(12)
+      expect(changes).toContain('F')
+      expect(changes).toContain('&')
+      expect(changes.every(char => `.x${CLOUD}`.includes(char))).toBe(true)
+      // 主人公の全ドットを固定し、雲の違いを体の上下動や手足の振りに置き換えない
+      for (const char of BODY) {
+        expect(cellsOf(first, char)).toEqual(cellsOf(second, char))
+      }
+      expect(headOf(first, direction)).toEqual(headOf(second, direction))
+      const cloud = (art: PixelArt) => cellsOf(art, 'F').length
+      expect(cloud(first)).toBeGreaterThan(90)
+      expect(cloud(second)).toBeGreaterThan(90)
+    }
+  )
 
-  it.each(FRAMES)('正面%dは立ち姿と同じ向きの帽子・前髪・顔を保つ', frame => {
-    const standingFace = PLAYER_ARTS['player-down-0'].slice(12, 25).map(row => row.slice(8, 24))
+  it.each(DIRECTIONS)('%sは昼夜の2コマとも立ち姿と同じ帽子・髪・顔を保つ', direction => {
+    const standingFace = PLAYER_ARTS[`player-${direction}-0`]
+      .slice(12, 25)
+      .map(row => row.slice(8, 24))
     for (const arts of [PLAYER_ARTS, PLAYER_NIGHT_ARTS]) {
-      const flyingFace = arts[`player-fly-down-${frame}`].slice(8, 21).map(row => row.slice(8, 24))
-      expect(flyingFace).toEqual(standingFace)
+      for (const frame of FRAMES) {
+        expect(headOf(arts[`player-fly-${direction}-${frame}`], direction)).toEqual(standingFace)
+      }
     }
   })
 
@@ -122,7 +166,8 @@ describe('飛行の夜のランタン', () => {
       [...row].flatMap((char, x) => (char !== '.' && char !== night[y][x] ? [[x, y]] : []))
     )
     expect(overwritten).toEqual([])
-    const face = key.includes('-right-') ? sideLantern : frontLantern
+    // 背面は立ち姿と同じく画面の左に置くので、正面の面を左右に反転して使う
+    const face = directionOf(key) === 'up' ? mirrorX(frontLantern) : frontLantern
     expect(lanternStencil(day, night)).toEqual(
       lanternStencil(
         face.map(row => '.'.repeat(row.length)),
@@ -140,52 +185,13 @@ describe('飛行の夜のランタン', () => {
     ])
   })
 
-  it.each(DIRECTIONS)('%sの灯りの上端は顔ではなく伸ばした手につながる', direction => {
-    // 正面は手の真下、横向きは吊り手が手の真横、背面は手の輪郭1升を挟んだ斜め下。
-    // 灯りのどこかが体に近いだけでは、手を離れて浮いた描き方を検出できない。
-    const grip = {
-      down: { x: 24, y: 18, lampX: 24, lampY: 19 },
-      up: { x: 25, y: 6, lampX: 26, lampY: 7 },
-      right: { x: 26, y: 20, lampX: 27, lampY: 20 },
-    }[direction]
-    for (const frame of FRAMES) {
-      const key = `player-fly-${direction}-${frame}` as const
-      const day = flightArt[key]
-      const night = PLAYER_NIGHT_ARTS[key]
-      expect(day[grip.y][grip.x]).toMatch(/^[KV]$/)
-      expect(day[grip.lampY][grip.lampX]).toBe('.')
-      expect(night[grip.lampY][grip.lampX]).toBe(direction === 'right' ? 'i' : LANTERN_SHINE)
-      if (direction === 'up') expect(day[grip.lampY][grip.x]).toBe('x')
-      const addedRows = night.flatMap((row, y) =>
-        [...row].flatMap((char, x) => (char === day[y][x] ? [] : [y]))
-      )
-      expect(Math.min(...addedRows)).toBe(grip.lampY)
-    }
-  })
-
-  it.each(KEYS)('%sの灯りのガラスは手の下へ縦横とも2升以内に提がる', key => {
-    // 手はpalette.tsで頬と手の色にしたV。Kは顔や腕の肌にも使うので数えない。
-    // 手より下のガラスだけを数え、手の横や上へ浮いた灯りを手元とみなさない
-    const hands = cellsOf(flightArt[key], HAND)
-    const glass = cellsOf(PLAYER_NIGHT_ARTS[key], LANTERN_GLASS)
-    const reach = Math.min(
-      ...hands.flatMap(hand =>
-        glass
-          .filter(dot => dot.y > hand.y)
-          .map(dot => Math.max(Math.abs(dot.x - hand.x), dot.y - hand.y))
-      )
-    )
-    expect(reach).toBeLessThanOrEqual(2)
-  })
-
-  it.each(DIRECTIONS)('%sの2コマで手元の灯りの位置を保つ', direction => {
-    const positions = FRAMES.map(frame => {
-      const key = `player-fly-${direction}-${frame}` as const
-      return PLAYER_NIGHT_ARTS[key].flatMap((row, y) =>
-        [...row].flatMap((char, x) => (char === flightArt[key][y][x] ? [] : [`${x},${y}:${char}`]))
-      )
-    })
-    expect(positions[0]).toEqual(positions[1])
+  it.each(DIRECTIONS)('%sの2コマで灯りは同じ列に立ち、雲の高さの差だけ縦に動く', direction => {
+    const keys = FRAMES.map(frame => `player-fly-${direction}-${frame}` as const)
+    const [first, second] = keys.map(key => lampOf(flightArt[key], PLAYER_NIGHT_ARTS[key]))
+    const shift = LAMP[keys[1]].top - LAMP[keys[0]].top
+    expect(second).toEqual(first.map(dot => ({ ...dot, y: dot.y + shift })))
+    // 横へは動かさない。縦の差は雲の膨らみの高さの差(0か2行)だけ
+    expect([0, 2]).toContain(shift)
   })
 })
 

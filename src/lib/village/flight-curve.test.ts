@@ -1,4 +1,4 @@
-// 直線飛行の数値・境界・減速と離着陸・羽ばたきの時間表を検査する
+// 直線飛行の数値・境界・減速と離着陸・雲の時間表を検査する
 import {
   FLIGHT_LIFT_CELLS,
   FLIGHT_MIN_DISTANCE,

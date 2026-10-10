@@ -11,7 +11,7 @@
 | `art.ts`                                                  | エンジン本体。`compose` / `mirrorX` / `mirrorY` / `recolor` と `buildSheet`                                                                    |
 | `terrain.ts` `structures.ts` `actors.ts` `weather-art.ts` | 絵の定義(地形・建物と設置物・主人公・雨と雪)                                                                                                   |
 | `umbrella-original.ts`                                    | 雨の外で傘を差した主人公の立ち・歩きのコマ。利用者の原画を写したもので手を入れない(ADR 0008)。写した直後の行列が`umbrella-original.fixture.ts` |
-| `flight-art.ts`                                           | 自動の移動でまっすぐ飛ぶ主人公のコマ。原画が無いため新しく描いたもの(ADR 0012)                                                                 |
+| `flight-art.ts`                                           | 自動の移動で飛ぶ主人公のコマ。利用者が確定したGPT画を格子で読んで写した。手直しは孤立点・輪郭の継ぎ・画布内への寄せ・頭を立ち姿に替えるだけ    |
 | `fishing-art.ts`                                          | 釣りの演出だけに出る小物(浮き・巻物・向きごとの糸)と糸を貼る場所(`FISHING_LINES`)。地形・建物と同じシートへ並ぶ                                |
 | `lantern.ts`                                              | 夜に提げるランタンの正本。主人公(`actors.ts`)が向きごとに重ねる型紙で、絵と重ね方を1箇所に集める                                               |
 | `mailbox-led.ts`                                          | ポストの LED の正本。同じ位置に昼の消灯レンズ・夜の発光色を置く生成器                                                                          |
@@ -29,7 +29,7 @@
 4. **雨と雪のシートは時間帯で色を変えない。** 地形・主人公は `phasePalette` を通すが、天気は素の `palette` のまま焼く(降る粒は地形ではないため)。「夜なのに雪が暗くならない」は仕様。実際に見える色には `src/components/VillagePage/components/Village/components/Weather/` の CSS 側(2コマの opacity と重ね順)も関わる
 5. **`DayPhase` の正本は `src/utils/day-phase.ts`。** ここでは型を import するだけで再 export しない(レイヤー境界のため)
 6. 時間帯や天気を増やすとシートの枚数が掛け算で増える(枚数の正本は焼く種類の `src/lib/pixel/sheet-file.ts` の `SHEET_KINDS` と、天気の分の `src/lib/pixel/sprites.ts`)。増やす前に `data-phase` の切り替えで済まないかを考える
-7. 原画(利用者が用意したもの。画像生成の出力を含む)がある絵はコードの文字マトリクスへ写し、写した後は1ドットも変えない → [../../../docs/decisions/0008-verbatim-pixel-art-originals.md](../../../docs/decisions/0008-verbatim-pixel-art-originals.md)。写し方(格子の取り方・色の当て方)は → [../../../docs/decisions/0010-read-originals-by-dot-pitch.md](../../../docs/decisions/0010-read-originals-by-dot-pitch.md)。原画に無いコマ(傘を出す・しまう途中のコマなど)をどう扱うかは決まっていない(同じく ADR 0010)。ただし自動の移動で飛ぶ姿のコマ(`flight-art.ts`)は、原画が無いため新しく描くと決めた → [../../../docs/decisions/0012-new-art-for-flight-frames.md](../../../docs/decisions/0012-new-art-for-flight-frames.md)。原作ゲームの素材は持ち込まない
+7. 原画(利用者が用意したもの。画像生成の出力を含む)がある絵はコードの文字マトリクスへ写し、写した後は1ドットも変えない → [../../../docs/decisions/0008-verbatim-pixel-art-originals.md](../../../docs/decisions/0008-verbatim-pixel-art-originals.md)。写し方(格子の取り方・色の当て方)は → [../../../docs/decisions/0010-read-originals-by-dot-pitch.md](../../../docs/decisions/0010-read-originals-by-dot-pitch.md)。原画に無いコマ(傘を出す・しまう途中のコマなど)をどう扱うかは決まっていない(同じく ADR 0010)。自動の移動で飛ぶ姿のコマ(`flight-art.ts`)は、原画が無いため新しく描くといったん決めた([../../../docs/decisions/0012-new-art-for-flight-frames.md](../../../docs/decisions/0012-new-art-for-flight-frames.md))が、今は利用者が確定したGPT画を格子で読んで写したもの。手で直したのは孤立した1升の点・輪郭の切れ目の継ぎ・画布の内への寄せ・頭を立ち姿のものへ替えることだけ(写し方と直した種類は`flight-art.ts`の見出し)。原作ゲームの素材は持ち込まない
 
 ## 確かめ方
 

@@ -1460,18 +1460,21 @@ const litFishing = ([up, down, right]: FishingFrames): FishingFrames => [
 
 // 夜のコマ。コマ数も並びも playerArt と同じで、違いは灯りのドットだけ
 export const playerNightArt: PlayerFrames = {
-  // 手から提げる(正面は手の真下、横向きは吊り手を手の真横、背面は前へ伸ばした手の斜め下)。手は2コマで固定し、灯りが体を削らない余白へ置く
+  // 膝に置いた手の周りは雲で埋まっていて灯りを提げる隙間が無いので、手の外側にある雲の膨らみの上に受け皿を載せる。
+  // 立ち姿と同じ側(正面は画面の右、背面は画面の左)、横向きは顔の前の膨らみ。顔と黒い輪郭には重ねず、頭とは1列空ける。
+  // 受け皿は雲の上の輪郭のすぐ上に置くので、膨らみの高さが違うコマ(背面と横向きの1)は灯りも同じ列のまま2行下がる。
+  // 横向きも笠が細い正面の面を使う — 横向きの面は笠が4列あり、顔の前に置くと顎の輪郭に接してしまう
   flyDown: [
-    hangLantern(playerArt.flyDown[0], { face: frontLantern, mirrored: false, dx: 2, top: 19 }),
-    hangLantern(playerArt.flyDown[1], { face: frontLantern, mirrored: false, dx: 2, top: 19 }),
+    hangLantern(playerArt.flyDown[0], { face: frontLantern, mirrored: false, dx: 3, top: 10 }),
+    hangLantern(playerArt.flyDown[1], { face: frontLantern, mirrored: false, dx: 3, top: 10 }),
   ],
   flyUp: [
-    hangLantern(playerArt.flyUp[0], { face: frontLantern, mirrored: false, dx: 4, top: 7 }),
-    hangLantern(playerArt.flyUp[1], { face: frontLantern, mirrored: false, dx: 4, top: 7 }),
+    hangLantern(playerArt.flyUp[0], { face: frontLantern, mirrored: true, dx: -4, top: 10 }),
+    hangLantern(playerArt.flyUp[1], { face: frontLantern, mirrored: true, dx: -4, top: 12 }),
   ],
   flyRight: [
-    hangLantern(playerArt.flyRight[0], { face: sideLantern, mirrored: false, dx: 6, top: 20 }),
-    hangLantern(playerArt.flyRight[1], { face: sideLantern, mirrored: false, dx: 6, top: 20 }),
+    hangLantern(playerArt.flyRight[0], { face: frontLantern, mirrored: false, dx: 6, top: 12 }),
+    hangLantern(playerArt.flyRight[1], { face: frontLantern, mirrored: false, dx: 6, top: 14 }),
   ],
   up: [
     standLit(playerArt.up[0], backLantern),

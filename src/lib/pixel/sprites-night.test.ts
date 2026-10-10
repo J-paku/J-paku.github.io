@@ -51,8 +51,8 @@ const umbrellaFaceOf = (key: string): string => {
 const faceOf = (key: string): string => {
   const parts = key.split('-')
   if (parts[1] === 'umbrella') return umbrellaFaceOf(key)
-  // 飛行の背面は灯りを胴の外へ出すので正面の型紙を使う
-  if (parts[1] === 'fly') return parts[2] === 'right' ? 'side' : 'front'
+  // 飛行は手の周りが雲で埋まり、灯りを雲の膨らみの上に立てるので、3方向とも笠の細い正面の型紙を使う
+  if (parts[1] === 'fly') return 'front'
   return FACE_OF_FACING[parts[1] === 'fish' ? parts[2] : parts[1]]
 }
 
