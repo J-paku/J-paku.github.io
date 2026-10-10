@@ -14,6 +14,8 @@ import type { Cell, World } from '@content/types/world'
 import { worldSet } from '@content/world'
 import { village as text } from '@content/ja/village'
 import { isWalkable } from '@/lib/village/collision'
+// 飛ぶ長さと飛ぶ最小の直線距離は lib 側が正本。ここに数値を書き写すと片方だけ動いた時に気付けない
+import { FLIGHT_MIN_DISTANCE, flightDurationMs } from '@/lib/village/flight-curve'
 // 1 マスの px は、歩行ループ(paint-camera)と同じく枠の幅をこの列数で割って出す
 import { VIEW_COLS } from '@/components/VillagePage/components/Village/utils/stage-scale'
 // 村を開く手順・歩く walk(1 マスごとに到着を待つ)・1 マス分だけ押す press・天気の差し替えと、既定で晴れを敷く test は
@@ -35,6 +37,12 @@ const SLACK_MS = 3_000
 const ARRIVE_MS = 10_000
 // 影の位置が、出発と着地を結ぶ線分から外れてよい距離(マス)
 const LINE_TOLERANCE = 0.15
+// 1 フレームのカメラの動きが、同じフレームの影と主人公の動きの大きい方を超えてよい倍率と、
+// 層の位置を整数 px へ丸める分の余裕(px)
+const CAMERA_SLACK = 1.2
+const ROUND_PX = 2
+// 箱が枠の中に収まるかを見る時に、小数 px の丸めとして許すはみ出し(px)
+const EDGE_PX = 1
 
 // ---- 村のデータ ----
 
@@ -60,6 +68,12 @@ const TOWN_ENTRY = exitWarp.target.cell
 // 地点の立ち位置。経歴碑は自宅前から真上寄りで、直線は自宅の屋根と壁の上を通る。
 // 研究所は自宅前から右上で、横の差の方が大きい。名刺工房 → 研究所は次へで巡る順
 const MONUMENT = spotCell(town, 'monument')
+
+// 町で最も上(y が最小)の地点。北の道の突き当たりにあり、カメラは町の上端で止まる
+const TOP_SPOT = town.spots.reduce((top, spot) => (spot.cell.y < top.cell.y ? spot : top))
+const topSpotText = text.stops[TOP_SPOT.id]
+if (topSpotText === undefined) throw new Error(`地点 ${TOP_SPOT.id} の文言が無い`)
+const TOP_PLACE = topSpotText.place
 
 // ---- 毎フレームの記録 ----
 
@@ -194,6 +208,12 @@ const groundOf = (sample: FrameSample, cell: number): Point => {
   return { x: sample.shadow.x / cell, y: sample.shadow.y / cell }
 }
 
+// 主人公の描かれた位置(マス)。飛んでいる間は地上の位置より浮き上がりの分だけ上
+const drawnOf = (sample: FrameSample, cell: number): Point => {
+  if (sample.player === null) throw new Error('主人公の transform が書かれていないフレームがある')
+  return { x: sample.player.x / cell, y: sample.player.y / cell }
+}
+
 const isFlyingSprite = (sample: FrameSample) => (sample.sprite ?? '').startsWith(FLY_PREFIX)
 
 // 写したコマの名前を重複なしで並べる
@@ -213,6 +233,71 @@ const onSegment = (p: Point, from: Point, to: Point) => {
 }
 
 const distanceBetween = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y)
+
+// 前のフレームから平行移動した距離(px)。label は落ちた時にどの要素か分かるように付ける
+const stepOf = (from: Placement | null, to: Placement | null, label: string) => {
+  if (from === null || to === null)
+    throw new Error(`${label}の transform を行列で読めないフレームがある`)
+  return Math.hypot(to.x - from.x, to.y - from.y)
+}
+
+// 主人公の絵(32×32 の画布)の箱。体の箱(1×1.5 マス)の左右と上へ半マスずつ広げた 2×2 マス
+// (scene.module.css の .player::before)
+const spriteBoxOf = (sample: FrameSample, cell: number): Box => {
+  if (sample.playerBox === null) throw new Error('主人公の箱を測れていないフレームがある')
+  const { left, top, right, bottom } = sample.playerBox
+  return { left: left - cell / 2, top: top - cell / 2, right: right + cell / 2, bottom }
+}
+
+const withinFrame = (box: Box, frame: Box) =>
+  box.left >= frame.left - EDGE_PX &&
+  box.top >= frame.top - EDGE_PX &&
+  box.right <= frame.right + EDGE_PX &&
+  box.bottom <= frame.bottom + EDGE_PX
+
+// 主人公の絵か地上の影が村の枠からはみ出したフレーム。どちらがはみ出したかと、枠の上辺から絵の上端までのマス数を添える
+const outsideFrame = (frames: readonly FrameSample[], cell: number) =>
+  frames.flatMap(sample => {
+    const { frameBox, shadowBox } = sample
+    if (frameBox === null || shadowBox === null)
+      throw new Error('枠か影の箱を測れていないフレームがある')
+    const sprite = spriteBoxOf(sample, cell)
+    const spriteOut = !withinFrame(sprite, frameBox)
+    const shadowOut = !withinFrame(shadowBox, frameBox)
+    if (!spriteOut && !shadowOut) return []
+    const spriteTop = Math.round(((sprite.top - frameBox.top) / cell) * 100) / 100
+    return [{ at: sample.at, spriteOut, shadowOut, spriteTop }]
+  })
+
+// 町の上端の近くで、浮き上がりのせいで主人公の絵が村の枠の上辺より上へ出たフレーム。
+// 上端の行では立っているだけで絵が枠の上辺を越えるので、上辺と「同じ地上の位置に立った時の絵の上端」の高い方までは許す。
+// 立った時の絵の上端は、描かれた絵の上端を浮き上がり(影と主人公の transform の縦の差)だけ下ろした所。
+// 絵の左右・下辺と地上の影は、ほかのテストと同じく枠の中に収まるかを見る。上辺から絵の上端と立った時の上端までのマス数を添える
+const raisedPastTop = (frames: readonly FrameSample[], cell: number) =>
+  frames.flatMap(sample => {
+    const { frameBox, shadowBox, shadow, player } = sample
+    if (frameBox === null || shadowBox === null)
+      throw new Error('枠か影の箱を測れていないフレームがある')
+    if (shadow === null || player === null)
+      throw new Error('影か主人公の transform を行列で読めないフレームがある')
+    const sprite = spriteBoxOf(sample, cell)
+    const standingTop = sprite.top + (shadow.y - player.y)
+    const topOut = sprite.top < Math.min(frameBox.top, standingTop) - EDGE_PX
+    const sidesOut = !withinFrame({ ...sprite, top: frameBox.top }, frameBox)
+    const shadowOut = !withinFrame(shadowBox, frameBox)
+    if (!topOut && !sidesOut && !shadowOut) return []
+    const cellsBelowTop = (top: number) => Math.round(((top - frameBox.top) / cell) * 100) / 100
+    return [
+      {
+        at: sample.at,
+        topOut,
+        sidesOut,
+        shadowOut,
+        spriteTop: cellsBelowTop(sprite.top),
+        standingTop: cellsBelowTop(standingTop),
+      },
+    ]
+  })
 
 // 直線 from→to が上を通る、歩いては立てないマス(content/world.ts の配置から求める)
 const blockedOnSegment = (world: World, from: Point, to: Point): Cell[] => {
@@ -385,4 +470,129 @@ test('出発と着地を結ぶ直線の上を飛び、歩いては通れない�
   // 歩いては立てないマスの上を通ったフレームがある(歩けば遠回りする道を、飛んで真っすぐ越えた)
   const overBlocked = grounds.filter(p => !isWalkable(town, cellUnder(p)))
   expect(overBlocked.length, '家の上を通ったフレームの数').toBeGreaterThan(0)
+})
+
+test('飛ぶ速さは飛び立ちが最も速く降りる前に緩み、飛ぶ長さは距離で決まる', async ({ page }) => {
+  const { cell, samples } = await travelToMonument(page)
+  const { flying, landed } = flightOf(samples)
+  const start = flying[0].at
+  const span = landed.at - start
+  // 出発のマスから影までの直線距離(マス)
+  const travelled = (sample: FrameSample) => distanceBetween(groundOf(sample, cell), TOWN_ENTRY)
+  // at 以前で最後に飛んでいたフレーム
+  const lastAtOrBefore = (at: number) => {
+    const hit = flying.findLast(s => s.at <= at)
+    if (hit === undefined) throw new Error(`${at}ms 以前に飛んでいるフレームが無い`)
+    return hit
+  }
+  // 経過時間の前の 1/3 と後ろの 1/3 に進んだ距離。減速なら前が後ろの何倍にもなる(等速なら同じ)
+  const firstThird = travelled(lastAtOrBefore(start + span / 3)) - travelled(flying[0])
+  const lastThird = travelled(landed) - travelled(lastAtOrBefore(landed.at - span / 3))
+  expect(lastThird, '後ろの 1/3 も止まらずに進む').toBeGreaterThan(0)
+  expect(firstThird, '前の 1/3 に進んだマス数').toBeGreaterThan(lastThird * 3)
+  // 飛び立ってから降りるまでの長さは、直線距離から決まる長さと 1 フレームの揺れの内で一致する。
+  // 歩行ループへ渡す経過の取り違え(秒と ms・1 フレームに 2 回進める)はここで落ちる
+  const expected = flightDurationMs(distanceBetween(MONUMENT, TOWN_ENTRY))
+  const frames = [...flying, landed]
+  const longest = Math.max(...frames.slice(1).map((s, i) => s.at - frames[i].at))
+  const drift = Math.abs(span - expected)
+  const note = `飛んだ ${span}ms・距離で決まる長さ ${expected}ms・最長の 1 フレーム ${longest}ms`
+  expect(drift, note).toBeLessThanOrEqual(longest * 2 + 5)
+})
+
+test('飛んでいる間は主人公が影より上に浮き、影は高いほど小さく、降りると影と重なる', async ({
+  page,
+}) => {
+  const { cell, samples } = await travelToMonument(page)
+  const { flying, landed } = flightOf(samples)
+  const onePx = 1 / cell
+  // 浮くのは上へだけ。横にはずれず、影より下にも描かない
+  const sideways = flying.filter(s => Math.abs(drawnOf(s, cell).x - groundOf(s, cell).x) > onePx)
+  expect(sideways, '主人公と影が横にずれたフレーム').toEqual([])
+  const sunk = flying.filter(s => drawnOf(s, cell).y > groundOf(s, cell).y + onePx)
+  expect(sunk, '主人公が影より下に描かれたフレーム').toEqual([])
+  // 飛ぶ時間の真ん中に最も近いフレームでは高く浮き、影は等倍より小さい
+  const middleAt = (flying[0].at + landed.at) / 2
+  const fromMiddle = flying.map(s => Math.abs(s.at - middleAt))
+  const middle = flying[fromMiddle.indexOf(Math.min(...fromMiddle))]
+  const lift = groundOf(middle, cell).y - drawnOf(middle, cell).y
+  expect(lift, '飛ぶ途中で影より上に浮く高さ(マス)').toBeGreaterThan(1)
+  expect(middle.shadow?.scale, '飛ぶ途中の影の倍率').toBeLessThan(0.9)
+  // 降りて眠った後は主人公と影が同じ位置に重なり、影は等倍
+  const rest = samples[samples.length - 1]
+  const restGap = {
+    x: Math.abs(drawnOf(rest, cell).x - groundOf(rest, cell).x),
+    y: Math.abs(drawnOf(rest, cell).y - groundOf(rest, cell).y),
+  }
+  expect(restGap.x, '降りた後の主人公と影の横の差').toBeLessThanOrEqual(onePx)
+  expect(restGap.y, '降りた後の主人公と影の縦の差').toBeLessThanOrEqual(onePx)
+  expect(rest.shadow?.scale, '降りた後の影の倍率').toBeCloseTo(1, 2)
+})
+
+test('飛ぶ間のカメラは主人公に付いて動き、1 フレームで影と主人公の動いた分を超えて跳ばない', async ({
+  page,
+}) => {
+  const { cell, samples } = await travelToMonument(page)
+  const { before, landed } = flightOf(samples)
+  // 飛ぶ直前のフレームから、降りて眠るまでの隣り合うフレームを比べる
+  const span = samples.slice(samples.indexOf(before))
+  const steps = span.slice(1).map((sample, i) => ({
+    at: sample.at,
+    camera: stepOf(span[i].camera, sample.camera, 'ワールドの層'),
+    ground: stepOf(span[i].shadow, sample.shadow, '影'),
+    drawn: stepOf(span[i].player, sample.player, '主人公'),
+  }))
+  // カメラは地上の影と浮いた主人公のちょうど間(浮いた高さの半分だけ上)を狙うので、1 フレームに動く距離は
+  // 影と主人公の動いた距離の大きい方を超えない。影だけと比べないのは、上へ飛ぶ時は持ち上げの分だけカメラが
+  // 影より速く動くため(経歴碑へは飛び立ちで影の約 1.33 倍)。追従が遅れて 1.5 マスで補間をやめ、
+  // 目標へ一気に飛ぶ壊れ方はここで落ちる
+  const jumps = steps.filter(s => s.camera > Math.max(s.ground, s.drawn) * CAMERA_SLACK + ROUND_PX)
+  expect(jumps, '1 フレームで跳んだカメラ(px)').toEqual([])
+  // 対照: 層の transform を写せていて、カメラは記録の中で実際に上へ動いた
+  // (自宅前の原点 8 行目から、町の上端で止まる 0 行目まで)
+  const beforeCamera = before.camera
+  const landedCamera = landed.camera
+  if (beforeCamera === null || landedCamera === null) throw new Error('層の位置を写せていない')
+  const rose = (landedCamera.y - beforeCamera.y) / cell
+  expect(rose, 'カメラが上へ動いたマス数').toBeGreaterThan(4)
+})
+
+test('飛ぶ間のどのフレームでも、主人公の絵と地上の影は村の枠の中に収まる', async ({ page }) => {
+  const { cell, samples } = await travelToMonument(page)
+  const { flying } = flightOf(samples)
+  expect(outsideFrame(flying, cell), '枠からはみ出したフレーム').toEqual([])
+})
+
+test('町で最も上の地点へ飛ぶ間も、浮き上がりで絵が枠の上辺より上へ出ず(立っているだけで出る所では浮かない)、影は枠の中に収まる', async ({
+  page,
+}) => {
+  // カメラは町の上端より上を映せないので、上端の行へ降りる飛行は主人公の絵の逃げ場が最も少ない。
+  // 上端の近くでは枠に残った分だけ浮き、上端の行のように立っているだけで絵が枠の上へ出る所では浮かない
+  expect(TOP_SPOT.cell.y, '最も上の地点は町の上端の行').toBe(0)
+  const reach = distanceBetween(TOP_SPOT.cell, TOWN_ENTRY)
+  expect(reach, '飛ぶ最小の直線距離に届く').toBeGreaterThanOrEqual(FLIGHT_MIN_DISTANCE)
+  await goToTown(page)
+  const goal = { worldId: town.id, cell: TOP_SPOT.cell }
+  const { cell, samples } = await travelOnMap(page, TOP_PLACE, goal)
+  const { flying } = flightOf(samples)
+  expect(raisedPastTop(flying, cell), '浮き上がりで枠の上辺より上へ出たフレーム').toEqual([])
+  // 上限で浮き上がりを抑えても飛ぶこと自体は残る。飛ぶ間は上向きの羽ばたくコマで、途中では高く浮く
+  const flyingSprites = distinct(flying.map(s => s.sprite))
+  expect(flyingSprites, '最も上の地点へ飛ぶ間のコマ').toEqual([
+    'player-fly-up-0',
+    'player-fly-up-1',
+  ])
+  const lifts = flying.map(s => groundOf(s, cell).y - drawnOf(s, cell).y)
+  expect(Math.max(...lifts), '最も上の地点へ飛ぶ間に最も高く浮いたマス数').toBeGreaterThan(1)
+  // 対照: 立っているだけで絵が枠の上辺を越える所(上端の行の近く)を飛ぶフレームを記録できている
+  const overWhenStanding = flying.filter(s => {
+    const { frameBox } = s
+    if (frameBox === null) throw new Error('枠の箱を測れていないフレームがある')
+    const lifted = groundOf(s, cell).y - drawnOf(s, cell).y
+    return spriteBoxOf(s, cell).top + lifted * cell < frameBox.top - EDGE_PX
+  })
+  expect(
+    overWhenStanding.length,
+    '立っているだけで絵が枠の上辺を越える所を飛んだフレーム数'
+  ).toBeGreaterThan(0)
 })
