@@ -25,6 +25,8 @@ type Direction = (typeof DIRECTIONS)[number]
 type Box = { top: number; bottom: number; left: number; right: number }
 // 雲の文字(palette.tsの黄・淡い金・褐色の金・白・渦の橙茶・陰の中間の金)
 const CLOUD = 'FpPh&@'
+// どのコマにも必ずある雲の文字。褐色の金(P)は境目の混色にだけ残るので、無いコマもある
+const CLOUD_REQUIRED = 'F@&hp'
 // 主人公の文字
 const BODY = 'qQjLIJAZKVMBYz'
 // 頭(立ち姿の体の0〜12行を16列ごと)を置いた画布の位置。横向きは尾を画布へ収めるため4列右へ寄せた
@@ -44,21 +46,63 @@ const LAMP: Record<(typeof KEYS)[number], Box> = {
   'player-fly-right-0': { top: 12, bottom: 17, left: 27, right: 29 },
   'player-fly-right-1': { top: 14, bottom: 19, left: 27, right: 29 },
 }
+// GPT画の渦。正面0だけ左右に2つ、ほかは1つ。枠の左上の行・列と、枠の中の橙茶(&)の並び(GPT画から採った形のまま)
+type Swirl = { top: number; left: number; shape: string[] }
+const SWIRLS: Record<(typeof KEYS)[number], Swirl[]> = {
+  'player-fly-down-0': [
+    { top: 23, left: 10, shape: ['.&&..', '&&&&.', '&....', '&.&.&', '&&..&'] },
+    { top: 22, left: 19, shape: ['.&&&&', '&....', '&.&..', '&&&..'] },
+  ],
+  'player-fly-down-1': [
+    { top: 23, left: 11, shape: ['&&&&..', '&..&&.', '&.&.&.', '&&&.&.', '.&..&.'] },
+  ],
+  'player-fly-up-0': [
+    { top: 23, left: 10, shape: ['.&&&..', '&&..&&', '&.&..&', '&..&.&', '.&&..&'] },
+  ],
+  'player-fly-up-1': [{ top: 23, left: 12, shape: ['.&&&.', '&...&', '&.&.&', '&.&.&', '&&&.&'] }],
+  'player-fly-right-0': [
+    {
+      top: 23,
+      left: 12,
+      shape: ['...&&&...', '..&...&..', '..&.&.&&.', '..&.&..&.', '&.&&&..&.', '&.....&&&'],
+    },
+  ],
+  'player-fly-right-1': [
+    {
+      top: 23,
+      left: 12,
+      shape: ['.&&&&...', '.&...&..', '&&.&..&.', '.&.&..&.', '.&&&..&.', '.....&.&'],
+    },
+  ],
+}
+const swirlBox = ({ top, left, shape }: Swirl): Box => ({
+  top,
+  bottom: top + shape.length - 1,
+  left,
+  right: left + shape[0].length - 1,
+})
 
 // 絵の中でcharsのどれかが置かれた升の座標
 const cellsOf = (art: PixelArt, chars: string): { x: number; y: number }[] =>
   art.flatMap((row, y) => [...row].flatMap((cell, x) => (chars.includes(cell) ? [{ x, y }] : [])))
+const inBox = (box: Box) => (dot: { x: number; y: number }) =>
+  dot.y >= box.top && dot.y <= box.bottom && dot.x >= box.left && dot.x <= box.right
 const directionOf = (key: string): Direction => key.split('-')[2] as Direction
 // 頭の13行・16列の窓
 const headOf = (art: PixelArt, direction: Direction): PixelArt => {
   const { top, left } = HEAD[direction]
   return art.slice(top, top + HEAD_ROWS).map(row => row.slice(left, left + 16))
 }
+// 頭の窓より下にある主人公の升(手・上着・脚)
+const bodyBelowHead = (art: PixelArt, direction: Direction, chars: string) =>
+  cellsOf(art, chars).filter(dot => dot.y >= HEAD[direction].top + HEAD_ROWS)
 // 夜に灯りとして足された升
 const lampOf = (day: PixelArt, night: PixelArt) =>
   night.flatMap((row, y) =>
     [...row].flatMap((char, x) => (char === day[y][x] ? [] : [{ x, y, char }]))
   )
+const chebyshev = (a: { x: number; y: number }, b: { x: number; y: number }): number =>
+  Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y))
 
 describe('飛行の絵', () => {
   it('約束した3方向2コマだけを持ち、左向きや傘の別コマを増やさない', () => {
@@ -81,6 +125,13 @@ describe('飛行の絵', () => {
     expect(art[31]).toBe('.'.repeat(32))
     expect(art.every(row => row[0] === '.' && row[31] === '.')).toBe(true)
     expect(art.some(row => /[^.]/.test(row.slice(0, 8) + row.slice(24)))).toBe(true)
+  })
+
+  it.each(KEYS)('%sは雲の底を画布の30行目に置き、地面から浮かせる高さを絵に持たない', key => {
+    const art = flightArt[key]
+    const lowest = Math.max(...cellsOf(art, `x${CLOUD}`).map(dot => dot.y))
+    expect(lowest).toBe(30)
+    expect(art[30]).toMatch(/^\.+x+(\.+x+)?\.+$/)
   })
 
   it.each(DIRECTIONS)(
@@ -117,12 +168,157 @@ describe('飛行の絵', () => {
     }
   })
 
+  it.each(KEYS)('%sは金色の全外周を黒い輪郭で閉じ、GPT画の位置に渦を描く', key => {
+    const art = flightArt[key]
+    for (const char of CLOUD) {
+      const dots = cellsOf(art, char)
+      if (CLOUD_REQUIRED.includes(char)) expect(dots.length, `${key} ${char}`).toBeGreaterThan(0)
+      expect(dots.every(dot => dot.y >= 14 && dot.y <= 29)).toBe(true)
+      for (const { x, y } of dots) {
+        // 斜めの角は階段状に接してよいが、上下左右のどこからも背景へ金色が漏れない
+        for (const [dx, dy] of [
+          [-1, 0],
+          [1, 0],
+          [0, -1],
+          [0, 1],
+        ]) {
+          expect(art[y + dy]?.[x + dx], `${key} (${x},${y})`).not.toBe('.')
+          expect(art[y + dy]?.[x + dx]).toBeDefined()
+        }
+      }
+    }
+    expect(cellsOf(art, 'F').length).toBeGreaterThan(cellsOf(art, 'p').length)
+    expect(cellsOf(art, 'F').length).toBeGreaterThan(cellsOf(art, '&').length)
+    // 渦は橙茶(&)の線で、GPT画から採った巻きの形を1升も崩さない
+    for (const swirl of SWIRLS[key]) {
+      const { top, bottom, left, right } = swirlBox(swirl)
+      const window = art.slice(top, bottom + 1).map(row => row.slice(left, right + 1))
+      const drawn = window.map(row => [...row].map(char => (char === '&' ? '&' : '.')).join(''))
+      expect(drawn, key).toEqual(swirl.shape)
+      // 渦の枠の中に背景の穴を開けない
+      expect(window.every(row => !row.includes('.'))).toBe(true)
+    }
+  })
+
+  it.each(KEYS)('%sは陰の金を面で塗り、光は塊か渦の目にだけ置く', key => {
+    const art = flightArt[key]
+    const at = (x: number, y: number) => art[y]?.[x] ?? '.'
+    // 陰(@)は地の黄より少なく、ほとんどが上下左右に陰と続く面になる(1升ずつ散らさない)
+    const shade = cellsOf(art, '@')
+    expect(shade.length).toBeGreaterThanOrEqual(50)
+    expect(shade.length).toBeLessThan(cellsOf(art, 'F').length)
+    const joined = shade.filter(({ x, y }) =>
+      [
+        [-1, 0],
+        [1, 0],
+        [0, -1],
+        [0, 1],
+      ].some(([dx, dy]) => at(x + dx, y + dy) === '@')
+    )
+    expect(joined.length / shade.length).toBeGreaterThanOrEqual(0.7)
+    // 光(h)は、隣(斜めを含む)に光か淡い金(p)がある塊の一部か、渦の枠の中(渦の目の光)にだけ置く
+    const swirls = SWIRLS[key].map(swirlBox)
+    for (const dot of cellsOf(art, 'h')) {
+      const around = [-1, 0, 1].flatMap(dy =>
+        [-1, 0, 1].flatMap(dx => (dx || dy ? [at(dot.x + dx, dot.y + dy)] : []))
+      )
+      const inBlob = around.some(char => char === 'h' || char === 'p')
+      const allowed = inBlob || swirls.some(box => inBox(box)(dot))
+      expect(allowed, `${key} (${dot.x},${dot.y})`).toBe(true)
+    }
+  })
+
+  it('正面0の2つの渦は、橙茶の無い列で左右に分かれる', () => {
+    const art = flightArt['player-fly-down-0']
+    const [left, right] = SWIRLS['player-fly-down-0'].map(swirlBox)
+    const between = { top: 22, bottom: 27, left: left.right + 1, right: right.left - 1 }
+    expect(between.right).toBeGreaterThanOrEqual(between.left)
+    expect(cellsOf(art, '&').filter(inBox(between))).toEqual([])
+  })
+
+  it.each(KEYS)('%sの体は頭の幅に収まり、雲の下の縁より下へ出ない', key => {
+    const art = flightArt[key]
+    const direction = directionOf(key)
+    const { left } = HEAD[direction]
+    const head = cellsOf(headOf(art, direction), BODY + 'x').map(dot => dot.x + left)
+    const body = bodyBelowHead(art, direction, BODY)
+    expect(body.length).toBeGreaterThan(20)
+    for (const { x } of body) {
+      expect(x).toBeGreaterThanOrEqual(Math.min(...head))
+      expect(x).toBeLessThanOrEqual(Math.max(...head))
+    }
+    // 雲の下の縁より下へ体を出さない(脚は雲の上で組む)
+    expect(Math.max(...body.map(dot => dot.y))).toBeLessThanOrEqual(21)
+    expect(bodyBelowHead(art, direction, 'KV').length).toBeGreaterThan(0)
+  })
+
+  it.each(['down', 'up'] as const)('%sは左右の手のすぐ外側に雲の膨らみがある', direction => {
+    for (const frame of FRAMES) {
+      const art = flightArt[`player-fly-${direction}-${frame}`]
+      const hands = bodyBelowHead(art, direction, direction === 'down' ? 'V' : 'K').filter(
+        dot => dot.y === 17
+      )
+      expect(hands.map(dot => dot.x)).toEqual(direction === 'down' ? [10, 20] : [10, 21])
+      const [leftHand, rightHand] = hands
+      expect(art[17].slice(leftHand.x - 2, leftHand.x)).toMatch(new RegExp(`^[${CLOUD}]x$`))
+      expect(art[17].slice(rightHand.x + 1, rightHand.x + 3)).toMatch(new RegExp(`^x[${CLOUD}]$`))
+    }
+  })
+
+  it('正面だけ組んだ脚(灰のズボン)が見え、背面と横向きは脚を雲の縁に隠す', () => {
+    for (const frame of FRAMES) {
+      const front = flightArt[`player-fly-down-${frame}`]
+      expect(cellsOf(front, 'z').every(dot => dot.y >= 18 && dot.y <= 19)).toBe(true)
+      expect(cellsOf(front, 'z').length).toBeGreaterThanOrEqual(6)
+      expect(flightArt[`player-fly-up-${frame}`].join('')).not.toContain('z')
+      expect(flightArt[`player-fly-right-${frame}`].join('')).not.toContain('z')
+    }
+  })
+
   it('6コマはすべて異なり、背面に顔のレンズを描かない', () => {
     expect(new Set(KEYS.map(key => flightArt[key].join(''))).size).toBe(6)
     for (const frame of FRAMES) {
       expect(flightArt[`player-fly-up-${frame}`].join('')).not.toMatch(/[LI]/)
       expect(flightArt[`player-fly-down-${frame}`].join('')).toMatch(/[LI]/)
       expect(flightArt[`player-fly-right-${frame}`].join('')).toMatch(/[LI]/)
+    }
+  })
+
+  it('横向きは尾の離れた小玉も画布に収め、0は尾の先の横、1は尾の先の上に置く', () => {
+    const puffs = {
+      0: { top: 20, bottom: 23, left: 1, right: 4 },
+      1: { top: 14, bottom: 18, left: 1, right: 5 },
+    }
+    for (const frame of FRAMES) {
+      const art = flightArt[`player-fly-right-${frame}`]
+      const puff = puffs[frame]
+      const inside = cellsOf(art, `x${CLOUD}`).filter(inBox(puff))
+      expect(inside.length).toBeGreaterThanOrEqual(10)
+      // 小玉の金色は黒い輪郭で閉じた1つの塊で、上下左右へたどっても尾の金色へつながらない
+      const start = cellsOf(art, 'F').find(inBox(puff))
+      expect(start).toBeDefined()
+      const seen = new Set<string>()
+      const stack = start ? [start] : []
+      while (stack.length) {
+        const dot = stack.pop()
+        if (!dot || seen.has(`${dot.x},${dot.y}`)) continue
+        seen.add(`${dot.x},${dot.y}`)
+        for (const [dx, dy] of [
+          [-1, 0],
+          [1, 0],
+          [0, -1],
+          [0, 1],
+        ]) {
+          const next = { x: dot.x + dx, y: dot.y + dy }
+          if (CLOUD.includes(art[next.y]?.[next.x] ?? '.')) stack.push(next)
+        }
+      }
+      const blob = [...seen].map(cell => {
+        const [x, y] = cell.split(',').map(Number)
+        return { x, y }
+      })
+      expect(blob.length).toBeGreaterThanOrEqual(4)
+      expect(blob.every(inBox(puff))).toBe(true)
     }
   })
 
@@ -183,6 +379,36 @@ describe('飛行の夜のランタン', () => {
       LANTERN_SHINE,
       LANTERN_GLASS,
     ])
+  })
+
+  it.each(KEYS)('%sの灯りは手の外側の雲の膨らみに載り、頭とは1列以上空ける', key => {
+    // 膝に置いた手の周りは雲で埋まっているので、灯りは手から5升以内の雲の上へ立てる。
+    // 顔の真横に浮かせたり、雲から離して宙に置いたりした描き方を検出する
+    const direction = directionOf(key)
+    const day = flightArt[key]
+    const lamp = lampOf(day, PLAYER_NIGHT_ARTS[key])
+    const box = LAMP[key]
+    expect(lamp.every(inBox(box))).toBe(true)
+    expect(Math.min(...lamp.map(dot => dot.y))).toBe(box.top)
+    expect(Math.max(...lamp.map(dot => dot.y))).toBe(box.bottom)
+    // 受け皿は雲の上の輪郭のすぐ上に置く。受け皿のどこかの真下1行が雲で、受け皿の下に宙の隙間を空けない
+    const base = lamp.filter(dot => dot.y === box.bottom)
+    expect(base.length).toBe(3)
+    const underBase = base.map(dot => day[dot.y + 1][dot.x])
+    expect(underBase.some(char => `x${CLOUD}`.includes(char))).toBe(true)
+    // 頭の升とは縦横斜めとも1升以上空ける
+    const { top, left } = HEAD[direction]
+    const head = cellsOf(headOf(day, direction), BODY + 'x').map(dot => ({
+      x: dot.x + left,
+      y: dot.y + top,
+    }))
+    const gap = Math.min(...lamp.flatMap(dot => head.map(cell => chebyshev(dot, cell))))
+    expect(gap).toBeGreaterThanOrEqual(2)
+    // ガラスは手(頭より下の肌)から縦横とも5升以内
+    const hands = bodyBelowHead(day, direction, 'KV')
+    const glass = lamp.filter(dot => dot.char === LANTERN_GLASS)
+    const reach = Math.min(...glass.flatMap(dot => hands.map(hand => chebyshev(dot, hand))))
+    expect(reach).toBeLessThanOrEqual(5)
   })
 
   it.each(DIRECTIONS)('%sの2コマで灯りは同じ列に立ち、雲の高さの差だけ縦に動く', direction => {
