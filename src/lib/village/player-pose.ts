@@ -3,7 +3,8 @@
 // 竿のコマは釣りの段階と、その段階に入ってからの経過で決まる。時間でまだコマが変わるか(animating)も
 // 返し、歩行ループはそれだけを見て眠ってよいかを決める(ループ側に時間の定数を持たない)
 // 雨の屋外では傘を差した歩行コマを使い、扉を出た直後に広げる・扉へ入る前に畳むコマも時間表で出す。
-// 優先は 釣り > 傘 > 普段の歩行コマ
+// 自動移動で飛んでいる間は羽ばたく2コマを交互に出す(雨の日も傘を差さない同じコマ)。
+// 優先は 釣り > 飛行 > 傘 > 普段の歩行コマ。釣っている間は飛び立てないので、釣りが先でも飛行と重ならない
 // sprites.ts は node:zlib(art.ts → png.ts 経由)を読むので、値ではなく型だけを取り込む。import type は出力から消えるので、
 // クライアントのバンドルへ sprites.ts が入らない
 import type {
@@ -11,6 +12,7 @@ import type {
   UMBRELLA_CLOSE_STEPS,
   UMBRELLA_OPEN_STEPS,
 } from '@/lib/pixel/sprites'
+import { flightPose } from './flight'
 import type { MoveState } from './movement'
 
 // 竿を振る時間。振りかぶり・引き・投げ・振り抜きを 4 等分で出し、終われば構え(待機)のコマへ戻る。
@@ -175,6 +177,9 @@ export const playerPose = (
     const rod = fishingFrame(fishing, reduceMotion, fishingElapsedMs)
     return { key: `player-fish-${direction}${rod.suffix}`, flip, animating: rod.animating }
   }
+  // 飛んでいる間は傘の段階に関わらず羽ばたきのコマを出す(コマの選び方は flightPose)
+  const flying = flightPose(state, reduceMotion)
+  if (flying !== null) return flying
   const step =
     umbrella === null ? undefined : umbrellaStep(umbrella, reduceMotion, umbrellaElapsedMs)
   // 広げる・畳むコマは正面か背面の絵なので、向きに関わらず反転しない

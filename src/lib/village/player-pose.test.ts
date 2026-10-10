@@ -397,6 +397,66 @@ describe('playerPose', () => {
       }
     }
   })
+  // 飛んでいる最中の状態。羽ばたきのコマは飛び立ってからの経過で決まる
+  const flying = (facing: (typeof facings)[number], elapsedMs: number): MoveState => ({
+    ...state,
+    facing,
+    flight: { from: { x: 0, y: 2 }, to: { x: 2, y: 0 }, durationMs: 571, elapsedMs },
+  })
+  it('飛んでいる間は向きごとの羽ばたきのコマを 120ms ごとに交互に出し、左は右の反転', () => {
+    // [経過 ms, コマ]。境界は直前(x.9)とちょうどの両方を置く
+    const wings = [
+      [0, 0],
+      [119.9, 0],
+      [120, 1],
+      [239.9, 1],
+      [240, 0],
+      [360, 1],
+      [570, 0],
+    ] as const
+    for (const facing of facings) {
+      const direction = facing === 'left' ? 'right' : facing
+      for (const [elapsed, wing] of wings) {
+        expect(playerPose(flying(facing, elapsed), false), `${facing} ${elapsed}ms`).toEqual({
+          key: `player-fly-${direction}-${wing}`,
+          flip: facing === 'left',
+          animating: true,
+        })
+      }
+    }
+  })
+  it('動きを控える設定では羽ばたきを最初のコマで止めるが、位置が動くので animating のまま', () => {
+    for (const facing of facings) {
+      const direction = facing === 'left' ? 'right' : facing
+      for (const elapsed of [0, 120, 360]) {
+        expect(playerPose(flying(facing, elapsed), true), `${facing} ${elapsed}ms`).toEqual({
+          key: `player-fly-${direction}-0`,
+          flip: facing === 'left',
+          animating: true,
+        })
+      }
+    }
+  })
+  it('雨の日も飛んでいる間は傘の段階に関わらず同じ羽ばたきのコマを出す', () => {
+    for (const phase of umbrellaPhases) {
+      for (const facing of facings) {
+        const direction = facing === 'left' ? 'right' : facing
+        // 傘の時間表の途中(広げる・畳むコマが出る時刻)でも飛行のコマが勝つ
+        expect(playerPose(flying(facing, 120), false, null, 0, phase, 300)).toEqual({
+          key: `player-fly-${direction}-1`,
+          flip: facing === 'left',
+          animating: true,
+        })
+      }
+    }
+  })
+  it('釣りのコマは飛行より優先する', () => {
+    expect(playerPose(flying('down', 120), false, 'casting', FISHING_SWING_MS)).toEqual({
+      key: 'player-fish-down',
+      flip: false,
+      animating: false,
+    })
+  })
   it('umbrellaBusy は傘のコマが時間で替わる間(animating)とちょうど重なる', () => {
     // 移動を止める間と、止まって見せる出し入れのコマの間がずれると、歩きながら広げる絵が出る
     const since = 1000

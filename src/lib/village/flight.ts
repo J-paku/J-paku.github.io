@@ -10,6 +10,7 @@ import {
   FLIGHT_MIN_DISTANCE,
   flightDurationMs,
   flightEase,
+  flightFrame,
   flightLift,
   flightShadowScale,
 } from './flight-curve'
@@ -136,6 +137,20 @@ export const flightLiftCells = ({ flight }: Flying): number => {
 // 足元の影の倍率。飛んでいなければ等倍。上限で抑えた後の浮き上がりから決めるので、浮かない所では等倍
 export const flightShadow = (state: Flying): number =>
   flightShadowScale(flightLiftCells(state) / FLIGHT_LIFT_CELLS)
+
+// 飛んでいる間に出す羽ばたきのコマ。飛び立ってからの経過で2コマを交互に出し、動きを控える設定では最初のコマで止める。
+// 左向きの絵は持たないので右向きを反転する。位置は時間で動くので、羽ばたきを止めても animating のまま。
+// 飛んでいなければ null を返し、呼び出し側は傘・歩行のコマを選ぶ
+export const flightPose = (
+  { flight, facing }: Pick<MoveState, 'flight' | 'facing'>,
+  reduceMotion: boolean
+): { key: string; flip: boolean; animating: boolean } | null => {
+  if (flight === null) return null
+  const flip = facing === 'left'
+  const direction = flip ? 'right' : facing
+  const wing = reduceMotion ? 0 : flightFrame(flight.elapsedMs)
+  return { key: `player-fly-${direction}-${wing}`, flip, animating: true }
+}
 
 // 飛んでいる間にカメラの目標を上へずらすマス数。飛んでいなければ0。
 // 表示枠は縦9マスで、カメラは目標のマスの中心を枠の真ん中に置くので、見えるのは真ん中から上下4.5マス。

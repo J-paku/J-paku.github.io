@@ -2,13 +2,14 @@
 // 高さはワールドの上端の近くで上限に抑える所(絵が画面の上へ出ない・立っているだけで出る所では浮かない・途中で跳ばない)と、
 // 飛んでいる最中かの判定(isFlying。地図を開く操作を止めるのに使う)も見る。
 // 期待値は flight-curve の関数で計算し直さず数で書く(同じ式で計算し直すと、式を壊した変異が生き残る)
-import type { World } from '@content/types/world'
+import type { Direction, World } from '@content/types/world'
 import {
   advanceFlight,
   flightCameraLift,
   flightFacing,
   flightLiftCells,
   flightLiftLimit,
+  flightPose,
   flightPosition,
   flightShadow,
   isFlying,
@@ -317,6 +318,42 @@ describe('advanceFlight', () => {
       state: landedState,
       landed: { x: 2, y: 0 },
     })
+  })
+})
+
+describe('flightPose', () => {
+  const aloft = (facing: Direction, elapsedMs: number): Pick<MoveState, 'flight' | 'facing'> => ({
+    facing,
+    flight: { from: { x: 0, y: 2 }, to: { x: 2, y: 0 }, durationMs: 571, elapsedMs },
+  })
+
+  it('飛んでいなければ null', () => {
+    expect(flightPose({ facing: 'down', flight: null }, false)).toBeNull()
+    expect(flightPose({ facing: 'left', flight: null }, true)).toBeNull()
+  })
+
+  it.each([
+    ['up', 0, 'player-fly-up-0', false],
+    ['up', 120, 'player-fly-up-1', false],
+    ['down', 0, 'player-fly-down-0', false],
+    ['down', 120, 'player-fly-down-1', false],
+    ['right', 0, 'player-fly-right-0', false],
+    ['right', 120, 'player-fly-right-1', false],
+    // 左向きの絵は持たないので右向きを反転する
+    ['left', 0, 'player-fly-right-0', true],
+    ['left', 120, 'player-fly-right-1', true],
+  ] as const)('%s 向きで %s ms なら %s(反転 %s)', (facing, elapsedMs, key, flip) => {
+    expect(flightPose(aloft(facing, elapsedMs), false)).toEqual({ key, flip, animating: true })
+  })
+
+  it.each([
+    ['up', 'player-fly-up-0', false],
+    ['down', 'player-fly-down-0', false],
+    ['right', 'player-fly-right-0', false],
+    ['left', 'player-fly-right-0', true],
+  ] as const)('動きを控える設定では %s 向きも最初のコマ %s で止める', (facing, key, flip) => {
+    // 位置は時間で動くので、羽ばたきを止めても animating のまま
+    expect(flightPose(aloft(facing, 120), true)).toEqual({ key, flip, animating: true })
   })
 })
 
