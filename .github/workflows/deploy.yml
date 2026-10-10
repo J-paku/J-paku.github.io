@@ -32,7 +32,23 @@ jobs:
       # カバレッジが床を下回ったらここで止まる(基準の正本はvitest.config.tsのcoverage.thresholds)
       - run: npm run test:coverage
       - run: npm run test:boundary
+      # 変異テストは前回の結果(stryker.config.mjs の incrementalFile)を引き継ぎ、変わった変異体だけを走らせる。
+      # 鍵に依存・設定の指紋を入れ、どれかが変わると引き継がずに全部を走らせる(docs/decisions/0013-incremental-mutation-on-push.md)
+      # キャッシュがまだ無い最初の push では、引き継ぐ結果が無いので全部が走る
+      - name: Restore Stryker incremental result
+        uses: actions/cache/restore@v4
+        with:
+          path: reports/stryker-incremental.json
+          key: stryker-incremental-${{ hashFiles('package-lock.json', 'stryker.config.mjs', 'vitest.config.ts') }}-${{ github.sha }}
+          restore-keys: stryker-incremental-${{ hashFiles('package-lock.json', 'stryker.config.mjs', 'vitest.config.ts') }}-
       - run: npm run test:mutation
+      # 変異テストが落ちても結果は残して次の push を速くする。取り消された実行は保存しない
+      - name: Save Stryker incremental result
+        if: ${{ !cancelled() && hashFiles('reports/stryker-incremental.json') != '' }}
+        uses: actions/cache/save@v4
+        with:
+          path: reports/stryker-incremental.json
+          key: stryker-incremental-${{ hashFiles('package-lock.json', 'stryker.config.mjs', 'vitest.config.ts') }}-${{ github.sha }}
       # 計測先 URL はリポジトリに書かず、GitHub の変数から渡す(未設定なら計測タグを出さない)
       - name: Build
         run: npm run build

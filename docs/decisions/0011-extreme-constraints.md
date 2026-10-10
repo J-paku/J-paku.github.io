@@ -5,7 +5,7 @@ read_when:
   - ロジックをどこに置き、どのテストで固めるか迷ったとき
   - フックのフォルダにテストを置いてよいか迷ったとき
 source_of_truth: false
-last_reviewed: 2026-10-10
+last_reviewed: 2026-10-11
 ---
 
 # 0011. 人はコードを読んでレビューせず、制約(テスト・検査)を極端に多く置いて、すべて通ったものを信頼する
@@ -51,7 +51,7 @@ Accepted(2026-10-10、利用者の決定)。[0009](0009-widen-happy-dom-test-sco
 | `npm run format:check` | 整形の崩れ | `.prettierrc` | ソース |
 | `npm run test:coverage` | 単体・統合テストの失敗と、全体のカバレッジの床割れ | `vitest.config.ts`の`coverage` | ソース |
 | ファイル別カバレッジ100%(`npm run test:coverage`の中) | 対象のファイルに、文・分岐・関数・行のどれかで測られない所が1つでもあること(`FULL_COVERAGE`。4つとも100) | `vitest.config.ts`の`coverage.thresholds` | ソース |
-| `npm run test:mutation` | 単体テストが落とせない変異が残ること(`break` 100) | `stryker.config.mjs`の`mutate` | ソース |
+| `npm run test:mutation` | 単体テストが落とせない変異が残ること(`break` 100)。2026-10-11からpushでは変わった変異体だけを走らせる([0013](0013-incremental-mutation-on-push.md)) | `stryker.config.mjs`の`mutate` | ソース |
 | `npm run test:boundary` | `hooks`フォルダの中の単体テストと、srcのテストで`renderHook`を使うこと | `scripts/check-test-boundary.mjs` | ソース |
 | `npm run test:e2e` | 実際のクリック・キー操作での振る舞いの崩れ | `playwright.config.ts`と[../quality/test-strategy.md](../quality/test-strategy.md)の一覧 | 配信物`out/` |
 | axe | アクセシビリティの違反 | `scripts/check-a11y.mjs` | 配信物`out/` |

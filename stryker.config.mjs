@@ -1,4 +1,6 @@
 // 変異テスト(Stryker)の設定。npm run test:mutation で走り、CI では test:coverage の後に走る。
+// 既定は前回の結果を使い、変わった変異体だけを走らせる(incremental。下の注釈)。
+// 全部を走らせるのは npm run test:mutation -- --force(docs/decisions/0013-incremental-mutation-on-push.md)
 //
 // 新しい純粋モジュールは人がコードを読んで確かめない。その代わりに、元のコードを1か所ずつ壊した変異体
 // (演算子・比較・定数・条件の入れ替え)を、テストが1体残らず見抜けることを機械に確かめさせる。
@@ -42,6 +44,14 @@ const config = {
   thresholds: { high: 100, low: 100, break: 100 },
   reporters: ['clear-text', 'progress', 'html'],
   htmlReporter: { fileName: 'reports/mutation/index.html' },
+  // 前回の結果をファイルに残し、次の実行では変わった変異体だけを走らせる。CI はこのファイルを
+  // キャッシュで持ち回るので、push ごとに全部を走らせずに済む。
+  // 穴: 比べるのは mutate のファイルとテストファイルだけで、依存パッケージ・設定・mutate のファイルが
+  // import する別のファイルが変わっても気付かず、前回の結果を使い回す。
+  // 埋め方: 週1回、手で npm run test:mutation -- --force を走らせて全部を測り直す。CI のキャッシュの鍵には
+  // package-lock.json・この設定・vitest.config.ts の指紋を入れ、どれかが変わると結果を引き継がずに全部を走らせる
+  incremental: true,
+  incrementalFile: 'reports/stryker-incremental.json',
   tempDirName: '.stryker-tmp',
   // Stryker は作業用の写しを作るとき .gitignore を読まない。手元にしか無い大きなフォルダ
   // (.claude/ の作業ツリー・ビルド成果物・報告)まで写さないよう、ここで外す

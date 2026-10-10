@@ -5,7 +5,7 @@ read_when:
   - どのテストを走らせるか決めるとき
   - ロジックをどこに置き、どのテストで固めるか決めるとき
 source_of_truth: true
-last_reviewed: 2026-10-10
+last_reviewed: 2026-10-11
 ---
 
 # テスト
@@ -102,6 +102,11 @@ E2E は `out/` を配る。**先に `npm run build` を済ませる。**
 - カバレッジは「テストがその行を通ったか」しか見ない。ミューテーションは「その行を壊したらテストが落ちるか」を見る。
   [新しい検査は必ず一度落とす](#新しい検査は必ず一度落とす)を、対象ファイルのすべての変異について機械が繰り返す形
 - 落とせない変異が出たら、テストを足して落とす。`mutate`から外す・`break`を下げるにはADRが要る
+- 走らせ方は3段([../decisions/0013-incremental-mutation-on-push.md](../decisions/0013-incremental-mutation-on-push.md))。commitの前には走らせない。
+  push(CI)と手元の既定の実行は`incremental`で前回の結果を引き継ぎ、変わった変異体だけを走らせる(CIは結果をキャッシュで持ち回り、キャッシュが無い最初のpushでは全部が走る)。
+  全部を走らせるのは週1回、手で`npm run test:mutation -- --force`
+- `incremental`が前回と比べるのは`mutate`のファイルとテストファイルだけ。`mutate`のファイルがimportする別のファイル・依存パッケージ・設定だけが変わっても気付かない。
+  CIはキャッシュの鍵に`package-lock.json`・`stryker.config.mjs`・`vitest.config.ts`の指紋を入れて、依存・設定が変わると全部を走らせる。importする別のファイルの変更は週1回の`--force`まで見落としうる
 
 ## テストの境界
 

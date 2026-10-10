@@ -4,7 +4,7 @@ read_when:
   - 既存の設計を置き換えようとするとき
   - なぜこの作りなのかを問われたとき
 source_of_truth: false
-last_reviewed: 2026-10-10
+last_reviewed: 2026-10-11
 ---
 
 # decisions/(ADR)
@@ -26,6 +26,7 @@ last_reviewed: 2026-10-10
 | [0010](0010-read-originals-by-dot-pitch.md) | 原画はドットの間隔を測った格子で読み、色は近い既存の文字へ写して、近似できない色だけ文字を足す | Accepted |
 | [0011](0011-extreme-constraints.md) | コードレビューの代わりに極端な制約で信頼する(extreme constraints) | Accepted |
 | [0012](0012-new-art-for-flight-frames.md) | 原画の無い飛ぶ姿のコマは新しく描き、原画が届いたら写して置き換える | Accepted |
+| [0013](0013-incremental-mutation-on-push.md) | 変異テストは push ごとに変わった変異体だけを走らせ、全体は週1回手で走らせる | Accepted |
 
 ## 書くときの決まり
 
