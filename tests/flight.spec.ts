@@ -20,7 +20,7 @@ import { FLIGHT_MIN_DISTANCE, flightDurationMs } from '@/lib/village/flight-curv
 import { VIEW_COLS } from '@/components/VillagePage/components/Village/utils/stage-scale'
 // 村を開く手順・歩く walk(1 マスごとに到着を待つ)・1 マス分だけ押す press・天気の差し替えと、既定で晴れを敷く test は
 // 他の村の spec と共用。正本は village.helpers.ts
-import { openVillage, test, walk } from './village.helpers'
+import { openVillage, press, test, walk } from './village.helpers'
 
 // 位置の保存先。src/lib/preferences.ts の readPosition / writePosition と同じ組み立て
 const POS_KEY = `village:${worldSet.id}:pos`
@@ -68,6 +68,9 @@ const TOWN_ENTRY = exitWarp.target.cell
 // 地点の立ち位置。経歴碑は自宅前から真上寄りで、直線は自宅の屋根と壁の上を通る。
 // 研究所は自宅前から右上で、横の差の方が大きい。名刺工房 → 研究所は次へで巡る順
 const MONUMENT = spotCell(town, 'monument')
+const LAB = spotCell(town, 'lab')
+const MEISHI = spotCell(town, 'meishi')
+const MAILBOX = spotCell(town, 'mailbox')
 
 // 町で最も上(y が最小)の地点。北の道の突き当たりにあり、カメラは町の上端で止まる
 const TOP_SPOT = town.spots.reduce((top, spot) => (spot.cell.y < top.cell.y ? spot : top))
@@ -395,6 +398,41 @@ const travelToMonument = async (page: Page) => {
   return travelOnMap(page, text.stops.monument.place, { worldId: town.id, cell: MONUMENT })
 }
 
+// 押し離し・クリックの瞬間に、影が飛んでいる印を出していたかを控える。捕捉の段階で窓に付けるので村の枠より先に読む。
+// クリックは key を 'click' として控える
+type KeyMark = { type: string; key: string; flying: string | null }
+type KeyWindow = Window & { flightKeys?: KeyMark[] }
+const recordKeys = (page: Page) =>
+  page.evaluate(selector => {
+    const host: KeyWindow = window
+    const marks: KeyMark[] = []
+    host.flightKeys = marks
+    const flyingNow = () => document.querySelector<HTMLElement>(selector)?.dataset.flying ?? null
+    for (const type of ['keydown', 'keyup'] as const) {
+      window.addEventListener(
+        type,
+        event => {
+          if (event.repeat) return
+          marks.push({ type, key: event.key, flying: flyingNow() })
+        },
+        true
+      )
+    }
+    window.addEventListener(
+      'click',
+      () => {
+        marks.push({ type: 'click', key: 'click', flying: flyingNow() })
+      },
+      true
+    )
+  }, SHADOW)
+
+const readKeys = (page: Page, key: string) =>
+  page.evaluate(wanted => {
+    const host: KeyWindow = window
+    return (host.flightKeys ?? []).filter(mark => mark.key === wanted)
+  }, key)
+
 // 影が飛んでいる印を出す(飛び立った)まで待つ
 const waitForTakeOff = (page: Page) =>
   page.waitForFunction(
@@ -595,4 +633,176 @@ test('町で最も上の地点へ飛ぶ間も、浮き上がりで絵が枠の�
     overWhenStanding.length,
     '立っているだけで絵が枠の上辺を越える所を飛んだフレーム数'
   ).toBeGreaterThan(0)
+})
+
+test('飛んでいる間に方向キーを押しても、降りるマスも向きも変わらない', async ({ page }) => {
+  // 研究所は自宅前から右上で横の差の方が大きいので、右を向いて飛び、右を向いたまま降りる
+  const run = LAB.x - TOWN_ENTRY.x
+  expect(run, '研究所は自宅前の右寄り').toBeGreaterThan(Math.abs(LAB.y - TOWN_ENTRY.y))
+  // 降りた後に下へ 1 マス歩けるか(キーが村へ届いていることの対照に使う)
+  const belowLab = { x: LAB.x, y: LAB.y + 1 }
+  expect(isWalkable(town, belowLab), '研究所の前の 1 マス下は歩ける').toBe(true)
+  await goToTown(page)
+  await recordKeys(page)
+  const map = await openMap(page)
+  await spotButton(map, text.stops.lab.place).click()
+  await expect(map).toHaveCount(0)
+  // 飛び立ったのを見てから、下へ 1 マス分押す。錠が無ければ歩き出すか下を向く
+  await page.waitForFunction(
+    selector => document.querySelector(selector)?.getAttribute('data-flying') === 'true',
+    SHADOW,
+    { polling: 'raf', timeout: SLACK_MS }
+  )
+  await press(page, 'ArrowDown')
+  const atLab = { worldId: town.id, cell: LAB }
+  await expect.poll(() => readCell(page), { timeout: ARRIVE_MS }).toEqual(atLab)
+  await expectLoopIdle(page)
+  // 押したのも離したのも飛んでいる間だった。遅いランナーで降りた後に押した回を「無視された」と取り違えない
+  expect(await readKeys(page, 'ArrowDown'), '下を押し離した時の影の印').toEqual([
+    { type: 'keydown', key: 'ArrowDown', flying: 'true' },
+    { type: 'keyup', key: 'ArrowDown', flying: 'true' },
+  ])
+  expect(await readCell(page), '降りた後も研究所の前から動かない').toEqual(atLab)
+  // 押した下ではなく、飛んだ右を向いたまま立つ
+  const standing = page.locator(PLAYER)
+  await expect(standing, '右向きのまま立つ').toHaveAttribute('data-sprite', 'player-right-0')
+  // 対照: 降りた後は同じキーで歩ける。キーが村の枠へ届いていなかったせいで動かなかったのではない
+  expect(await walk(page, 'ArrowDown', 1), '降りた後は下へ 1 マス歩ける').toBe(1)
+  expect(await readCell(page)).toEqual({ worldId: town.id, cell: belowLab })
+})
+
+test('地点から飛び立つと、出発の地点の吹き出しは飛び立った最初のフレームから降りるまで出ない', async ({
+  page,
+}) => {
+  // 経歴碑の前に立つと経歴碑の吹き出し(行動ボタン付き)が出る。そこから地図で研究所へ飛ぶ
+  await travelToMonument(page)
+  await expect(page.locator(BUBBLE), '経歴碑の前の吹き出し').toHaveCount(1)
+  const atLab = { worldId: town.id, cell: LAB }
+  const { samples } = await travelOnMap(page, text.stops.lab.place, atLab)
+  const { before, flying } = flightOf(samples)
+  // 対照: 飛ぶ直前までは出発の地点の吹き出しが出ている(消えたのは飛び立ったから)
+  expect(before.bubbles, '飛ぶ直前の吹き出しの数').toBe(1)
+  // 飛ぶ間は途中のマスに到着しないので、飛び立った時に下ろさないと降りるまで出発の吹き出しが残る
+  const shown = flying.filter(s => s.bubbles !== 0).map(s => ({ at: s.at, bubbles: s.bubbles }))
+  expect(shown, '飛ぶ間に吹き出しが出ていたフレーム').toEqual([])
+  // 降りた研究所では研究所の吹き出しが出る
+  await expect(page.locator(BUBBLE), '研究所の前の吹き出し').toHaveCount(1)
+})
+
+test('飛んでいる間に Z・M・ミニマップを押しても、窓も吹き出しも出ず、降りるマスも変わらない', async ({
+  page,
+}) => {
+  // 名刺工房の前からポストの前へ町を横切って飛ぶ。押す 3 つが飛ぶ間に収まる長さがある
+  const reach = distanceBetween(MEISHI, MAILBOX)
+  expect(flightDurationMs(reach), '名刺工房からポストへ飛ぶ長さ(ms)').toBeGreaterThan(1000)
+  await goToTown(page)
+  await travelOnMap(page, text.stops.meishi.place, { worldId: town.id, cell: MEISHI })
+  const map = await openMap(page)
+  await startRecording(page)
+  await spotButton(map, text.stops.mailbox.place).click()
+  await expect(map).toHaveCount(0)
+  // 地図の地点を押したクリックは控えない。控えるのはここから後の押し離しとクリック
+  await recordKeys(page)
+  await waitForTakeOff(page)
+  // Z は A と同じ(歩いている時は話しかける)。M とミニマップは地図を開く。
+  // M で地図が開いてしまうとミニマップは覆われて押せないので、待ちは短く切る
+  await page.keyboard.press('KeyZ')
+  await page.keyboard.press('KeyM')
+  await page.getByRole('button', { name: text.openMap }).click({ timeout: SLACK_MS })
+  // 押したのも離したのもクリックも飛んでいる間だった(遅いランナーで降りた後に押した回を取り違えない)
+  const pressed = [
+    ...(await readKeys(page, 'z')),
+    ...(await readKeys(page, 'm')),
+    ...(await readKeys(page, 'click')),
+  ]
+  expect(pressed, '押し離し・クリックの時の影の印').toEqual([
+    { type: 'keydown', key: 'z', flying: 'true' },
+    { type: 'keyup', key: 'z', flying: 'true' },
+    { type: 'keydown', key: 'm', flying: 'true' },
+    { type: 'keyup', key: 'm', flying: 'true' },
+    { type: 'click', key: 'click', flying: 'true' },
+  ])
+  // 地図が開けば錠が掛かって飛ぶのが止まり、着かない。先に窓が無いことを見てから着くのを待つ
+  await expect(page.getByRole('dialog'), '飛ぶ間に押した後の窓').toHaveCount(0)
+  const atMailbox = { worldId: town.id, cell: MAILBOX }
+  await expect.poll(() => readCell(page), { timeout: ARRIVE_MS }).toEqual(atMailbox)
+  await expectLoopIdle(page)
+  const { samples } = await stopRecording(page)
+  const { flying } = flightOf(samples)
+  const opened = flying.filter(s => s.dialogs !== 0).map(s => s.at)
+  expect(opened, '飛ぶ間に窓が開いていたフレーム').toEqual([])
+  // Z で話しかけていれば、話せる相手のいない空中で頭上の考え事が出る
+  const bubbled = flying.filter(s => s.bubbles !== 0).map(s => s.at)
+  expect(bubbled, '飛ぶ間に吹き出しが出ていたフレーム').toEqual([])
+  await expect(page.getByRole('dialog'), '降りた後も窓は開いていない').toHaveCount(0)
+  expect(await readCell(page), '降りたのはポストの前').toEqual(atMailbox)
+})
+
+// M を押し下ろした時刻(performance.now()。rAF に渡る時刻と同じ時計)を控える。捕捉の段階で窓に付けるので村の枠より先に読む
+type MapKeyWindow = Window & { mapKeyAt?: number[] }
+const recordMapKeyTimes = (page: Page) =>
+  page.evaluate(() => {
+    const host: MapKeyWindow = window
+    const times: number[] = []
+    host.mapKeyAt = times
+    window.addEventListener(
+      'keydown',
+      event => {
+        if (event.key === 'm' && !event.repeat) times.push(performance.now())
+      },
+      true
+    )
+  })
+
+test('方向キーを押したまま歩いている間に M を押すと地図が開く(地図を止めるのは飛ぶ間だけ)', async ({
+  page,
+}) => {
+  // 自宅前から右へは横道が続くので、押したままなら 1 マスずつ歩き続ける
+  const nextRight = { x: TOWN_ENTRY.x + 1, y: TOWN_ENTRY.y }
+  const secondRight = { x: TOWN_ENTRY.x + 2, y: TOWN_ENTRY.y }
+  expect(isWalkable(town, nextRight), '自宅前の右隣は歩ける').toBe(true)
+  expect(isWalkable(town, secondRight), '自宅前の 2 つ右も歩ける').toBe(true)
+  await goToTown(page)
+  await recordKeys(page)
+  await recordMapKeyTimes(page)
+  await startRecording(page)
+  const before = await page.evaluate(key => sessionStorage.getItem(key), POS_KEY)
+  await page.keyboard.down('ArrowRight')
+  // 右隣に着いた(保存位置が変わった)のを rAF ごとに見て、すぐ押す。押したままなので、その時には次の 1 マスへ歩いている途中
+  await page.waitForFunction(
+    ([key, previous]) => sessionStorage.getItem(key) !== previous,
+    [POS_KEY, before] as const,
+    { polling: 'raf', timeout: SLACK_MS }
+  )
+  await page.keyboard.press('m')
+  const map = page.getByRole('dialog')
+  await expect(
+    map.getByRole('heading', { name: text.mapTitle }),
+    '歩いている間に開いた地図'
+  ).toBeVisible()
+  await page.keyboard.up('ArrowRight')
+  const { samples } = await stopRecording(page)
+  // 最初に着いたのは右隣(歩いて進んだ)
+  expect(savedCells(samples).slice(0, 2), '保存位置が変わった順').toEqual([
+    { worldId: town.id, cell: TOWN_ENTRY },
+    { worldId: town.id, cell: nextRight },
+  ])
+  // M を押したのは飛んでいない時だった
+  expect(await readKeys(page, 'm'), 'M を押し離した時の影の印').toEqual([
+    { type: 'keydown', key: 'm', flying: 'false' },
+    { type: 'keyup', key: 'm', flying: 'false' },
+  ])
+  // 対照: 押す直前のフレームで主人公の描かれた位置が動いていた(止まってから押したのではない)。
+  // 押した時刻と同じフレームの写しは押した後に撮られることがあるので、直前の 3 フレームを見て、位置が 2 通り以上あること
+  const keyTimes = await page.evaluate(() => {
+    const host: MapKeyWindow = window
+    return host.mapKeyAt ?? []
+  })
+  expect(keyTimes.length, 'M を押し下ろした回数').toBe(1)
+  const recent = samples.filter(s => s.at < keyTimes[0]).slice(-3)
+  expect(recent.length, 'M を押す前に写したフレーム数').toBe(3)
+  const placements = distinct(recent.map(s => s.player?.transform ?? null))
+  expect(placements.length, 'M を押す直前の 3 フレームで主人公が描かれた位置の数').toBeGreaterThan(
+    1
+  )
 })
