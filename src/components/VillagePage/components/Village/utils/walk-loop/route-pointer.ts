@@ -69,8 +69,11 @@ export const queueTapRoute = (
   }: Pick<MoveRefs, 'world' | 'state' | 'pendingRoute' | 'pendingFast' | 'autoTalk'>,
   tapped: Cell
 ): TapPlan | null => {
-  // 移動中は向かっているマスから経路を作る(理由は replanTowardPointer と同じ)
   const s = stateRef.current
+  // 飛んでいる間のタップは読まない(押した向き・押しっぱなしと同じ入力の錠)。
+  // 置いても lib の step は飛んでいる間の経路を読まずに捨てるので、行き先の印も自動の会話もそのまま残す
+  if (s.flight !== null) return null
+  // 移動中は向かっているマスから経路を作る(理由は replanTowardPointer と同じ)
   const from = s.motion !== null ? s.motion.to : s.cell
   const route = routeToCell(worldRef.current, from, tapped)
   // 向かっているマスそのものをタップした時は経路が空でも「そのマスへ行く」ので、残りの経路を空で差し替えてwalkを返す

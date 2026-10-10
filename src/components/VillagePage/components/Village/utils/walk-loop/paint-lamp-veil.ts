@@ -2,9 +2,10 @@
 // どの街灯に重なるかは lib の lampVeilAt が決め、ここは立つマスと重なりが変わった時だけ調べ・書く。
 // 毎フレーム調べ直すと、止まっている間も判定と DOM 書き込みが空回りする
 import type { RefObject } from 'react'
-import type { Cell, World } from '@content/types/world'
+import type { World } from '@content/types/world'
 import type { SheetLayout } from '@/lib/pixel/art'
 import { lampVeilAt, type LampVeil } from '@/lib/village/lamp-veil'
+import type { MoveState } from '@/lib/village/movement'
 import { spriteIndex, spriteStyle } from '../sprite-style'
 import type { WalkFrameState } from './types'
 
@@ -33,18 +34,21 @@ const applyLampVeil = (root: HTMLElement | null, veil: LampVeil | null, sprites:
 
 // 主人公に重なった街灯を主人公の上へ重ねる。どの街灯に重なるかは規則の層が決め、
 // ここは変わった時だけ DOM へ写す。立つマスが同じ間は判定も呼ばない。
-// 置き場は calc(var(--cell) * マス) で書くので、枠の大きさが変わっても書き直さなくてよい
+// 置き場は calc(var(--cell) * マス) で書くので、枠の大きさが変わっても書き直さなくてよい。
+// 飛んでいる間は出発のマスを離れて空にいるので、どの街灯にも重ねない(出発のマスで調べると、
+// 灯の下から飛び立った後も出発の街灯を重ねたまま残る)。着地すれば着地したマスで調べ直す
 export const paintLampVeil = (
   frameState: WalkFrameState,
   lampVeilRef: RefObject<HTMLDivElement | null>,
   world: World,
-  cell: Cell,
+  { cell, flight }: Pick<MoveState, 'cell' | 'flight'>,
   sprites: SheetLayout
 ): void => {
-  const veilCell = `${world.id}:${cell.x},${cell.y}`
+  const standing = flight === null
+  const veilCell = standing ? `${world.id}:${cell.x},${cell.y}` : ''
   if (frameState.veilCell !== veilCell) {
     frameState.veilCell = veilCell
-    const veil = lampVeilAt(world, cell)
+    const veil = standing ? lampVeilAt(world, cell) : null
     const veilId = veil === null ? '' : `${world.id}:${veil.id}`
     if (frameState.veilId !== veilId) {
       frameState.veilId = veilId

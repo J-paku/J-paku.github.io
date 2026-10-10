@@ -7,6 +7,8 @@ import type { Dispatch, SetStateAction } from 'react'
 import type { CareerFeature, CareerRole } from '@content/types/content'
 import type { Cell, StopText, VillageText, World, WorldSet } from '@content/types/world'
 import { isFishingSpot } from '@/lib/village/fishing'
+import { isFlying } from '@/lib/village/flight'
+import { isMoving } from '@/lib/village/is-moving'
 import { facedCell } from '@/lib/village/spot'
 import { pickDefaultSpeech } from '../../utils/pick-default-speech'
 import type { VillageRuntime } from '../use-village-runtime'
@@ -99,7 +101,8 @@ export function useVillageOverlay({
 
   const openTalk = useCallback(() => {
     if (runtime.locked.current) return
-    if (runtime.state.current.motion !== null) return
+    // 歩いている間も飛んでいる間も話しかけない(空中で会話窓を開かない)
+    if (isMoving(runtime.state.current)) return
     const spot = runtime.activeSpot.current
     // 移動を止めて投げる。浮きと巻物は cell(水のマス)へ置く。歩き出せば釣りは終わるので、ここで決め打ちできる
     const beginFishing = (cell: Cell) => {
@@ -164,13 +167,16 @@ export function useVillageOverlay({
     if (wasTalk) celebrateIfComplete()
   }, [runtime, mode, celebrateIfComplete, setSpeech, text, resetFishing, coarse])
 
-  // M は開閉の切り替え。会話中は無視
+  // M は開閉の切り替え。会話中は無視。ミニマップのボタンもここを呼ぶ
   const openMap = useCallback(() => {
     if (mode === 'map') {
       closeOverlay()
       return
     }
     if (runtime.locked.current || world.kind !== 'exterior') return
+    // 飛んでいる間は開かない。開くと錠が掛かり、飛んでいる途中で止まったままになる。
+    // 歩いている間は今までどおり開く(錠で止めた歩きは閉じた後に続きから進む)
+    if (isFlying(runtime.state.current)) return
     runtime.locked.current = true
     runtime.held.current = null
     setMode('map')

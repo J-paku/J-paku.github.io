@@ -102,6 +102,19 @@ describe('notifyFishingTarget', () => {
     expect(frameState.fishingTarget).toBeNull()
   })
 
+  it('飛び立った出発のマスが池を向いていても、飛んでいる間は釣れないのでnullを知らせる', () => {
+    // 飛んでいる間の cell は出発のマスのまま。そこで判定すると空にいる間も釣りの吹き出しが出る
+    const frameState = makeFrameState({ x: 1, y: 1 })
+    const onFishingTarget = vi.fn()
+    const flying: MoveState = {
+      ...standing({ x: 1, y: 0 }, 'down'),
+      flight: { from: { x: 1, y: 0 }, to: { x: 1, y: 3 }, durationMs: 600, elapsedMs: 100 },
+    }
+    notifyFishingTarget(frameState, pond, flying, onFishingTarget)
+    expect(onFishingTarget).toHaveBeenCalledWith(null)
+    expect(frameState.fishingTarget).toBeNull()
+  })
+
   it('横へ1マス移って対象のxだけが変わっても知らせる', () => {
     const frameState = makeFrameState({ x: 1, y: 1 })
     const onFishingTarget = vi.fn()

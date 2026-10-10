@@ -29,7 +29,8 @@ export type WalkFrameState = {
   lastTransform: string
   // 枠の幅(px)。ResizeObserver が大きさの変わった時だけ書き、描く側はこれを読む。null はまだ測っていない
   frameWidth: number | null
-  // 直前に街灯を調べたマス(ワールド id 込み)。同じマスに立っている間は調べ直さない
+  // 直前に街灯を調べたマス(ワールド id 込み)。同じマスに立っている間は調べ直さない。
+  // 空文字はまだ調べていないか、飛んでいてどのマスにも立っていない
   veilCell: string
   // 直前に重ねた街灯(ワールド id 込み。空文字はどれにも重なっていない)。
   // 街灯が変わったフレームだけ層を書き換える

@@ -2,19 +2,20 @@
 // 毎フレーム知らせると、同じ値でも受け手の state 更新で再レンダーが走り続けるため
 import type { Cell, World } from '@content/types/world'
 import { isFishingSpot } from '@/lib/village/fishing'
+import { isMoving } from '@/lib/village/is-moving'
 import type { MoveState } from '@/lib/village/movement'
 import { facedCell } from '@/lib/village/spot'
 import type { WalkFrameState } from './types'
 
-// 向きだけ変えた時も判定する。対象が変わった時だけ React へ知らせる
+// 向きだけ変えた時も判定する。対象が変わった時だけ React へ知らせる。
+// 歩いている間も飛んでいる間も釣れない(飛んでいる間の cell は出発のマスのままなので、そこで判定しない)
 export const notifyFishingTarget = (
   frameState: WalkFrameState,
   world: World,
   state: MoveState,
   onFishingTarget: (cell: Cell | null) => void
 ): void => {
-  const fishingTarget =
-    state.motion === null && isFishingSpot(world, state) ? facedCell(state) : null
+  const fishingTarget = !isMoving(state) && isFishingSpot(world, state) ? facedCell(state) : null
   const previousTarget = frameState.fishingTarget
   if (previousTarget?.x !== fishingTarget?.x || previousTarget?.y !== fishingTarget?.y) {
     frameState.fishingTarget = fishingTarget

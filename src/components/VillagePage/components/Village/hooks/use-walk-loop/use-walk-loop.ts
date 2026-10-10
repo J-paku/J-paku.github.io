@@ -105,7 +105,7 @@ export function useWalkLoop({
       notifyFishingTarget(frameState, world, state, onFishingTarget)
       const layer = layerRef.current
       if (!waitForWorldTiles(frameState, layer, loadingRef.current, world)) return false
-      paintLampVeil(frameState, dom.lampVeil, world, state.cell, veilSprites)
+      paintLampVeil(frameState, dom.lampVeil, world, state, veilSprites)
       const camera = paintCamera(
         frameState,
         { frame, layer, camRef: dom.cam },

@@ -152,6 +152,20 @@ describe('queueTapRoute', () => {
     expect(queueTapRoute(refs, blocked)).toBeNull()
     expect(refs.pendingRoute.current).toBeNull()
   })
+
+  it('飛んでいる間のタップは読まず、経路も置かず自動の会話も取り消さない', () => {
+    // 歩いて届くマスでも、飛んでいる最中(cell は出発のマスのまま)なら経路にしない
+    const refs = makeRefs(
+      {
+        ...createMoveState(town),
+        flight: { from: start, to: target, durationMs: 600, elapsedMs: 100 },
+      },
+      null
+    )
+    expect(queueTapRoute(refs, target)).toBeNull()
+    expect(refs.pendingRoute.current).toBeNull()
+    expect(refs.autoTalk.current).toBe(true)
+  })
 })
 
 // 地点の物(ここでは町のポスト)を押した時。話しかけるマスまで歩き、着いたら話しかける(autoTalk)
