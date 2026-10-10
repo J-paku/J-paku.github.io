@@ -1,7 +1,7 @@
 // 雲に座る直線飛行の時間・進み方・高さ・影・雲のコマを決める。時間と距離は呼び出し側が渡す
 
 // 屋根を越える高さ。1マスの移動は歩き、2マス以上の移動で飛ぶ
-export const FLIGHT_LIFT_CELLS = 2.5
+export const FLIGHT_LIFT_CELLS = 2
 export const FLIGHT_MIN_DISTANCE = 2
 
 // 短距離にも離着陸の間を残し、町を眺める長距離でも3秒以内に収める
@@ -17,14 +17,17 @@ const clampRatio = (value: number): number => Math.min(1, Math.max(0, value))
 export const flightDurationMs = (distance: number): number =>
   Math.round(Math.min(FLIGHT_MAX_MS, FLIGHT_BASE_MS + Math.max(0, distance) * FLIGHT_CELL_MS))
 
-// 三次の減速。出発が最も速く、着地時の水平速度は0になる
-export const flightEase = (t: number): number => 1 - (1 - clampRatio(t)) ** 3
+// 五次の加減速。中間で最も速く、離着陸で水平速度と加速度がともに0になる
+export const flightEase = (t: number): number => {
+  const progress = clampRatio(t)
+  return progress ** 3 * (10 + progress * (-15 + 6 * progress))
+}
 
-// 時間の1/3で頂点に達し、残り2/3でゆっくり降りる。着地時の鉛直速度も0になる
+// 時間の半分で頂点。頂点付近はなだらかで、最後の1/4は降下を弱めながら座ったまま接地する。
+// 離着陸で鉛直速度と加速度がともに0になる。0≦t≦1なら4t(1-t)は0〜1に収まる
 export const flightLift = (t: number): number => {
   const progress = clampRatio(t)
-  // 頂点付近の浮動小数点誤差で1を超えないようにする
-  return Math.min(1, (27 / 4) * progress * (1 - progress) ** 2)
+  return (4 * progress * (1 - progress)) ** 3
 }
 
 // 地上の影は等倍、頂点では55%。小さくなっても現在の地上位置を見失わない

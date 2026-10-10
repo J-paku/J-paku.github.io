@@ -11,7 +11,7 @@ import {
 
 describe('飛行の定数', () => {
   it('屋根を越える高さと、1マスを歩く距離の境界を固定する', () => {
-    expect(FLIGHT_LIFT_CELLS).toBeCloseTo(2.5, 12)
+    expect(FLIGHT_LIFT_CELLS).toBeCloseTo(2, 12)
     expect(FLIGHT_MIN_DISTANCE).toBe(2)
   })
 })
@@ -73,38 +73,59 @@ describe('flightEase', () => {
   })
 
   it.each([
-    [0.001, 0.002997001],
-    [0.1, 0.271],
-    [0.25, 0.578125],
-    [0.5, 0.875],
-    [0.75, 0.984375],
-    [0.9, 0.999],
-    [0.999, 0.999999999],
+    [0.001, 0.000000009985006],
+    [0.1, 0.00856],
+    [0.25, 0.103515625],
+    [0.5, 0.5],
+    [0.75, 0.896484375],
+    [0.9, 0.99144],
+    [0.999, 0.999999990014994],
   ])('経過比率 %s の進行率は %s になる', (t, expected) => {
     expect(flightEase(t)).toBeCloseTo(expected, 12)
   })
 
-  it('全区間で前進し、等しい時間ごとの移動量が減り続ける', () => {
+  it('全区間で前進し、前半で加速して後半で減速し続ける', () => {
     let previous = flightEase(0)
-    let previousDelta = 1
+    let previousDelta = 0
     for (let i = 1; i <= 100; i += 1) {
       const progress = flightEase(i / 100)
       const delta = progress - previous
       expect(progress).toBeGreaterThan(previous)
       expect(progress).toBeLessThanOrEqual(1)
-      expect(delta).toBeLessThan(previousDelta)
+      if (i <= 50) expect(delta).toBeGreaterThan(previousDelta)
+      if (i > 51) expect(delta).toBeLessThan(previousDelta)
       previous = progress
       previousDelta = delta
     }
   })
 
-  it('前半で87.5%を進み、着地直前の速度は0に近づく', () => {
-    const firstHalf = flightEase(0.5) - flightEase(0)
-    const lastHalf = flightEase(1) - flightEase(0.5)
-    expect(firstHalf).toBeCloseTo(0.875, 12)
-    expect(lastHalf).toBeCloseTo(0.125, 12)
-    expect(firstHalf).toBeGreaterThan(lastHalf)
-    expect((flightEase(1) - flightEase(0.999)) / 0.001).toBeCloseTo(0.000001, 10)
+  it('前半と後半で半分ずつ進み、離着陸の水平速度と加速度が0に近づく', () => {
+    expect(flightEase(0.5) - flightEase(0)).toBe(0.5)
+    expect(flightEase(1) - flightEase(0.5)).toBe(0.5)
+    const firstSpeed = (flightEase(0.001) - flightEase(0)) / 0.001
+    const lastSpeed = (flightEase(1) - flightEase(0.999)) / 0.001
+    expect(firstSpeed).toBeCloseTo(0.000009985006, 10)
+    expect(lastSpeed).toBeCloseTo(0.000009985006, 10)
+    for (const h of [0.001, 0.0001]) {
+      const firstAcceleration = (flightEase(2 * h) - 2 * flightEase(h)) / h ** 2
+      const lastAcceleration =
+        (flightEase(1) - 2 * flightEase(1 - h) + flightEase(1 - 2 * h)) / h ** 2
+      expect(Math.abs(firstAcceleration)).toBeLessThan(60 * h)
+      expect(Math.abs(lastAcceleration)).toBeLessThan(60 * h)
+    }
+  })
+
+  it('中央の1/3で街を通り、最後の1/4は進み続けながらゆっくり止まる', () => {
+    const first = flightEase(1 / 3)
+    const middle = flightEase(2 / 3) - first
+    const last = 1 - flightEase(2 / 3)
+    expect(first).toBeCloseTo(17 / 81, 12)
+    expect(last).toBeCloseTo(17 / 81, 12)
+    expect(middle).toBeCloseTo(47 / 81, 12)
+    expect(middle).toBeGreaterThan(first * 2.5)
+    expect(middle).toBeGreaterThan(last * 2.5)
+    expect(1 - flightEase(0.75)).toBeCloseTo(0.103515625, 12)
+    expect(1 - flightEase(0.9)).toBeCloseTo(0.00856, 12)
   })
 })
 
@@ -114,21 +135,21 @@ describe('flightLift', () => {
   })
 
   it.each([
-    [0.001, 0.00673650675],
-    [0.1, 0.54675],
-    [0.25, 0.94921875],
-    [0.5, 0.84375],
-    [0.75, 0.31640625],
-    [0.9, 0.06075],
-    [0.999, 0.00000674325],
+    [0.001, 0.000000063808191936],
+    [0.1, 0.046656],
+    [0.25, 0.421875],
+    [0.5, 1],
+    [0.75, 0.421875],
+    [0.9, 0.046656],
+    [0.999, 0.000000063808191936],
   ])('経過比率 %s の高さの比率は %s になる', (t, expected) => {
     expect(flightLift(t)).toBeCloseTo(expected, 12)
   })
 
-  it('時間の1/3で正確に頂点へ達し、丸め誤差でも1を超えない', () => {
-    expect(flightLift(1 / 3)).toBe(1)
-    expect(flightLift(1 / 3 - 0.001)).toBeCloseTo(0.99999324325, 12)
-    expect(flightLift(1 / 3 + 0.001)).toBeCloseTo(0.99999325675, 12)
+  it('時間の半分で正確に頂点へ達し、丸め誤差でも1を超えない', () => {
+    expect(flightLift(0.5)).toBe(1)
+    expect(flightLift(0.499)).toBeCloseTo(0.9999880000479999, 12)
+    expect(flightLift(0.501)).toBeCloseTo(0.9999880000479999, 12)
   })
 
   it('地面より下へ行かず、頂点まで上がってから地上まで下がる', () => {
@@ -139,12 +160,12 @@ describe('flightLift', () => {
     }
     let previous = flightLift(0)
     for (let i = 1; i <= 100; i += 1) {
-      const lift = flightLift(i / 300)
+      const lift = flightLift(i / 200)
       expect(lift).toBeGreaterThan(previous)
       previous = lift
     }
     for (let i = 1; i <= 100; i += 1) {
-      const lift = flightLift(1 / 3 + (2 * i) / 300)
+      const lift = flightLift(0.5 + i / 200)
       expect(lift).toBeLessThan(previous)
       previous = lift
     }
@@ -153,9 +174,26 @@ describe('flightLift', () => {
   it('着地直前の降下量を小さくし、最後に地上へ跳ねない', () => {
     const before = flightLift(0.998) - flightLift(0.999)
     const last = flightLift(0.999) - flightLift(1)
-    expect(before).toBeCloseTo(0.00002020275, 12)
-    expect(last).toBeCloseTo(0.00000674325, 12)
+    expect(before).toBeCloseTo(0.000000445125947968, 12)
+    expect(last).toBeCloseTo(0.000000063808191936, 12)
     expect(last).toBeLessThan(before)
+  })
+
+  it('離着陸の鉛直速度と加速度が0へ近づき、最後の1/4は降下速度が減り続ける', () => {
+    const h = 0.0001
+    expect(flightLift(h) / h).toBeLessThan(0.000001)
+    expect(flightLift(1 - h) / h).toBeLessThan(0.000001)
+    expect((flightLift(2 * h) - 2 * flightLift(h)) / h ** 2).toBeLessThan(0.04)
+    expect((flightLift(1 - 2 * h) - 2 * flightLift(1 - h)) / h ** 2).toBeLessThan(0.04)
+    let previousDrop = 1
+    for (let i = 76; i <= 100; i += 1) {
+      const drop = flightLift((i - 1) / 100) - flightLift(i / 100)
+      expect(drop).toBeGreaterThan(0)
+      expect(drop).toBeLessThan(previousDrop)
+      previousDrop = drop
+    }
+    expect(flightLift(0.75) * FLIGHT_LIFT_CELLS).toBeCloseTo(0.84375, 12)
+    expect(flightLift(0.9) * FLIGHT_LIFT_CELLS).toBeCloseTo(0.093312, 12)
   })
 })
 

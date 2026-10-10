@@ -161,37 +161,37 @@ describe('paintCamera', () => {
 
   it('飛んでいる間は飛行の地上の位置をvに返し、カメラは浮いた高さの半分だけ上を狙う', () => {
     // (12,10)から(20,10)へ半分の時間飛んだ所。出発のマス(state.cell)ではなく飛行の位置に置く。
-    // 進み具合は 1-0.5³=0.875 で地上の位置は(19,10)。浮き上がりは 27/4×0.5×0.25=0.84375 の 2.5 マス倍で
-    // 2.109375 マス、その半分の 1.0546875 マスだけ上の(19,8.9453125)を狙い、原点は(15,4.9453125)。
-    // 縦は 316.5px を四捨五入して 317px
+    // 進み具合は 0.5³×(10-15×0.5+6×0.25)=0.5 で地上の位置は(16,10)。浮き上がりは (4×0.5×0.5)³=1 の 2 マス倍で
+    // 2 マス(頂点)、その半分の 1 マスだけ上の(16,9)を狙い、原点は(12,5)。64 倍して(768,320)px
     const state = flying({ x: 12, y: 10 }, { x: 20, y: 10 }, 500)
     const targets = makeTargets()
     const result = paintCamera(makeFrameState({ frameWidth: 640 }), targets, town, state, false, 16)
-    expect(result.v).toEqual({ x: 19, y: 10 })
+    expect(result.v).toEqual({ x: 16, y: 10 })
     expect(result.caughtUp).toBe(true)
-    expect(targets.camRef.current).toEqual({ x: 15, y: 4.9453125 })
-    expect(targets.layer.style.transform).toBe('translate(-960px, -317px)')
+    expect(targets.camRef.current).toEqual({ x: 12, y: 5 })
+    expect(targets.layer.style.transform).toBe('translate(-768px, -320px)')
   })
 
   it('飛んでいる間は減衰させず、遅れていたカメラも 1 フレームで目標へそのまま置く', () => {
-    // 上と同じ飛行の途中。原点(14,5)は目標(15,4.9453125)から 1 マス遅れていて、歩きなら補間で寄る距離
+    // 上と同じ飛行の途中。原点(11,5.5)は目標(12,5)から横に 1 マス・縦に半マス遅れていて、
+    // どちらの軸も 1.5 マス以内なので、歩きなら補間で寄る距離
     const frameState = makeFrameState({
       frameWidth: 640,
       paintedWorld: town,
-      smoothedCam: { x: 14, y: 5 },
+      smoothedCam: { x: 11, y: 5.5 },
     })
     const targets = makeTargets()
     const state = flying({ x: 12, y: 10 }, { x: 20, y: 10 }, 500)
     const result = paintCamera(frameState, targets, town, state, false, 16)
     expect(result.switched).toBe(false)
     expect(result.caughtUp).toBe(true)
-    expect(targets.camRef.current).toEqual({ x: 15, y: 4.9453125 })
-    expect(frameState.smoothedCam).toEqual({ x: 15, y: 4.9453125 })
-    expect(targets.layer.style.transform).toBe('translate(-960px, -317px)')
+    expect(targets.camRef.current).toEqual({ x: 12, y: 5 })
+    expect(frameState.smoothedCam).toEqual({ x: 12, y: 5 })
+    expect(targets.layer.style.transform).toBe('translate(-768px, -320px)')
   })
 
   it('着地した次のフレームは減衰追従へ戻り、着地の直前と同じpxに留まって跳ねない', () => {
-    // 1000msのうち990ms飛んだ所は地上(19.999992,10)・浮き上がり約0.0017マスで、原点は約(15.99999,5.99916)。
+    // 1000msのうち990ms飛んだ所は地上(19.99992,10)・浮き上がり約0.00012マスで、原点は約(15.99992,5.99994)。
     // pxへ直すと着地したマス(20,10)の原点(16,6)と同じ(-1024,-384)
     const frameState = makeFrameState({ frameWidth: 640 })
     const targets = makeTargets()
