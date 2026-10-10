@@ -16,8 +16,7 @@ last_reviewed: 2026-10-11
 | `content/` の文言(既存キーの書き換え) | `npm run typecheck` → `npm run build` |
 | `content/` に作品・経歴・地点を追加 | `npm run typecheck` → `npm run test`(村なら) → `npm run build` → 関連 spec |
 | `content/world.ts`(地形・構造物・地点) | `npm run test`(`validate-world` と `village`)→ `npm run build` → `npx playwright test tests/journey.spec.ts` |
-| `src/utils/` `src/lib/` の純粋関数 | 隣の `*.test.ts` → `npm run typecheck` |
-| 新しい純粋モジュールの追加・`stryker.config.mjs` の `mutate` に挙げたファイルの変更 | 隣の `*.test.ts` → `npm run test:coverage` → `npm run test:mutation`(既定は変わった変異体だけ。`mutate` のファイルが import する別のファイル・依存・設定を変えたときは `npm run test:mutation -- --force`) |
+| 純粋モジュール(`src/lib/` `src/utils/`・コンポーネント専用の utils)の追加・変更。どれも変異テストとファイル別100%の対象(規則の正本は `scripts/gate-targets.mjs`) | 隣の `*.test.ts` → `npm run typecheck` → `npm run test:coverage` → `npm run test:mutation`(既定は変わった変異体だけ。変えたファイルを別の純粋モジュールが import しているとき・依存・設定を変えたときは `npm run test:mutation -- --force`)。`src/lib/pixel/` と外部境界は下の行も足す |
 | `hooks` フォルダの下へファイルを足す | `npm run test:boundary` → その画面の spec |
 | `src/lib/pixel/`(絵・パレット) | `npm run test` → `npm run build` → 見た目を目視 → `npx playwright test tests/day-night.spec.ts` |
 | `src/lib/preferences.ts` / `weather.ts` / `analytics.ts` / `fetch-svg-source.ts`(外部境界) | 隣の `*.test.ts`(あれば) → `npm run typecheck` → 関連 spec |
@@ -43,7 +42,7 @@ last_reviewed: 2026-10-11
 これに、上の表で変えた範囲が指すものだけを足す。
 
 - E2E は表が指す spec だけ(`npx playwright test tests/journey.spec.ts` のように)
-- `npm run test:mutation` は、`stryker.config.mjs` の `mutate` に挙げたファイルかそのテストを変えたときだけ。
+- `npm run test:mutation` は、純粋モジュール(変異テストの対象。`scripts/gate-targets.mjs` の `MUTATION_TARGETS`)かそのテストを変えたときだけ。
   既定は前回の結果を引き継ぎ、変わった変異体だけを走らせる。git のフックで毎回走らせることはしない。
   変異体を全部走らせるのは週1回、手で `npm run test:mutation -- --force`([../decisions/0013-incremental-mutation-on-push.md](../decisions/0013-incremental-mutation-on-push.md))
 

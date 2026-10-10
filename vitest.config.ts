@@ -1,34 +1,15 @@
-import { existsSync } from 'node:fs'
 import { defineConfig, configDefaults } from 'vitest/config'
 import { fileURLToPath, URL } from 'node:url'
+import { COVERAGE_TARGETS } from './scripts/gate-targets.mjs'
 
 // 1ファイルを文・分岐・関数・行のすべてで100%に固定するしきい値(glob ごとのしきい値では `100: true` と同じ意味)
 const FULL_COVERAGE = { statements: 100, branches: 100, functions: 100, lines: 100 }
 
-// 新しい純粋モジュールはファイルごとに100%で固定する。人がコードを読まない代わりに、
-// テストが一度も通らない行・分岐を残さない。変異テストの対象(stryker.config.mjs の mutate)を
-// 足したらここにも並べる。flight-art.ts はドット絵のデータなので変異テストから外し、ここだけで固定する
-const FULL_COVERAGE_FILES = [
-  'src/lib/village/flight.ts',
-  'src/lib/village/flight-curve.ts',
-  'src/lib/village/is-moving.ts',
-  'src/lib/pixel/flight-art.ts',
-  'src/components/VillagePage/components/Village/utils/collect-place-names.ts',
-  'src/components/VillagePage/components/Village/utils/enter-world.ts',
-  'src/components/VillagePage/components/Village/utils/set-clock-time.ts',
-  'src/components/VillagePage/components/Village/utils/plan-travel.ts',
-]
-
-// 実在しないパスを並べても、v8 は当てるファイルが無いまま何も言わずに通す(2026-10-10 に実測)。
-// 名前の打ち間違いや移動・削除で固定が外れたことに気付けるよう、設定を読む時点で落とす
-const missingFullCoverage = FULL_COVERAGE_FILES.filter(
-  file => !existsSync(fileURLToPath(new URL(file, import.meta.url)))
-)
-if (missingFullCoverage.length > 0) {
-  throw new Error(
-    `vitest.config.ts: ファイル別100%の対象が実在しない: ${missingFullCoverage.join(', ')}`
-  )
-}
+// 純粋モジュールはファイルごとに100%で固定する。人がコードを読まない代わりに、テストが一度も通らない行・分岐を残さない。
+// 対象は一覧を手で並べず、scripts/gate-targets.mjs の COVERAGE_TARGETS(純粋モジュールの置き場の全部 = 変異テストの対象と、
+// 変異テストから外したデータの flight-art.ts・palette.ts)を使う。新しい純粋モジュールは置いた時点で対象になる
+// (docs/decisions/0014-gate-all-pure-modules.md)。
+// 一覧は src をたどって作るので実在しないパスは入らない。名指しで外したパスが実在しないときは、gate-targets.mjs を読み込む時点で落ちる
 
 // 既定の環境は node(純粋関数と src/lib の入口)。ファイル先頭に `// @vitest-environment happy-dom` を書いたテスト
 // (コンポーネントの *.test.tsx と、DOM を読む・書く/DOMParser を使う *.test.ts)だけが happy-dom で走る。
@@ -66,15 +47,15 @@ export default defineConfig({
       ],
       reporter: ['text-summary'],
       reportsDirectory: 'coverage',
-      // 2026-10-10の実測(statements 83.73%・branches 83.71%・functions 77.07%・lines 83.34%)から2pt引いて切り捨てた値。
+      // 2026-10-11の実測(statements 85.28%・branches 85.62%・functions 79.24%・lines 84.49%)から2pt引いて切り捨てた値。
       // 目標値ではなく、テストを消したり使われないコードを増やしたりしたときに落とすための床
       thresholds: {
-        statements: 81,
-        branches: 81,
-        functions: 75,
-        lines: 81,
-        // ファイル別100%(一覧は上の FULL_COVERAGE_FILES)
-        ...Object.fromEntries(FULL_COVERAGE_FILES.map(file => [file, FULL_COVERAGE])),
+        statements: 83,
+        branches: 83,
+        functions: 77,
+        lines: 82,
+        // ファイル別100%(一覧は scripts/gate-targets.mjs の COVERAGE_TARGETS)
+        ...Object.fromEntries(COVERAGE_TARGETS.map(file => [file, FULL_COVERAGE])),
       },
     },
   },
