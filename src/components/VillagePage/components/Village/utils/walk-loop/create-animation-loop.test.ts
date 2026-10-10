@@ -111,6 +111,17 @@ describe('createAnimationLoop', () => {
     expect(tick).toHaveBeenLastCalledWith(20)
   })
 
+  it('まだstartしていないループもwakeで起こせ、次のフレームを頼んでrunningにする', () => {
+    // 作った直後はフレームの処理中ではなく、眠っているのと同じ扱い
+    const frameRef = makeFrameRef()
+    const tick = vi.fn((_elapsed: number) => false)
+    createAnimationLoop(tick, frameRef).wake()
+    expect(requestFrame).toHaveBeenCalledTimes(1)
+    expect(frameRef.current.dataset.villageLoop).toBe('running')
+    runFrame(1016)
+    expect(tick).toHaveBeenCalledWith(16)
+  })
+
   it('回っている間のwakeはフレームを二重に頼まない', () => {
     const loop = createAnimationLoop(() => true, makeFrameRef())
     loop.start()

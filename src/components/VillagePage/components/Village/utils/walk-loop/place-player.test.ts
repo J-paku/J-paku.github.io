@@ -27,8 +27,9 @@ const sprites: SheetLayout = {
     'player-fish-down-windup': 8,
     'player-fish-down': 9,
     'player-umbrella-open-reach': 12,
+    'player-umbrella-open-draw': 13,
   },
-  count: 13,
+  count: 14,
   tile: 16,
   height: 24,
 }
@@ -177,6 +178,16 @@ describe('writePose', () => {
     expect(player.style.getPropertyValue('--i')).toBe('12')
     expect(player.style.transform).toBe(SHIFT)
   })
+
+  it('傘のコマは広げ始めてからの経過で進む', () => {
+    // 広げ始めて200msは手を伸ばす(120ms未満)を過ぎ、引き出す(280ms未満)コマ
+    const frameState = makeFrameState({ shift: SHIFT })
+    const sources = makeSources('down', null, { phase: 'opening', since: 1000 })
+    clock = 1200
+    expect(writePose(frameState, sources)).toBe(true)
+    expect(sources.playerRef.current.dataset.sprite).toBe('player-umbrella-open-draw')
+    expect(sources.playerRef.current.style.getPropertyValue('--i')).toBe('13')
+  })
 })
 
 describe('placePlayer', () => {
@@ -223,6 +234,16 @@ describe('placePlayer', () => {
     )
     expect(player.style.transform).toBe(SHIFT)
     expect(frameState.lastTransform).toBe(SHIFT)
+  })
+
+  it('ワールドが替わったフレームは、applyPoseを呼ぶ前に覚えたtransformを空(まだ書いていない)へ戻す', () => {
+    const frameState = makeFrameState({ shift: SHIFT, lastTransform: SHIFT })
+    const seen: string[] = []
+    placePlayer(frameState, makeFollowers(), camera(true), grounded, () => {
+      seen.push(frameState.lastTransform)
+      return false
+    })
+    expect(seen).toEqual([''])
   })
 
   it('ワールドが替わらないフレームは覚えたtransformを信じて書き直さない', () => {

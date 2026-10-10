@@ -437,6 +437,27 @@ describe('tickFrame', () => {
       )
     })
 
+    it('到着の処理が経路の残る移動状態へ置き直したら眠らない', () => {
+      // 眠ってよいかは知らせた後の移動状態で決める。残りの経路は次のフレームで辿る
+      const refs = makeRefs(walking({ x: 3, y: 3 }, { x: 3, y: 4 }, 0.9))
+      const steps = makeSteps({
+        arrive: vi.fn((cell: Cell) => {
+          refs.state.current = { ...createMoveState(field), cell, route: [{ x: 3, y: 5 }] }
+        }),
+      })
+      expect(tickFrame(makeFrameState({ enteredWorld: field }), refs, steps, false, 100)).toBe(true)
+    })
+
+    it('到着の処理が旋回待ちの残る移動状態へ置き直したら眠らない', () => {
+      const refs = makeRefs(walking({ x: 3, y: 3 }, { x: 3, y: 4 }, 0.9))
+      const steps = makeSteps({
+        arrive: vi.fn((cell: Cell) => {
+          refs.state.current = { ...createMoveState(field), cell, turnRemainingMs: 50 }
+        }),
+      })
+      expect(tickFrame(makeFrameState({ enteredWorld: field }), refs, steps, false, 100)).toBe(true)
+    })
+
     it('到着の処理が次の経路を置いたら眠らない', () => {
       const refs = makeRefs(walking({ x: 3, y: 3 }, { x: 3, y: 4 }, 0.9))
       const steps = makeSteps({

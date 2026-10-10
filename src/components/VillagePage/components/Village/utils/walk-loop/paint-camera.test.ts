@@ -88,6 +88,20 @@ describe('paintCamera', () => {
     expect(targets.layer.style.transform).toBe('translate(-653px, -384px)')
   })
 
+  it('横は追い付いていても、縦がまだ寄っている間はcaughtUpはfalse', () => {
+    // 原点(11,5)から目標(11,6)へ。横は同じ値のまま、縦だけ16ms分寄る
+    const frameState = makeFrameState({
+      frameWidth: 640,
+      paintedWorld: town,
+      smoothedCam: { x: 11, y: 5 },
+    })
+    const targets = makeTargets()
+    const result = paintCamera(frameState, targets, town, standing({ x: 15, y: 10 }), false, 16)
+    expect(targets.camRef.current.x).toBe(11)
+    expect(targets.camRef.current.y).toBeCloseTo(5 + (1 - Math.exp(-16 / CAM_TAU)), 10)
+    expect(result.caughtUp).toBe(false)
+  })
+
   it('ワールドが替わったフレームは差が1.5マス以内でも補間せず目標へ飛ぶ', () => {
     // 半マスの差なら同じワールドの中では補間する距離。ワールドが違えばスライドさせずに切る
     const frameState = makeFrameState({

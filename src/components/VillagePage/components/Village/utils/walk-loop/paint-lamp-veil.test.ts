@@ -129,6 +129,26 @@ describe('paintLampVeil', () => {
     observer.disconnect()
   })
 
+  it('判定し直しても重なる街灯が前と同じ(どれにも重ならない)なら、層を読みもしない', () => {
+    // 席を1つずつ回って何も消さない空回りもさせない。層を読んだ回数を数える
+    const root = makeVeilRef().current
+    let reads = 0
+    const countingRef = {
+      get current() {
+        reads += 1
+        return root
+      },
+    }
+    const frameState = makeFrameState()
+    paintLampVeil(frameState, countingRef, town, standingAt(5, 5), veilSprites)
+    paintLampVeil(frameState, countingRef, town, standingAt(5, 6), veilSprites)
+    expect(vi.mocked(lampVeilAt)).toHaveBeenCalledTimes(2)
+    expect(reads).toBe(0)
+    // 街灯に重なれば層を読んで書く
+    paintLampVeil(frameState, countingRef, town, standingAt(2, 2), veilSprites)
+    expect(reads).toBe(1)
+  })
+
   it('別の街灯へ移ったら、その街灯の位置へ書き直す', () => {
     const frameState = makeFrameState()
     const veilRef = makeVeilRef()

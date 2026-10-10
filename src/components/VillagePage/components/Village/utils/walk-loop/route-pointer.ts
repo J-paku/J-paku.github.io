@@ -85,8 +85,9 @@ export const queueTapRoute = (
     return { kind: 'walk', goal: tapped }
   }
   const spot = objectSpotAt(worldRef.current, tapped)
-  const talkRoute = spot === null ? null : routeToSpot(worldRef.current, from, spot)
-  if (spot === null || talkRoute === null) return null
+  if (spot === null) return null
+  const talkRoute = routeToSpot(worldRef.current, from, spot)
+  if (talkRoute === null) return null
   if (talkRoute.length === 0 && s.motion === null) {
     // 前に置いた自動の会話は、このタップで置き換える
     autoTalkRef.current = false

@@ -50,11 +50,11 @@ export const tickFrame = (
   if (lockedRef.current) return applyPose()
   if (frameState.enteredWorld !== worldRef.current) {
     frameState.enteredWorld = worldRef.current
-    // 初回(起動時)は押しっぱなしではないので捨てる必要がない
-    frameState.ignoreHeld = heldRef.current !== null
+    // 押しっぱなしの向きを捨てる印を立てる。何も押していなければ(起動時など)すぐ下の行が下ろす
+    frameState.ignoreHeld = true
     // ワープ直後の押しっぱなしポインタは前のワールドの座標のままなので、
     // 一度離す(pointerTargetRef が null になる)まで捨てる。ignoreHeld と同じ考え方
-    frameState.staleTarget = pointerTargetRef.current !== null
+    frameState.staleTarget = true
     frameState.plannedTarget = null
   }
   if (frameState.ignoreHeld && heldRef.current === null) frameState.ignoreHeld = false

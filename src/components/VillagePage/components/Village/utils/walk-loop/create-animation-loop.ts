@@ -28,7 +28,8 @@ export const createAnimationLoop = (
   let raf: number | null = null
   // フレームの処理中か。処理中に起こされた時は(到着でワールドが替わった等)眠るのを 1 回見送る
   let inFrame = false
-  let wokenInFrame = false
+  // 処理中に起こされたか。フレームの頭で下ろしてから読むので、初期値は持たない
+  let wokenInFrame: boolean
   // stopされたか。止めた後はwakeにも処理中のフレームの続きにも次のフレームを頼ませない。
   // 回っている間・眠っている間のどちらで止めても同じにし、外したループにrAFを残さない
   let stopped = false
@@ -42,7 +43,8 @@ export const createAnimationLoop = (
     last = now
     inFrame = true
     wokenInFrame = false
-    let busy = true
+    // tick が投げた時は読まずに抜けるので、初期値は持たない
+    let busy: boolean
     try {
       busy = tick(elapsed)
     } finally {

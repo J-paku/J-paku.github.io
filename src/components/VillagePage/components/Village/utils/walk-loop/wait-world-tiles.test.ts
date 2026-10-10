@@ -117,6 +117,14 @@ describe('waitForWorldTiles', () => {
     expect(isShown(loading)).toBe(true)
   })
 
+  it('覆いは値を持たないdata-showで出す', () => {
+    const frameState = makeFrameState(1000)
+    const loading = document.createElement('div')
+    now = 1000 + LOADING_DELAY_MS + 1
+    waitForWorldTiles(frameState, targets(makeLayer('town'), { loading }), room)
+    expect(loading.getAttribute('data-show')).toBe('')
+  })
+
   it('覆いの要素が無ければ、待ちが長引いても落ちずにfalseを返す', () => {
     const frameState = makeFrameState(1000)
     now = 5000

@@ -1,12 +1,13 @@
 // ポインタ入力から経路を作る部品(replanTowardPointer・queueTapRoute)のテスト。
 // 次のマスへ歩いている途中で経路を作り直しても、到着後の経路が途切れないことを確かめる
 import { describe, expect, it, vi } from 'vitest'
-import type { Cell, Direction } from '@content/types/world'
+import type { Cell, Direction, Structure, Tile, World } from '@content/types/world'
 import { createMoveState, type MoveState } from '@/lib/village/movement'
 import { findPath } from '@/lib/village/path'
 import { spotAt } from '@/lib/village/spot'
 import { queueTapRoute, replanTowardPointer } from './route-pointer'
 import type { MoveRefs, WalkFrameState } from './types'
+import { makeOpenWorld } from './walk-loop.test-helper'
 
 // server-only は vitest(node 環境)では無条件に例外を投げるので、中身を持たない mock に差し替える
 vi.mock('server-only', () => ({}))
@@ -122,6 +123,98 @@ describe('replanTowardPointer', () => {
     expect(retarget).toHaveBeenCalledWith(door.cell)
     expect(refs.pendingRoute.current?.at(-1)).toEqual(door.cell)
   })
+
+  it('目標の x だけがずれても作り直し、retarget を呼ぶ', () => {
+    // 経路が残って歩いている間でも、押したマスが横へ動けば新しい目標へ向け直す
+    const refs = makeRefs(movingState(), target)
+    const frameState = { ...makeFrameState(), plannedTarget: { x: target.x + 1, y: target.y } }
+    const retarget = vi.fn()
+    replanTowardPointer(frameState, refs, null, retarget)
+    expect(retarget).toHaveBeenCalledWith(target)
+    expect(refs.pendingRoute.current).toEqual(findPath(town, heading, target))
+    expect(frameState.plannedTarget).toEqual(target)
+  })
+
+  it('目標の y だけがずれても作り直し、retarget を呼ぶ', () => {
+    const refs = makeRefs(movingState(), target)
+    const frameState = { ...makeFrameState(), plannedTarget: { x: target.x, y: target.y + 1 } }
+    const retarget = vi.fn()
+    replanTowardPointer(frameState, refs, null, retarget)
+    expect(retarget).toHaveBeenCalledWith(target)
+    expect(refs.pendingRoute.current).toEqual(findPath(town, heading, target))
+    expect(frameState.plannedTarget).toEqual(target)
+  })
+
+  it('同じ目標を押したまま経路が残っている間は、経路も自動の会話も触らない', () => {
+    const refs = makeRefs(movingState(), target)
+    const frameState = { ...makeFrameState(), plannedTarget: target }
+    const retarget = vi.fn()
+    replanTowardPointer(frameState, refs, null, retarget)
+    expect(refs.pendingRoute.current).toBeNull()
+    expect(refs.autoTalk.current).toBe(true)
+    expect(retarget).not.toHaveBeenCalled()
+  })
+
+  it('同じ目標のまま経路を使い切っても、次のマスへ歩いている間は作り直さない', () => {
+    // 足が止まるのは歩みも経路も空になった時だけ。歩いている間は着くのを待つ
+    const refs = makeRefs({ ...movingState(), route: [] }, target)
+    const frameState = { ...makeFrameState(), plannedTarget: target }
+    replanTowardPointer(frameState, refs, null, vi.fn())
+    expect(refs.pendingRoute.current).toBeNull()
+    expect(refs.autoTalk.current).toBe(true)
+  })
+
+  it('同じ目標のまま止まっていても、経路が残っていれば作り直さない', () => {
+    const refs = makeRefs({ ...createMoveState(town), route: firstLeg }, target)
+    const frameState = { ...makeFrameState(), plannedTarget: target }
+    replanTowardPointer(frameState, refs, null, vi.fn())
+    expect(refs.pendingRoute.current).toBeNull()
+    expect(refs.autoTalk.current).toBe(true)
+  })
+
+  it('同じ目標のまま歩みも経路も空になったら、経路を作り直して歩き直す(印は動かさない)', () => {
+    // 作り直した経路は等速で辿り、自動で開く予約は取り消す。目標は変わっていないのでretargetは呼ばない
+    const refs = makeRefs(createMoveState(town), target)
+    refs.pendingFast.current = true
+    const frameState = { ...makeFrameState(), plannedTarget: target }
+    const retarget = vi.fn()
+    replanTowardPointer(frameState, refs, null, retarget)
+    expect(refs.pendingRoute.current).toEqual(findPath(town, start, target))
+    expect(refs.pendingFast.current).toBe(false)
+    expect(refs.autoTalk.current).toBe(false)
+    expect(retarget).not.toHaveBeenCalled()
+  })
+
+  it('止まっている時に自分のマスを押しても、経路を置かず retarget も呼ばない', () => {
+    // 経路は空で歩いてもいないので、置くものが無い。押した目標だけは覚える
+    const refs = makeRefs(createMoveState(town), start)
+    const frameState = makeFrameState()
+    const retarget = vi.fn()
+    replanTowardPointer(frameState, refs, null, retarget)
+    expect(refs.pendingRoute.current).toBeNull()
+    expect(refs.autoTalk.current).toBe(true)
+    expect(retarget).not.toHaveBeenCalled()
+    expect(frameState.plannedTarget).toEqual(start)
+  })
+
+  it('向きを押している間はポインタを読まず、経路も作った目標の覚えも触らない', () => {
+    const refs = makeRefs(createMoveState(town), target)
+    const planned = { x: 0, y: 0 }
+    const frameState = { ...makeFrameState(), plannedTarget: planned }
+    const retarget = vi.fn()
+    replanTowardPointer(frameState, refs, 'down', retarget)
+    expect(refs.pendingRoute.current).toBeNull()
+    expect(retarget).not.toHaveBeenCalled()
+    expect(frameState.plannedTarget).toBe(planned)
+  })
+
+  it('ポインタを離したら、作った目標の覚えを消す', () => {
+    const refs = makeRefs(createMoveState(town), null)
+    const frameState = { ...makeFrameState(), plannedTarget: target }
+    replanTowardPointer(frameState, refs, null, vi.fn())
+    expect(frameState.plannedTarget).toBeNull()
+    expect(refs.pendingRoute.current).toBeNull()
+  })
 })
 
 describe('queueTapRoute', () => {
@@ -140,6 +233,13 @@ describe('queueTapRoute', () => {
     expect(planned.some(c => sameCell(c, heading))).toBe(false)
     expect(Math.abs(planned[0].x - heading.x) + Math.abs(planned[0].y - heading.y)).toBe(1)
     expect(planned).toEqual(findPath(town, heading, target))
+  })
+
+  it('タップの経路は前に置いた高速の印を下ろして等速で歩く', () => {
+    const refs = makeRefs(createMoveState(town), null)
+    refs.pendingFast.current = true
+    expect(queueTapRoute(refs, target)).toEqual({ kind: 'walk', goal: target })
+    expect(refs.pendingFast.current).toBe(false)
   })
 
   it('向かっているマスそのものをタップしたらwalkを返し、残りの経路を空にする', () => {
@@ -242,6 +342,23 @@ describe('queueTapRoute (地点の物)', () => {
     // 自宅の壁の左上(扉ではないマス)と、街灯の柱の根元(絵のマスの1つ下)
     expect(queueTapRoute(refs, { x: home.solid.x, y: home.solid.y })).toBeNull()
     expect(queueTapRoute(refs, { x: lamp.cell.x, y: lamp.cell.y + 1 })).toBeNull()
+    expect(refs.pendingRoute.current).toBeNull()
+    expect(refs.autoTalk.current).toBe(false)
+  })
+
+  it('話しかけられるマスのどれにも歩いて届かない物は無視する', () => {
+    // 水の列(x=4)で西と東に分かれた草地。西の(2,3)に立ち、東のポストを押す
+    const islandPost: Structure = { id: 'post', kind: 'mailbox', cell: { x: 6, y: 3 } }
+    const open = makeOpenWorld('island', 8, 8, [islandPost])
+    const island: World = {
+      ...open,
+      tiles: open.tiles.map(row => row.map((tile, x): Tile => (x === 4 ? 'water' : tile))),
+      spots: [{ id: 'post', structureId: 'post', cell: { x: 6, y: 4 }, facing: 'up' }],
+    }
+    const refs = makeRefs({ ...createMoveState(island), cell: { x: 2, y: 3 } }, null)
+    refs.world.current = island
+    refs.autoTalk.current = false
+    expect(queueTapRoute(refs, islandPost.cell)).toBeNull()
     expect(refs.pendingRoute.current).toBeNull()
     expect(refs.autoTalk.current).toBe(false)
   })
