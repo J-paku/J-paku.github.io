@@ -11,6 +11,7 @@
     "test": "TZ=UTC vitest run",
     "test:coverage": "TZ=UTC vitest run --coverage",
     "test:watch": "TZ=UTC vitest",
+    "test:boundary": "node scripts/check-test-boundary.mjs",
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit",
     "docs:check": "node scripts/check-docs.mjs",
