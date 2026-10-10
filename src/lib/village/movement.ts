@@ -2,7 +2,7 @@
 // 長いフレームで壁を飛び越えないための上限。マスをまたいだ余りの時間は次のマスへ持ち越す
 import type { Cell, Direction, World } from '@content/types/world'
 import { isWalkable } from './collision'
-import type { Flight } from './flight'
+import { advanceFlight, takeOff, type Flight } from './flight'
 
 export type Motion = { from: Cell; to: Cell; progress: number }
 export type MoveState = {
@@ -52,6 +52,8 @@ export const createMoveState = (world: World): MoveState => ({
   stride: 0,
 })
 
+const cellMsOf = (fast: boolean): number => (fast ? CELL_MS / FAST_DIVISOR : CELL_MS)
+
 export const directionTo = (from: Cell, to: Cell): Direction => {
   if (to.y < from.y) return 'up'
   if (to.y > from.y) return 'down'
@@ -66,13 +68,15 @@ const begin = (world: World, state: MoveState, to: Cell, progress: number): Move
   return { ...state, facing, turnRemainingMs: 0, motion: { from: state.cell, to, progress } }
 }
 
-// 止まっているマスから次の1マスを決めて始める。到着フレームの連結にも同じ判断を使う
+// 止まっているマスから次の1マスを決めて始める。到着フレームの連結にも同じ判断を使う。
+// carryMs は持ち越した余剰時間(ms)で、飛び立つ時の経過に使う(progress はその歩行での進捗)
 const startNext = (
   world: World,
   state: MoveState,
   input: MoveInput,
   elapsedMs: number,
-  progress: number
+  progress: number,
+  carryMs: number
 ): { state: MoveState; bumped: Cell | null } => {
   let next = state
   if (input.held !== null) {
@@ -98,12 +102,28 @@ const startNext = (
     if (Math.abs(head.x - next.cell.x) + Math.abs(head.y - next.cell.y) !== 1) {
       return { state: { ...next, route: [] }, bumped: null }
     }
-    const started = begin(world, { ...next, route: rest }, head, progress)
+    // 飛んでよい経路は最初の1歩を決める時だけ飛ぶかを判定し、許可を使い切る(途中のマスから飛び立たない)
+    const launched = takeOff(world, next, carryMs)
+    if (launched !== null) return { state: launched, bumped: null }
+    const started = begin(world, { ...next, route: rest, fly: false }, head, progress)
     // 進めない経路は捨てるが、ぶつかった先は返す(扉へ向かう経路の最後の1歩をワープに使う)
     if (started.motion === null) return { state: { ...started, route: [] }, bumped: head }
     return { state: started, bumped: null }
   }
   return { state: next, bumped: null }
+}
+
+// 着地した歩みの連結では押した向きを読まない(飛んでいる間の入力の錠は着地の歩みまで続く)
+const LANDING_INPUT: MoveInput = { held: null, route: null, fast: false, fly: false }
+
+// 飛んでいる間はキーも新しい経路も読まず、通り過ぎるマスの当たり判定・到着もしない(進め方は advanceFlight)。
+// 着地した歩みで着地したマスを1回だけ返し、同じ歩みで残りの経路を辿る。残りの経路は通れないマスだけなので
+// 扉へぶつかるか止まるかで終わり、歩き出さない。着地を過ぎた余りの時間は持ち越す先が無いので 0 を渡す
+const flyStep = (world: World, state: MoveState, flight: Flight, elapsedMs: number): StepResult => {
+  const { state: next, landed } = advanceFlight(state, flight, elapsedMs)
+  if (landed === null) return { state: next, arrived: null, bumped: null }
+  const chained = startNext(world, next, LANDING_INPUT, 0, 0, 0)
+  return { state: chained.state, arrived: landed, bumped: chained.bumped }
 }
 
 export const step = (
@@ -112,14 +132,17 @@ export const step = (
   input: MoveInput,
   elapsedMs: number
 ): StepResult => {
-  // タップ経路の差し替えは即時に記録し、消費は到着後。速度も経路と一緒に受け取る
+  if (state.flight !== null) return flyStep(world, state, state.flight, elapsedMs)
+  // タップ経路の差し替えは即時に記録し、消費は到着後。速度・飛んでよいかも経路と一緒に受け取る
   let next: MoveState =
-    input.route !== null ? { ...state, route: input.route, fast: input.fast } : state
-  // キー入力は経路より優先し、経路を捨てる。自分で歩くときは常に等速
-  if (input.held !== null) next = { ...next, route: [], fast: false }
+    input.route !== null
+      ? { ...state, route: input.route, fast: input.fast, fly: input.fly }
+      : state
+  // キー入力は経路より優先し、経路を捨てる。自分で歩くときは常に等速で、飛ばない
+  if (input.held !== null) next = { ...next, route: [], fast: false, fly: false }
 
   if (next.motion !== null) {
-    const cellMs = next.fast ? CELL_MS / FAST_DIVISOR : CELL_MS
+    const cellMs = cellMsOf(next.fast)
     // 1を超えた分は切り捨てずに残す。切り捨てると1マスがフレーム境界へ丸まって速度が脈打つ
     const advanced = next.motion.progress + elapsedMs / cellMs
     if (advanced < 1)
@@ -134,10 +157,10 @@ export const step = (
     // 持ち越しは1マス未満に収まるが、飛び越し防止の上限として clamp も置く
     const overflowMs = Math.min((advanced - 1) * cellMs, cellMs)
     // 到着はこのステップで1回だけ返す。押し続け・経路が続くなら同じステップで次の1マスへ繋ぐ
-    const chained = startNext(world, next, input, overflowMs, overflowMs / cellMs)
+    const chained = startNext(world, next, input, overflowMs, overflowMs / cellMs, overflowMs)
     return { state: chained.state, arrived, bumped: chained.bumped }
   }
 
-  const begun = startNext(world, next, input, elapsedMs, 0)
+  const begun = startNext(world, next, input, elapsedMs, 0, 0)
   return { state: begun.state, arrived: null, bumped: begun.bumped }
 }
