@@ -1,9 +1,10 @@
 // @vitest-environment happy-dom
 // ワールドを移った直後、新しいタイルがDOMに載るまで待つwaitForWorldTilesのテスト。
+// 待つ間の読み込み中の覆いと、飛行の影を隠す所を確かめる。
 // 経過時間はperformance.nowを差し替えた時計で進める
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { World } from '@content/types/world'
-import { LOADING_DELAY_MS, waitForWorldTiles } from './wait-world-tiles'
+import { LOADING_DELAY_MS, waitForWorldTiles, type WorldTileTargets } from './wait-world-tiles'
 import type { WalkFrameState } from './types'
 
 // 移った先のワールド。見るのはidだけ
@@ -20,7 +21,10 @@ const room: World = {
   warps: [],
 }
 
-const makeFrameState = (waitSince: number | null): WalkFrameState => ({
+const makeFrameState = (
+  waitSince: number | null,
+  shadowFlying: WalkFrameState['shadowFlying'] = ''
+): WalkFrameState => ({
   spriteKey: '',
   fishingTarget: null,
   waitSince,
@@ -33,7 +37,7 @@ const makeFrameState = (waitSince: number | null): WalkFrameState => ({
   shift: '',
   lastTransform: '',
   shadowTransform: '',
-  shadowFlying: '',
+  shadowFlying,
   frameWidth: null,
   veilCell: '',
   veilId: '',
@@ -44,6 +48,20 @@ const makeLayer = (worldId: string) => {
   const layer = document.createElement('div')
   layer.dataset.world = worldId
   return layer
+}
+
+// 待つ間に触る要素。覆いと影は無い(null)ものから始め、確かめたい所だけ渡す
+const targets = (
+  layer: HTMLElement | null,
+  overrides: Partial<Omit<WorldTileTargets, 'layer'>> = {}
+): WorldTileTargets => ({ layer, loading: null, shadow: null, ...overrides })
+
+// 前のワールドで飛んでいた影。歩行ループが最後に書いた位置と data-flying='true' が残っている
+const makeFlyingShadow = () => {
+  const shadow = document.createElement('div')
+  shadow.dataset.flying = 'true'
+  shadow.style.transform = 'translate(896px, 704px) scale(0.9)'
+  return shadow
 }
 
 const isShown = (loading: HTMLElement) => loading.hasAttribute('data-show')
@@ -67,23 +85,23 @@ describe('waitForWorldTiles', () => {
   it('前のワールドのタイルが残っていればfalseを返し、待ち始めた時刻を覚える', () => {
     const frameState = makeFrameState(null)
     const loading = document.createElement('div')
-    expect(waitForWorldTiles(frameState, makeLayer('town'), loading, room)).toBe(false)
+    expect(waitForWorldTiles(frameState, targets(makeLayer('town'), { loading }), room)).toBe(false)
     expect(frameState.waitSince).toBe(1000)
     expect(isShown(loading)).toBe(false)
   })
 
   it('data-worldがまだ付いていない層も、載っていないとみなして待つ', () => {
     const frameState = makeFrameState(null)
-    expect(waitForWorldTiles(frameState, document.createElement('div'), null, room)).toBe(false)
+    expect(waitForWorldTiles(frameState, targets(document.createElement('div')), room)).toBe(false)
     expect(frameState.waitSince).toBe(1000)
   })
 
   it('待っている間は待ち始めた時刻を書き換えない', () => {
     const frameState = makeFrameState(null)
     const layer = makeLayer('town')
-    waitForWorldTiles(frameState, layer, null, room)
+    waitForWorldTiles(frameState, targets(layer), room)
     now = 1050
-    waitForWorldTiles(frameState, layer, null, room)
+    waitForWorldTiles(frameState, targets(layer), room)
     expect(frameState.waitSince).toBe(1000)
   })
 
@@ -92,24 +110,24 @@ describe('waitForWorldTiles', () => {
     const layer = makeLayer('town')
     const loading = document.createElement('div')
     now = 1000 + LOADING_DELAY_MS
-    expect(waitForWorldTiles(frameState, layer, loading, room)).toBe(false)
+    expect(waitForWorldTiles(frameState, targets(layer, { loading }), room)).toBe(false)
     expect(isShown(loading)).toBe(false)
     now = 1000 + LOADING_DELAY_MS + 1
-    expect(waitForWorldTiles(frameState, layer, loading, room)).toBe(false)
+    expect(waitForWorldTiles(frameState, targets(layer, { loading }), room)).toBe(false)
     expect(isShown(loading)).toBe(true)
   })
 
   it('覆いの要素が無ければ、待ちが長引いても落ちずにfalseを返す', () => {
     const frameState = makeFrameState(1000)
     now = 5000
-    expect(waitForWorldTiles(frameState, makeLayer('town'), null, room)).toBe(false)
+    expect(waitForWorldTiles(frameState, targets(makeLayer('town')), room)).toBe(false)
   })
 
   it('新しいタイルが載ったらtrueを返し、待ちを解いて覆いを外す', () => {
     const frameState = makeFrameState(1000)
     const loading = document.createElement('div')
     loading.dataset.show = ''
-    expect(waitForWorldTiles(frameState, makeLayer('room'), loading, room)).toBe(true)
+    expect(waitForWorldTiles(frameState, targets(makeLayer('room'), { loading }), room)).toBe(true)
     expect(frameState.waitSince).toBeNull()
     expect(isShown(loading)).toBe(false)
   })
@@ -118,14 +136,53 @@ describe('waitForWorldTiles', () => {
     const frameState = makeFrameState(1000)
     const loading = document.createElement('div')
     loading.dataset.show = ''
-    expect(waitForWorldTiles(frameState, null, loading, room)).toBe(true)
+    expect(waitForWorldTiles(frameState, targets(null, { loading }), room)).toBe(true)
     expect(frameState.waitSince).toBeNull()
     expect(isShown(loading)).toBe(false)
   })
 
   it('載った後で覆いの要素が無くても落ちずにtrueを返す', () => {
     const frameState = makeFrameState(1000)
-    expect(waitForWorldTiles(frameState, makeLayer('room'), null, room)).toBe(true)
+    expect(waitForWorldTiles(frameState, targets(makeLayer('room')), room)).toBe(true)
     expect(frameState.waitSince).toBeNull()
+  })
+
+  describe('飛行の影', () => {
+    it('待っている間は影をdata-flying=falseで隠し、覚えた印も下ろす(位置は書き換えない)', () => {
+      // 着地と扉が同じフレームだった形。前のワールドで飛んでいた印が残っている
+      const frameState = makeFrameState(null, 'true')
+      const shadow = makeFlyingShadow()
+      const tiles = targets(makeLayer('town'), { shadow })
+      expect(waitForWorldTiles(frameState, tiles, room)).toBe(false)
+      expect(shadow.dataset.flying).toBe('false')
+      expect(frameState.shadowFlying).toBe('false')
+      expect(shadow.style.transform).toBe('translate(896px, 704px) scale(0.9)')
+    })
+
+    it('待つ間に隠した後は、同じ値を書き直さない', () => {
+      const frameState = makeFrameState(null, 'true')
+      const shadow = makeFlyingShadow()
+      const layer = makeLayer('town')
+      waitForWorldTiles(frameState, targets(layer, { shadow }), room)
+      const observer = new MutationObserver(() => {})
+      observer.observe(shadow, { attributes: true })
+      waitForWorldTiles(frameState, targets(layer, { shadow }), room)
+      expect(observer.takeRecords()).toHaveLength(0)
+      observer.disconnect()
+    })
+
+    it('新しいタイルが載っていれば影には触らない(位置と印は次の描画が書く)', () => {
+      const frameState = makeFrameState(1000, 'true')
+      const shadow = makeFlyingShadow()
+      expect(waitForWorldTiles(frameState, targets(makeLayer('room'), { shadow }), room)).toBe(true)
+      expect(shadow.dataset.flying).toBe('true')
+      expect(frameState.shadowFlying).toBe('true')
+    })
+
+    it('影の要素がまだ無くても、落ちずに待つ', () => {
+      const frameState = makeFrameState(null, 'true')
+      expect(waitForWorldTiles(frameState, targets(makeLayer('town')), room)).toBe(false)
+      expect(frameState.shadowFlying).toBe('true')
+    })
   })
 })

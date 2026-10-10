@@ -92,6 +92,14 @@ const placeShadow = (
   writeShadowFlying(frameState, shadow, flying.flight === null ? 'false' : 'true')
 }
 
+// 影を隠す(data-flying='false')。位置は書かない — 次に placePlayer が描く時に書き直す。
+// 新しいワールドのタイルを待つ間に使う。待つ間は人物も影も描き直さないので、着地と扉が同じフレームだと
+// 前のワールドで飛んでいた印と位置が、隠されないまま新しいワールドの上に残る
+export const hideShadow = (frameState: WalkFrameState, shadow: HTMLDivElement | null): void => {
+  if (shadow === null) return
+  writeShadowFlying(frameState, shadow, 'false')
+}
+
 // 人物をカメラと同じマス寸法で置き、コマを書き、付いて回る要素を同じ位置へ揃える。
 // 飛んでいる間は人物と付いて回る要素を浮いた高さだけ上へずらし、影は地上の位置に残す。
 // コマの書き込みは applyPose(フック側で sources を束ねたもの)に任せる。まだコマが時間で変わるなら true

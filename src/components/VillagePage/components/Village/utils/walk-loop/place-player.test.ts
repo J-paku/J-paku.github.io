@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 // 人物を置く部品(writePose・placePlayer)のテスト。人物のtransform・data-sprite・--iと、
-// 付いて回る要素(目印・吹き出しの土台・灯り)へ書く値、同じ値を書き直さない所、ワールドが替わった時に書き直す所を確かめる。
+// 付いて回る要素(目印・吹き出しの土台・灯り)へ書く値、同じ値を書き直さない所、ワールドが替わった時に書き直す所、
+// 飛んでいる間の浮き上がりと地上に残す影(transform・data-flying)、影を隠す hideShadow を確かめる。
 // 釣り・傘の経過はperformance.nowから数えるので固定する
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Direction } from '@content/types/world'
@@ -8,7 +9,13 @@ import type { SheetLayout } from '@/lib/pixel/art'
 import { flightLiftCells, flightShadow, type Flying } from '@/lib/village/flight'
 import type { MoveState } from '@/lib/village/movement'
 import type { FishingPose, UmbrellaPose } from '@/lib/village/player-pose'
-import { placePlayer, writePose, type FollowerRefs, type PoseSources } from './place-player'
+import {
+  hideShadow,
+  placePlayer,
+  writePose,
+  type FollowerRefs,
+  type PoseSources,
+} from './place-player'
 import type { CameraFrame } from './types'
 import { makeFrameState } from './walk-loop.test-helper'
 
@@ -314,5 +321,48 @@ describe('placePlayer(飛行)', () => {
     placePlayer(frameState, followers, walked, inFlight(300), () => false)
     expect(observer.takeRecords().map(record => record.attributeName)).toContain('data-flying')
     observer.disconnect()
+  })
+})
+
+describe('hideShadow', () => {
+  it('飛んでいた影をdata-flying=falseで隠し、覚えた印も下ろす。位置は書き換えない', () => {
+    const frameState = makeFrameState()
+    const followers = makeFollowers()
+    placePlayer(frameState, followers, camera(false), inFlight(300), () => false)
+    const shadow = followers.shadowRef.current
+    const placed = shadow.style.transform
+    hideShadow(frameState, shadow)
+    expect(shadow.dataset.flying).toBe('false')
+    expect(frameState.shadowFlying).toBe('false')
+    expect(shadow.style.transform).toBe(placed)
+    expect(frameState.shadowTransform).toBe(placed)
+  })
+
+  it('隠した後に飛んでいる影を描けば、data-flyingをtrueへ書き戻す', () => {
+    // 覚えた印を下ろし忘れると、次に飛んだ時に「前と同じ true」とみなして書かず、影が隠れたままになる
+    const frameState = makeFrameState()
+    const followers = makeFollowers()
+    placePlayer(frameState, followers, camera(false), inFlight(300), () => false)
+    hideShadow(frameState, followers.shadowRef.current)
+    placePlayer(frameState, followers, camera(false), inFlight(400), () => false)
+    expect(followers.shadowRef.current.dataset.flying).toBe('true')
+  })
+
+  it('もう隠れている影は書き直さない', () => {
+    const frameState = makeFrameState()
+    const followers = makeFollowers()
+    placePlayer(frameState, followers, camera(false), grounded, () => false)
+    const shadow = followers.shadowRef.current
+    const observer = new MutationObserver(() => {})
+    observer.observe(shadow, { attributes: true })
+    hideShadow(frameState, shadow)
+    expect(observer.takeRecords()).toHaveLength(0)
+    observer.disconnect()
+  })
+
+  it('影の要素が無ければ何もしない', () => {
+    const frameState = makeFrameState({ shadowFlying: 'true' })
+    hideShadow(frameState, null)
+    expect(frameState.shadowFlying).toBe('true')
   })
 })
