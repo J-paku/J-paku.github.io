@@ -109,6 +109,11 @@ describe('phasePalette', () => {
     expect(phasePalette(base, phase)[NORMAL_KEY]).toBe(expected)
   })
 
+  // 黒を夜へ混ぜると各チャンネルが 16 未満(1 桁の 16 進)になる。桁を 0 で埋めないと #rrggbb が崩れる
+  it('混ぜた結果が 16 未満のチャンネルも 0 埋めの 2 桁で書く', () => {
+    expect(phasePalette({ k: '#000000' }, 'night').k).toBe('#0b1326')
+  })
+
   it('通常文字は夜のほうが昼より暗い(輝度比較)', () => {
     const day = phasePalette(base, 'day')[NORMAL_KEY]
     const night = phasePalette(base, 'night')[NORMAL_KEY]
@@ -129,5 +134,11 @@ describe('phasePalette', () => {
     expect(phasePalette(base, 'night')[NON_HEX_KEY]).toBe(NON_HEX_VALUE)
     expect(phasePalette(base, 'dusk')[NON_HEX_KEY]).toBe(NON_HEX_VALUE)
     expect(phasePalette(base, 'dawn')[NON_HEX_KEY]).toBe(NON_HEX_VALUE)
+  })
+
+  // 混ぜるのは # と 6 桁ちょうどの値だけ。前後に文字が付いた値(透明度付きの 8 桁など)は混ぜずに残す
+  it('#rrggbb の前後に余計な文字が付いた値も素通りする', () => {
+    const extra = { alpha: '#78c06080', prefixed: 'x#78c060' }
+    expect(phasePalette(extra, 'night')).toEqual(extra)
   })
 })

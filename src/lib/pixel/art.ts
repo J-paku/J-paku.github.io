@@ -72,10 +72,11 @@ export const validateArt = (
 }
 
 // パレットの CSS 色を RGBA へ。対応は #rgb・#rrggbb・#rrggbbaa の 16 進表記だけ
+// 先頭の 1 文字を外した残りを桁として読み、'#' で始まらなければ桁が正しくても色として扱わない
 export const parseHexColor = (css: string): [number, number, number, number] => {
-  const hex = css.startsWith('#') ? css.slice(1) : ''
+  const hex = css.slice(1)
   const digits = hex.length === 3 ? [...hex].map(ch => ch + ch).join('') : hex
-  if (!/^[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/.test(digits)) {
+  if (!css.startsWith('#') || !/^[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/.test(digits)) {
     throw new Error(`16進表記の色ではありません(${css})`)
   }
   const value = Number.parseInt(digits.padEnd(8, 'f'), 16)

@@ -54,6 +54,16 @@ describe('compose', () => {
     const narrow = Array.from({ length: PART }, () => 'aaa')
     expect(() => compose(narrow, part('b'), part('c'), part('d'))).toThrow()
   })
+  it('8行のうち1行だけ短い部品も例外を投げる(全行の長さを見る)', () => {
+    const oneShort = [...part('a').slice(0, PART - 1), 'aaa']
+    expect(() => compose(part('a'), oneShort, part('c'), part('d'))).toThrow()
+  })
+  it('例外の文言に部品の寸法を入れる', () => {
+    const broken = part('a').slice(0, 7)
+    expect(() => compose(broken, part('b'), part('c'), part('d'))).toThrow(
+      '部品は8×8である必要があります'
+    )
+  })
 })
 
 describe('recolor', () => {
@@ -101,6 +111,16 @@ describe('parseHexColor', () => {
     expect(() => parseHexColor('red')).toThrow()
     expect(() => parseHexColor('#12345')).toThrow()
   })
+  it('7桁は6桁の後ろに余りがあっても前に余りがあっても色ではない', () => {
+    // 先頭の 6 桁だけ・末尾の 6 桁だけが合っていても通さない(桁数は全体で数える)
+    expect(() => parseHexColor('#1234567')).toThrow()
+    expect(() => parseHexColor('#15161bz')).toThrow()
+    expect(() => parseHexColor('#z15161b')).toThrow()
+  })
+  it('# で始まらなければ、残りが16進の桁でも色ではない', () => {
+    expect(() => parseHexColor('x15161b')).toThrow('16進表記の色ではありません(x15161b)')
+    expect(() => parseHexColor('15161b')).toThrow('16進表記の色ではありません(15161b)')
+  })
 })
 
 describe('rasterize', () => {
@@ -125,6 +145,16 @@ describe('rasterize', () => {
     expect(pixelAt(image, 1, 0)).toEqual([0, 0, 0, 0])
     expect(pixelAt(image, 0, 1)).toEqual([0, 0, 0, 0])
     expect(pixelAt(image, 0, 0)).toEqual([0x11, 0x11, 0x11, 255])
+  })
+  it('パレットが透明文字に色を持っていても、透明文字は (0,0,0,0) のまま残す', () => {
+    const image = rasterize([['a.']], { ...palette, '.': '#ffffff' }, 2, 1)
+    expect(pixelAt(image, 1, 0)).toEqual([0, 0, 0, 0])
+    expect(pixelAt(image, 0, 0)).toEqual([0x11, 0x11, 0x11, 255])
+  })
+  it('パレットに無い文字は塗らずに (0,0,0,0) のまま残す', () => {
+    const image = rasterize([['za']], palette, 2, 1)
+    expect(pixelAt(image, 0, 0)).toEqual([0, 0, 0, 0])
+    expect(pixelAt(image, 1, 0)).toEqual([0x11, 0x11, 0x11, 255])
   })
 })
 
@@ -151,6 +181,11 @@ describe('buildSheet', () => {
   })
   it('不正なアートがあればキー名を含む例外を投げる', () => {
     expect(() => buildSheet({ grass: tile('a'), bad: ['aa'] }, palette)).toThrow(/bad/)
+  })
+  it('問題が複数あれば、キー名の後ろへ1件ずつ改行で区切って並べる', () => {
+    expect(() => buildSheet({ bad: ['z'] }, palette)).toThrow(
+      'bad: 行数が16ではありません(1)\n0行目の長さが16ではありません(1)\nパレットに無い文字です(z)'
+    )
   })
   it('height を渡すと幅 16 のまま縦長のタイルになる', () => {
     const tall = Array.from({ length: 24 }, () => 'a'.repeat(TILE))

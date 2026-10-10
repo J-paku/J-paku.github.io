@@ -60,11 +60,11 @@ export const encodePng = ({ width, height, data }: RgbaImage): Uint8Array => {
     // ビット深度 8・カラータイプ 6(RGBA)・圧縮 0・フィルタ 0・インターレース無し
     Uint8Array.from([8, 6, 0, 0, 0]),
   ])
-  // 各行の先頭にフィルタ種別 0(無加工)を置く。絵が小さいので予測フィルタは使わない
+  // 各行の先頭にフィルタ種別 0(無加工)を置く。絵が小さいので予測フィルタは使わない。
+  // Uint8Array は 0 で埋まって生まれるので、行の中身を 1 バイトずらして写せば先頭は 0 のまま残る
   const stride = width * BYTES_PER_PIXEL
   const raw = new Uint8Array((stride + 1) * height)
   for (let y = 0; y < height; y += 1) {
-    raw[y * (stride + 1)] = 0
     raw.set(data.subarray(y * stride, (y + 1) * stride), y * (stride + 1) + 1)
   }
   return concat([

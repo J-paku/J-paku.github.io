@@ -34,10 +34,15 @@ describe('sheetUrl', () => {
 })
 
 describe('spriteBackgroundCss', () => {
-  const css = spriteBackgroundCss(SCENE)
-  const rules = parseRules(css)
+  // 規則は it の中で組む。describe の本体で組むと、組み立てが投げたときにファイルの読み込みごと落ち、
+  // 失敗したテストとして数えられない(変異テストでは、投げる変異体がどのテストも落とさずに生き残る)
+  const build = (): { css: string; rules: [string, string][] } => {
+    const css = spriteBackgroundCss(SCENE)
+    return { css, rules: parseRules(css) }
+  }
 
   it('属性なしの既定の規則は昼のシートを指す', () => {
+    const { rules } = build()
     expect(rules.slice(0, 2)).toEqual([
       [`.${SCENE.sprite}`, sheetUrl('sprite', 'day')],
       [`.${SCENE.player}::before`, sheetUrl('player', 'day')],
@@ -46,6 +51,7 @@ describe('spriteBackgroundCss', () => {
 
   // 昼は既定の規則が受け持つので、data-phaseの規則は昼以外の段階だけ。DAY_PHASESの順に並ぶ
   it('昼以外の段階だけをdata-phaseの規則で上書きし、その段階のシートを指す', () => {
+    const { css, rules } = build()
     const scope = (phase: string) => `.${SCENE.root}[data-phase='${phase}']`
     expect(rules.slice(2)).toEqual([
       [`${scope('dawn')} .${SCENE.sprite}`, sheetUrl('sprite', 'dawn')],
@@ -59,6 +65,7 @@ describe('spriteBackgroundCss', () => {
   })
 
   it('規則のほかに余計な文字を含まない', () => {
+    const { css, rules } = build()
     const rebuilt = rules.map(([selector, url]) => `${selector}{background-image:url('${url}')}`)
     expect(rebuilt.join('')).toBe(css)
     expect(rules).toHaveLength(2 * DAY_PHASES.length)

@@ -68,6 +68,11 @@ describe('encodePng', () => {
     expect(() => encodePng({ width: 2, height: 2, data: new Uint8Array(15) })).toThrow()
     expect(() => encodePng({ width: 0, height: 1, data: new Uint8Array(0) })).toThrow()
   })
+  it('例外の文言に寸法と実際の長さを入れる', () => {
+    expect(() => encodePng({ width: 3, height: 2, data: new Uint8Array(15) })).toThrow(
+      'ピクセル列の長さが 3×2×4 と一致しません(15)'
+    )
+  })
   it('幅または高さが 0 なら例外を投げる', () => {
     // 幅 0・高さ 0 はどちらも長さの検査(0 === 0)を素通りするので、寸法そのものの番人が要る。
     // ここが片方だけになると、もう片方は 0×N の PNG(IHDR だけ 0、IDAT は空)が黙って焼き上がり、
