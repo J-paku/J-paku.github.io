@@ -2,8 +2,7 @@
 import { useCallback, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import type { Cell, Direction, World, WorldSet } from '@content/types/world'
-import { createMoveState } from '@/lib/village/movement'
-import { findWorld } from '../utils/find-world'
+import { enterRuntimeWorld, resolveWorld } from '../utils/enter-world'
 import type { VillageRuntime } from './use-village-runtime'
 
 export type EnterWorld = (id: string, next: World, cell: Cell, facing: Direction) => void
@@ -22,21 +21,16 @@ type UseVillageWorld = {
 export function useVillageWorld(worldSet: WorldSet, runtime: VillageRuntime): UseVillageWorld {
   const startWorld = worldSet.worlds[worldSet.startWorldId]
   const [worldId, setWorldId] = useState<string>(worldSet.startWorldId)
-  const world = findWorld(worldSet, worldId) ?? startWorld
+  const world = resolveWorld(worldSet, worldId)
 
   const [destination, setDestination] = useState<Cell | null>(null)
   const [playerCell, setPlayerCell] = useState<Cell>(startWorld.start)
 
-  // ワールドの移動は ref と state を同時に置き換える。持ち越した経路と目的地は捨てる。
+  // ワールドの移動は ref と state を同時に置き換える。ref の置き換え方は utils/enter-world.ts。
   // 歩行ループは新しいタイルが DOM に載るのを待って描き直すので、眠っていれば起こす
   const enterWorld = useCallback(
     (id: string, next: World, cell: Cell, facing: Direction) => {
-      runtime.world.current = next
-      runtime.worldKey.current = id
-      runtime.state.current = { ...createMoveState(next), cell, facing }
-      runtime.pendingRoute.current = null
-      runtime.pendingFast.current = false
-      runtime.destination.current = null
+      enterRuntimeWorld(runtime, id, next, cell, facing)
       setDestination(null)
       setWorldId(id)
       setPlayerCell(cell)
