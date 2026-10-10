@@ -118,6 +118,7 @@ export function useWalkLoop({
         frameState,
         { locatorRef: dom.locator, hintRef: dom.hint, playerLightRef: dom.playerLight },
         camera,
+        state,
         applyPose
       )
       return !posing && camera.caughtUp

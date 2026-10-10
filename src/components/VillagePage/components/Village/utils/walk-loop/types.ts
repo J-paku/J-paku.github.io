@@ -55,7 +55,7 @@ export type MoveRefs = Pick<
 export type CameraFrame = {
   // マス 1 つぶんの実寸(px)
   px: number
-  // 主人公の表示座標(マス単位、移動中は補間込み)
+  // 主人公の表示座標(マス単位、移動中は補間込み)。飛んでいる間は地上の影の位置で、浮いた高さは含めない
   v: { x: number; y: number }
   // このフレームでワールドが差し替わったか
   switched: boolean

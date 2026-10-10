@@ -2,6 +2,7 @@
 // React の state を経由させると再レンダーで駒が飛ぶので rAF の中で書き、同じ値は書き直さない
 import type { RefObject } from 'react'
 import type { SheetLayout } from '@/lib/pixel/art'
+import { flightLiftCells, type Flying } from '@/lib/village/flight'
 import type { MoveState } from '@/lib/village/movement'
 import { playerPose, type FishingPose, type UmbrellaPose } from '@/lib/village/player-pose'
 import { spriteIndex } from '../sprite-style'
@@ -67,13 +68,15 @@ export const writePose = (
 export const placePlayer = (
   frameState: WalkFrameState,
   { locatorRef, hintRef, playerLightRef }: FollowerRefs,
-  { px, v, switched }: CameraFrame,
+  camera: CameraFrame,
+  flying: Flying,
   applyPose: () => boolean
 ): boolean => {
+  const { px, v, switched } = camera
   // ワールドが替わると React が人物の style を開始マスの値で書き直すので、覚えている
   // transform は当てにならない。次の applyPose で必ず書き直させる
   if (switched) frameState.lastTransform = ''
-  const shift = `translate(${v.x * px}px, ${v.y * px}px)`
+  const shift = `translate(${v.x * px}px, ${(v.y - flightLiftCells(flying)) * px}px)`
   frameState.shift = shift
   const posing = applyPose()
   // 目印は反転させず、プレイヤーと同じ位置に重ねる(上への持ち上げは CSS 側)

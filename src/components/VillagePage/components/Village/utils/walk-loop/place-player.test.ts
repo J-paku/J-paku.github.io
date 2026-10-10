@@ -5,6 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Direction } from '@content/types/world'
 import type { SheetLayout } from '@/lib/pixel/art'
+import { flightLiftCells, type Flying } from '@/lib/village/flight'
 import type { MoveState } from '@/lib/village/movement'
 import type { FishingPose, UmbrellaPose } from '@/lib/village/player-pose'
 import { placePlayer, writePose, type FollowerRefs, type PoseSources } from './place-player'
@@ -68,6 +69,13 @@ const camera = (switched: boolean): CameraFrame => ({
   caughtUp: true,
 })
 const SHIFT = 'translate(160px, 192px)'
+
+// 飛んでいない(地上を歩く・立つ)
+const grounded: Flying = { flight: null }
+// (0,3)から(5,3)へ1000msかけて飛び、elapsedMsだけ経った状態
+const inFlight = (elapsedMs: number): Flying => ({
+  flight: { from: { x: 0, y: 3 }, to: { x: 5, y: 3 }, durationMs: 1000, elapsedMs },
+})
 
 beforeEach(() => {
   clock = 1000
@@ -173,21 +181,23 @@ describe('placePlayer', () => {
       seenShift.push(frameState.shift)
       return true
     })
-    expect(placePlayer(frameState, followers, camera(false), applyPose)).toBe(true)
+    expect(placePlayer(frameState, followers, camera(false), grounded, applyPose)).toBe(true)
     expect(applyPose).toHaveBeenCalledTimes(1)
     expect(seenShift).toEqual([SHIFT])
     expect(frameState.shift).toBe(SHIFT)
     expect(followers.locatorRef.current?.style.transform).toBe(SHIFT)
     expect(followers.hintRef.current?.style.transform).toBe(SHIFT)
     expect(followers.playerLightRef.current?.style.transform).toBe(SHIFT)
-    expect(placePlayer(frameState, followers, camera(false), () => false)).toBe(false)
+    expect(placePlayer(frameState, followers, camera(false), grounded, () => false)).toBe(false)
   })
 
   it('人物が反転しても、付いて回る要素は反転させない', () => {
     const frameState = makeFrameState()
     const sources = makeSources('left')
     const followers = makeFollowers()
-    placePlayer(frameState, followers, camera(false), () => writePose(frameState, sources))
+    placePlayer(frameState, followers, camera(false), grounded, () =>
+      writePose(frameState, sources)
+    )
     expect(sources.playerRef.current.style.transform).toBe(`${SHIFT} scaleX(-1)`)
     expect(followers.locatorRef.current.style.transform).toBe(SHIFT)
     expect(followers.hintRef.current.style.transform).toBe(SHIFT)
@@ -200,7 +210,9 @@ describe('placePlayer', () => {
     // 前のフレームで同じ位置を書いた後、ワールドの差し替えでReactが開始マスの値に戻した形
     const frameState = makeFrameState({ shift: SHIFT, lastTransform: SHIFT })
     player.style.transform = 'translate(0px, 0px)'
-    placePlayer(frameState, makeFollowers(), camera(true), () => writePose(frameState, sources))
+    placePlayer(frameState, makeFollowers(), camera(true), grounded, () =>
+      writePose(frameState, sources)
+    )
     expect(player.style.transform).toBe(SHIFT)
     expect(frameState.lastTransform).toBe(SHIFT)
   })
@@ -210,7 +222,9 @@ describe('placePlayer', () => {
     const player = sources.playerRef.current
     const frameState = makeFrameState({ shift: SHIFT, lastTransform: SHIFT })
     player.style.transform = 'translate(0px, 0px)'
-    placePlayer(frameState, makeFollowers(), camera(false), () => writePose(frameState, sources))
+    placePlayer(frameState, makeFollowers(), camera(false), grounded, () =>
+      writePose(frameState, sources)
+    )
     expect(player.style.transform).toBe('translate(0px, 0px)')
   })
 
@@ -222,8 +236,26 @@ describe('placePlayer', () => {
       playerLightRef: { current: null },
     }
     const applyPose = vi.fn(() => false)
-    expect(placePlayer(frameState, followers, camera(false), applyPose)).toBe(false)
+    expect(placePlayer(frameState, followers, camera(false), grounded, applyPose)).toBe(false)
     expect(applyPose).toHaveBeenCalledTimes(1)
     expect(frameState.shift).toBe(SHIFT)
+  })
+})
+
+describe('placePlayer(飛行)', () => {
+  it('飛んでいる間は人物と付いて回る要素を、浮いた高さだけ地上の位置から上へずらす', () => {
+    const flying = inFlight(300)
+    const lift = flightLiftCells(flying)
+    expect(lift).toBeGreaterThan(0)
+    const lifted = `translate(160px, ${(3 - lift) * 64}px)`
+    const frameState = makeFrameState()
+    const sources = makeSources('right')
+    const followers = makeFollowers()
+    placePlayer(frameState, followers, camera(false), flying, () => writePose(frameState, sources))
+    expect(frameState.shift).toBe(lifted)
+    expect(sources.playerRef.current.style.transform).toBe(lifted)
+    expect(followers.locatorRef.current.style.transform).toBe(lifted)
+    expect(followers.hintRef.current.style.transform).toBe(lifted)
+    expect(followers.playerLightRef.current.style.transform).toBe(lifted)
   })
 })

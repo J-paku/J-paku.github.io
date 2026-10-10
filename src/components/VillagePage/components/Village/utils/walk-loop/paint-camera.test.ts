@@ -1,9 +1,10 @@
 // @vitest-environment happy-dom
 // カメラを描く部品(paintCamera)のテスト。層へ書くtransformの値と、減衰追従・ワールド切り替え・
-// 動きを控える設定での置き方、マスの実寸を枠の幅から求める所を確かめる。
+// 動きを控える設定での置き方、飛んでいる間の持ち上げと減衰しない追従、マスの実寸を枠の幅から求める所を確かめる。
 // happy-domは配置を計算しない(clientWidthは0)ので、枠の幅は覚えた値かスパイで渡す
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Cell } from '@content/types/world'
+import { flightPosition } from '@/lib/village/flight'
 import type { MoveState } from '@/lib/village/movement'
 import { CAM_TAU } from '../stage-scale'
 import { paintCamera, type CameraTargets } from './paint-camera'
@@ -29,6 +30,12 @@ const standing = (cell: Cell): MoveState => ({
 const walking = (from: Cell, to: Cell, progress: number): MoveState => ({
   ...standing(from),
   motion: { from, to, progress },
+})
+
+// fromからtoへ1000msかけて飛び、elapsedMsだけ経った状態。cellは出発のマスのまま
+const flying = (from: Cell, to: Cell, elapsedMs: number): MoveState => ({
+  ...standing(from),
+  flight: { from, to, durationMs: 1000, elapsedMs },
 })
 
 const makeTargets = (): CameraTargets & { layer: HTMLElement } => ({
@@ -136,6 +143,67 @@ describe('paintCamera', () => {
     )
     expect(result.v).toEqual({ x: 15, y: 10 })
     expect(targets.layer.style.transform).toBe('translate(-704px, -384px)')
+  })
+
+  it('飛んでいる間は飛行の地上の位置をvに返し、カメラは浮いた高さの半分だけ上を狙う', () => {
+    // (12,10)から(20,10)へ半分の時間飛んだ所。出発のマス(state.cell)ではなく飛行の位置に置く。
+    // 進み具合は 1-0.5³=0.875 で地上の位置は(19,10)。浮き上がりは 27/4×0.5×0.25=0.84375 の 2.5 マス倍で
+    // 2.109375 マス、その半分の 1.0546875 マスだけ上の(19,8.9453125)を狙い、原点は(15,4.9453125)。
+    // 縦は 316.5px を四捨五入して 317px
+    const state = flying({ x: 12, y: 10 }, { x: 20, y: 10 }, 500)
+    const targets = makeTargets()
+    const result = paintCamera(makeFrameState({ frameWidth: 640 }), targets, town, state, false, 16)
+    expect(result.v).toEqual({ x: 19, y: 10 })
+    expect(result.caughtUp).toBe(true)
+    expect(targets.camRef.current).toEqual({ x: 15, y: 4.9453125 })
+    expect(targets.layer.style.transform).toBe('translate(-960px, -317px)')
+  })
+
+  it('飛んでいる間は減衰させず、遅れていたカメラも 1 フレームで目標へそのまま置く', () => {
+    // 上と同じ飛行の途中。原点(14,5)は目標(15,4.9453125)から 1 マス遅れていて、歩きなら補間で寄る距離
+    const frameState = makeFrameState({
+      frameWidth: 640,
+      paintedWorld: town,
+      smoothedCam: { x: 14, y: 5 },
+    })
+    const targets = makeTargets()
+    const state = flying({ x: 12, y: 10 }, { x: 20, y: 10 }, 500)
+    const result = paintCamera(frameState, targets, town, state, false, 16)
+    expect(result.switched).toBe(false)
+    expect(result.caughtUp).toBe(true)
+    expect(targets.camRef.current).toEqual({ x: 15, y: 4.9453125 })
+    expect(frameState.smoothedCam).toEqual({ x: 15, y: 4.9453125 })
+    expect(targets.layer.style.transform).toBe('translate(-960px, -317px)')
+  })
+
+  it('着地した次のフレームは減衰追従へ戻り、着地の直前と同じpxに留まって跳ねない', () => {
+    // 1000msのうち990ms飛んだ所は地上(19.999992,10)・浮き上がり約0.0017マスで、原点は約(15.99999,5.99916)。
+    // pxへ直すと着地したマス(20,10)の原点(16,6)と同じ(-1024,-384)
+    const frameState = makeFrameState({ frameWidth: 640 })
+    const targets = makeTargets()
+    const lastFlying = flying({ x: 12, y: 10 }, { x: 20, y: 10 }, 990)
+    paintCamera(frameState, targets, town, lastFlying, false, 16)
+    expect(targets.layer.style.transform).toBe('translate(-1024px, -384px)')
+    const landed = paintCamera(frameState, targets, town, standing({ x: 20, y: 10 }), false, 16)
+    expect(landed.switched).toBe(false)
+    expect(landed.v).toEqual({ x: 20, y: 10 })
+    expect(targets.layer.style.transform).toBe('translate(-1024px, -384px)')
+    // 残差は半 px 未満なので、減衰追従はそのまま目標へ吸着する
+    expect(targets.camRef.current).toEqual({ x: 16, y: 6 })
+    expect(landed.caughtUp).toBe(true)
+  })
+
+  it('動きを控える設定でも、飛んでいる最中なら出発のマスへ戻さず飛行の位置に置く', () => {
+    const state = flying({ x: 12, y: 10 }, { x: 20, y: 10 }, 500)
+    const result = paintCamera(
+      makeFrameState({ frameWidth: 640 }),
+      makeTargets(),
+      town,
+      state,
+      true,
+      16
+    )
+    expect(result.v).toEqual(flightPosition(state))
   })
 
   it('pxへ直した値は四捨五入で整数に寄せる', () => {

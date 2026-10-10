@@ -1,12 +1,14 @@
 // カメラを主人公へ減衰追従させ、ワールドの層をずらす transform を DOM へ直接書く。
+// 飛んでいる間だけは減衰させず目標へそのまま置く。
 // 人物もカメラと同じマス寸法(px)と補間座標で置くので、その 2 つもここで求めて描く側へ返す
 import type { RefObject } from 'react'
 import type { World } from '@content/types/world'
+import { flightCameraLift, flightPosition } from '@/lib/village/flight'
 import type { MoveState } from '@/lib/village/movement'
 import { approachCamera, cameraOffset, VIEW_COLS } from '../stage-scale'
 import type { CameraFrame, WalkFrameState } from './types'
 
-// 表示座標 = マス座標 + 移動中の補間。reduced motion では補間せず到着マスへ飛ぶ
+// 歩きの表示座標 = マス座標 + 移動中の補間。reduced motion では補間せず到着マスへ飛ぶ
 const visualCell = (state: MoveState, reduceMotion: boolean): { x: number; y: number } => {
   if (state.motion === null || reduceMotion) return state.cell
   const { from, to, progress } = state.motion
@@ -33,14 +35,21 @@ export const paintCamera = (
   // 幅は覚えた値を使う。毎フレーム clientWidth を読むと、直前のスタイル変更(CSS アニメーション・
   // React のコミット)の再計算をその場で強いる。測る前(最初のフレーム)だけ直接読む
   const px = (frameState.frameWidth ?? frame.clientWidth) / VIEW_COLS
-  const v = visualCell(state, reduceMotion)
-  // 目標はプレイヤーの補間座標。1:1で貼り付けると歩行の揺れがそのまま画面全体に出る
-  const target = cameraOffset(world, v)
+  // 飛んでいる間は飛行の地上の位置(影の位置)を表示座標にし、カメラもそこを追う。浮いた高さは人物を置く側が足す
+  const v = flightPosition(state) ?? visualCell(state, reduceMotion)
+  // 目標はプレイヤーの補間座標。飛んでいる間は浮いた高さの半分だけ上を狙い、浮いた絵も地上の影も枠に収める
+  // (飛んでいなければ持ち上げは 0)
+  const target = cameraOffset(world, { x: v.x, y: v.y - flightCameraLift(state) })
   // 家や町へ移った瞬間は追従させない。差が1.5マス以内の切替でもスライドさせず切る
   const switched = frameState.paintedWorld !== world
   frameState.paintedWorld = world
   const previous = frameState.smoothedCam
-  const cam = previous === null || switched ? target : approachCamera(previous, target, dtMs)
+  // 歩く間は減衰追従させる。1:1で貼り付けると歩行の揺れがそのまま画面全体に出る。
+  // 飛び立った直後は 1 フレームで最大 1 マス近く進むので、減衰させると遅れが 1.5 マスを超えて補間をやめ、
+  // 数フレームおきに目標へ飛んで背景が跳ねる。飛行の動きは曲線で滑らかなので、目標へそのまま付ける。
+  // 着地した後は目標がほぼ同じ所から減衰追従へ戻るので跳ねない
+  const pinned = previous === null || switched || state.flight !== null
+  const cam = pinned ? target : approachCamera(previous, target, dtMs)
   frameState.smoothedCam = cam
   // 見えている位置をそのまま入力側へ渡す。タップのワールド換算が画面とずれない
   camRef.current = cam
