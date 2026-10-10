@@ -66,6 +66,64 @@ describe('mapEntries (実際の worldSet)', () => {
   })
 })
 
+// 扉の先にコース地点を 2 つ持つ屋内。spots の並びを order と逆にして、扉の印が最小の order の地点を指すかを見る
+const hall: World = {
+  id: 'hall',
+  kind: 'interior',
+  width: 2,
+  height: 1,
+  start: { x: 0, y: 0 },
+  startFacing: 'down',
+  tiles: [['floor', 'floor']],
+  structures: [],
+  spots: [
+    { id: 'later', cell: { x: 1, y: 0 }, facing: 'up', order: 3 },
+    { id: 'earlier', cell: { x: 0, y: 0 }, facing: 'up', order: 2 },
+  ],
+  warps: [],
+}
+const yard: World = {
+  id: 'yard',
+  kind: 'exterior',
+  width: 3,
+  height: 1,
+  start: { x: 0, y: 0 },
+  startFacing: 'down',
+  tiles: [['grass', 'grass', 'grass']],
+  structures: [],
+  spots: [{ id: 'gate', cell: { x: 0, y: 0 }, facing: 'up', order: 1 }],
+  warps: [
+    {
+      id: 'hall-door',
+      cell: { x: 2, y: 0 },
+      target: { worldId: 'hall', cell: { x: 0, y: 0 }, facing: 'up' },
+    },
+  ],
+}
+
+describe('mapEntries (扉の先のコース地点)', () => {
+  it('扉の先にコース地点が複数あれば、扉の印は order の最も小さい地点を指す', () => {
+    const hallSet: WorldSet = { id: 'h', startWorldId: 'yard', worlds: { yard, hall } }
+    expect(mapEntries(hallSet, yard, new Set())).toEqual([
+      { id: 'gate', number: 1, cell: { x: 0, y: 0 }, visited: false, order: 1 },
+      { id: 'earlier', number: 2, cell: { x: 2, y: 0 }, visited: false, order: 2 },
+    ])
+  })
+  it('扉の先の地点の order が後ろのワールドの同じ id に上書きされて引けなければ、扉の印を載せない', () => {
+    // order の表は全ワールドの地点を id で引き、後ろに並ぶワールドの同じ id が前を上書きする
+    const shadow: World = {
+      ...hall,
+      id: 'shadow',
+      kind: 'exterior',
+      spots: hall.spots.map(({ id, cell, facing }) => ({ id, cell, facing })),
+    }
+    const shadowSet: WorldSet = { id: 's', startWorldId: 'yard', worlds: { yard, hall, shadow } }
+    expect(mapEntries(shadowSet, yard, new Set())).toEqual([
+      { id: 'gate', number: 1, cell: { x: 0, y: 0 }, visited: false, order: 1 },
+    ])
+  })
+})
+
 // order の無い地点を spots の先頭と途中に置き、並びの後ろへ回ることを見る
 const field: World = {
   id: 'field',

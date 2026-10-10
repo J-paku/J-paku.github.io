@@ -70,9 +70,9 @@ export const facadeCells = (structure: Structure): FacadeCell[] => {
         continue
       }
       if (y === wallTop) {
-        // 内側は 1 マスおきに窓。端の列は壁のまま
-        const isEdge = x === left || x === right
-        const isWindow = !isEdge && (x - area.x) % 2 === 1
+        // 内側は 1 マスおきに窓。端の列は壁のまま。左端は左端から数えて 0 列目(偶数)で
+        // 窓の式に当たらないので、除くのは右端だけでよい
+        const isWindow = x !== right && (x - area.x) % 2 === 1
         cells.push({ cell: { x, y }, key: isWindow ? 'window' : wallKey(x, left, right) })
         continue
       }

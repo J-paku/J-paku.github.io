@@ -129,16 +129,17 @@ const refsInOrder = (set: WorldSet): SpotRef[] =>
   Object.entries(set.worlds)
     .flatMap(([worldId, world]) => world.spots.map(spot => ({ worldId, spot })))
     .filter(ref => ref.spot.order !== undefined)
-    .sort((a, b) => (a.spot.order ?? 0) - (b.spot.order ?? 0))
+    // 直前の filter で order を持つ地点だけに絞っている
+    .sort((a, b) => (a.spot.order as number) - (b.spot.order as number))
 
 // コース地点のみ(order の無い地点は数えない)
 export const allSpots = (set: WorldSet): Spot[] => refsInOrder(set).map(ref => ref.spot)
 
-// コース順の次の地点。current がコース外(order 無し)か最後の地点なら null
+// コース順の次の地点。current がコース外(order 無し)か最後の地点なら null。
+// order が無いと次の番号は NaN になり、どの地点の order とも一致しないので null へ落ちる
 export const nextSpot = (set: WorldSet, current: Spot): SpotRef | null => {
-  const { order } = current
-  if (order === undefined) return null
-  return refsInOrder(set).find(ref => ref.spot.order === order + 1) ?? null
+  const nextOrder = (current.order ?? Number.NaN) + 1
+  return refsInOrder(set).find(ref => ref.spot.order === nextOrder) ?? null
 }
 
 // order の有無に関わらず、全ワールドの地点から探す(地図の直接移動が order 無しの地点も対象にするため)

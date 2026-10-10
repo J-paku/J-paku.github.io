@@ -43,7 +43,10 @@ export const mapEntries = (
       ? []
       : [{ id: spot.id, cell: spot.cell, visited: visited.has(spot.id), order: spot.order }]
   )
-  const course = [...courseSpots, ...doors].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+  // コース地点も扉の印も、order を持つものだけを積んでいる
+  const course = [...courseSpots, ...doors].sort(
+    (a, b) => (a.order as number) - (b.order as number)
+  )
   const extras: Draft[] = world.spots
     .filter(spot => spot.order === undefined)
     .map(spot => ({ id: spot.id, cell: spot.cell, visited: visited.has(spot.id) }))

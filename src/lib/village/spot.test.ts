@@ -2,6 +2,7 @@
 import { vi } from 'vitest'
 import type { Spot, World, WorldSet } from '@content/types/world'
 import {
+  facedCell,
   spotAt,
   allSpots,
   nextSpot,
@@ -73,6 +74,16 @@ const town: World = {
 }
 
 const set: WorldSet = { id: 'test-set', startWorldId: 'room', worlds: { room, town } }
+
+describe('facedCell', () => {
+  it('上下左右それぞれ、向いている先の隣のマスを返す', () => {
+    const cell = { x: 4, y: 7 }
+    expect(facedCell({ cell, facing: 'up' })).toEqual({ x: 4, y: 6 })
+    expect(facedCell({ cell, facing: 'down' })).toEqual({ x: 4, y: 8 })
+    expect(facedCell({ cell, facing: 'left' })).toEqual({ x: 3, y: 7 })
+    expect(facedCell({ cell, facing: 'right' })).toEqual({ x: 5, y: 7 })
+  })
+})
 
 describe('spotAt', () => {
   it('立ち位置が一致する地点を返す(向きは問わない)', () => {
@@ -198,6 +209,45 @@ describe('spotAt (全方向)', () => {
     expect(spotAt(house, { x: 5, y: 4 })?.id).toBe('house')
     expect(spotAt(house, { x: 6, y: 4 })).toBeNull()
   })
+  it('入口の左端マスは、立ち位置でなくても話せる(境界のガード)', () => {
+    const house: World = {
+      ...field,
+      structures: [
+        {
+          id: 'h',
+          kind: 'house',
+          roof: 'red',
+          area: { x: 2, y: 1, w: 6, h: 3 },
+          solid: { x: 2, y: 2, w: 6, h: 2 },
+          doorX: 4,
+          doorWidth: 2,
+        },
+      ],
+      // 立ち位置を入口の右のマスにして、左端 (4,4) は立ち位置の一致では拾えないようにする
+      spots: [{ id: 'house', structureId: 'h', cell: { x: 5, y: 4 }, facing: 'up', order: 1 }],
+    }
+    expect(spotAt(house, { x: 4, y: 4 })?.id).toBe('house')
+    expect(spotAt(house, { x: 3, y: 4 })).toBeNull()
+  })
+  it('入口の幅を書かない建物は、入口の1マスだけから話せる', () => {
+    const house: World = {
+      ...field,
+      structures: [
+        {
+          id: 'h',
+          kind: 'house',
+          roof: 'red',
+          area: { x: 2, y: 1, w: 6, h: 3 },
+          solid: { x: 2, y: 2, w: 6, h: 2 },
+          doorX: 4,
+        },
+      ],
+      // 立ち位置を入口から離し、入口のマス (4,4) は立ち位置の一致では拾えないようにする
+      spots: [{ id: 'house', structureId: 'h', cell: { x: 7, y: 4 }, facing: 'up', order: 1 }],
+    }
+    expect(spotAt(house, { x: 4, y: 4 })?.id).toBe('house')
+    expect(spotAt(house, { x: 5, y: 4 })).toBeNull()
+  })
 })
 
 // 明示された立ち位置(spot.cell の完全一致)の枝。構造物への隣接判定とは別の入口で、
@@ -241,6 +291,21 @@ describe('spotAt (到着範囲の境界)', () => {
   it('範囲の左右 1 マス外は、通行可でも開かない', () => {
     expect(spotAt(gate, { x: 3, y: 0 })).toBeNull()
     expect(spotAt(gate, { x: 6, y: 0 })).toBeNull()
+  })
+  // 範囲を地図の 2 行目に置き、上の 1 マス外も通行可にする。立ち位置は範囲の右のマスにして、
+  // 範囲の左端のマスは立ち位置の一致では拾えず、範囲の判定だけで拾うようにする
+  const innerGate: World = {
+    ...gate,
+    spots: [
+      { id: 'gate', cell: { x: 5, y: 2 }, facing: 'up', arrivalArea: { x: 4, y: 2, w: 2, h: 1 } },
+    ],
+  }
+  it('範囲の左端のマスは、立ち位置でなくても開く', () => {
+    expect(spotAt(innerGate, { x: 4, y: 2 })?.id).toBe('gate')
+  })
+  it('範囲の上と下の 1 マス外は、通行可でも開かない', () => {
+    expect(spotAt(innerGate, { x: 4, y: 1 })).toBeNull()
+    expect(spotAt(innerGate, { x: 4, y: 3 })).toBeNull()
   })
 })
 
@@ -369,6 +434,16 @@ describe('talkAnchor', () => {
     const spot: Spot = { id: 'ghost', structureId: 'missing', cell: { x: 4, y: 2 }, facing: 'down' }
     expect(talkAnchor(field, spot, spot.cell)).toEqual({ x: 4.5, y: 1.5, place: 'above' })
   })
+  it('建物を持つ地点は、到着範囲を持っていても範囲ではなく物に付ける', () => {
+    const spot: Spot = {
+      id: 'below',
+      structureId: 't',
+      cell: { x: 4, y: 5 },
+      facing: 'up',
+      arrivalArea: { x: 4, y: 5, w: 2, h: 1 },
+    }
+    expect(talkAnchor(field, spot, spot.cell)).toEqual({ x: 4, y: 3, place: 'above' })
+  })
 })
 
 // 実際の町のポスト (24,14)。正規の会話マスは上の (24,13) だが、spotAt は上下左右どこからでも拾う。
@@ -487,6 +562,47 @@ describe('routeToSpot', () => {
     const route = routeToSpot({ ...field, spots: [right] }, { x: 6, y: 5 }, right)
     expect(route).toHaveLength(2)
     expect(route?.at(-1)).toEqual({ x: 5, y: 4 })
+  })
+  it('同じ歩数なら正規の会話マスを選び、後から同じ歩数の辺が出ても替えない', () => {
+    // (6,2)からは正規の会話マス(4,2)も右の辺(5,3)も2歩。右の辺は候補の並びで後ろにある
+    expect(routeToSpot(field, { x: 6, y: 2 }, table)).toEqual([
+      { x: 5, y: 2 },
+      { x: 4, y: 2 },
+    ])
+  })
+  it('上の辺の正規でないマスが近ければ、そちらで止まる', () => {
+    // (3,0)からは上の辺の(3,2)が2歩。正規の会話マス(4,2)は3歩
+    expect(routeToSpot(field, { x: 3, y: 0 }, table)).toEqual([
+      { x: 3, y: 1 },
+      { x: 3, y: 2 },
+    ])
+  })
+  it('下の辺が近ければ、そちらで止まる', () => {
+    // (4,7)からは下の辺の(4,5)が2歩。横の辺はどれも4歩以上
+    expect(routeToSpot(field, { x: 4, y: 7 }, table)).toEqual([
+      { x: 4, y: 6 },
+      { x: 4, y: 5 },
+    ])
+  })
+  it('物の斜めの角は、到着範囲で話しかけられるマスでも候補にしない', () => {
+    // 右下の角(5,5)は到着範囲にあるのでspotAtはこの地点を返すが、物を上下左右から囲むマスではない。
+    // (7,7)から角へは4歩、下の辺(4,5)・右の辺(5,4)へは5歩。同じ歩数なら候補の並びで先の下の辺
+    const corner: Spot = { ...table, arrivalArea: { x: 5, y: 5, w: 1, h: 1 } }
+    expect(spotAt({ ...field, spots: [corner] }, { x: 5, y: 5 })?.id).toBe('table')
+    const route = routeToSpot({ ...field, spots: [corner] }, { x: 7, y: 7 }, corner)
+    expect(route).toHaveLength(5)
+    expect(route?.at(-1)).toEqual({ x: 4, y: 5 })
+  })
+  it('後に並ぶ辺へ届かなくても、先に見つけた経路を残す', () => {
+    // 右の辺(5,4)は通行可だが、まわりの(6,4)・(5,5)・(5,3)を水で塞いで届かなくする
+    const tiles = field.tiles.map(row => [...row])
+    tiles[4][6] = 'water'
+    tiles[5][5] = 'water'
+    tiles[3][5] = 'water'
+    expect(routeToSpot({ ...field, tiles }, { x: 4, y: 0 }, table)).toEqual([
+      { x: 4, y: 1 },
+      { x: 4, y: 2 },
+    ])
   })
   it('もう話しかけられるマスに立っていれば空の経路', () => {
     expect(routeToSpot(field, { x: 2, y: 3 }, table)).toEqual([])

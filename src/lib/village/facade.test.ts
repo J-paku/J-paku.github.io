@@ -35,6 +35,16 @@ describe('facadeCells (house)', () => {
     }
     expect(row(wide, 3)).toEqual(['wall-l', 'window', 'wall-m', 'window', 'wall-m', 'wall-r'])
   })
+  it('窓の並びは area の左端から数え、座標が負でも変わらない', () => {
+    // 左端 x=-3 から 1 列目の x=-2 が窓。絶対座標で数えると負の余りで窓の位置がずれる
+    const shifted: House = {
+      ...house,
+      area: { x: -3, y: 2, w: 4, h: 3 },
+      solid: { x: -3, y: 3, w: 4, h: 2 },
+      doorX: -2,
+    }
+    expect(row(shifted, 3)).toEqual(['wall-l', 'window', 'wall-m', 'wall-r'])
+  })
   it('壁の最下段は doorX の列だけ扉', () => {
     expect(row(house, 4)).toEqual(['wall-l', 'door', 'wall-m', 'wall-r'])
   })
