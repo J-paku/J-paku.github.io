@@ -45,3 +45,7 @@ playwright-report
 # npm run test:coverageとLighthouse CIが書き出す報告。生成物なのでソースには入れない
 /coverage/
 /.lighthouseci/
+
+# npm run test:mutation(Stryker)の作業用の写しと報告。生成物なのでソースには入れない
+/.stryker-tmp/
+/reports/

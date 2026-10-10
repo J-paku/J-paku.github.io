@@ -32,6 +32,7 @@ jobs:
       # カバレッジが床を下回ったらここで止まる(基準の正本はvitest.config.tsのcoverage.thresholds)
       - run: npm run test:coverage
       - run: npm run test:boundary
+      - run: npm run test:mutation
       # 計測先 URL はリポジトリに書かず、GitHub の変数から渡す(未設定なら計測タグを出さない)
       - name: Build
         run: npm run build
