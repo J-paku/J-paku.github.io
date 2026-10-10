@@ -150,6 +150,25 @@ describe('directionTo', () => {
     expect(directionTo({ x: 1, y: 1 }, { x: 0, y: 1 })).toBe('left')
     expect(directionTo({ x: 1, y: 1 }, { x: 1, y: 2 })).toBe('down')
   })
+  it('同じマスはどの判定にも当たらず、既定の right', () => {
+    expect(directionTo({ x: 1, y: 1 }, { x: 1, y: 1 })).toBe('right')
+  })
+})
+
+describe('createMoveState', () => {
+  it('ワールドの開始マス・開始の向きに止まり、経路も飛行も旋回待ちも持たない', () => {
+    expect(createMoveState(world)).toEqual({
+      cell: world.start,
+      facing: world.startFacing,
+      motion: null,
+      route: [],
+      fast: false,
+      fly: false,
+      flight: null,
+      turnRemainingMs: 0,
+      stride: 0,
+    })
+  })
 })
 
 // 旋回と軸足の状態は経路移動にも共通する

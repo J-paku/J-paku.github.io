@@ -69,11 +69,12 @@ const begin = (world: World, state: MoveState, to: Cell, progress: number): Move
 }
 
 // 止まっているマスから次の1マスを決めて始める。到着フレームの連結にも同じ判断を使う。
-// carryMs は持ち越した余剰時間(ms)で、飛び立つ時の経過に使う(progress はその歩行での進捗)
+// carryMs は持ち越した余剰時間(ms)で、飛び立つ時の経過に使う(progress はその歩行での進捗)。
+// 入力から読むのは押している向きだけ(経路・速度・飛んでよいかは step が状態へ移してから呼ぶ)
 const startNext = (
   world: World,
   state: MoveState,
-  input: MoveInput,
+  input: Pick<MoveInput, 'held'>,
   elapsedMs: number,
   progress: number,
   carryMs: number
@@ -114,7 +115,7 @@ const startNext = (
 }
 
 // 着地した歩みの連結では押した向きを読まない(飛んでいる間の入力の錠は着地の歩みまで続く)
-const LANDING_INPUT: MoveInput = { held: null, route: null, fast: false, fly: false }
+const LANDING_INPUT: Pick<MoveInput, 'held'> = { held: null }
 
 // 飛んでいる間はキーも新しい経路も読まず、通り過ぎるマスの当たり判定・到着もしない(進め方は advanceFlight)。
 // 着地した歩みで着地したマスを1回だけ返し、同じ歩みで残りの経路を辿る。残りの経路は通れないマスだけなので

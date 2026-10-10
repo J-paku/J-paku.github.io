@@ -38,8 +38,8 @@ type FishingSuffix = '' | `-${(typeof FISHING_MOTIONS)[number]}`
 // 段階に入ってからの経過が end より前なら、この接尾辞のコマを出す
 type FishingStep = readonly [end: number, suffix: FishingSuffix]
 // steps を上から見て最初に当たった行を使う。どれにも当たらなければ settled のまま時間で変わらない。
-// 動きを控える設定では steps を飛ばして最初から settled を出す
-type FishingTimeline = { steps: readonly FishingStep[]; settled: FishingSuffix }
+// 動きを控える設定では steps を飛ばして最初から settled を出す。時間で変わるコマが無い段階は steps を持たない
+type FishingTimeline = { steps?: readonly FishingStep[]; settled: FishingSuffix }
 
 const SWING_BEAT_MS = FISHING_SWING_MS / 4
 // 浮きが沈み始める周期内の時刻と、その前後で力む長さ。力む長さは E2E が合図の区切りを出すのにも使う
@@ -72,7 +72,7 @@ const FISHING_TIMELINES: Record<FishingPosePhase, FishingTimeline> = {
     settled: '-tense',
   },
   landing: { steps: [[FISHING_PULL_MS, '-pull']], settled: '-hoist' },
-  caught: { steps: [], settled: '-hoist' },
+  caught: { settled: '-hoist' },
 }
 
 const fishingFrame = (
@@ -81,7 +81,7 @@ const fishingFrame = (
   elapsedMs: number
 ): { suffix: FishingSuffix; animating: boolean } => {
   const { steps, settled } = FISHING_TIMELINES[phase]
-  const step = reduceMotion ? undefined : steps.find(([end]) => elapsedMs < end)
+  const step = reduceMotion ? undefined : steps?.find(([end]) => elapsedMs < end)
   return step === undefined
     ? { suffix: settled, animating: false }
     : { suffix: step[1], animating: true }
@@ -111,8 +111,9 @@ type UmbrellaCut =
 // 段階に入ってからの経過が end より前なら、このコマを出す
 type UmbrellaStep = readonly [end: number, cut: UmbrellaCut]
 // steps を上から見て最初に当たった行を使う。どれにも当たらなければ settled の系統の歩行コマ
-// (傘を差したままか、傘なしか)へ戻り、時間では変わらない。動きを控える設定では steps を飛ばす
-type UmbrellaTimeline = { steps: readonly UmbrellaStep[]; settled: 'player-umbrella' | 'player' }
+// (傘を差したままか、傘なしか)へ戻り、時間では変わらない。動きを控える設定では steps を飛ばす。
+// 時間で変わるコマが無い段階は steps を持たない
+type UmbrellaTimeline = { steps?: readonly UmbrellaStep[]; settled: 'player-umbrella' | 'player' }
 
 // 区切りの時刻は傘の動きの設計(広げる 880ms・畳む 960ms の時間割)どおりの累積の終わり
 const UMBRELLA_TIMELINES: Record<UmbrellaPosePhase, UmbrellaTimeline> = {
@@ -127,7 +128,7 @@ const UMBRELLA_TIMELINES: Record<UmbrellaPosePhase, UmbrellaTimeline> = {
     ],
     settled: 'player-umbrella',
   },
-  open: { steps: [], settled: 'player-umbrella' },
+  open: { settled: 'player-umbrella' },
   closing: {
     steps: [
       [80, 'player-umbrella-up-0'],
@@ -148,7 +149,7 @@ const umbrellaStep = (
   reduceMotion: boolean,
   elapsedMs: number
 ): UmbrellaStep | undefined =>
-  reduceMotion ? undefined : UMBRELLA_TIMELINES[phase].steps.find(([end]) => elapsedMs < end)
+  reduceMotion ? undefined : UMBRELLA_TIMELINES[phase].steps?.find(([end]) => elapsedMs < end)
 
 // 傘を広げている・畳んでいる最中か。最中は移動を止め、畳み終えるまで屋内へ切り替えない。
 // 時間表のコマが残っている間と同じ意味なので、区切りの時刻を別に持たない

@@ -1,5 +1,5 @@
 // 通行判定 isWalkable のテスト
-import type { World } from '@content/types/world'
+import type { Tile, World } from '@content/types/world'
 import { isWalkable } from './collision'
 
 const world: World = {
@@ -111,6 +111,27 @@ describe('isWalkable', () => {
     }
     expect(isWalkable(edge, { x: 0, y: edge.height })).toBe(false)
     expect(isWalkable(edge, { x: 0, y: edge.height - 1 })).toBe(true)
+  })
+  it('左端の外(x === -1)は不可、配列の -1 番に通行可のタイルがあっても弾く(境界のガード)', () => {
+    // 配列は -1 番を鍵として持てる。ガードが無いとタイル判定がそれを読んで通してしまう
+    const row: Tile[] = ['grass']
+    Reflect.set(row, -1, 'grass')
+    const edge: World = { ...world, width: 1, height: 1, tiles: [row], structures: [] }
+    expect(isWalkable(edge, { x: -1, y: 0 })).toBe(false)
+    expect(isWalkable(edge, { x: 0, y: 0 })).toBe(true)
+  })
+  it('上端の外(y === -1)は不可、配列の -1 番に通行可の行があっても弾く(境界のガード)', () => {
+    const tiles: Tile[][] = [['grass']]
+    Reflect.set(tiles, -1, ['grass'])
+    const edge: World = { ...world, width: 1, height: 1, tiles, structures: [] }
+    expect(isWalkable(edge, { x: 0, y: -1 })).toBe(false)
+    expect(isWalkable(edge, { x: 0, y: 0 })).toBe(true)
+  })
+  it('tiles が寸法より短く、マスのタイルを引けなければ不可', () => {
+    const short: World = { ...world, width: 2, height: 2, tiles: [['grass']], structures: [] }
+    expect(isWalkable(short, { x: 1, y: 0 })).toBe(false)
+    expect(isWalkable(short, { x: 0, y: 1 })).toBe(false)
+    expect(isWalkable(short, { x: 0, y: 0 })).toBe(true)
   })
   it('家は area 全体が不可(屋根行にも立てない)', () => {
     expect(isWalkable(world, { x: 1, y: 1 })).toBe(false)

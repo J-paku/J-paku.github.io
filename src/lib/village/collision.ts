@@ -37,8 +37,9 @@ const isBlockedByStructure = (world: World, cell: Cell): boolean =>
 
 export const isWalkable = (world: World, cell: Cell): boolean => {
   if (cell.x < 0 || cell.y < 0 || cell.x >= world.width || cell.y >= world.height) return false
+  // tiles が寸法より短くて引けなかったマス(undefined)も、通行可のタイルの一覧に無いので不可になる
   const tile = world.tiles[cell.y]?.[cell.x]
-  if (tile === undefined || !WALKABLE_TILES.includes(tile)) return false
+  if (!WALKABLE_TILES.includes(tile)) return false
   if (isBlockedByStructure(world, cell)) return false
   return true
 }

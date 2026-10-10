@@ -49,6 +49,18 @@ describe('findPath', () => {
   it('from === to は空配列', () => {
     expect(findPath(world, { x: 0, y: 2 }, { x: 0, y: 2 })).toEqual([])
   })
+  it('四方を塞がれて一歩も動けないマスでも、from === to なら空配列(届かない null と区別する)', () => {
+    // (0,0) の右と下は水。探索では出発点へ戻って来られないので、入口の一致だけが空配列を返せる
+    const cornered: World = {
+      ...world,
+      tiles: [
+        ['grass', 'water', 'grass', 'grass'],
+        ['water', 'water', 'grass', 'grass'],
+        ['path', 'path', 'path', 'path'],
+      ],
+    }
+    expect(findPath(cornered, { x: 0, y: 0 }, { x: 0, y: 0 })).toEqual([])
+  })
   it('分岐があっても最短経路を返す(直線上の障害物を迂回する 6 マスが最短)', () => {
     // 5×5 の開けた部屋。中央 1 マスだけ壁(water)にして、直線ルートと迂回ルートの分岐を作る
     const room: World = {
@@ -92,6 +104,61 @@ describe('findPath', () => {
     // 目的地そのものは通行可なので、入口のガードではなく探索の打ち切りだけが null を出せる。
     // 到達不能を空配列で返すと「その場から動かない」経路と区別が付かなくなる
     expect(findPath(isles, { x: 0, y: 0 }, { x: 2, y: 0 })).toBeNull()
+  })
+})
+
+// 中央の列(縦 2 マス)だけが水の部屋。上の行の中央から下へは、左右どちらへ回っても同じ歩数になる
+const forkX: World = {
+  id: 'fork-x',
+  kind: 'exterior',
+  width: 3,
+  height: 4,
+  start: { x: 1, y: 0 },
+  startFacing: 'down',
+  tiles: [
+    ['path', 'path', 'path'],
+    ['path', 'water', 'path'],
+    ['path', 'water', 'path'],
+    ['path', 'path', 'path'],
+  ],
+  structures: [],
+  spots: [],
+  warps: [],
+}
+
+// forkX を転置した部屋。中央の行(横 2 マス)だけが水で、左の列の中央から右へは上下どちらへ回っても同じ歩数
+const forkY: World = {
+  ...forkX,
+  id: 'fork-y',
+  width: 4,
+  height: 3,
+  start: { x: 0, y: 1 },
+  tiles: [
+    ['path', 'path', 'path', 'path'],
+    ['path', 'water', 'water', 'path'],
+    ['path', 'path', 'path', 'path'],
+  ],
+}
+
+// 隣のマスを調べる順は右・左・下・上。同じ歩数の経路が並ぶ時は、この順で先に出会った側を通る
+describe('findPath (同じ歩数の経路が並ぶ時)', () => {
+  it('左右に分かれるなら右から回る', () => {
+    expect(findPath(forkX, { x: 1, y: 0 }, { x: 1, y: 3 })).toEqual([
+      { x: 2, y: 0 },
+      { x: 2, y: 1 },
+      { x: 2, y: 2 },
+      { x: 2, y: 3 },
+      { x: 1, y: 3 },
+    ])
+  })
+  it('上下に分かれるなら下から回る', () => {
+    expect(findPath(forkY, { x: 0, y: 1 }, { x: 3, y: 1 })).toEqual([
+      { x: 0, y: 2 },
+      { x: 1, y: 2 },
+      { x: 2, y: 2 },
+      { x: 3, y: 2 },
+      { x: 3, y: 1 },
+    ])
   })
 })
 
@@ -160,5 +227,13 @@ describe('nearestReachable', () => {
       structures: [],
     }
     expect(nearestReachable(isles, { x: 0, y: 0 }, { x: 2, y: 0 })).toEqual({ x: 0, y: 0 })
+  })
+  it('同じ近さのマスが左右に並ぶ時は、右から回って先に出会う方', () => {
+    // 水の (1,2) を押す。右の (2,2) と左の (0,2) はどちらも距離 1 で、BFS では右を先に調べる
+    expect(nearestReachable(forkX, { x: 1, y: 0 }, { x: 1, y: 2 })).toEqual({ x: 2, y: 2 })
+  })
+  it('同じ近さのマスが上下に並ぶ時は、下から回って先に出会う方', () => {
+    // 水の (2,1) を押す。下の (2,2) と上の (2,0) はどちらも距離 1 で、BFS では下を先に調べる
+    expect(nearestReachable(forkY, { x: 0, y: 1 }, { x: 2, y: 1 })).toEqual({ x: 2, y: 2 })
   })
 })
