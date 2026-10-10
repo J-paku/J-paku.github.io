@@ -6,6 +6,8 @@
 サイト本体は `https://j-paku.github.io/` に配信しているポートフォリオハブ。
 Next.js 16(App Router)の静的エクスポートで、サーバもデータベースも無い。人間向けの紹介は [README.md](README.md)。
 
+**人はコードを読んでレビューしない。** 代わりに制約(テスト・検査)を極端に多く置き、すべて通ったものを信頼する。「完了」はレビューではなく、すべての門を通ったことで言う。
+
 ## 不変ルール(破ったら即中断して報告)
 
 1. **locale は `location.pathname` からのみ決まる。** `?lang=`・自動リダイレクトを作らない
@@ -14,8 +16,9 @@ Next.js 16(App Router)の静的エクスポートで、サーバもデータベ�
 4. **フックはフォルダ化しても `index.ts` を作らない。`hooks` フォルダには `use-` 始まりのフック以外を置かない。** コンポーネントのみ `index.tsx` が入口
 5. **wip 作品は詳細ページを作らない。** カードにリンクを付けず、slug 直接アクセスは NotFound
 6. **1段階 = 1セッション**(大きな改修を1回のセッションに詰め込まない)
+7. **新しいロジックは純粋関数(`src/lib/`・`src/utils/`・コンポーネント専用のutils)に置き、新しく作ったファイルごとにカバレッジ100%・ミューテーション100%を守る。`hooks`フォルダに単体テストを置かず、どのテストでも`renderHook`を使わない**
 
-決めた理由は 1 が [docs/decisions/0002-locale-from-url-only.md](docs/decisions/0002-locale-from-url-only.md)、2 が [docs/decisions/0003-content-outside-src.md](docs/decisions/0003-content-outside-src.md) にある。
+決めた理由は 1 が [docs/decisions/0002-locale-from-url-only.md](docs/decisions/0002-locale-from-url-only.md)、2 が [docs/decisions/0003-content-outside-src.md](docs/decisions/0003-content-outside-src.md)、冒頭の方針と 7 が [docs/decisions/0011-extreme-constraints.md](docs/decisions/0011-extreme-constraints.md) にある。
 3〜5 の詳しい決まりは [docs/architecture/data-flow.md](docs/architecture/data-flow.md)・[docs/architecture/frontend.md](docs/architecture/frontend.md)・[docs/product/business-rules.md](docs/product/business-rules.md) にある。
 レイヤー境界(import の向き)と、そのうち機械が守らせている範囲は [docs/architecture/boundaries.md](docs/architecture/boundaries.md)。
 

@@ -4,14 +4,16 @@ read_when:
   - happy-dom で見るテストの対象を広げる・狭めるとき
   - 村のフックや部品を happy-dom のテストで見てよいか迷ったとき
 source_of_truth: false
-last_reviewed: 2026-10-01
+last_reviewed: 2026-10-10
 ---
 
 # 0009. happy-dom で見るテストを、props・操作で分かれる部品、DOM を使う utils、寸法・rAF の実物に頼らない村のフック・部品へ広げる
 
 ## Status
 
-Accepted(2026-09-29、`148a540`・`532f480`・`00326c0`・`69b92e0`・`11764fc`。今の層の分け方は`60750cf`が [../quality/test-strategy.md](../quality/test-strategy.md) に書いた)。[0007](0007-component-tests-happy-dom.md) の対象の決め方を置き換える
+Superseded by [0011](0011-extreme-constraints.md)(村のフックを `renderHook` で見る部分。2026-10-10 から。コンポーネントを描く統合テスト、DOM を使う utils、歩行ループの部品を happy-dom で見る部分は、この記録のまま)
+
+採った時点: Accepted(2026-09-29、`148a540`・`532f480`・`00326c0`・`69b92e0`・`11764fc`。今の層の分け方は`60750cf`が [../quality/test-strategy.md](../quality/test-strategy.md) に書いた)。[0007](0007-component-tests-happy-dom.md) の対象の決め方を置き換える
 
 ## Context
 
@@ -60,7 +62,8 @@ happy-dom で見るテストの対象を、0007 の「環境で分かれる出�
 - 0007 の「寸法・rAF に依存する村は対象にしない」は、村のコンポーネントを描く統合テストに限った決まりになった。
   村のフック・歩行ループの部品・村の utils のテストは、寸法と rAF の実物に触れない形でこれを避けている。
   - `renderHook` のテストは、歩行ループを起こす口(runtime の `wake`)を `vi.fn()` にし、
-    「歩行ループは起こされたことだけを見て、実際には歩かせない」(`src/components/VillagePage/components/Village/hooks/use-village-overlay/use-village-travel.test.ts` の見出し)
+    「歩行ループは起こされたことだけを見て、実際には歩かせない」(当時の `use-village-overlay` の中の `use-village-travel.test.ts` の見出し。
+    このテストは [0011](0011-extreme-constraints.md) で純粋関数のテストへ移して消した)
   - DOM のイベントとフォーカスを本体に持つフック(`use-links-overlay`・`use-menu-open`・`use-modal-focus`)は「本体が DOM のイベントとフォーカスなので外した」(`532f480`)
   - 歩行ループの部品のテストは、rAF を「頼まれたフレームを溜めるだけの偽物」に替えてテストが時刻を渡して回す
     (`src/components/VillagePage/components/Village/utils/walk-loop/create-animation-loop.test.ts` の見出し)。

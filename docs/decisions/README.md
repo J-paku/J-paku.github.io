@@ -22,8 +22,9 @@ last_reviewed: 2026-10-10
 | [0006](0006-jst-fixed-day-phase.md) | 昼夜の判定を JST 固定にする | Accepted |
 | [0007](0007-component-tests-happy-dom.md) | 環境で分かれるコンポーネントの出し分けを happy-dom の統合テストで見る | Superseded by 0009 |
 | [0008](0008-verbatim-pixel-art-originals.md) | 村のドット絵の原画に外部生成物(LLMの出力)を採り、実装では1ドットも変えない | Superseded by 0010(色の写し方と格子の扱い、読み取り時の除去・移動) |
-| [0009](0009-widen-happy-dom-test-scope.md) | happy-dom で見るテストを、props・操作で分かれる部品、DOM を使う utils、寸法・rAF の実物に頼らない村のフック・部品へ広げる | Accepted |
+| [0009](0009-widen-happy-dom-test-scope.md) | happy-dom で見るテストを、props・操作で分かれる部品、DOM を使う utils、寸法・rAF の実物に頼らない村のフック・部品へ広げる | Superseded by 0011(村のフックを `renderHook` で見る部分) |
 | [0010](0010-read-originals-by-dot-pitch.md) | 原画はドットの間隔を測った格子で読み、色は近い既存の文字へ写して、近似できない色だけ文字を足す | Accepted |
+| [0011](0011-extreme-constraints.md) | コードレビューの代わりに極端な制約で信頼する(extreme constraints) | Accepted |
 | [0012](0012-new-art-for-flight-frames.md) | 原画の無い飛ぶ姿のコマは新しく描き、原画が届いたら写して置き換える | Accepted |
 
 ## 書くときの決まり

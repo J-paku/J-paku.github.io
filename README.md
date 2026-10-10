@@ -64,7 +64,9 @@
 
 ### 品質とCI
 
-`main`へのpushでGitHub Actionsが、**ソースに対して**docs:check・typecheck・lint・format:check・単体テスト(カバレッジの床)を通してからビルドし、**配信物に対して**E2E・axe・Lighthouse CI・日本語改行の検査を通してからPagesへ公開します。ローカルのPASSだけでは完了と見なさず、配信版でも同じ確認を繰り返す運用です。走らせ方は [docs/agents/verification.md](docs/agents/verification.md)、配信の仕組みは [docs/operations/deployment.md](docs/operations/deployment.md) にあります。
+このリポジトリでは、**人がコードを読んでレビューしない代わりに、制約(テスト・検査)を極端に多く置き、すべて通ったものを信頼する**方針を取っています。『Clean Code』の著者Robert C. Martinが「extreme constraints」と呼んだやり方([出典](https://x.com/unclebobmartin/status/2080257779395154409))に倣ったもので、ロジックは純粋関数に置いてテストで固め、制約は上げる方向にだけ動かします。決めた経緯は [ADR 0011](docs/decisions/0011-extreme-constraints.md) にあります。
+
+`main`へのpushでGitHub Actionsが、**ソースに対して**docs:check・typecheck・lint・format:check・単体テスト(カバレッジの床と、新しい純粋なモジュールのファイル別100%)・テストの境界(フックのフォルダに単体テストを置かず、どのテストでも`renderHook`を使わない)・ミューテーションテスト(Strykerでコードをわざと壊し、テストがそれを落とせるか)を通してからビルドし、**配信物に対して**E2E・axe・Lighthouse CI・日本語改行の検査を通してからPagesへ公開します。ローカルのPASSだけでは完了と見なさず、配信版でも同じ確認を繰り返す運用です。走らせ方は [docs/agents/verification.md](docs/agents/verification.md)、配信の仕組みは [docs/operations/deployment.md](docs/operations/deployment.md) にあります。
 
 ### 技術スタック
 

@@ -4,7 +4,7 @@ read_when:
   - コンポーネントやフックを追加・分割するとき
   - スタイル・色・テーマを触るとき
 source_of_truth: true
-last_reviewed: 2026-10-01
+last_reviewed: 2026-10-10
 ---
 
 # 画面とコンポーネント
@@ -49,7 +49,8 @@ src/components/Directory/components/WorkCard/
   `src/components/Directory/components/WorkCard/hooks/` など。`src/components/Story/hooks/` のように画面のフォルダ直下に置き、
   下位部品(`StoryBody`)から使う例もある)。横断するものだけ `src/hooks/` に置く
 - 命名は `use-` 始まりの kebab-case
-- `hooks` フォルダには `use-` 始まりのフック(と `.test.ts`)以外を置かない。純粋関数・レンダラーは `utils` フォルダへ
+- `hooks` フォルダには `use-` 始まりのフック以外を置かない。テストも置かない(フックは配線だけを持ち、ロジックは純粋関数へ移して測る。
+  [../quality/test-strategy.md](../quality/test-strategy.md) の「テストの境界」)。純粋関数・レンダラーは `utils` フォルダへ
 - ファイル名は動詞-名詞の kebab-case、3語まで(例: `paint-camera.ts`)。長い名前を付けない
 
 ## スタイル

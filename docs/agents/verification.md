@@ -4,7 +4,7 @@ read_when:
   - 変更を確かめる前
   - 「完了」と報告する前
 source_of_truth: true
-last_reviewed: 2026-10-01
+last_reviewed: 2026-10-10
 ---
 
 # 何を走らせるか
@@ -17,6 +17,8 @@ last_reviewed: 2026-10-01
 | `content/` に作品・経歴・地点を追加 | `npm run typecheck` → `npm run test`(村なら) → `npm run build` → 関連 spec |
 | `content/world.ts`(地形・構造物・地点) | `npm run test`(`validate-world` と `village`)→ `npm run build` → `npx playwright test tests/journey.spec.ts` |
 | `src/utils/` `src/lib/` の純粋関数 | 隣の `*.test.ts` → `npm run typecheck` |
+| 新しい純粋モジュールの追加・`stryker.config.mjs` の `mutate` に挙げたファイルの変更 | 隣の `*.test.ts` → `npm run test:coverage` → `npm run test:mutation` |
+| `hooks` フォルダの下へファイルを足す | `npm run test:boundary` → その画面の spec |
 | `src/lib/pixel/`(絵・パレット) | `npm run test` → `npm run build` → 見た目を目視 → `npx playwright test tests/day-night.spec.ts` |
 | `src/lib/preferences.ts` / `weather.ts` / `analytics.ts` / `fetch-svg-source.ts`(外部境界) | 隣の `*.test.ts`(あれば) → `npm run typecheck` → 関連 spec |
 | 1画面の中のコンポーネント | `npm run typecheck` → `npm run lint` → `npm run build` → その画面の spec |
@@ -38,7 +40,7 @@ last_reviewed: 2026-10-01
 そこまでに触った範囲に関係なく、**1回だけ全体を通す**。
 
 ```bash
-npm run docs:check && npm run typecheck && npm run lint && npm run format:check && npm run test:coverage && npm run build && npm run test:e2e
+npm run docs:check && npm run typecheck && npm run lint && npm run format:check && npm run test:coverage && npm run test:boundary && npm run test:mutation && npm run build && npm run test:e2e
 ```
 
 配信に関わる変更なら、さらに配信版で受け入れ確認を繰り返す([../operations/deployment.md](../operations/deployment.md))。
