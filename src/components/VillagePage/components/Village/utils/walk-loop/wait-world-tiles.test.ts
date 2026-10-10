@@ -32,6 +32,8 @@ const makeFrameState = (waitSince: number | null): WalkFrameState => ({
   paintedWorld: null,
   shift: '',
   lastTransform: '',
+  shadowTransform: '',
+  shadowFlying: '',
   frameWidth: null,
   veilCell: '',
   veilId: '',

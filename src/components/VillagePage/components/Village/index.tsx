@@ -74,6 +74,7 @@ function Village({
     locatorRef,
     hintRef,
     playerLightRef,
+    flightShadowRef,
     lampVeilRef,
     loadingRef,
     world,
@@ -209,6 +210,16 @@ function Village({
                 sprites={sprites}
               />
             ) : null}
+            {/* 自動の移動で飛んでいる間に地上の位置を示す影。主人公の手前の兄弟に置き、主人公(z 2)の下に描く。
+                位置と縮み・data-flying は use-walk-loop が rAF の中で書く(影は浮かせない)。
+                飛んでいない間は data-flying='false' で CSS が隠す */}
+            <div
+              ref={flightShadowRef}
+              data-flight-shadow
+              data-flying='false'
+              className={styles.flightShadow}
+              aria-hidden='true'
+            />
             <div
               ref={playerRef}
               data-village-player

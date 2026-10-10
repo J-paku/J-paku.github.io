@@ -63,6 +63,8 @@ export type VillageDom = {
   hint: RefObject<HTMLDivElement | null>
   // 主人公が持つ灯り。吹き出しの土台と同じく、use-walk-loop が人物と同じ transform を毎フレーム書く
   playerLight: RefObject<HTMLDivElement | null>
+  // 飛んでいる間に地上の位置を示す影。use-walk-loop が浮かせない地上の位置・縮みと data-flying を書く
+  flightShadow: RefObject<HTMLDivElement | null>
   // 主人公に重なった街灯を主人公の上へ重ねる層。use-walk-loop が重なりの変わった時だけ書き換える
   lampVeil: RefObject<HTMLDivElement | null>
   // ワープ後に新しいワールドの描画を待つ間だけ出す覆い。閾値を超えた時だけ見せる
@@ -125,11 +127,23 @@ export function useVillageDom(startWorld: World): VillageDom {
   const locator = useRef<HTMLDivElement>(null)
   const hint = useRef<HTMLDivElement>(null)
   const playerLight = useRef<HTMLDivElement>(null)
+  const flightShadow = useRef<HTMLDivElement>(null)
   const lampVeil = useRef<HTMLDivElement>(null)
   const loading = useRef<HTMLDivElement>(null)
   const cam = useRef(cameraOffset(startWorld, startWorld.start))
   return useMemo(
-    () => ({ frame, worldLayer, player, locator, hint, playerLight, lampVeil, loading, cam }),
+    () => ({
+      frame,
+      worldLayer,
+      player,
+      locator,
+      hint,
+      playerLight,
+      flightShadow,
+      lampVeil,
+      loading,
+      cam,
+    }),
     []
   )
 }

@@ -78,6 +78,9 @@
   --color-scrim: rgba(10, 9, 8, 0.72);
   --color-scrim-ink: #f2f0ec;
 
+  /* 村の飛行中の落ち影。ページの明暗反転にもテーマにも連動しない固定色 */
+  --color-flight-shadow: #100f0d;
+
   /* ===== タイポグラフィ =====
      D5: 全階層で「1つの文字列をラテンとCJKで割らない」ことを優先へ変えた回。
      10段階の初版はラテン(Playfair)しか読み込んでおらず、CJKは環境依存のゴシックへ落ちて
@@ -193,6 +196,7 @@
   --color-device-shadow: rgba(10, 9, 8, 0.45);
   --color-scrim: rgba(10, 9, 8, 0.72);
   --color-scrim-ink: #f2f0ec;
+  --color-flight-shadow: #100f0d;
 }
 
 :root[data-theme='light'] {
@@ -218,4 +222,5 @@
   --color-device-shadow: rgba(10, 9, 8, 0.45);
   --color-scrim: rgba(10, 9, 8, 0.72);
   --color-scrim-ink: #f2f0ec;
+  --color-flight-shadow: #100f0d;
 }

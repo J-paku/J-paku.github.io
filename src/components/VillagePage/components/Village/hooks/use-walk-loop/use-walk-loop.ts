@@ -67,6 +67,8 @@ export function useWalkLoop({
     paintedWorld: null,
     shift: '',
     lastTransform: '',
+    shadowTransform: '',
+    shadowFlying: '',
     frameWidth: null,
     veilCell: '',
     veilId: '',
@@ -116,7 +118,12 @@ export function useWalkLoop({
       )
       const posing = placePlayer(
         frameState,
-        { locatorRef: dom.locator, hintRef: dom.hint, playerLightRef: dom.playerLight },
+        {
+          locatorRef: dom.locator,
+          hintRef: dom.hint,
+          playerLightRef: dom.playerLight,
+          shadowRef: dom.flightShadow,
+        },
         camera,
         state,
         applyPose

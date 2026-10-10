@@ -75,6 +75,32 @@
   transform: scale(0.5);
   transform-origin: 50% 50%;
 }
+/* 地上の位置を示す飛行中の影。JSが1マスの箱を移動・拡縮し、楕円の中心は動かさない */
+.flightShadow {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 1;
+  width: var(--cell);
+  height: var(--cell);
+  transform-origin: 50% 87.5%;
+  pointer-events: none;
+  will-change: transform;
+}
+.flightShadow[data-flying='false'] {
+  visibility: hidden;
+}
+/* 16pxのマスで12×4pxの楕円。下辺を足元に揃え、中心を拡縮の軸と一致させる */
+.flightShadow::before {
+  content: '';
+  position: absolute;
+  left: 12.5%;
+  top: 75%;
+  width: 75%;
+  height: 25%;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-flight-shadow) 35%, transparent);
+}
 /* 明るい輪郭を常に付け、草や屋根の上でも人物が沈まないようにする。
    主人公の箱は体の16×24(縦1.5マス)。足元をマスの下辺に揃え、頭は半マス上へはみ出す。
    箱の大きさ・位置は傘を描く前と同じにしてあり、立つマスの位置・反転の軸・E2Eが測る箱はここで決まる */

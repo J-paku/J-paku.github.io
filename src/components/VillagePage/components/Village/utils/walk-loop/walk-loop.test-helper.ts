@@ -16,6 +16,8 @@ export const makeFrameState = (overrides: Partial<WalkFrameState> = {}): WalkFra
   paintedWorld: null,
   shift: '',
   lastTransform: '',
+  shadowTransform: '',
+  shadowFlying: '',
   frameWidth: null,
   veilCell: '',
   veilId: '',

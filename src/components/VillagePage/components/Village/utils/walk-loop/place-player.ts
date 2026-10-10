@@ -1,8 +1,8 @@
-// 人物のコマ・反転・位置と、人物に付いて回る要素(目印・吹き出しの土台・灯り)の transform を DOM へ直接書く。
+// 人物のコマ・反転・位置と、人物に付いて回る要素(目印・吹き出しの土台・灯り)・飛行の影の transform を DOM へ直接書く。
 // React の state を経由させると再レンダーで駒が飛ぶので rAF の中で書き、同じ値は書き直さない
 import type { RefObject } from 'react'
 import type { SheetLayout } from '@/lib/pixel/art'
-import { flightLiftCells, type Flying } from '@/lib/village/flight'
+import { flightLiftCells, flightShadow, type Flying } from '@/lib/village/flight'
 import type { MoveState } from '@/lib/village/movement'
 import { playerPose, type FishingPose, type UmbrellaPose } from '@/lib/village/player-pose'
 import { spriteIndex } from '../sprite-style'
@@ -18,11 +18,12 @@ export type PoseSources = {
   sprites: SheetLayout
 }
 
-// 人物と同じ位置へ付いて回る要素
+// 人物と同じ位置へ付いて回る要素。飛行の影だけは浮かせず地上の位置に置く
 export type FollowerRefs = {
   locatorRef: RefObject<HTMLDivElement | null>
   hintRef: RefObject<HTMLDivElement | null>
   playerLightRef: RefObject<HTMLDivElement | null>
+  shadowRef: RefObject<HTMLDivElement | null>
 }
 
 // 人物のコマ(向き・歩き・竿・傘)と反転を DOM へ書く。位置は直前のまま使うので、
@@ -63,11 +64,40 @@ export const writePose = (
   return animating
 }
 
+// 影の data-flying を書く('false' なら CSS が隠す)。前に書いた値と同じなら書き直さない
+const writeShadowFlying = (
+  frameState: WalkFrameState,
+  shadow: HTMLDivElement,
+  inFlight: 'true' | 'false'
+): void => {
+  if (frameState.shadowFlying === inFlight) return
+  frameState.shadowFlying = inFlight
+  shadow.dataset.flying = inFlight
+}
+
+// 飛行の影を地上の位置(浮かせる前の表示座標)へ置き、浮いた高さに応じて縮める。
+// 飛んでいない間も等倍で同じ位置へ書き、data-flying='false' で CSS が隠す。どちらも前に書いた値と同じなら書き直さない
+const placeShadow = (
+  frameState: WalkFrameState,
+  shadow: HTMLDivElement | null,
+  { px, v }: CameraFrame,
+  flying: Flying
+): void => {
+  if (shadow === null) return
+  const transform = `translate(${v.x * px}px, ${v.y * px}px) scale(${flightShadow(flying)})`
+  if (frameState.shadowTransform !== transform) {
+    frameState.shadowTransform = transform
+    shadow.style.transform = transform
+  }
+  writeShadowFlying(frameState, shadow, flying.flight === null ? 'false' : 'true')
+}
+
 // 人物をカメラと同じマス寸法で置き、コマを書き、付いて回る要素を同じ位置へ揃える。
+// 飛んでいる間は人物と付いて回る要素を浮いた高さだけ上へずらし、影は地上の位置に残す。
 // コマの書き込みは applyPose(フック側で sources を束ねたもの)に任せる。まだコマが時間で変わるなら true
 export const placePlayer = (
   frameState: WalkFrameState,
-  { locatorRef, hintRef, playerLightRef }: FollowerRefs,
+  { locatorRef, hintRef, playerLightRef, shadowRef }: FollowerRefs,
   camera: CameraFrame,
   flying: Flying,
   applyPose: () => boolean
@@ -88,5 +118,6 @@ export const placePlayer = (
   // 主人公が持つ灯りも同じ位置へ。光は左右対称なので向きが変わっても反転させない
   const playerLight = playerLightRef.current
   if (playerLight !== null) playerLight.style.transform = shift
+  placeShadow(frameState, shadowRef.current, camera, flying)
   return posing
 }

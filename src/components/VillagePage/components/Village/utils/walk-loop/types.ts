@@ -27,6 +27,10 @@ export type WalkFrameState = {
   // 直前に書いた人物の transform。釣りで止めている間は毎フレーム同じ値になるので、
   // 変わった時だけ書いて CSSOM への書き込みを空振りさせない
   lastTransform: string
+  // 直前に書いた飛行の影の transform と data-flying。人物の lastTransform と同じく、変わった時だけ書く。
+  // 空文字はまだ書いていない
+  shadowTransform: string
+  shadowFlying: string
   // 枠の幅(px)。ResizeObserver が大きさの変わった時だけ書き、描く側はこれを読む。null はまだ測っていない
   frameWidth: number | null
   // 直前に街灯を調べたマス(ワールド id 込み)。同じマスに立っている間は調べ直さない。

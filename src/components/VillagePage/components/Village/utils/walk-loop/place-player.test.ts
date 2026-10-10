@@ -5,7 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Direction } from '@content/types/world'
 import type { SheetLayout } from '@/lib/pixel/art'
-import { flightLiftCells, type Flying } from '@/lib/village/flight'
+import { flightLiftCells, flightShadow, type Flying } from '@/lib/village/flight'
 import type { MoveState } from '@/lib/village/movement'
 import type { FishingPose, UmbrellaPose } from '@/lib/village/player-pose'
 import { placePlayer, writePose, type FollowerRefs, type PoseSources } from './place-player'
@@ -59,6 +59,7 @@ const makeFollowers = () => ({
   locatorRef: { current: document.createElement('div') },
   hintRef: { current: document.createElement('div') },
   playerLightRef: { current: document.createElement('div') },
+  shadowRef: { current: document.createElement('div') },
 })
 
 // 1マス64pxで(2.5,3)に立つ = (160,192)px
@@ -234,11 +235,14 @@ describe('placePlayer', () => {
       locatorRef: { current: null },
       hintRef: { current: null },
       playerLightRef: { current: null },
+      shadowRef: { current: null },
     }
     const applyPose = vi.fn(() => false)
     expect(placePlayer(frameState, followers, camera(false), grounded, applyPose)).toBe(false)
     expect(applyPose).toHaveBeenCalledTimes(1)
     expect(frameState.shift).toBe(SHIFT)
+    expect(frameState.shadowTransform).toBe('')
+    expect(frameState.shadowFlying).toBe('')
   })
 })
 
@@ -257,5 +261,58 @@ describe('placePlayer(飛行)', () => {
     expect(followers.locatorRef.current.style.transform).toBe(lifted)
     expect(followers.hintRef.current.style.transform).toBe(lifted)
     expect(followers.playerLightRef.current.style.transform).toBe(lifted)
+  })
+
+  it('影は浮かせず地上の位置に置き、浮いた高さに応じて縮め、data-flyingをtrueにする', () => {
+    const flying = inFlight(300)
+    const scale = flightShadow(flying)
+    expect(scale).toBeLessThan(1)
+    const frameState = makeFrameState()
+    const followers = makeFollowers()
+    placePlayer(frameState, followers, camera(false), flying, () => false)
+    const shadow = followers.shadowRef.current
+    expect(shadow.style.transform).toBe(`${SHIFT} scale(${scale})`)
+    expect(shadow.dataset.flying).toBe('true')
+    expect(frameState.shadowTransform).toBe(`${SHIFT} scale(${scale})`)
+    expect(frameState.shadowFlying).toBe('true')
+  })
+
+  it('飛んでいない間の影は等倍で人物と同じ地上の位置に置き、data-flyingをfalseにする', () => {
+    const frameState = makeFrameState()
+    const followers = makeFollowers()
+    placePlayer(frameState, followers, camera(false), grounded, () => false)
+    expect(followers.shadowRef.current.style.transform).toBe(`${SHIFT} scale(1)`)
+    expect(followers.shadowRef.current.dataset.flying).toBe('false')
+  })
+
+  it('着地したら影のdata-flyingをfalseへ戻し、人物も地上の位置へ下ろす', () => {
+    const frameState = makeFrameState()
+    const followers = makeFollowers()
+    placePlayer(frameState, followers, camera(false), inFlight(300), () => false)
+    expect(followers.shadowRef.current.dataset.flying).toBe('true')
+    placePlayer(frameState, followers, camera(false), grounded, () => false)
+    expect(followers.shadowRef.current.dataset.flying).toBe('false')
+    expect(followers.shadowRef.current.style.transform).toBe(`${SHIFT} scale(1)`)
+    expect(frameState.shift).toBe(SHIFT)
+  })
+
+  it('影の位置も印も前に書いた値と同じなら書き直さず、変わった方だけ書く', () => {
+    const frameState = makeFrameState()
+    const followers = makeFollowers()
+    const shadow = followers.shadowRef.current
+    placePlayer(frameState, followers, camera(false), grounded, () => false)
+    const observer = new MutationObserver(() => {})
+    observer.observe(shadow, { attributes: true })
+    placePlayer(frameState, followers, camera(false), grounded, () => false)
+    expect(observer.takeRecords()).toHaveLength(0)
+    // 地上を歩いて位置だけ変わったら transform だけ書き、data-flying には触らない
+    const walked: CameraFrame = { ...camera(false), v: { x: 3, y: 3 } }
+    placePlayer(frameState, followers, walked, grounded, () => false)
+    expect(observer.takeRecords().map(record => record.attributeName)).toEqual(['style'])
+    expect(shadow.style.transform).toBe('translate(192px, 192px) scale(1)')
+    // 飛び立てば data-flying も書く
+    placePlayer(frameState, followers, walked, inFlight(300), () => false)
+    expect(observer.takeRecords().map(record => record.attributeName)).toContain('data-flying')
+    observer.disconnect()
   })
 })

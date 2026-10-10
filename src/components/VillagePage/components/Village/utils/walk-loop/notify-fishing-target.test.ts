@@ -49,6 +49,8 @@ const makeFrameState = (fishingTarget: Cell | null): WalkFrameState => ({
   paintedWorld: null,
   shift: '',
   lastTransform: '',
+  shadowTransform: '',
+  shadowFlying: '',
   frameWidth: null,
   veilCell: '',
   veilId: '',

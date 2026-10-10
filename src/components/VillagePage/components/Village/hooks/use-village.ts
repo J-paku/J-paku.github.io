@@ -52,6 +52,8 @@ type UseVillage = {
   hintRef: RefObject<HTMLDivElement | null>
   // 主人公が持つ灯り。吹き出しの土台と同じく、use-walk-loop が人物と同じ transform を毎フレーム書く
   playerLightRef: RefObject<HTMLDivElement | null>
+  // 飛んでいる間に地上の位置を示す影。use-walk-loop が地上の位置・縮みと data-flying を書く
+  flightShadowRef: RefObject<HTMLDivElement | null>
   // 主人公に重なった街灯を主人公の上へ重ねる層。use-walk-loop が重なりの変わった時だけ書き換える
   lampVeilRef: RefObject<HTMLDivElement | null>
   loadingRef: RefObject<HTMLDivElement | null>
@@ -256,6 +258,7 @@ export function useVillage({
     locatorRef: dom.locator,
     hintRef: dom.hint,
     playerLightRef: dom.playerLight,
+    flightShadowRef: dom.flightShadow,
     lampVeilRef: dom.lampVeil,
     loadingRef: dom.loading,
     world,
