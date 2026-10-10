@@ -28,7 +28,8 @@ const stepsFromStart = (world: World): Map<string, number> => {
   const queue: Cell[] = [world.start]
   while (queue.length > 0) {
     const cur = queue.shift() as Cell
-    const curSteps = steps.get(key(cur)) ?? 0
+    // キューへ積むマスは積む前に歩数を記録しているので、必ず歩数を持つ
+    const curSteps = steps.get(key(cur)) as number
     for (const next of [
       { x: cur.x + 1, y: cur.y },
       { x: cur.x - 1, y: cur.y },
@@ -101,13 +102,11 @@ const validateWorld = (set: WorldSet, worldId: string, world: World): string[] =
         spot.action === undefined)
     )
       issues.push(at(`地点 "${spot.id}" の structureId "${spot.structureId}" が無い`))
+    // 到着範囲が代表地点の1マスを含めば、幅・高さはどちらも1以上になる。大きさを別に見る必要は無い
     const area = spot.arrivalArea
     if (
       area !== undefined &&
-      (area.w < 1 ||
-        area.h < 1 ||
-        !rectInBounds(world, area) ||
-        !containsRect(area, { ...spot.cell, w: 1, h: 1 }))
+      (!rectInBounds(world, area) || !containsRect(area, { ...spot.cell, w: 1, h: 1 }))
     )
       issues.push(at(`地点 "${spot.id}" の arrivalArea が不正`))
     if (!isWalkable(world, spot.cell)) issues.push(at(`地点 "${spot.id}" の立ち位置が通行不可`))
@@ -164,7 +163,8 @@ export const validateWorldSet = (set: WorldSet): string[] => {
   // order の無い地点はコース外なので、この検査からは除く
   const spots = Object.values(set.worlds).flatMap(w => w.spots)
   const orderedSpots = spots.filter(s => s.order !== undefined)
-  const orders = orderedSpots.map(s => s.order ?? 0).sort((a, b) => a - b)
+  // 直前の filter で order を持つ地点だけに絞っている
+  const orders = orderedSpots.map(s => s.order as number).sort((a, b) => a - b)
   if (orders.some((v, i) => v !== i + 1))
     issues.push(`地点の order が全ワールド通しの 1..${orderedSpots.length} の連番になっていない`)
   return issues

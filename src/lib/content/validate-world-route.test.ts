@@ -15,6 +15,26 @@ describe('validateWorldSet (順番・到達・ワープ)', () => {
       '地点の order が全ワールド通しの 1..2 の連番になっていない'
     )
   })
+  it('order が地点の並びと逆順でも 1..n がそろっていれば報告しない', () => {
+    const set = townSet({
+      spots: [
+        { id: 's1', structureId: 'h1', cell: { x: 2, y: 2 }, facing: 'up', order: 2 },
+        { id: 's2', structureId: 'h1', cell: { x: 3, y: 2 }, facing: 'up', order: 1 },
+      ],
+    })
+    expect(validateWorldSet(set)).toEqual([])
+  })
+  it('開始セルに立つ地点は、周りを塞がれていても 0 歩で着くとみなす', () => {
+    // 開始セル(0,3)の右と上を water で塞ぎ、地点をそのセルに置く
+    const tiles = tinyTown().tiles.map(row => [...row])
+    tiles[3][1] = 'water'
+    tiles[2][0] = 'water'
+    const set = townSet({
+      tiles,
+      spots: [{ id: 's1', structureId: 'h1', cell: { x: 0, y: 3 }, facing: 'up', order: 1 }],
+    })
+    expect(validateWorldSet(set)).toEqual([])
+  })
   it('order の欠けはワールドをまたいでも報告する', () => {
     const set = pairSet({
       town: {
@@ -137,5 +157,40 @@ describe('validateWorldSet (順番・到達・ワープ)', () => {
       },
     })
     expect(validateWorldSet(set)).toContain('ワールド "room": ワープ "exit" に隣接する通路が無い')
+  })
+  it.each([
+    ['右', { x: 2, y: 1 }],
+    ['左', { x: 0, y: 1 }],
+    ['下', { x: 1, y: 2 }],
+    ['上', { x: 1, y: 0 }],
+  ])('壁の扉は%s隣の 1 マスだけが通路でもワープとして許す', (_side, open) => {
+    // 3×3 の部屋の中央に扉を置き、四方のうち 1 マスだけを床にする。他の 3 方向は壁
+    const tiles = Array.from({ length: 3 }, (_, y) =>
+      Array.from({ length: 3 }, (_, x): Tile => {
+        if (x === 1 && y === 1) return 'doorway'
+        return x === open.x && y === open.y ? 'floor' : 'wall'
+      })
+    )
+    const set = pairSet({
+      room: {
+        width: 3,
+        height: 3,
+        start: open,
+        tiles,
+        structures: [],
+        spots: [],
+        warps: [
+          {
+            id: 'exit',
+            cell: { x: 1, y: 1 },
+            target: { worldId: 'town', cell: { x: 0, y: 3 }, facing: 'down' },
+          },
+        ],
+      },
+      town: {
+        spots: [{ id: 's1', structureId: 'h1', cell: { x: 2, y: 2 }, facing: 'up', order: 1 }],
+      },
+    })
+    expect(validateWorldSet(set)).toEqual([])
   })
 })

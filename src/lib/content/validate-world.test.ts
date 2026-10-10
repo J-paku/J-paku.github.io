@@ -112,6 +112,29 @@ describe('validateWorldSet', () => {
       'ワールド "town": 家 "h1" の solid が area の外にはみ出している'
     )
   })
+  it('家の solid が area の上・下へはみ出しても報告する', () => {
+    // 横幅は area に収めたまま、縦だけを 1 マスずらす。上端と下端をそれぞれ見る条件が要る
+    const house = tinyTown().structures[0]
+    if (house.kind !== 'house') throw new Error('fixture')
+    const message = 'ワールド "town": 家 "h1" の solid が area の外にはみ出している'
+    const above = townSet({ structures: [{ ...house, solid: { x: 1, y: -1, w: 3, h: 1 } }] })
+    expect(validateWorldSet(above)).toContain(message)
+    const below = townSet({ structures: [{ ...house, solid: { x: 1, y: 1, w: 3, h: 2 } }] })
+    expect(validateWorldSet(below)).toContain(message)
+  })
+  it('扉の列が area の左外なら報告する', () => {
+    const house = tinyTown().structures[0]
+    if (house.kind !== 'house') throw new Error('fixture')
+    const set = townSet({ structures: [{ ...house, doorX: house.area.x - 1 }] })
+    expect(validateWorldSet(set)).toContain('ワールド "town": 家 "h1" の扉 x=0 が area の範囲外')
+  })
+  it('屋内には家の軒数の上限を当てない', () => {
+    const house = tinyTown().structures[0]
+    if (house.kind !== 'house') throw new Error('fixture')
+    const houses = Array.from({ length: MAX_HOUSES + 1 }, (_, i) => ({ ...house, id: `h${i + 1}` }))
+    const set = pairSet({ room: { structures: houses } })
+    expect(validateWorldSet(set).some(m => m.includes('家が上限'))).toBe(false)
+  })
   it('扉の列が area の外なら報告する', () => {
     const set = townSet({
       structures: [
@@ -140,6 +163,17 @@ describe('validateWorldSet', () => {
   it('ロボット・ポストがマップ外なら報告する', () => {
     const set = townSet({
       structures: [...tinyTown().structures, { id: 'b1', kind: 'robot', cell: { x: 5, y: 3 } }],
+    })
+    expect(validateWorldSet(set)).toContain('ワールド "town": 構造物 "b1" がマップ外にある')
+  })
+  it.each([
+    ['左', { x: -1, y: 2 }],
+    ['上', { x: 2, y: -1 }],
+    ['下', { x: 2, y: 4 }],
+  ])('構造物がマップの%sへ外れていれば報告する', (_side, cell) => {
+    // 5×4 の町の 1 マス外。右へ外れる形は上のロボット・ポストの例が見る
+    const set = townSet({
+      structures: [...tinyTown().structures, { id: 'b1', kind: 'robot', cell }],
     })
     expect(validateWorldSet(set)).toContain('ワールド "town": 構造物 "b1" がマップ外にある')
   })
@@ -189,6 +223,26 @@ describe('validateWorldSet', () => {
     }
     expect(validateWorldSet(townSet({ spots: [spot] }))).toEqual([])
     expect(validateWorldSet(townSet({ spots: [{ ...spot, cell: { x: 1, y: 2 } }] }))).toContain(
+      'ワールド "town": 地点 "exit" の arrivalArea が不正'
+    )
+  })
+  it('到着範囲は 1×1 なら認め、幅か高さが 0 なら拒む', () => {
+    const spot = { id: 'exit', cell: { x: 2, y: 2 }, facing: 'up' as const }
+    const withArea = (w: number, h: number) =>
+      validateWorldSet(townSet({ spots: [{ ...spot, arrivalArea: { x: 2, y: 2, w, h } }] }))
+    const message = 'ワールド "town": 地点 "exit" の arrivalArea が不正'
+    expect(withArea(1, 1)).toEqual([])
+    expect(withArea(0, 1)).toContain(message)
+    expect(withArea(1, 0)).toContain(message)
+  })
+  it('代表地点を含んでいても、マップの外へはみ出す到着範囲は拒む', () => {
+    const spot = {
+      id: 'exit',
+      cell: { x: 2, y: 2 },
+      facing: 'up' as const,
+      arrivalArea: { x: 2, y: 2, w: 10, h: 1 },
+    }
+    expect(validateWorldSet(townSet({ spots: [spot] }))).toContain(
       'ワールド "town": 地点 "exit" の arrivalArea が不正'
     )
   })

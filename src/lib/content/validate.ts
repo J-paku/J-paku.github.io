@@ -50,8 +50,8 @@ export const validateContent = (ja: Content, koContent: Content, workFiles: stri
     if (!workFiles.includes(slug)) issues.push(`登録表の slug "${slug}" に対応するファイルが無い`)
   }
   // 経歴 id は一覧ページの詳細パネルのアンカー(#career-<id>)で、ja/ko で同じ経歴を指す鍵なので両言語で同じ並びでなければならない
-  const jaCareerIds = (ja.profile.careers ?? []).map(c => c.id)
-  const koCareerIds = (koContent.profile.careers ?? []).map(c => c.id)
+  const jaCareerIds = ja.profile.careers?.map(c => c.id) ?? []
+  const koCareerIds = koContent.profile.careers?.map(c => c.id) ?? []
   if (jaCareerIds.join('|') !== koCareerIds.join('|'))
     issues.push('profile.careers の id 列が ja/ko で一致しない')
   return issues
