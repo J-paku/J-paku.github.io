@@ -9,25 +9,20 @@ export const THEME_STORAGE_KEY = 'theme'
 
 const DIRECTIONS: readonly Direction[] = ['up', 'down', 'left', 'right']
 
+// includes は型を変えずに比べるので、文字列でない値は自然に偽になる
 function isDirection(value: unknown): value is Direction {
-  return typeof value === 'string' && DIRECTIONS.includes(value as Direction)
+  return DIRECTIONS.includes(value as Direction)
 }
 
+// 形の検査は readPosition の try の中だけで使う。null・undefined は属性の参照で例外になり、
+// その catch が null に丸める。数や文字列は属性が undefined になるので偽を返す
 function isCell(value: unknown): value is Cell {
-  if (typeof value !== 'object' || value === null) return false
-
   const cell = value as Record<string, unknown>
-  return (
-    typeof cell.x === 'number' &&
-    Number.isFinite(cell.x) &&
-    typeof cell.y === 'number' &&
-    Number.isFinite(cell.y)
-  )
+  // Number.isFinite は数でない値に偽を返すので、型の検査を兼ねる
+  return Number.isFinite(cell.x) && Number.isFinite(cell.y)
 }
 
 function isVillagePosition(value: unknown): value is VillagePosition {
-  if (typeof value !== 'object' || value === null) return false
-
   const position = value as Record<string, unknown>
   return (
     typeof position.worldId === 'string' &&
@@ -53,9 +48,10 @@ export function writeTheme(theme: Theme): void {
 }
 
 // setId = WorldSet の id。位置も訪問も村ひとまとまりで保存する
+// 未保存(getItem が null)は文字列 'null' になり、JSON の null として読んでから形の検査で弾く
 export function readPosition(setId: string): VillagePosition | null {
   try {
-    const value: unknown = JSON.parse(sessionStorage.getItem(`village:${setId}:pos`) ?? '')
+    const value: unknown = JSON.parse(String(sessionStorage.getItem(`village:${setId}:pos`)))
     return isVillagePosition(value) ? value : null
   } catch {
     return null
@@ -70,7 +66,7 @@ export function writePosition(setId: string, position: VillagePosition): void {
 
 export function readVisited(setId: string): string[] {
   try {
-    const value: unknown = JSON.parse(sessionStorage.getItem(`village:${setId}:visited`) ?? '')
+    const value: unknown = JSON.parse(String(sessionStorage.getItem(`village:${setId}:visited`)))
     return Array.isArray(value) && value.every(id => typeof id === 'string') ? value : []
   } catch {
     return []

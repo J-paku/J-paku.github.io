@@ -11,18 +11,19 @@ export const parseLocale = (pathname: string): Locale =>
 // locale 接頭辞を取り除いた「素の」パスを返す。常に / 始まり(有効な絶対パス入力の場合)
 export const stripLocale = (pathname: string): string => {
   if (pathname === '/ko') return '/'
-  if (pathname.startsWith('/ko/')) {
-    const rest = pathname.slice('/ko'.length)
-    return rest === '' ? '/' : rest
-  }
+  // '/ko/' 始まりなら残りは必ず '/' から始まるので、空になることは無い
+  if (pathname.startsWith('/ko/')) return pathname.slice('/ko'.length)
   return pathname
 }
 
-// 素のパスに locale 接頭辞を付ける。ja は接頭辞なし
+// 'ja' 以外を一律に '/ko' とせず locale ごとに表で引く(表に無い値は接頭辞が undefined になり結果に表れる)
+const LOCALE_PREFIX: Record<Locale, string> = { ja: '', ko: '/ko' }
+
+// 素のパスに locale 接頭辞を付ける。ja は接頭辞なし。接頭辞があるときのルートは接頭辞だけ('/ko/' でなく '/ko')
 export const withLocale = (pathname: string, locale: Locale): string => {
   const bare = stripLocale(pathname)
-  if (locale === 'ja') return bare
-  return bare === '/' ? '/ko' : `/ko${bare}`
+  const prefix = LOCALE_PREFIX[locale]
+  return bare === '/' && prefix !== '' ? prefix : `${prefix}${bare}`
 }
 
 // 静的 export は trailingSlash: true で出力するため、リンクも末尾スラッシュ付きで作る。

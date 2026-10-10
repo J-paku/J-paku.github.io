@@ -172,6 +172,39 @@ describe('fetchOsakaPrecipitation', () => {
     expect(timeoutSpy).toHaveBeenCalledWith(5000)
   })
 
+  it('本文が null なら none を返す', async () => {
+    fetchMock.mockResolvedValueOnce(fakeResponse(200, null))
+
+    expect(await fetchOsakaPrecipitation()).toBe('none')
+  })
+
+  it('current が null・数の応答は none を返す', async () => {
+    fetchMock
+      .mockResolvedValueOnce(fakeResponse(200, { current: null }))
+      .mockResolvedValueOnce(fakeResponse(200, { current: 5 }))
+
+    expect(await fetchOsakaPrecipitation()).toBe('none')
+    expect(await fetchOsakaPrecipitation()).toBe('none')
+  })
+
+  it('AbortSignal.any が無い実行環境では、呼び出し側の中断を反映せずタイムアウトだけで取りに行く', async () => {
+    // AbortSignal.any を持たず timeout だけを持つ AbortSignal に差し替える
+    const RealAbortSignal = AbortSignal
+    vi.stubGlobal('AbortSignal', { timeout: (ms: number) => RealAbortSignal.timeout(ms) })
+    // 中断が fetch に届くと none、届かなければ雨の応答。この環境では呼び出し側の中断は届かない
+    fetchMock.mockImplementation((_input, init) => {
+      if (init?.signal?.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'))
+      return Promise.resolve(fakeResponse(200, { current: { precipitation: 2.4, snowfall: 0 } }))
+    })
+    const controller = new AbortController()
+    controller.abort()
+
+    expect(await fetchOsakaPrecipitation(controller.signal)).toBe('rain')
+    const [, init] = fetchMock.mock.calls[0] ?? []
+    expect(init?.signal).toBeInstanceOf(RealAbortSignal)
+    expect(init?.signal).not.toBe(controller.signal)
+  })
+
   it('リクエストURLに大阪の緯度経度と現在値パラメータが含まれる', async () => {
     fetchMock.mockResolvedValueOnce(
       fakeResponse(200, { current: { precipitation: 0, snowfall: 0 } })

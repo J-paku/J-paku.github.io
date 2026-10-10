@@ -15,13 +15,10 @@ type OpenMeteoResponse = {
   }
 }
 
+// 形の検査は fetchOsakaPrecipitation の try の中だけで使う。本文や current が null・undefined なら
+// 属性の参照で例外になり、その catch が 'none' に丸める。数や文字列は属性が undefined になるので偽を返す
 function isOpenMeteoResponse(value: unknown): value is OpenMeteoResponse {
-  if (typeof value !== 'object' || value === null) return false
-
-  const body = value as Record<string, unknown>
-  if (typeof body.current !== 'object' || body.current === null) return false
-
-  const current = body.current as Record<string, unknown>
+  const { current } = value as { current: Record<string, unknown> }
   return typeof current.precipitation === 'number' && typeof current.snowfall === 'number'
 }
 

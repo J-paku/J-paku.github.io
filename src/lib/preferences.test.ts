@@ -226,4 +226,103 @@ describe('preferences', () => {
 
     expect(() => clearVillageProgress('clear-fails')).not.toThrow()
   })
+
+  it('テーマは theme の鍵に書き、theme の鍵から読む', () => {
+    // 初回ペイント前のインラインスクリプト(src/app/html-shell.tsx)が文字列 'theme' で直接読むので、
+    // 鍵の名前が変わると保存したテーマが初回ペイントに効かなくなる
+    const storage = createMemoryStorage()
+    vi.stubGlobal(LOCAL_STORAGE, storage)
+
+    writeTheme('light')
+    expect(storage.getItem('theme')).toBe('light')
+
+    storage.setItem('theme', 'dark')
+    expect(readTheme()).toBe('dark')
+  })
+
+  it('light も保存して復元する', () => {
+    writeTheme('light')
+
+    expect(readTheme()).toBe('light')
+  })
+
+  it('light・dark 以外の保存値は null を返す', () => {
+    const storage = createMemoryStorage()
+    storage.setItem('theme', 'sepia')
+    vi.stubGlobal(LOCAL_STORAGE, storage)
+
+    expect(readTheme()).toBeNull()
+  })
+
+  it('4つの向きのどれも位置として復元する', () => {
+    for (const facing of ['up', 'down', 'left', 'right'] as const) {
+      const position = { worldId: 'room', cell: { x: 4, y: 7 }, facing }
+
+      writePosition(`facing-${facing}`, position)
+
+      expect(readPosition(`facing-${facing}`)).toEqual(position)
+    }
+  })
+
+  it('向きだけが不正な位置は null を返す', () => {
+    // 他の項目は正しくしておき、向きの検査が抜けたときだけ落ちるようにする
+    const storage = createMemoryStorage()
+    storage.setItem(
+      'village:invalid-facing:pos',
+      JSON.stringify({ worldId: 'room', cell: { x: 4, y: 7 }, facing: 'forward' })
+    )
+    storage.setItem(
+      'village:numeric-facing:pos',
+      JSON.stringify({ worldId: 'room', cell: { x: 4, y: 7 }, facing: 0 })
+    )
+    vi.stubGlobal(SESSION_STORAGE, storage)
+
+    expect(readPosition('invalid-facing')).toBeNull()
+    expect(readPosition('numeric-facing')).toBeNull()
+  })
+
+  it('worldId が文字列でない(長さを持つ配列)位置は null を返す', () => {
+    // 配列も length が正なので、文字列かどうかの検査が抜けると通ってしまう
+    const storage = createMemoryStorage()
+    storage.setItem(
+      'village:array-world:pos',
+      JSON.stringify({ worldId: ['room'], cell: { x: 4, y: 7 }, facing: 'up' })
+    )
+    vi.stubGlobal(SESSION_STORAGE, storage)
+
+    expect(readPosition('array-world')).toBeNull()
+  })
+
+  it('保存値がオブジェクトでない(null・数・文字列)位置は null を返す', () => {
+    const storage = createMemoryStorage()
+    storage.setItem('village:null-value:pos', 'null')
+    storage.setItem('village:number-value:pos', '5')
+    storage.setItem('village:string-value:pos', '"room"')
+    vi.stubGlobal(SESSION_STORAGE, storage)
+
+    expect(readPosition('null-value')).toBeNull()
+    expect(readPosition('number-value')).toBeNull()
+    expect(readPosition('string-value')).toBeNull()
+  })
+
+  it('マスがオブジェクトでない(null・数)位置は null を返す', () => {
+    const storage = createMemoryStorage()
+    storage.setItem(
+      'village:null-cell:pos',
+      JSON.stringify({ worldId: 'room', cell: null, facing: 'up' })
+    )
+    storage.setItem(
+      'village:number-cell:pos',
+      JSON.stringify({ worldId: 'room', cell: 5, facing: 'up' })
+    )
+    vi.stubGlobal(SESSION_STORAGE, storage)
+
+    expect(readPosition('null-cell')).toBeNull()
+    expect(readPosition('number-cell')).toBeNull()
+  })
+
+  it('何も保存していなければ、位置は null・訪問済み地点は空配列を返す', () => {
+    expect(readPosition('never-saved')).toBeNull()
+    expect(readVisited('never-saved')).toEqual([])
+  })
 })

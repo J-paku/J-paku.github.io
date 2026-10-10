@@ -56,6 +56,14 @@ describe('fetchSvgSource', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
+  it('応答が ok でない失敗の誤りには、URL とステータスが入る', async () => {
+    fetchMock.mockResolvedValueOnce(fakeResponse(404, 'not found'))
+
+    await expect(fetchSvgSource(SCENE_URL)).rejects.toThrow(
+      `SVGの取得に失敗した: ${SCENE_URL} (404)`
+    )
+  })
+
   it('通信そのものが失敗(reject)しても、次の呼び出しでは取り直して原文を返す', async () => {
     fetchMock
       .mockRejectedValueOnce(new TypeError('Failed to fetch'))
