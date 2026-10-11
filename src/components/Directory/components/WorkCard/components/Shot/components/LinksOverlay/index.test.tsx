@@ -168,6 +168,14 @@ describe('覆いの中のリンク', () => {
     }
   )
 
+  it('公開ページとGitHubへの外部リンクは、行き先へ参照元を渡さない(rel=noreferrer)', () => {
+    renderOverlay(linkWork, STILL_TOUCH)
+
+    for (const name of [ui.work.live, ui.work.repo]) {
+      expect(screen.getByRole('link', { name }).getAttribute('rel')).toBe('noreferrer')
+    }
+  })
+
   it.each([
     ['ja', ''],
     ['ko', '/ko'],

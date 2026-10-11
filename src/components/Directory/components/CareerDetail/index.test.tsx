@@ -4,7 +4,11 @@
 // 利用者に見える形(role・見出し・文字・要素の有無)で確かめる
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { Career, CareerDetail as CareerDetailContent } from '@content/types/content'
+import type {
+  Career,
+  CareerDetail as CareerDetailContent,
+  CareerFact,
+} from '@content/types/content'
 import CareerDetail from './index'
 
 // server-onlyはNext.jsのビルド境界専用ガードで、vitestでは無条件に例外を投げる。
@@ -74,6 +78,17 @@ const sectionOf = (heading: string): HTMLElement => {
   return section
 }
 
+// 事実表の行を、見出し列(dt)と本文列(dd)の組として文書順に読む。本文列は見出し列のすぐ後に並ぶ
+const factPairsIn = (root: HTMLElement) =>
+  within(root)
+    .getAllByRole('term')
+    .map(term => {
+      const value = term.nextElementSibling
+      return [term.textContent, value?.tagName === 'DD' ? value.textContent : null]
+    })
+
+const pairsOf = (rows: CareerFact[]) => rows.map(row => [row.label, row.value])
+
 afterEach(() => {
   cleanup()
 })
@@ -111,6 +126,25 @@ describe('パネルの有無と骨組み', () => {
     const back = within(panel).getByRole('link', { name: nameIs(ui.career.backToWorks) })
     expect(back.getAttribute('href')).toBe('#works')
   })
+
+  it.each([
+    ['技術スタックを持つ', fullCareer],
+    ['派遣先を持つ', assignmentCareer],
+  ])(
+    '%s経歴の事実表は、見出し列と本文列の組で、事実・技術スタック・派遣先の順に全行を並べる',
+    (_label, career) => {
+      renderCareer(career)
+
+      const { facts, stacks, assignments } = career.detail
+      expect(factPairsIn(panelOf(career))).toEqual(
+        pairsOf([
+          ...facts,
+          ...(stacks?.groups.flatMap(group => group.rows) ?? []),
+          ...(assignments?.flatMap(assignment => assignment.facts) ?? []),
+        ])
+      )
+    }
+  )
 
   it('同じページに全経歴を並べても、どのパネルも自分の会社名で名前が付く', () => {
     render(
@@ -189,6 +223,8 @@ describe('任意項目の有無', () => {
       expect(
         screen.getByRole('heading', { level: 3, name: nameIs(assignment.client) })
       ).toBeTruthy()
+      // 派遣先の事実表は、その派遣先の節の中に置く
+      expect(factPairsIn(sectionOf(assignment.client))).toEqual(pairsOf(assignment.facts))
     }
   })
 

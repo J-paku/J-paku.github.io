@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 // 作品カード(WorkCard)の統合テスト。実データの作品を happy-dom へ描き、環境(URL のハッシュ・
-// matchMedia・IntersectionObserver の有無)で分かれる表示を、利用者に見える形
-// (role・aria-*・inert・要素の有無)で確かめる。実際の配置・スクロールは E2E が受け持つ
-import { cleanup, render, screen } from '@testing-library/react'
+// matchMedia・IntersectionObserver の有無)と操作(押す・Esc・外側の押下)で分かれる表示を、
+// 利用者に見える形(role・aria-*・inert・要素の有無)で確かめる。実際の配置・スクロールは E2E が受け持つ
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Work } from '@content/types/content'
@@ -63,7 +63,8 @@ class SilentIntersectionObserver {
   }
 }
 
-const renderCard = (work: Work) => render(<WorkCard work={work} index={0} locale='ja' ui={ui} />)
+const renderCard = (work: Work, index = 0) =>
+  render(<WorkCard work={work} index={index} locale='ja' ui={ui} />)
 
 // トグルが aria-controls で指す詳細の領域
 const detailRegionOf = (toggle: HTMLElement): HTMLElement => {
@@ -96,7 +97,19 @@ afterEach(() => {
   // 先に外してから環境を戻す(effect の後始末が差し替えた環境のまま走るように)
   cleanup()
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
   window.history.replaceState(null, '', originalUrl)
+})
+
+describe('通し番号', () => {
+  it.each([
+    [0, 'NO.01'],
+    [9, 'NO.10'],
+  ])('一覧の配列で%i番目(0始まり)のカードは、1始まりの2桁で %s と振る', (index, serial) => {
+    renderCard(detailWork, index)
+
+    expect(screen.getByText(serial)).toBeDefined()
+  })
 })
 
 describe('詳細の開閉(use-detail-open)', () => {
@@ -122,6 +135,16 @@ describe('詳細の開閉(use-detail-open)', () => {
     expect(toggle.getAttribute('aria-expanded')).toBe('false')
     expect(isInert(detailRegionOf(toggle))).toBe(true)
   })
+
+  it('別の作品の #slug で到着したときは、詳細は閉じたまま始まる', () => {
+    const otherWork = pickWork('詳細を持つ作品とは別の', work => work.slug !== detailWork.slug)
+    window.history.replaceState(null, '', `#${otherWork.slug}`)
+    renderCard(detailWork)
+
+    const toggle = screen.getByRole('button', { name: ui.work.showDetail })
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    expect(isInert(detailRegionOf(toggle))).toBe(true)
+  })
 })
 
 describe('動きの出し分け(use-card-motion)', () => {
@@ -141,6 +164,9 @@ describe('動きの出し分け(use-card-motion)', () => {
   })
 
   it('動きを許す設定では動画を流し、一時停止のボタンを押すとラベルが再生へ替わる', async () => {
+    // 実際に止める・流す相手は動画要素。happy-dom は再生しないので、呼ばれた回数だけを数える
+    const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {})
+    const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
     const user = userEvent.setup()
     const { container } = renderCard(videoWork)
 
@@ -150,6 +176,56 @@ describe('動きの出し分け(use-card-motion)', () => {
     await user.click(toggle)
     expect(toggle.getAttribute('aria-label')).toBe(ui.work.resumeMotion)
     expect(screen.queryByRole('button', { name: ui.work.pauseMotion })).toBeNull()
+    expect(pause).toHaveBeenCalledTimes(1)
+    expect(play).not.toHaveBeenCalled()
+
+    // もう一度押すと流し直し、止める呼び出しは増えない
+    await user.click(toggle)
+    expect(toggle.getAttribute('aria-label')).toBe(ui.work.pauseMotion)
+    expect(play).toHaveBeenCalledTimes(1)
+    expect(pause).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('リンクの覆いの開閉(use-links-overlay)', () => {
+  // 公開ページかGitHubを持つ作品。タッチ環境ではタップで開閉するトリガーを置く
+  const linkWork = pickWork(
+    '公開ページかGitHubを持つ',
+    work => work.links.live !== undefined || work.links.repo !== undefined
+  )
+
+  // タッチで見て、カードの外に押せる要素を1つ並べる。覆いを開いた状態から始める
+  const renderOpenOverlay = async () => {
+    stubMatchMedia([])
+    const user = userEvent.setup()
+    render(
+      <>
+        <button type='button'>外側</button>
+        <WorkCard work={linkWork} index={0} locale='ja' ui={ui} />
+      </>
+    )
+    const trigger = screen.getByRole('button', { name: ui.work.openLinks })
+    await user.click(trigger)
+    expect(trigger.getAttribute('aria-expanded')).toBe('true')
+    return { user, trigger }
+  }
+
+  it('タップで開いた覆いは Esc で閉じる', async () => {
+    const { user, trigger } = await renderOpenOverlay()
+
+    await user.keyboard('{Escape}')
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
+  })
+
+  it('タップで開いた覆いは、キャプチャ枠の中を押しても閉じず、枠の外を押すと閉じる', async () => {
+    const { trigger } = await renderOpenOverlay()
+
+    // 押下の始まり(pointerdown)だけを送る。クリックまで送るとトリガー自身の開閉が混ざる
+    fireEvent.pointerDown(trigger)
+    expect(trigger.getAttribute('aria-expanded')).toBe('true')
+
+    fireEvent.pointerDown(screen.getByRole('button', { name: '外側' }))
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
   })
 })
 

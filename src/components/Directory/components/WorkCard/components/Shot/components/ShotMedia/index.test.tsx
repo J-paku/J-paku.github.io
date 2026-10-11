@@ -10,6 +10,8 @@ import type { Work } from '@content/types/content'
 import ShotMedia from './index'
 // 部品は親のshot.module.cssのクラス表を受け取る。同じmoduleをimportすれば部品と同じクラス名が引ける
 import shotStyles from '../../shot.module.css'
+// リールの場面の重ね合わせ(ScenePlayer)が見せる1枚に付ける印も、同じく部品のmoduleから引く
+import playerStyles from '@/components/ui/ScenePlayer/scene-player.module.css'
 
 // server-onlyはvitestでは無条件に例外を投げるため、中身を持たないmockに差し替える
 vi.mock('server-only', () => ({}))
@@ -107,6 +109,8 @@ describe('動画', () => {
     expect(video.hasAttribute('autoplay')).toBe(autoplay)
     // 親の一時停止ボタンが止める・再生する相手
     expect(videoRef.current).toBe(video)
+    // ブラウザは音の出る動画の自動再生を止めるので、消音で流す
+    expect(videoRef.current?.muted).toBe(true)
   })
 })
 
@@ -119,6 +123,19 @@ describe('リール', () => {
     expect(container.querySelector('video')).toBeNull()
     expect(container.querySelector('img')).toBeNull()
     expect(await waitForScenesSettled()).toHaveLength(reelScenes.length)
+  })
+
+  it('渡された添字の場面だけを見せる場面にし、ほかの場面は伏せる', async () => {
+    // 先頭以外を指す添字で見る(先頭固定の取り違えを見分けるため、場面が2つ以上ある前提)
+    expect(reelScenes.length).toBeGreaterThanOrEqual(2)
+    const activeIndex = reelScenes.length - 1
+    const { container } = renderMedia(reelWork, { showReel: true, activeReelIndex: activeIndex })
+
+    const frames = [...container.querySelectorAll(`.${playerStyles.frame}`)]
+    expect(frames.map(frame => frame.classList.contains(playerStyles.frameActive))).toEqual(
+      reelScenes.map((_, index) => index === activeIndex)
+    )
+    await waitForScenesSettled()
   })
 
   it.each([
