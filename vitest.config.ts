@@ -31,7 +31,7 @@ export default defineConfig({
     // (package.json 側の TZ=UTC は npm 経由の入口、こちらは npx vitest を直接叩く入口を塞ぐ)
     env: { TZ: 'UTC' },
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
-    exclude: [...configDefaults.exclude, '**/.claude/**', 'src/_v1-pages/**', 'tests/**'],
+    exclude: [...configDefaults.exclude, '**/.claude/**', 'tests/**'],
     // 測るのは--coverageを付けたとき(npm run test:coverage、CIはこちら)だけ。npm run testは今までどおり速く回す
     coverage: {
       provider: 'v8',

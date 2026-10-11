@@ -28,15 +28,7 @@ const layerRule = (group, message, gateContent = false) => {
 const eslintConfig = [
   {
     // ビルド成果物・生成ファイルを除外
-    ignores: [
-      '.next/**',
-      'out/**',
-      'dist/**',
-      'node_modules/**',
-      '.claude/**',
-      'src/_v1-pages/**',
-      'next-env.d.ts',
-    ],
+    ignores: ['.next/**', 'out/**', 'dist/**', 'node_modules/**', '.claude/**', 'next-env.d.ts'],
   },
   // parser・browser globals・@typescript-eslint plugin と recommended は 16 の next 設定が同梱するため個別指定を削除
   ...nextCoreWebVitals,
