@@ -4,6 +4,7 @@
 import { useLayoutEffect, useRef } from 'react'
 import type { CSSProperties } from 'react'
 import type { Locale } from '@content/types/content'
+import { shiftBubble } from './utils/shift-bubble'
 import styles from './talk-bubble.module.css'
 
 export type TalkBubbleProps = {
@@ -21,8 +22,6 @@ export type TalkBubbleProps = {
 // CSS 変数は CSSProperties に含まれないので、使う分だけを足した形で渡す
 type BubbleStyle = CSSProperties & { '--bx': number; '--by': number }
 
-// 枠(data-village)の左右をはみ出す分だけ横へ押し戻す余白
-const FRAME_PADDING = 8
 // カメラが動いた直後は原点がまだ収まっていないことがあるので、落ち着いた頃にもう一度測る
 const SETTLE_DELAY = 350
 
@@ -40,15 +39,12 @@ export function TalkBubble({
     const bubble = bubbleRef.current
     if (bubble === null) return
 
-    // 枠からはみ出した分を --shift に入れて吹き出し本体を押し戻す。尾は逆向きに戻し、元の位置を指し続ける
+    // 枠からはみ出した分を --shift に入れて吹き出し本体を押し戻す。尾は逆向きに戻し、元の位置を指し続ける。
+    // 押し戻す量は utils/shift-bubble.ts が決め、ここは測って書き込むだけ
     const clamp = () => {
       const frame = bubble.closest('[data-village]')
       if (frame === null) return
-      const frameRect = frame.getBoundingClientRect()
-      const bubbleRect = bubble.getBoundingClientRect()
-      const overflowLeft = frameRect.left + FRAME_PADDING - bubbleRect.left
-      const overflowRight = bubbleRect.right - (frameRect.right - FRAME_PADDING)
-      const shift = overflowLeft > 0 ? overflowLeft : overflowRight > 0 ? -overflowRight : 0
+      const shift = shiftBubble(frame.getBoundingClientRect(), bubble.getBoundingClientRect())
       bubble.style.setProperty('--shift', `${shift}px`)
     }
 

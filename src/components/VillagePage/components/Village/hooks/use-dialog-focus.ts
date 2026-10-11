@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import type { KeyboardEvent, RefObject } from 'react'
 
 import { focusablesIn } from '../utils/focusables'
+import { wrapFocusIndex } from '../utils/wrap-focus-index'
 
 type UseDialogFocusParams = {
   // 開いている間だけ返却先を控える。窓は開いている間だけ描かれるので、呼び出し元は今のところ常に true
@@ -44,21 +45,17 @@ export function useDialogFocus({
     const root = rootRef.current
     if (root === null) return true
     const focusable = focusablesIn(root, selector)
-    if (focusable.length === 0) return true
 
-    const first = focusable[0]
-    const last = focusable[focusable.length - 1]
-    const active = document.activeElement
-
-    if (
-      event.shiftKey &&
-      (active === first || (leadRef !== undefined && active === leadRef.current))
-    ) {
+    // 端で回すかどうかは utils/wrap-focus-index.ts が決め、ここは結果どおりに焦点を移すだけ
+    const target = wrapFocusIndex<Element>({
+      items: focusable,
+      active: document.activeElement,
+      lead: leadRef?.current,
+      shift: event.shiftKey,
+    })
+    if (target !== null) {
       event.preventDefault()
-      last.focus()
-    } else if (!event.shiftKey && active === last) {
-      event.preventDefault()
-      first.focus()
+      focusable[target].focus()
     }
     return true
   }
