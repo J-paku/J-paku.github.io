@@ -9,7 +9,8 @@
 // までをこの中で担い、「閉じたらトリガーへ戻す」は
 // 呼び出し側(WorkStory)が持つ — トリガー要素の参照はこのモーダルの外にあるため。
 // 実装の置き場所は、dialogの開閉・背景固定・スクリムクリックがhooks/use-modal-dialog.ts、
-// 場面送り・一時停止・自動送り・境界でのフォーカス退避がhooks/use-scene-carousel.ts、
+// 場面送り・一時停止・自動送り・境界でのフォーカス退避がhooks/use-scene-carousel.ts
+// (端・送り先・自動送りの待ち・フォーカスの逃がし先の判定は utils/step-scene.ts・utils/rescue-focus.ts)、
 // 閉じる/前へ/次へのアイコンがcomponents/ControlIcon
 'use client'
 import { useRef } from 'react'

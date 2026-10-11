@@ -1,11 +1,18 @@
-// SceneModalの場面送り(表示中index・一時停止・合図パルス・自動送り・境界でのフォーカス退避)を担う
+// SceneModalの場面送り(表示中index・一時停止・合図パルス・自動送り・境界でのフォーカス退避)を担う。
+// 端・送り先・自動送りの待ち・フォーカスの逃がし先の判定は utils(step-scene・rescue-focus)と
+// @/utils/cycle-scenes に置き、ここは state・タイマー・ボタンの要素を持つ配線だけにする
 import { useCallback, useEffect, useState } from 'react'
 import type { RefObject } from 'react'
 import type { WorkStoryScene } from '@content/types/content'
+import { nextSceneIndex } from '@/utils/cycle-scenes'
+import { focusAfterStep, focusedNav, focusOnAutoAdvance } from '../utils/rescue-focus'
+import type { SceneControl } from '../utils/rescue-focus'
 import {
-  SCENE_ANIMATION_DURATIONS_MS,
-  DEFAULT_SCENE_ANIMATION_DURATION_MS,
-} from '@/utils/scene-durations'
+  autoAdvanceDelayMs,
+  nextSceneTarget,
+  prevSceneTarget,
+  sceneEdges,
+} from '../utils/step-scene'
 
 type UseSceneCarouselParams = {
   scenes: WorkStoryScene[]
@@ -26,8 +33,7 @@ export function useSceneCarousel({
   // 再マウントする構成(WorkStory側の条件レンダリング)のため、初期値としてのみ使えばよい
   const [activeIndex, setActiveIndex] = useState(initialIndex)
   const scene = scenes[activeIndex]
-  const isFirst = activeIndex === 0
-  const isLast = activeIndex === scenes.length - 1
+  const { isFirst, isLast } = sceneEdges(activeIndex, scenes.length)
 
   // 一時停止フラグ(WCAG 2.2.2 対応)。場面の自動送りと、場面SVG内部のアニメーションの
   // 両方を止める — 送りだけ止めても絵が動き続けると「止まっていない」としか見えないため。
@@ -39,44 +45,20 @@ export function useSceneCarousel({
   // 同じアニメーションを毎回頭から再生させる(CSSアニメーションは再代入では再生されない)
   const [pulseKey, setPulseKey] = useState(0)
 
-  // 遷移先の境界(先頭/末尾)でクリック元のボタンが disabled になる場合、
-  // フォーカスを有効な別のナビゲーションボタン→閉じるボタンの順で先回りして移す。
+  // 逃がし先の判定(utils/rescue-focus.ts)が答えたボタンへフォーカスを移す。null なら動かさない。
+  // 遷移先の境界(先頭/末尾)でクリック元のボタンが disabled になる場合に先回りで移すためのもの。
   // disabled 化はレンダーの DOM 反映と同期してブラウザが行うため、useEffect で
   // 事後に document.activeElement を見て検知しようとしても、その時点で既に
   // フォーカスは document.body へ落ちた後で判定条件に一致せず検知できない
-  // (disabled要素はフォーカスを保持できない)。そのため click ハンドラ内で
+  // (disabled要素はフォーカスを保持できない)。そのため click ハンドラ・自動送りのタイマーの中で
   // 遷移前に判定してフォーカスを動かす
-  const focusAwayFromDisabledNav = useCallback(
-    (nextIsFirst: boolean, nextIsLast: boolean) => {
-      if (nextIsFirst) {
-        if (nextIsLast) closeButtonRef.current?.focus()
-        else nextButtonRef.current?.focus()
-      } else if (nextIsLast) {
-        prevButtonRef.current?.focus()
-      }
+  const focusControl = useCallback(
+    (control: SceneControl | null) => {
+      if (control === null) return
+      const refs = { prev: prevButtonRef, next: nextButtonRef, close: closeButtonRef }
+      refs[control].current?.focus()
     },
     [closeButtonRef, nextButtonRef, prevButtonRef]
-  )
-
-  // 自動送りタイマー起点のフォーカス退避。手動クリック(focusAwayFromDisabledNav)と違い、
-  // 遷移直前に disabled 化されるボタンへ実際にフォーカスが乗っている場合だけ動かす。
-  // 無条件に動かすと、閉じるボタン等どこにフォーカスがあってもタイマーが奪ってしまう。
-  // nextIsFirst(末尾→先頭への折り返し)のときだけ closeButtonRef へ直接逃がす —
-  // 逃避先の次へボタンは、この時点ではまだ状態未コミットで末尾のまま disabled のため
-  // focus() が無視される(常に有効な閉じるボタンなら確実に受け取れる)。
-  // nextIsLast(先頭→末尾側)の逃避先(前へボタン)は遷移前から有効なので従来どおり委譲する
-  const focusAwayFromDisabledNavOnAutoAdvance = useCallback(
-    (nextIsFirst: boolean, nextIsLast: boolean) => {
-      const disablingButton = nextIsFirst
-        ? prevButtonRef.current
-        : nextIsLast
-          ? nextButtonRef.current
-          : null
-      if (disablingButton === null || document.activeElement !== disablingButton) return
-      if (nextIsFirst) closeButtonRef.current?.focus()
-      else focusAwayFromDisabledNav(nextIsFirst, nextIsLast)
-    },
-    [focusAwayFromDisabledNav, prevButtonRef, nextButtonRef, closeButtonRef]
   )
 
   // 今の場面のアニメーション周期が経過したら次の場面へ自動送りする。
@@ -87,17 +69,20 @@ export function useSceneCarousel({
   // 表示され始めた場面のアニメーションは常に0から再生される — このタイマーの周期と自然に同期する
   useEffect(() => {
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    // reduced motion環境ではSVGアニメーション自体が停止しているため、時間経過での自動送りに意味がない
-    if (prefersReducedMotion) return
-    // ユーザーが一時停止トグルを操作している間は自動送りを止める(WCAG 2.2.2 の停止手段)
-    if (isAutoAdvancePaused) return
+    // reduced motion環境と、ユーザーが一時停止トグルを操作している間(WCAG 2.2.2 の停止手段)は送らない
+    const delayMs = autoAdvanceDelayMs(scene.id, prefersReducedMotion, isAutoAdvancePaused)
+    if (delayMs === null) return
 
-    const duration = SCENE_ANIMATION_DURATIONS_MS[scene.id] ?? DEFAULT_SCENE_ANIMATION_DURATION_MS
     const timerId = window.setTimeout(() => {
-      const nextIndex = (activeIndex + 1) % scenes.length
-      focusAwayFromDisabledNavOnAutoAdvance(nextIndex === 0, nextIndex === scenes.length - 1)
+      const nextIndex = nextSceneIndex(activeIndex, scenes.length)
+      const focused = focusedNav(
+        document.activeElement,
+        prevButtonRef.current,
+        nextButtonRef.current
+      )
+      focusControl(focusOnAutoAdvance(nextIndex, scenes.length, focused))
       setActiveIndex(nextIndex)
-    }, duration)
+    }, delayMs)
 
     return () => window.clearTimeout(timerId)
   }, [
@@ -105,21 +90,23 @@ export function useSceneCarousel({
     scene.id,
     scenes.length,
     isAutoAdvancePaused,
-    focusAwayFromDisabledNavOnAutoAdvance,
+    focusControl,
+    prevButtonRef,
+    nextButtonRef,
   ])
 
   function handlePrev() {
-    if (isFirst) return
-    const targetIndex = activeIndex - 1
-    focusAwayFromDisabledNav(targetIndex === 0, targetIndex === scenes.length - 1)
-    setActiveIndex(targetIndex)
+    const target = prevSceneTarget(activeIndex)
+    if (target === null) return
+    focusControl(focusAfterStep(target, scenes.length))
+    setActiveIndex(target)
   }
 
   function handleNext() {
-    if (isLast) return
-    const targetIndex = activeIndex + 1
-    focusAwayFromDisabledNav(targetIndex === 0, targetIndex === scenes.length - 1)
-    setActiveIndex(targetIndex)
+    const target = nextSceneTarget(activeIndex, scenes.length)
+    if (target === null) return
+    focusControl(focusAfterStep(target, scenes.length))
+    setActiveIndex(target)
   }
 
   function handleToggleAutoAdvance() {
