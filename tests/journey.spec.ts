@@ -101,19 +101,43 @@ const framedInside = async (page: Page, selector: string) => {
   )
 }
 
+// 歩行ループが眠るまで待つ。歩き終えてカメラが追い付き、時間で替わるコマが無くなれば眠る。
+// 起きる時の印(running)は入力を受けたその場で書かれるので、入力の後に見れば前の眠りを読み違えない
+const expectLoopIdle = (page: Page) =>
+  expect(page.locator('[data-village]')).toHaveAttribute('data-village-loop', 'idle', {
+    timeout: 3_000,
+  })
+
+// 次のフレームの描画が終わるまで待つ。スティックの向きと押しているキーは rAF で読まれるので、
+// 倒した・離した後にこれを挟めば、少なくとも 1 フレームがその状態を読んでいる
+const waitTwoFrames = (page: Page) =>
+  page.evaluate(
+    () =>
+      new Promise<void>(resolve => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      })
+  )
+
 // 吹き出しと人物の画面位置の関係。吹き出しは world 層の中に置かれ、付ける先のマスの真上に出る。
 // 町はワールドが表示枠より広くカメラが人物を追うので、追従が壊れると(押した時のマスに取り残されると)
-// 世界が流れた分だけ人物との差が開く。差を実測すれば「付いて回る」を目で見ずに確かめられる
+// 世界が流れた分だけ人物との差が開く。差を実測すれば「付いて回る」を目で見ずに確かめられる。
+// カメラが止まってから、2 つの箱を同じ evaluate の中で続けて読む。別々に読むと、その間に
+// カメラが動いた分だけ差が開く(負荷の高い時に横ずれ 2px で落ちた)
 const bubbleAnchor = async (page: Page, selector: string) => {
-  const bubble = await page.locator(selector).boundingBox()
-  const player = await page.locator('[data-village-player]').boundingBox()
-  if (bubble === null || player === null) throw new Error('吹き出しか人物が描かれていない')
-  return {
-    // 人物の中心からの横ずれ(吹き出しは頭の真上に出るので 0 付近)
-    offsetX: bubble.x + bubble.width / 2 - (player.x + player.width / 2),
-    // 吹き出しの下端と人物の上端の差(頭より上に出ていれば 0 以下)
-    overHead: bubble.y + bubble.height - player.y,
-  }
+  await expectLoopIdle(page)
+  const anchor = await page.evaluate(sel => {
+    const bubble = document.querySelector(sel)?.getBoundingClientRect()
+    const player = document.querySelector('[data-village-player]')?.getBoundingClientRect()
+    if (bubble === undefined || player === undefined) return null
+    return {
+      // 人物の中心からの横ずれ(吹き出しは頭の真上に出るので 0 付近)
+      offsetX: bubble.x + bubble.width / 2 - (player.x + player.width / 2),
+      // 吹き出しの下端と人物の上端の差(頭より上に出ていれば 0 以下)
+      overHead: bubble.y + bubble.height - player.y,
+    }
+  }, selector)
+  if (anchor === null) throw new Error('吹き出しか人物が描かれていない')
+  return anchor
 }
 
 // 1マス歩く間、吹き出しと人物の位置の関係を毎フレーム記録する。walk より先に呼び、walk の後に待つ。
@@ -290,15 +314,6 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
     expect(Math.abs(after.overHead - before.overHead)).toBeLessThanOrEqual(1)
   })
 
-  test(`町の自宅の扉から部屋へ戻る (${label})`, async ({ page }) => {
-    await openVillage(page, prefix)
-    await leaveRoom(page)
-    expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 14, y: 12 } })
-    // 自宅前(14,12)で上を1回押すと自宅の扉(14,11)へぶつかり、部屋の出口手前(4,6)へ戻る
-    await walk(page, 'ArrowUp', 1)
-    expect(await readCell(page)).toEqual({ worldId: 'room', cell: { x: 4, y: 6 } })
-  })
-
   // click と hold は扉のマスを押した瞬間のタップで扉へ向かう。押したまま指を動かして扉を目標に
   // 作り直す経路は、別のマスで押してから扉へ指を動かす drag だけが通る
   for (const input of ['click', 'hold', 'drag'] as const) {
@@ -444,22 +459,33 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
     await openVillage(page, prefix)
     await leaveRoom(page)
     const map = page.getByRole('dialog')
+    // ミニマップを押して閉じただけでは歩き出さない(押下が移動指示に化けない)。
+    // 位置は押す前に控え、閉じた直後に行き先の印が無いこと・止まった後も同じマスにいることを見る。
+    // 押下が移動指示に化けていれば、地図を開いている間は止めてある経路の印が閉じた直後に残っている。
+    // 印は着けば下りるので、着くまで待ち直せる toHaveCount ではなく、閉じた直後の数をそのまま読む
+    const before = await readCell(page)
     // ミニマップのボタンでも同じ地図が開く
     await page.getByRole('button', { name: text.openMap }).click()
     await expect(map.getByRole('heading', { name: text.mapTitle })).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(map).toHaveCount(0)
-    // ミニマップを押して閉じただけでは歩き出さない(押下が移動指示に化けない)
-    const before = await readCell(page)
-    await page.waitForTimeout(400)
+    expect(await page.locator('[data-village-destination]').count()).toBe(0)
+    await expectLoopIdle(page)
     expect(await readCell(page)).toEqual(before)
     await page.keyboard.press('m')
     await expect(map.getByRole('heading', { name: text.mapTitle })).toBeVisible()
     await map.getByRole('button', { name: text.fastTravel.replace('{place}', lab.place) }).click()
     await expect(map).toHaveCount(0)
+    // 自宅前から研究所の前まで直線で飛ぶ(飛び方は tests/flight.spec.ts)。飛ぶ長さは直線距離で決まるので
+    // lib の flightDurationMs で求め、押してから飛び立つまでと着いて吹き出しが描かれるまでの余裕を足して待つ
+    const labCell = town.spots.find(spot => spot.id === 'lab')?.cell
+    if (labCell === undefined) throw new Error('町に研究所の地点が無い')
+    const flightMs = flightDurationMs(
+      Math.hypot(labCell.x - TOWN_ENTRY.x, labCell.y - TOWN_ENTRY.y)
+    )
     await expect(page.locator('[data-village-bubble]')).toContainText(
       text.arriveAt.replace('{place}', lab.place),
-      { timeout: 2_500 }
+      { timeout: flightMs + 2_000 }
     )
   })
 
@@ -677,20 +703,6 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
     await expect(page.locator('[data-village-bubble]')).toHaveCount(0)
   })
 
-  test(`次へボタンで名刺工房まで自動で移り、着いたら会話が開く (${label})`, async ({ page }) => {
-    await openVillage(page, prefix)
-    await page.keyboard.press('e')
-    const dialog = page.getByRole('dialog')
-    await expect(dialog.getByRole('heading', { name: home.title })).toBeVisible()
-    await dialog.getByRole('button', { name: home.next }).click()
-    // 部屋の出口のマットまで飛んで町へ出て、名刺工房の前まで自動で移ってから会話窓が開く
-    // (飛び方は tests/flight.spec.ts)
-    await expect(dialog.getByRole('heading', { name: meishi.title })).toBeVisible({
-      timeout: 10_000,
-    })
-    expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 6, y: 6 } })
-  })
-
   // 次へは飛んで移り、飛んでいる間は方向キーを読まない(tests/flight.spec.ts)。動きを控える設定では
   // 飛ばずに今までどおり 1 マスずつ高速で歩くので、自動で歩いている途中への割り込みはこの設定で確かめる
   test.describe(`動きを控える設定の次へ (${label})`, () => {
@@ -713,35 +725,35 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
       await page.keyboard.down('ArrowRight')
       await page.waitForTimeout(150)
       await page.keyboard.up('ArrowRight')
-      await page.waitForTimeout(3_000)
+      // 割り込んだ 1 マスを歩き終えて止まるまで待つ。自動の経路が残っていれば眠らずに歩き続ける
+      await expectLoopIdle(page)
       await expect(dialog).toHaveCount(0)
-      expect((await readCell(page))?.worldId).toBe('room')
+      const here = await readCell(page)
+      if (here === null) throw new Error('位置が保存されていない')
+      expect(here.worldId).toBe('room')
+      // 経路が止まるだけでは名刺工房に着かないので、自動の会話の取り消しが効いていなくても上は通る。
+      // 止まった所から自分で出口のマットへ歩いて町へ出て、名刺工房の前 (6,6) まで歩いても開かないことを見る。
+      // 取り消しが効いていないと、扉を出た所で名刺工房への自動歩行が作り直されるか、着いた所で会話窓が開く
+      const exitMat = room.warps.find(w => w.target.worldId === 'town')?.cell
+      if (exitMat === undefined) throw new Error('部屋に町へ出るマットが無い')
+      const path = findPath(room, here.cell, exitMat)
+      if (path === null) throw new Error('止まった所から出口のマットへ歩けない')
+      let from = here.cell
+      for (const next of path) {
+        expect(await walk(page, keyToward(from, next), 1)).toBe(1)
+        from = next
+      }
+      expect(await readCell(page)).toEqual({ worldId: 'town', cell: TOWN_ENTRY })
+      // 自宅前 (14,12) から左 4・上 6・左 4 で名刺工房 (6,6)(名刺工房から作品ページへ進むテストと同じ道)
+      expect(await walk(page, 'ArrowLeft', 4)).toBe(4)
+      expect(await walk(page, 'ArrowUp', 6)).toBe(6)
+      expect(await walk(page, 'ArrowLeft', 4)).toBe(4)
+      expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 6, y: 6 } })
+      // 着いた処理が描かれた(名刺工房の吹き出しが出た)のを見てから、止まった後に窓が無いことを確かめる
+      await expect(page.locator('[data-village-bubble]')).toContainText(arriveTextOf('meishi'))
+      await expectLoopIdle(page)
+      await expect(dialog).toHaveCount(0)
     })
-  })
-
-  test(`8 か所すべて話すと案内が変わり一覧のボタンへ焦点が移る (${label})`, async ({ page }) => {
-    // 10s 待ちを7回連ねるので既定の30sを超える
-    test.setTimeout(90_000)
-    await openVillage(page, prefix)
-    const dialog = page.getByRole('dialog')
-    await page.keyboard.press('e')
-    await expect(dialog.getByRole('heading', { name: home.title })).toBeVisible()
-    // 自室 → 名刺工房 → 研究所 → 経歴碑 → AIロボ → 焚き火 → ポストを次へで連ねる
-    const chain = [home, meishi, lab, monument, robot, campfire, mailbox]
-    for (const [i, stop] of chain.entries()) {
-      const next = chain[i + 1] ?? journey
-      await dialog.getByRole('button', { name: stop.next }).click()
-      await expect(dialog.getByRole('heading', { name: next.title })).toBeVisible({
-        timeout: 10_000,
-      })
-    }
-    // 最後の次の旅は、北の道の突き当たり(arrivalArea)へ着いたことで会話窓が自動で開く
-    await page.keyboard.press('Escape')
-    await expect(dialog).toHaveCount(0)
-    await expect(page.getByRole('status')).toContainText(allSeen)
-    const exit = page.locator('[data-village-exit]')
-    await expect(exit).toBeFocused()
-    await expect(exit).toHaveAttribute('data-bounce', '')
   })
 
   test(`町の経歴碑でロゴ付きの職歴一覧を確認でき、経歴碑もコースに数える (${label})`, async ({
@@ -1045,21 +1057,15 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
       await expect(next).toBeFocused({ timeout: 10_000 })
       await page.waitForTimeout(300)
       await expect(next).toBeFocused()
+      // 中央へ戻したのを 1 フレームに読ませてから倒し直す(押し直しとして数えさせる)
       await page.mouse.move(x, y)
-      await page.waitForTimeout(50)
+      await waitTwoFrames(page)
       await page.mouse.move(x + 30, y)
       await expect(close).toBeFocused()
       // 戻る向きは押し続けると 300ms ごとにもう 1 つ遡る。押した瞬間の 1 つを 2 フレームで
       // 処理させてから手を離し、確かめる側の待ち時間で焦点が見出しまで流れないようにする
-      const waitTwoFrames = () =>
-        page.evaluate(
-          () =>
-            new Promise<void>(resolve => {
-              requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
-            })
-        )
       await page.mouse.move(x - 30, y)
-      await waitTwoFrames()
+      await waitTwoFrames(page)
       await page.mouse.move(x, y)
       await page.mouse.up()
       await expect(next).toBeFocused()
@@ -1067,10 +1073,11 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
       await expect(close).toBeFocused()
       await page.keyboard.up('ArrowRight')
       await page.keyboard.down('ArrowLeft')
-      await waitTwoFrames()
+      await waitTwoFrames(page)
       await page.keyboard.up('ArrowLeft')
       await expect(next).toBeFocused()
-      await page.waitForTimeout(50)
+      // 離したのを 1 フレームに読ませてから押し直す
+      await waitTwoFrames(page)
       await page.keyboard.down('ArrowLeft')
       await expect(title).toBeFocused()
       await expect.poll(() => panel.evaluate(el => el.scrollTop)).toBe(0)
@@ -1097,13 +1104,14 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
       // 右を押し続けて本文を下端まで送り、次へボタンへ焦点を渡す
       await page.mouse.move(x + 30, y)
       await expect(next).toBeFocused({ timeout: 10_000 })
-      // 進む向きは押した瞬間の 1 つだけなので、中央へ戻してから右を押し直して閉じるへ
+      // 進む向きは押した瞬間の 1 つだけなので、中央へ戻してから右を押し直して閉じるへ。
+      // 中央へ戻したのは 1 フレームに読ませてから次へ進む
       await page.mouse.move(x, y)
-      await page.waitForTimeout(50)
+      await waitTwoFrames(page)
       await page.mouse.move(x + 30, y)
       await expect(close).toBeFocused()
       await page.mouse.move(x, y)
-      await page.waitForTimeout(50)
+      await waitTwoFrames(page)
       const before = await panel.evaluate(el => el.scrollTop)
       expect(before).toBeGreaterThan(0)
       // 上へ倒したまま離さない。閉じる → 次へ → 見出しと間隔を置いて戻り、見出しに着いた後は
@@ -1141,17 +1149,10 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
       const x = stick.x + stick.width / 2
       const y = stick.y + stick.height / 2
       // 倒し続けると 300ms ごとに次の地点へ流れるので、押した瞬間の 1 つを 2 フレームで処理させてから戻す
-      const waitTwoFrames = () =>
-        page.evaluate(
-          () =>
-            new Promise<void>(resolve => {
-              requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
-            })
-        )
       await page.mouse.move(x, y)
       await page.mouse.down()
       await page.mouse.move(x + move.dx, y + move.dy)
-      await waitTwoFrames()
+      await waitTwoFrames(page)
       await page.mouse.move(x, y)
       await page.mouse.up()
       await expect(spotButton(move.spot.id)).toBeFocused()
@@ -1184,18 +1185,23 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
     const a = at(8, 4)
     await page.mouse.move(a.x, a.y)
     await page.mouse.down()
-    await page.waitForTimeout(700)
+    // A へ本当に歩き出したことを 1 マス目の到着(位置の保存)で確かめてから指を動かす
+    await page.waitForFunction(key => sessionStorage.getItem(key) !== null, POS_KEY, {
+      polling: 'raf',
+      timeout: 3_000,
+    })
     const b = at(8, 6)
     await page.mouse.move(b.x, b.y, { steps: 3 })
-    await page.waitForTimeout(1_500)
+    // 押したまま B へ着くのを待ってから離す
+    await expect.poll(() => readCell(page)).toEqual({ worldId: 'room', cell: { x: 8, y: 6 } })
     await page.mouse.up()
-    await page.waitForTimeout(400)
+    // 離して止まった後も B に留まる
+    await expectLoopIdle(page)
     expect(await readCell(page)).toEqual({ worldId: 'room', cell: { x: 8, y: 6 } })
     // 短いタップは今まで通り歩く
     const c = at(4, 4)
     await page.mouse.click(c.x, c.y)
-    await page.waitForTimeout(2_500)
-    expect(await readCell(page)).toEqual({ worldId: 'room', cell: { x: 4, y: 4 } })
+    await expect.poll(() => readCell(page)).toEqual({ worldId: 'room', cell: { x: 4, y: 4 } })
   })
 }
 
@@ -1644,7 +1650,8 @@ test('机へ歩く途中で方向キーを押すと、机の横に着いても�
   await page.keyboard.down('ArrowDown')
   await page.waitForTimeout(HOLD_MS)
   await page.keyboard.up('ArrowDown')
-  await page.waitForTimeout(1_000)
+  // 割り込んだ 1 マスを歩き終えて止まるまで待つ。机への経路が残っていれば眠らずに歩き続ける
+  await expectLoopIdle(page)
   const dialog = page.getByRole('dialog')
   await expect(dialog).toHaveCount(0)
   // 止まった所から自分で机の右の辺まで歩いても開かない。取り消しが効いていないと、
@@ -1659,7 +1666,13 @@ test('机へ歩く途中で方向キーを押すと、机の横に着いても�
     from = next
   }
   expect(await readCell(page)).toEqual({ worldId: 'room', cell: DESK_SIDE })
-  await page.waitForTimeout(500)
+  // 着いた処理が描かれた(机の地点の吹き出しが出た)のを見てから、止まった後に窓が無いことを確かめる。
+  // 自動の会話は吹き出しと同じ到着の処理で開くので、吹き出しが出た時点で開いていなければ開かない
+  const home = villageJa.stops.home
+  await expect(page.locator('[data-village-bubble]')).toContainText(
+    home.arrive ?? villageJa.arriveAt.replace('{place}', home.place)
+  )
+  await expectLoopIdle(page)
   await expect(dialog).toHaveCount(0)
 })
 

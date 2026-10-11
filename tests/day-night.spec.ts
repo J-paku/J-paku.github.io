@@ -393,7 +393,7 @@ for (const { prefix, text } of JOURNEYS) {
   })
 
   test(`夜で雨でも8か所のコースは最後まで通る (${label})`, async ({ page }) => {
-    // 10s 待ちを7回連ねるので既定の30sを超える(journey.spec の完走テストと同じ理由)
+    // 10s 待ちを7回連ねるので既定の30sを超える
     test.setTimeout(90_000)
     await stubWeather(page, 'rain')
     await page.clock.setFixedTime(new Date(PHASE_CLOCKS.night))
