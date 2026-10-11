@@ -1,6 +1,7 @@
 // 場面アニメーションの周期表(SCENE_ANIMATION_DURATIONS_MS)の単体テスト。表は各SVGの
 // animation-durationを手で写したものなので、配信する場面の絵と食い違っていないかを見る。
-// 照らし合わせはリール(use-story-reel)と場面モーダル(use-scene-carousel)が使う「表 ?? 既定値」の形で行う
+// 照らし合わせは、リール(use-story-reel)と場面モーダル(use-scene-carousel)が周期を引く
+// sceneCycleMs(cycle-scenes.ts)と同じ「表 ?? 既定値」の形で行う
 import { readFileSync, readdirSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
