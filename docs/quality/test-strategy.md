@@ -154,3 +154,6 @@ PASS は調査を止めるので、FAIL より危険である。
 
 反復中は落ちた spec だけを狭く走らせる(`npx playwright test tests/journey.spec.ts -g '<名前>'`)。
 **E2E の全体は手元では回さず、push で CI が回す**(E2E で commit の直前に走らせるのは、変えた範囲が指す spec だけ)。詳しくは [../agents/verification.md](../agents/verification.md)。
+
+E2E は CI でも再試行しない(`playwright.config.ts` の `retries` は 0)。再試行で通った失敗は緑として残り、揺れる検査を隠すため。
+揺れて落ちた検査は、測り方(箱を別々に読む・固定の時間で待つ)か作りの側の原因を探して直す。

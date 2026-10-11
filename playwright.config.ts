@@ -21,9 +21,12 @@ export default defineConfig({
   // 刻む(150ms 押して 256ms で 1 マス)ので、ブラウザを並べすぎて詰まらせないよう手元は 4 本で止める。
   // CI はランナーの既定のまま(同時に走る本数は配り方を変える前と同じ)
   workers: process.env.CI ? undefined : 4,
-  // CI では test.only の混入を落とし、フレーキーな失敗は1回だけ再試行する
+  // CI では test.only の混入を落とす
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
+  // 再試行はしない(CI も手元も 0)。再試行で通った失敗は緑として残り、揺れる検査を隠す。
+  // 揺れて落ちていた検査は、箱を 1 回の読み取りで測る・固定の待ちを状態の待ちへ替える(781bf7f)、
+  // 飛び立ったフレームで吹き出しを消し終える(bc09599)のように原因を直して止めた。落ちたら再試行でなく原因を直す
+  retries: 0,
   use: { baseURL: BASE_URL },
   webServer: {
     command: `npx serve out -l ${PORT}`,
