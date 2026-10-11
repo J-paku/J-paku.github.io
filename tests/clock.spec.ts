@@ -2,11 +2,11 @@
 // 1次(現在時間・カスタム・やめる)と2次(時刻を選ぶ)の両方でたどり、
 // 決めた時刻が村の段階(data-phase)と夜の灯りに本当に効くこと・取消しと Escape では
 // 何も変わらないこと・画面の A/B と同じ Z/X でも決定と取りやめができること・
-// 町へ出ても続くのに再読み込みでは実時刻へ戻ることを ja/ko 双方で見る
+// 町へ出ても続くのに再読み込みでは実時刻へ戻ることを見る。
+// 窓の操作も段階も灯りも言語では変わらないので ja だけで見る(docs/decisions/0015-trim-e2e-overlap-and-ko.md)
 import { expect, type Locator, type Page } from '@playwright/test'
 import type { ClockText, VillageText } from '@content/types/world'
 import { village as villageJa } from '@content/ja/village'
-import { village as villageKo } from '@content/ko/village'
 // 村を開く手順・歩く walk(1 マスごとに到着を待つ)・次のフレームの描画待ち・昼の瞬間・既定で晴れを敷く test は
 // 他の村の spec と共用。正本は village.helpers.ts。天気はこの spec の対象外なので、その既定の晴れのまま実ネットワークへ出さない。
 // スティックの向きは rAF で読まれるので、倒した後に waitTwoFrames を挟めば「押した瞬間」の 1 つは処理済みで、
@@ -15,10 +15,8 @@ import { NOON_JST, focusVillage, openVillage, test, waitTwoFrames, walk } from '
 
 type Journey = { prefix: string; text: VillageText }
 
-const JOURNEYS: Journey[] = [
-  { prefix: '', text: villageJa },
-  { prefix: '/ko', text: villageKo },
-]
+// 言語の接頭と文言は他の村の spec と同じ形で持ち回る(テストの題の (/) もそのまま)
+const JOURNEYS: Journey[] = [{ prefix: '', text: villageJa }]
 
 // 村の根要素。data-phase に今の段階が載る
 const VILLAGE_ROOT = '[data-phase]'

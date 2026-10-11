@@ -28,6 +28,7 @@ last_reviewed: 2026-10-11
 | [0012](0012-new-art-for-flight-frames.md) | 原画の無い飛ぶ姿のコマは新しく描き、原画が届いたら写して置き換える | Accepted |
 | [0013](0013-incremental-mutation-on-push.md) | 変異テストは push ごとに変わった変異体だけを走らせ、全体は週1回手で走らせる | Accepted |
 | [0014](0014-gate-all-pure-modules.md) | 変異テストとファイル別カバレッジ100%の対象を純粋モジュールの全部へ広げ、新しいファイルを自動で入れる | Accepted |
+| [0015](0015-trim-e2e-overlap-and-ko.md) | 他の検査と重なるテストを消し、言語に依らない E2E は ja だけで回す | Accepted |
 
 ## 書くときの決まり
 

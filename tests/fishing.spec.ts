@@ -414,29 +414,6 @@ for (const { prefix, text, profile } of JOURNEYS) {
     await expect(speechBubble).toHaveCount(0)
   })
 
-  test(`水に向いていなければ釣れない (${label})`, async ({ page }) => {
-    // 池まで 10 マス歩く。1 マスごとに描画待ちを挟むので既定の制限では足りない
-    test.setTimeout(45_000)
-    await openVillage(page, prefix)
-    await leaveRoom(page)
-    // 右隣 (6,13) を経由してほとり (5,13) へ入る。立つマスは同じで、向きだけ水面から外れる。
-    // 隣が水というだけでは吹き出しも釣りも始まらない
-    await walk(page, 'ArrowLeft', 8)
-    await walk(page, 'ArrowDown', 1)
-    await walk(page, 'ArrowLeft', 1)
-    expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 5, y: 13 } })
-    await expect(
-      page.locator('[data-village-bubble]').filter({ hasText: fishing.prompt })
-    ).toHaveCount(0)
-    await page.keyboard.press('e')
-    // 話せる相手がいない時の一言が出てから、窓が出ていないことを見る(順を逆にすると
-    // 窓が描かれる前に数えてしまい、出ていても通ってしまう)
-    await expect(
-      page.locator('[data-village-bubble][data-village-bubble-kind="thought"]')
-    ).toContainText(text.noTarget)
-    await expect(page.getByRole('dialog')).toHaveCount(0)
-  })
-
   test(`池の中へは踏み込めない (${label})`, async ({ page }) => {
     // 池のほとりまで歩いたうえで、岸を回り込む分だけ余計に歩き、最後に左の水面へ 1 回投げる
     test.setTimeout(45_000)
@@ -486,6 +463,34 @@ for (const { prefix, text, profile } of JOURNEYS) {
     await dialog.getByRole('button', { name: text.close }).click()
     await expect(dialog).toHaveCount(0)
     await expect(line).toHaveCount(0)
+  })
+
+  // ここまでの 3 本は ko では吹き出しのボタンで投げ、ja の Z とは別の入力の経路を通るので ja/ko 双方で見る。
+  // 下は投げる前に止まる検査で、言語でも入力の経路でも変わらないので ja だけで見る
+  // (docs/decisions/0015-trim-e2e-overlap-and-ko.md)
+  if (prefix !== '') continue
+
+  test(`水に向いていなければ釣れない (${label})`, async ({ page }) => {
+    // 池まで 10 マス歩く。1 マスごとに描画待ちを挟むので既定の制限では足りない
+    test.setTimeout(45_000)
+    await openVillage(page, prefix)
+    await leaveRoom(page)
+    // 右隣 (6,13) を経由してほとり (5,13) へ入る。立つマスは同じで、向きだけ水面から外れる。
+    // 隣が水というだけでは吹き出しも釣りも始まらない
+    await walk(page, 'ArrowLeft', 8)
+    await walk(page, 'ArrowDown', 1)
+    await walk(page, 'ArrowLeft', 1)
+    expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 5, y: 13 } })
+    await expect(
+      page.locator('[data-village-bubble]').filter({ hasText: fishing.prompt })
+    ).toHaveCount(0)
+    await page.keyboard.press('e')
+    // 話せる相手がいない時の一言が出てから、窓が出ていないことを見る(順を逆にすると
+    // 窓が描かれる前に数えてしまい、出ていても通ってしまう)
+    await expect(
+      page.locator('[data-village-bubble][data-village-bubble-kind="thought"]')
+    ).toContainText(text.noTarget)
+    await expect(page.getByRole('dialog')).toHaveCount(0)
   })
 }
 

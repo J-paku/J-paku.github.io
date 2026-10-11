@@ -3,7 +3,7 @@ status: active
 read_when:
   - どのファイルを触ればよいか当たりを付けたいとき
 source_of_truth: false
-last_reviewed: 2026-10-01
+last_reviewed: 2026-10-11
 ---
 
 # 画面とファイルの対応
@@ -20,7 +20,7 @@ last_reviewed: 2026-10-01
 | 規則 | `src/lib/village/` |
 | 絵 | `src/lib/pixel/` |
 | コンテンツ | `content/world.ts`(地形)・`content/{ja,ko}/village.ts`(文言) |
-| E2E | `tests/journey.spec.ts`(導線)・`tests/layout.spec.ts`(舞台の寸法)・`tests/day-night.spec.ts`(昼夜と天気)・`tests/night-transition.spec.ts`(再読み込みせずに夜へ移る)・`tests/clock.spec.ts`(自室の卓上時計)・`tests/fishing.spec.ts`(池での釣り)・`tests/idle-loop.spec.ts`(歩行ループの眠りと目覚め)・`tests/umbrella.spec.ts`(雨の日の傘)・`tests/storage-blocked.spec.ts`(保存が使えない時のテーマと村の操作) |
+| E2E | `tests/journey.spec.ts`(導線)・`tests/layout.spec.ts`(舞台の寸法)・`tests/day-night.spec.ts`(昼夜と天気)・`tests/night-transition.spec.ts`(再読み込みせずに夜へ移る)・`tests/clock.spec.ts`(自室の卓上時計)・`tests/fishing.spec.ts`(池での釣り)・`tests/idle-loop.spec.ts`(歩行ループの眠りと目覚め)・`tests/umbrella.spec.ts`(雨の日の傘)・`tests/storage-blocked.spec.ts`(保存が使えない時のテーマと村の操作)・`tests/flight.spec.ts`(自動移動の直線飛行)・`tests/dialog-focus.spec.ts`(村の窓の Tab の輪と吹き出しの押し戻し) |
 
 詳細は [../architecture/village.md](../architecture/village.md)。
 
@@ -47,6 +47,13 @@ last_reviewed: 2026-10-01
 | コンテンツ | `content/{ja,ko}/works/<slug>.ts` の `story`・`ui.ts`・`village.ts`(村へ移るリンクの文言 `toVillage` だけ) |
 | 場面 SVG | `public/works/` |
 | E2E | `tests/scene-refetch.spec.ts`(取得に失敗した場面の絵を、モーダルを開き直すと取り直すか)・`tests/story.spec.ts`(CTA と場面の現れ方・前へ/次へと端のフォーカス・自動送りと一時停止・閉じた後のフォーカスの戻り先) |
+
+## 404 — 存在しない経路
+
+| | |
+|---|---|
+| 配信物 | `public/404.html`(二言語の案内の素の HTML。`next build` が上書きする `out/404.html` を `scripts/verify-export.mjs` が戻す) |
+| E2E | `tests/not-found.spec.ts`(404 応答と二言語の案内、そこから村と一覧へその言語のまま戻る導線) |
 
 `src/utils/scene-durations.ts` は各場面 SVG の `animation-duration` を写した表。**SVG 側の周期を変えたらここも直す。**
 

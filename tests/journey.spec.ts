@@ -1,5 +1,6 @@
 // 村の導線 E2E。部屋の会話 → 扉で町へ → 作品と一覧、地図の高速移動、位置と訪問の保存、
-// テーマ、家具の当たり判定を ja/ko 双方で確認する
+// テーマ、家具の当たり判定を確認する。言語の接頭を保って作品・一覧と村を行き来する導線と案内文の折り返しは
+// ja/ko 双方で、それ以外の言語では変わらない振る舞いは ja だけで見る
 import { expect, type Locator, type Page } from '@playwright/test'
 import type { VillageText } from '@content/types/world'
 import { worldSet } from '@content/world'
@@ -216,6 +217,77 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
       ? fishing.prompt
       : (text.stops[id].arrive ?? text.arriveAt.replace('{place}', text.stops[id].place))
 
+  // 言語で結果が変わりうるものは ja/ko 双方で見る。言語の接頭(/ko)を保って作品・一覧と村を行き来する導線と、
+  // 案内文の折り返し(ja は PhraseText が入れる <wbr> で、ko は空白で折る)
+  test(`町の名刺工房から作品ページと一覧へ進む (${label})`, async ({ page }) => {
+    await openVillage(page, prefix)
+    await leaveRoom(page)
+    // 自宅前 (14,12) から左 4・上 6・左 4 で名刺工房 (6,6)
+    await walk(page, 'ArrowLeft', 4)
+    await walk(page, 'ArrowUp', 6)
+    await walk(page, 'ArrowLeft', 4)
+    await expect(page.locator('[data-village-bubble]')).toContainText(
+      text.arriveAt.replace('{place}', meishi.place),
+      { timeout: 3_000 }
+    )
+    await page.keyboard.press('Enter')
+    const dialog = page.getByRole('dialog')
+    await expect(dialog.getByRole('heading', { name: meishi.title })).toBeVisible()
+    // 内部リンクなので同じタブで開く
+    const link = dialog.getByRole('link')
+    await expect(link).toHaveAttribute('href', `${prefix}/works/${WORK_SLUG}/`)
+    await expect(link).not.toHaveAttribute('target', '_blank')
+    await link.click()
+    await expect(page).toHaveURL(new RegExp(`${prefix}/works/${WORK_SLUG}/$`))
+    await expect(page.locator('main h1')).toBeVisible()
+    await page.locator(`a[href="${prefix}/list/"]`).first().click()
+    await expect(page).toHaveURL(new RegExp(`${prefix}/list/$`))
+    await expect(page.locator('#works')).toBeVisible()
+    // 入れ物が見えるだけではカードが 0 枚でも通る。枚数の下限(実ブラウザで数えた現在値は 3)と、
+    // いま辿ってきた作品のカードが題名付きで並ぶことまで確かめる
+    expect(await page.locator('#works article').count()).toBeGreaterThanOrEqual(3)
+    await expect(
+      page.locator(`#works article#${WORK_SLUG}`).getByRole('heading', { name: workTitle })
+    ).toBeVisible()
+  })
+
+  test(`一覧の「マップで見る」から村へ戻るとブートが正しく終わる (${label})`, async ({ page }) => {
+    // 一覧ページからのクライアント遷移(<Link>)で村へ戻る。挿入された script は
+    // ブラウザが実行しないため、Boot の effect 側が代わりに舞台を開ける
+    await page.goto(`${prefix}/list/`)
+    await page.getByRole('link', { name: text.toVillage }).click()
+    await page.waitForSelector('#boot', { state: 'detached', timeout: 3_000 })
+    await expect(page.locator('[data-village]')).toBeVisible()
+    await page.locator('[data-village]').focus()
+    // 位置は到着時にだけ保存されるので、往復1マスで部屋の開始マスを保存させてから読む
+    await walk(page, 'ArrowRight', 1)
+    await walk(page, 'ArrowLeft', 1)
+    expect(await readCell(page)).toEqual({ worldId: 'room', cell: { x: 4, y: 4 } })
+  })
+
+  test.describe(`A/B ボタン (${label})`, () => {
+    test.use({ viewport: { width: 390, height: 664 }, isMobile: true, hasTouch: true })
+
+    test(`タッチ端末では町の操作案内がスティックと A の説明になる`, async ({ page }) => {
+      await openVillage(page, prefix)
+      await leaveRoom(page)
+      await expect(page.getByRole('status')).toContainText(text.hintTouch, { timeout: 3_000 })
+      await expect(page.locator('[data-village]')).toHaveAttribute('aria-label', text.hintTouch)
+      // 案内文は窓の中で折り返し、右へはみ出さない(keep-all で <wbr> が無いと一行のまま外へ出る)
+      const overflow = await page.getByRole('status').evaluate(box => {
+        const span = box.querySelector('span')
+        if (span === null) throw new Error('案内文が無い')
+        return span.getBoundingClientRect().right - box.getBoundingClientRect().right
+      })
+      expect(overflow).toBeLessThanOrEqual(0)
+    })
+  })
+
+  // ここから下は会話・扉・地図・保存・テーマ・当たり判定・操作の振る舞いで、言語では変わらないので ja だけで見る。
+  // ko の文言は要素を探す名前に使うだけ。型は必須の欄だけを保証し、任意の欄(次の旅の link・経歴碑の entries など)の
+  // ja/ko の一致は src/lib/content/village-text-pair.test.ts が見る(docs/decisions/0015-trim-e2e-overlap-and-ko.md)
+  if (prefix !== '') continue
+
   test(`自分の部屋の会話から次の目的地を案内する (${label})`, async ({ page }) => {
     await openVillage(page, prefix)
     const speech = page.getByRole('status')
@@ -345,52 +417,6 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
       })
     }
   }
-
-  test(`町の名刺工房から作品ページと一覧へ進む (${label})`, async ({ page }) => {
-    await openVillage(page, prefix)
-    await leaveRoom(page)
-    // 自宅前 (14,12) から左 4・上 6・左 4 で名刺工房 (6,6)
-    await walk(page, 'ArrowLeft', 4)
-    await walk(page, 'ArrowUp', 6)
-    await walk(page, 'ArrowLeft', 4)
-    await expect(page.locator('[data-village-bubble]')).toContainText(
-      text.arriveAt.replace('{place}', meishi.place),
-      { timeout: 3_000 }
-    )
-    await page.keyboard.press('Enter')
-    const dialog = page.getByRole('dialog')
-    await expect(dialog.getByRole('heading', { name: meishi.title })).toBeVisible()
-    // 内部リンクなので同じタブで開く
-    const link = dialog.getByRole('link')
-    await expect(link).toHaveAttribute('href', `${prefix}/works/${WORK_SLUG}/`)
-    await expect(link).not.toHaveAttribute('target', '_blank')
-    await link.click()
-    await expect(page).toHaveURL(new RegExp(`${prefix}/works/${WORK_SLUG}/$`))
-    await expect(page.locator('main h1')).toBeVisible()
-    await page.locator(`a[href="${prefix}/list/"]`).first().click()
-    await expect(page).toHaveURL(new RegExp(`${prefix}/list/$`))
-    await expect(page.locator('#works')).toBeVisible()
-    // 入れ物が見えるだけではカードが 0 枚でも通る。枚数の下限(実ブラウザで数えた現在値は 3)と、
-    // いま辿ってきた作品のカードが題名付きで並ぶことまで確かめる
-    expect(await page.locator('#works article').count()).toBeGreaterThanOrEqual(3)
-    await expect(
-      page.locator(`#works article#${WORK_SLUG}`).getByRole('heading', { name: workTitle })
-    ).toBeVisible()
-  })
-
-  test(`一覧の「マップで見る」から村へ戻るとブートが正しく終わる (${label})`, async ({ page }) => {
-    // 一覧ページからのクライアント遷移(<Link>)で村へ戻る。挿入された script は
-    // ブラウザが実行しないため、Boot の effect 側が代わりに舞台を開ける
-    await page.goto(`${prefix}/list/`)
-    await page.getByRole('link', { name: text.toVillage }).click()
-    await page.waitForSelector('#boot', { state: 'detached', timeout: 3_000 })
-    await expect(page.locator('[data-village]')).toBeVisible()
-    await page.locator('[data-village]').focus()
-    // 位置は到着時にだけ保存されるので、往復1マスで部屋の開始マスを保存させてから読む
-    await walk(page, 'ArrowRight', 1)
-    await walk(page, 'ArrowLeft', 1)
-    expect(await readCell(page)).toEqual({ worldId: 'room', cell: { x: 4, y: 4 } })
-  })
 
   test(`町の地図から研究所へ高速移動する (${label})`, async ({ page }) => {
     await openVillage(page, prefix)
@@ -898,20 +924,6 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
 
   test.describe(`A/B ボタン (${label})`, () => {
     test.use({ viewport: { width: 390, height: 664 }, isMobile: true, hasTouch: true })
-
-    test(`タッチ端末では町の操作案内がスティックと A の説明になる`, async ({ page }) => {
-      await openVillage(page, prefix)
-      await leaveRoom(page)
-      await expect(page.getByRole('status')).toContainText(text.hintTouch, { timeout: 3_000 })
-      await expect(page.locator('[data-village]')).toHaveAttribute('aria-label', text.hintTouch)
-      // 案内文は窓の中で折り返し、右へはみ出さない(keep-all で <wbr> が無いと一行のまま外へ出る)
-      const overflow = await page.getByRole('status').evaluate(box => {
-        const span = box.querySelector('span')
-        if (span === null) throw new Error('案内文が無い')
-        return span.getBoundingClientRect().right - box.getBoundingClientRect().right
-      })
-      expect(overflow).toBeLessThanOrEqual(0)
-    })
 
     test(`A で会話を開き、B で閉じ、次へで名刺工房まで進む`, async ({ page }) => {
       await openVillage(page, prefix)

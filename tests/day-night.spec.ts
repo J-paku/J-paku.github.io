@@ -1,7 +1,8 @@
 // 昼夜の空と天気の E2E。時計を4つの帯それぞれへ固定して村の段階と、4段階ぶんの実シートが
 // どれも別物であることを確かめ、夜の灯りがともって主人公に付いて回ること・昼は同じ要素が
 // 描かれないことを確かめ、Open-Meteo の応答を差し替えて雨・雪の層が出る/出ないを確かめ、
-// 最後に段階と天気が載っても8か所のコースが今までどおり完走することを ja/ko 双方で見る
+// 段階と天気が載っても8か所のコースが今までどおり完走することを見る。
+// 完走は ja/ko 双方で、ほかは言語では変わらないので ja だけで見る
 import { expect, type Page } from '@playwright/test'
 import type { VillageText } from '@content/types/world'
 import { village as villageJa } from '@content/ja/village'
@@ -214,6 +215,61 @@ for (const { prefix, text } of JOURNEYS) {
   const mailbox = text.stops.mailbox
   const journey = text.stops.journey
 
+  // 完走は 8 か所の会話と次へを、その言語の文言のまま最後までつなぐ。ko の全部の地点の文言で次へを連ねるのは
+  // この検査だけなので ja/ko 双方で見る(docs/decisions/0015-trim-e2e-overlap-and-ko.md)
+  test(`夜で雨でも8か所のコースは最後まで通る (${label})`, async ({ page }) => {
+    // 10s 待ちを7回連ねるので既定の30sを超える
+    test.setTimeout(90_000)
+    await stubWeather(page, 'rain')
+    await page.clock.setFixedTime(new Date(PHASE_CLOCKS.night))
+    await openVillage(page, prefix)
+    await expect(page.locator(VILLAGE_ROOT)).toHaveAttribute('data-phase', 'night')
+    // 出発点の自室は屋内。ここではまだ降っていないのが正しい
+    await expect(page.locator(WEATHER_LAYERS), '出発点の自室は屋内なので降らない').toHaveCount(0)
+
+    const dialog = page.getByRole('dialog')
+    await page.keyboard.press('e')
+    await expect(dialog.getByRole('heading', { name: home.title })).toBeVisible()
+    await dialog.getByRole('button', { name: home.next }).click()
+    await expect(dialog.getByRole('heading', { name: meishi.title })).toBeVisible({
+      timeout: 10_000,
+    })
+    // 自動の移動(飛んで扉を出る)で町(屋外)へ出た最初の地点。ここから完走まで雨が降り続けるはず
+    await expect(page.locator(RAIN_LAYERS), '町へ出た時点で雨が降っている').toHaveCount(
+      WEATHER_LAYER_COUNT
+    )
+    await dialog.getByRole('button', { name: meishi.next }).click()
+    await expect(dialog.getByRole('heading', { name: lab.title })).toBeVisible({ timeout: 10_000 })
+    // 研究所 → 経歴碑 → AIロボ → 焚き火 → ポスト → 次の旅を次へで連ねる。
+    // 最後の次の旅は、北の道の突き当たり(arrivalArea)へ着いたことで会話窓が自動で開く
+    const chain = [lab, monument, robot, campfire, mailbox]
+    for (const [i, stop] of chain.entries()) {
+      const next = chain[i + 1] ?? journey
+      await dialog.getByRole('button', { name: stop.next }).click()
+      await expect(dialog.getByRole('heading', { name: next.title })).toBeVisible({
+        timeout: 10_000,
+      })
+    }
+    await page.keyboard.press('Escape')
+    await expect(dialog).toHaveCount(0)
+    await expect(page.getByRole('status')).toContainText(
+      text.allSeen.replace('{list}', text.toList)
+    )
+    // 完走すると一覧への出口へ焦点が移り、出口が跳ねて(data-bounce)合図する
+    const exit = page.locator('[data-village-exit]')
+    await expect(exit).toBeFocused()
+    await expect(exit).toHaveAttribute('data-bounce', '')
+    // 完走しても段階と雨はそのまま(コースの進行が空や天気を壊していない)。
+    // 2 枚のうち片方でも落ちていればコマ送りが壊れているので、ここも枚数まで見る
+    await expect(page.locator(VILLAGE_ROOT)).toHaveAttribute('data-phase', 'night')
+    await expect(page.locator(RAIN_LAYERS), '完走後も雨が降り続けている').toHaveCount(
+      WEATHER_LAYER_COUNT
+    )
+  })
+
+  // ここから下の段階のシート・灯り・天気の層は言語では変わらないので ja だけで見る
+  if (prefix !== '') continue
+
   // 明け方・夕方は data-phase の属性だけを見ていた頃、昼のシートを使い回すよう戻しても
   // 素通りしていた。4段階ぶんの指紋を集めて総当たりで突き合わせ、どの2段階が同じになっても落とす
   test(`4段階のどれも属性だけでなく焼いたシートそのものが入れ替わる (${label})`, async ({
@@ -390,55 +446,5 @@ for (const { prefix, text } of JOURNEYS) {
     // 種類も問わない — 雨に絞ると、誤って雪として降った時に見逃す
     await leaveRoom(page)
     await expect(page.locator(WEATHER_LAYERS), '失敗したら何も降らない').toHaveCount(0)
-  })
-
-  test(`夜で雨でも8か所のコースは最後まで通る (${label})`, async ({ page }) => {
-    // 10s 待ちを7回連ねるので既定の30sを超える
-    test.setTimeout(90_000)
-    await stubWeather(page, 'rain')
-    await page.clock.setFixedTime(new Date(PHASE_CLOCKS.night))
-    await openVillage(page, prefix)
-    await expect(page.locator(VILLAGE_ROOT)).toHaveAttribute('data-phase', 'night')
-    // 出発点の自室は屋内。ここではまだ降っていないのが正しい
-    await expect(page.locator(WEATHER_LAYERS), '出発点の自室は屋内なので降らない').toHaveCount(0)
-
-    const dialog = page.getByRole('dialog')
-    await page.keyboard.press('e')
-    await expect(dialog.getByRole('heading', { name: home.title })).toBeVisible()
-    await dialog.getByRole('button', { name: home.next }).click()
-    await expect(dialog.getByRole('heading', { name: meishi.title })).toBeVisible({
-      timeout: 10_000,
-    })
-    // 自動の移動(飛んで扉を出る)で町(屋外)へ出た最初の地点。ここから完走まで雨が降り続けるはず
-    await expect(page.locator(RAIN_LAYERS), '町へ出た時点で雨が降っている').toHaveCount(
-      WEATHER_LAYER_COUNT
-    )
-    await dialog.getByRole('button', { name: meishi.next }).click()
-    await expect(dialog.getByRole('heading', { name: lab.title })).toBeVisible({ timeout: 10_000 })
-    // 研究所 → 経歴碑 → AIロボ → 焚き火 → ポスト → 次の旅を次へで連ねる。
-    // 最後の次の旅は、北の道の突き当たり(arrivalArea)へ着いたことで会話窓が自動で開く
-    const chain = [lab, monument, robot, campfire, mailbox]
-    for (const [i, stop] of chain.entries()) {
-      const next = chain[i + 1] ?? journey
-      await dialog.getByRole('button', { name: stop.next }).click()
-      await expect(dialog.getByRole('heading', { name: next.title })).toBeVisible({
-        timeout: 10_000,
-      })
-    }
-    await page.keyboard.press('Escape')
-    await expect(dialog).toHaveCount(0)
-    await expect(page.getByRole('status')).toContainText(
-      text.allSeen.replace('{list}', text.toList)
-    )
-    // 完走すると一覧への出口へ焦点が移り、出口が跳ねて(data-bounce)合図する
-    const exit = page.locator('[data-village-exit]')
-    await expect(exit).toBeFocused()
-    await expect(exit).toHaveAttribute('data-bounce', '')
-    // 完走しても段階と雨はそのまま(コースの進行が空や天気を壊していない)。
-    // 2 枚のうち片方でも落ちていればコマ送りが壊れているので、ここも枚数まで見る
-    await expect(page.locator(VILLAGE_ROOT)).toHaveAttribute('data-phase', 'night')
-    await expect(page.locator(RAIN_LAYERS), '完走後も雨が降り続けている').toHaveCount(
-      WEATHER_LAYER_COUNT
-    )
   })
 }
