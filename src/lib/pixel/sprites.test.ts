@@ -177,7 +177,10 @@ describe('焚き火', () => {
   it('炎の身は夜に発光し、外側のふちだけが暗く沈む', () => {
     // (7,5) は炎の上半身、(7,8) は下半身。どちらも灯り用の文字('9')。
     // ここが黄(F)のままだと夜に #5a5b45 まで落ち、炎が「黄色い塊に暗い縁が付いたもの」に見える。
-    // (5,8) は外側のふち('r')で、ここは夜に沈んだままでよい — 沈むから炎の輪郭になる
+    // (5,8) は外側のふち('r')で、ここは夜に沈んだままでよい — 沈むから炎の輪郭になる。
+    // 期待値は焼き上がりの色をそのまま書く。palette・phasePalette から取ると、表の色を書き換えても
+    // 両辺が一緒に動いて素通りする。炎の昼は F と同じ黄(#f8e060)、夜は灯りの黄(#fff0a0)。
+    // ふちは昼の赤(#e05038)が夜の色調(#101c38 へ 0.68)に混ざって #532d38 まで沈む
     const day = sampler(buildSprites('day'))
     const night = sampler(buildSprites('night'))
 
@@ -186,9 +189,9 @@ describe('焚き火', () => {
       lower: { day: day('campfire', 7, 8), night: night('campfire', 7, 8) },
       edge: { day: day('campfire', 5, 8), night: night('campfire', 5, 8) },
     }).toEqual({
-      upper: { day: palette['9'], night: phasePalette(palette, 'night')['9'] },
-      lower: { day: palette['9'], night: phasePalette(palette, 'night')['9'] },
-      edge: { day: palette.r, night: phasePalette(palette, 'night').r },
+      upper: { day: '#f8e060', night: '#fff0a0' },
+      lower: { day: '#f8e060', night: '#fff0a0' },
+      edge: { day: '#e05038', night: '#532d38' },
     })
   })
 

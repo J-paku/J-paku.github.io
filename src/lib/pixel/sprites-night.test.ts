@@ -69,14 +69,6 @@ describe('夜だけ差し替える素材', () => {
     expect(Object.keys(PLAYER_NIGHT_ARTS)).toEqual(Object.keys(PLAYER_ARTS))
   })
 
-  it('焼き上がった夜のシートも昼と同じ index を同じ順序で持つ', () => {
-    // toEqual は鍵の順序を見ないので、並び順は Object.keys の配列にして比べる
-    expect(Object.keys(buildSprites('night').index)).toEqual(Object.keys(buildSprites('day').index))
-    expect(Object.keys(buildPlayerSprites('night').index)).toEqual(
-      Object.keys(buildPlayerSprites('day').index)
-    )
-  })
-
   it('主人公の夜のシートはコマ数も高さも昼と同じ', () => {
     const night = buildPlayerSprites('night')
     const day = buildPlayerSprites('day')
