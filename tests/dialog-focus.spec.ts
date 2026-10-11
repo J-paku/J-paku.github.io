@@ -10,8 +10,9 @@ import {
   MAP_FOCUSABLE_SELECTOR,
   STOP_FOCUSABLE_SELECTOR,
 } from '@/components/VillagePage/components/Village/utils/focusables'
-// 村を開く手順・歩く walk(1 マスごとに到着を待つ)・既定で晴れを敷く test は他の村の spec と共用。正本は village.helpers.ts
-import { openVillage, test, walk, type WalkKey } from './village.helpers'
+// 村を開く手順・歩く walk(1 マスごとに到着を待つ)・部屋から町へ出る leaveRoom・既定で晴れを敷く test は
+// 他の村の spec と共用。正本は village.helpers.ts
+import { leaveRoom, openVillage, test, walk, type WalkKey } from './village.helpers'
 
 // キーを受け取る村の枠。どの窓も閉じるとここへ焦点を戻す
 const FRAME = '[data-village]'
@@ -89,8 +90,8 @@ test('会話窓は Tab の輪を両端で回し、見出しの Shift+Tab は末�
 
 test('拡大地図は Tab の輪を両端で回し、閉じると村の枠へ焦点を戻す (/)', async ({ page }) => {
   await openVillage(page, '')
-  // 地図は町でだけ開く。部屋の下端のマットから町の自宅前へ出る(journey.spec の leaveRoom と同じ道)
-  await walk(page, 'ArrowDown', 3)
+  // 地図は町でだけ開く。部屋の下端のマットから町の自宅前へ出る
+  await leaveRoom(page)
   await expect(page.locator('[data-world]')).toHaveAttribute('data-world', 'town')
   await expectFrameFocused(page, '開く前の焦点は村の枠')
   await page.keyboard.press('m')

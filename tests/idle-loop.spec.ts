@@ -5,37 +5,21 @@
 // 釣りのコマが時間で替わる間(投げる・かかった合図・引き上げ)は眠らずにコマを進め切り、動き終えれば眠ることは
 // fishing.spec が時計を止めて見ている。池までの 13 マスをここで繰り返さない
 import { expect, type Page } from '@playwright/test'
-import { worldSet } from '@content/world'
 import { village } from '@content/ja/village'
 // 村を開く手順・歩く walk(1 マスごとに到着を待つ)・押下と到着待ちの間合い・描画待ち・主人公の描かれた位置・
+// 保存された現在地を読む readCell・歩行ループが眠るまで待つ expectLoopIdle(起きてから眠るまでは 1 秒かからない)・
 // 既定で晴れを敷く test は他の村の spec と共用。正本は village.helpers.ts
 import {
   HOLD_MS,
   SETTLE_MS,
+  expectLoopIdle,
   openVillage,
   playerOnScreen,
+  readCell,
   settleRender,
   test,
   walk,
 } from './village.helpers'
-
-// 位置の保存先は lib/preferences と同じ組み立て
-const POS_KEY = `village:${worldSet.id}:pos`
-
-// 保存された現在地(ワールドとマス)を読む。保存は到着したマスでだけ走る
-const readCell = (page: Page) =>
-  page.evaluate(key => {
-    const raw = sessionStorage.getItem(key)
-    if (raw === null) return null
-    const saved = JSON.parse(raw) as { worldId: string; cell: { x: number; y: number } }
-    return { worldId: saved.worldId, cell: saved.cell }
-  }, POS_KEY)
-
-// 歩行ループが眠るまで待つ。起きてから眠るまで(歩き終えてカメラが追い付くまで)は 1 秒かからない
-const expectLoopIdle = (page: Page) =>
-  expect(page.locator('[data-village]')).toHaveAttribute('data-village-loop', 'idle', {
-    timeout: 3_000,
-  })
 
 // アプリが頼んだ rAF の数を数える。ページのどのスクリプトよりも先に差し込み、
 // 村の 2 本のループ(歩行・本文送り)が呼ぶ window.requestAnimationFrame を包む

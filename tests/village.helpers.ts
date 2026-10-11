@@ -1,10 +1,11 @@
-// 村を動かす E2E の共通手順。村を開く・歩く・押す・描画を待つ・主人公の描かれた位置を測る・
-// 天気を固定する、を各 spec がここから読む。
+// 村を動かす E2E の共通手順。村を開く・歩く・押す・部屋から町へ出る・描画を待つ・主人公の描かれた位置を測る・
+// 保存された現在地を読む・歩行ループの眠りを待つ・天気を固定する、を各 spec がここから読む。
 // Playwright が集めるのは testDir 直下の *.spec.ts / *.test.ts だけなので、この名前なら
 // テスト本体として拾われない(中身は test を extend して渡すだけで test() を呼ばないので、
 // 拾われると「テストが無い」で落ちる)。
-// 部屋から町へ出る leaveRoom は spec ごとに歩き方も確かめることも違うため、各 spec に置いたままにする
-import { errors, test as base, type BrowserContext, type Page } from '@playwright/test'
+// 部屋から町へ出る leaveRoom は開始マスから下へ 3 マス歩く形だけをここに置く。時計の前から出る clock.spec と、
+// 出た後に屋外にいることまで確かめる day-night.spec は、歩き方か確かめることが違うので各 spec に置いたままにする
+import { errors, expect, test as base, type BrowserContext, type Page } from '@playwright/test'
 import { worldSet } from '@content/world'
 
 // 短押しは旋回だけ(TURN_MS 64ms)。旋回を越えて 1 マス分の移動を始めるまで押し、
@@ -14,8 +15,16 @@ import { worldSet } from '@content/world'
 export const HOLD_MS = 150
 export const SETTLE_MS = 320
 
+// 遅いランナーでは描画とタイマーの発火が少し後ろへずれる。待ち時間の定数にこの分だけ上乗せする
+export const SLACK_MS = 3_000
+
 // 位置の保存先。src/lib/preferences.ts の readPosition / writePosition と同じ組み立て
-const POSITION_KEY = `village:${worldSet.id}:pos`
+export const POS_KEY = `village:${worldSet.id}:pos`
+
+// 昼(JST 12:00)の瞬間。村は訪問者のタイムゾーンを見ず、常に大阪時刻(JST = UTC+9 固定)で段階を決めるので
+// UTC の瞬間だけを固定すれば足りる。JST 2026-09-20 12:00 = 昼の帯(7時〜17時)。時計を止める・固定する spec が
+// 昼から始めるのに使う(day-night.spec の PHASE_CLOCKS の day と同じ瞬間)
+export const NOON_JST = '2026-09-20T03:00:00Z'
 
 // Open-Meteo の問い合わせ先。src/lib/weather.ts が組み立てる URL の頭
 const OPEN_METEO = 'https://api.open-meteo.com/**'
@@ -110,7 +119,7 @@ const waitForArrival = async (page: Page, before: string | null): Promise<boolea
   try {
     await page.waitForFunction(
       ([key, previous]) => sessionStorage.getItem(key) !== previous,
-      [POSITION_KEY, before] as const,
+      [POS_KEY, before] as const,
       { polling: 'raf', timeout: SETTLE_MS }
     )
     return true
@@ -120,13 +129,23 @@ const waitForArrival = async (page: Page, before: string | null): Promise<boolea
   }
 }
 
+// 次のフレームの描画が終わるまで待つ(rAF 2 回)。rAF で読まれる入力(スティックの向き・押しているキー)を
+// 倒した・離した後に挟めば、少なくとも 1 フレームがその状態を読んでいる
+export const waitTwoFrames = (page: Page) =>
+  page.evaluate(
+    () =>
+      new Promise<void>(resolve => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      })
+  )
+
 // 方向キーで cells マス歩く。1 マスごとに押して離し、到着(保存位置の変化)を待ってから次へ進む。
 // 戻り値は実際に到着したマス数。cells と同じなら全部歩けた、少なければどこかで阻まれた
 // (壁や水へ向きを変えただけの 1 回は数えない)
 export const walk = async (page: Page, key: WalkKey, cells: number): Promise<number> => {
   let arrived = 0
   for (let i = 0; i < cells; i += 1) {
-    const before = await page.evaluate(name => sessionStorage.getItem(name), POSITION_KEY)
+    const before = await page.evaluate(name => sessionStorage.getItem(name), POS_KEY)
     await page.keyboard.down(key)
     await page.waitForTimeout(HOLD_MS)
     await page.keyboard.up(key)
@@ -135,16 +154,17 @@ export const walk = async (page: Page, key: WalkKey, cells: number): Promise<num
       // 到着と同じフレームで積まれた React の更新が描かれ、新しい文言のレイアウトで書体の読み込みが
       // 始まるまで 2 フレーム待つ。すぐに settleRender へ進むと、読み込みが始まる前の(解決済みの)
       // fonts.ready を見て通り抜ける。固定待ちの頃は到着から settleRender まで 130ms 以上空いていた
-      await page.evaluate(
-        () =>
-          new Promise<void>(resolve => {
-            requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
-          })
-      )
+      await waitTwoFrames(page)
     }
     await settleRender(page)
   }
   return arrived
+}
+
+// 村は自室の開始マス (4,4) から始まる。下端の 1 マスのマット (4,7) へ下へ 3 マス歩いて乗ると、
+// 町の自宅前 (14,12) へ下向きで出る
+export const leaveRoom = async (page: Page) => {
+  await walk(page, 'ArrowDown', 3)
 }
 
 // 方向キーを 1 マス分だけ押して離す(walk と同じ押し方。始まった移動は離しても最後まで進む)。
@@ -172,3 +192,20 @@ export const playerOnScreen = async (page: Page) => {
     y: (player.y + player.height - frame.y) / cell - 1,
   }
 }
+
+// 保存された現在地(ワールドとマス)を読む。村は 2 ワールドなのでマスだけでは位置が決まらない。
+// 保存は到着したマスとワープの先でだけ走るので、通れない所へぶつかった時はここの値が変わらない
+export const readCell = (page: Page) =>
+  page.evaluate(key => {
+    const raw = sessionStorage.getItem(key)
+    if (raw === null) return null
+    const saved = JSON.parse(raw) as { worldId: string; cell: { x: number; y: number } }
+    return { worldId: saved.worldId, cell: saved.cell }
+  }, POS_KEY)
+
+// 歩行ループが眠るまで待つ。歩き終えてカメラが追い付き、時間で替わるコマが無くなれば眠る。
+// 起きる時の印(running)は入力を受けたその場で書かれるので、入力の後に見れば前の眠りを読み違えない
+export const expectLoopIdle = (page: Page) =>
+  expect(page.locator('[data-village]')).toHaveAttribute('data-village-loop', 'idle', {
+    timeout: SLACK_MS,
+  })

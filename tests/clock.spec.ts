@@ -7,9 +7,11 @@ import { expect, type Locator, type Page } from '@playwright/test'
 import type { ClockText, VillageText } from '@content/types/world'
 import { village as villageJa } from '@content/ja/village'
 import { village as villageKo } from '@content/ko/village'
-// 村を開く手順・歩く walk(1 マスごとに到着を待つ)・既定で晴れを敷く test は他の村の spec と共用。
-// 正本は village.helpers.ts。天気はこの spec の対象外なので、その既定の晴れのまま実ネットワークへ出さない
-import { focusVillage, openVillage, test, walk } from './village.helpers'
+// 村を開く手順・歩く walk(1 マスごとに到着を待つ)・次のフレームの描画待ち・昼の瞬間・既定で晴れを敷く test は
+// 他の村の spec と共用。正本は village.helpers.ts。天気はこの spec の対象外なので、その既定の晴れのまま実ネットワークへ出さない。
+// スティックの向きは rAF で読まれるので、倒した後に waitTwoFrames を挟めば「押した瞬間」の 1 つは処理済みで、
+// 押し続けた時の繰り返し(300ms 以上先)にはまだ届かない
+import { NOON_JST, focusVillage, openVillage, test, waitTwoFrames, walk } from './village.helpers'
 
 type Journey = { prefix: string; text: VillageText }
 
@@ -29,11 +31,6 @@ const MINUTE = '[data-clock-minute]'
 const BUBBLE = '[data-village-bubble]'
 // 主人公が提げるランタン。夜だけ描かれるので「時刻が本当に変わったか」の裏取りに使う
 const PLAYER_LIGHT = '[data-village-light="player"]'
-
-// 村は訪問者のタイムゾーンを見ず、常に大阪時刻(JST = UTC+9 固定)で段階を決めるので
-// UTC の瞬間だけを固定すれば足りる。これは JST 2026-09-20 12:00 = 昼の帯(7時〜17時)。
-// どのテストもここから始め、「昼から変わったか」を段階で見る
-const NOON_JST = '2026-09-20T03:00:00Z'
 
 // 部屋の開始マス (4,4) から時計の前 (7,3) へ。右 3 マスは PC 机(3〜5列・2〜3行)の下、
 // テーブル(6〜7列・5〜6行)の上を通る行なので素通りでき、最後の上 1 マスで卓上時計 (7,2) と向き合う
@@ -88,16 +85,6 @@ const expectPicked = async (clockWindow: Locator, hour: string, minute: string) 
   await expect(clockWindow.locator(MINUTE), `分が ${minute}`).toHaveText(minute)
 }
 
-// 次のフレームの描画が終わるまで待つ。スティックの向きは rAF で読まれるので、倒した後にこれを挟めば
-// 「押した瞬間」の 1 つは処理済みで、押し続けた時の繰り返し(300ms 以上先)にはまだ届かない
-const waitTwoFrames = (page: Page) =>
-  page.evaluate(
-    () =>
-      new Promise<void>(resolve => {
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
-      })
-  )
-
 // 操作帯のスティックの中心。倒す向きはここからの差で決まる(journey.spec のスティックの検査と同じ掴み方)
 const stickCenter = async (page: Page, text: VillageText) => {
   const stick = await page.getByRole('application', { name: text.joystick }).boundingBox()
@@ -111,7 +98,7 @@ const hourStepsFrom18 = async (clockWindow: Locator) => {
   return (hour - 18 + 24) % 24
 }
 
-// 時計の前まで歩いて昼から始める。どのテストも同じ出発点に揃える
+// 時計の前まで歩いて昼(NOON_JST)から始める。どのテストも同じ出発点に揃え、「昼から変わったか」を段階で見る
 const startAtClock = async (page: Page, prefix: string, clock: ClockText) => {
   await page.clock.setFixedTime(new Date(NOON_JST))
   await openVillage(page, prefix)

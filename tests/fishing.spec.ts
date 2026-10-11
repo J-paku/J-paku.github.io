@@ -15,7 +15,6 @@
 import { expect, type Locator, type Page } from '@playwright/test'
 import type { Profile } from '@content/types/content'
 import type { VillageText } from '@content/types/world'
-import { worldSet } from '@content/world'
 import { profile as profileJa } from '@content/ja/profile'
 import { profile as profileKo } from '@content/ko/profile'
 import { village as villageJa } from '@content/ja/village'
@@ -33,14 +32,20 @@ import {
   FISHING_PULL_MS,
   FISHING_SWING_MS,
 } from '@/lib/village/player-pose'
-// 村を開く手順・歩く walk(1 マスごとに到着を待つ)・描画待ち・既定で晴れを敷く test は
-// 他の村の spec と共用。正本は village.helpers.ts
-import { openVillage, settleRender, test, walk } from './village.helpers'
+// 村を開く手順・歩く walk(1 マスごとに到着を待つ)・部屋から町へ出る leaveRoom・保存された現在地を読む readCell・
+// 描画待ち・待ち時間の上乗せ・昼の瞬間・既定で晴れを敷く test は他の村の spec と共用。正本は village.helpers.ts
+import {
+  NOON_JST,
+  SLACK_MS,
+  leaveRoom,
+  openVillage,
+  readCell,
+  settleRender,
+  test,
+  walk,
+} from './village.helpers'
 
 type Journey = { prefix: string; text: VillageText; profile: Profile }
-
-// 遅いランナーでは描画とタイマーの発火が少し後ろへずれる。待ち時間の定数にこの分だけ上乗せする
-const SLACK_MS = 3_000
 
 // 釣りのコマの名前(シートのキーの末尾)。向き d のキーは player-fish-{d}-{名前} で、構え(待ち)だけは
 // 末尾の無い player-fish-{d}。左向きは右向きのキーを反転して描く。
@@ -77,9 +82,6 @@ const JOURNEYS: Journey[] = [
   { prefix: '', text: villageJa, profile: profileJa },
   { prefix: '/ko', text: villageKo, profile: profileKo },
 ]
-
-// 位置の保存先は lib/preferences と同じ組み立て
-const POS_KEY = `village:${worldSet.id}:pos`
 
 // 池で釣れる中身の数。VillagePage が村へ渡すのと同じく、現職の機能一覧から数える。
 // 数を書き写すと、機能を足した時に揃い切る前で投げるのをやめてしまう
@@ -133,26 +135,6 @@ const recordLineMounts = (world: Locator) =>
     }).observe(element, { childList: true })
   })
 
-// readCell・leaveRoom は journey.spec にも同じ物がある。spec から import すると
-// 向こうの test() ごと読み込まれて二重に登録されるので、共有せずここへ写している。
-// 歩く walk は village.helpers.ts から読む(helpers は test を extend して渡すだけで
-// test() を呼ばないので import してよい)
-
-// 保存された現在地(ワールドとマス)を読む。村は 2 ワールドなのでマスだけでは位置が決まらない。
-// 保存は到着したマスでだけ走るので、通れない所へぶつかった時はここの値が変わらない
-const readCell = (page: Page) =>
-  page.evaluate(key => {
-    const raw = sessionStorage.getItem(key)
-    if (raw === null) return null
-    const saved = JSON.parse(raw) as { worldId: string; cell: { x: number; y: number } }
-    return { worldId: saved.worldId, cell: saved.cell }
-  }, POS_KEY)
-
-// 現在の部屋は下端の1マスマットから外へ出る。出た先は町の自宅前 (14,12) で、向きは下
-const leaveRoom = async (page: Page) => {
-  await walk(page, 'ArrowDown', 3)
-}
-
 // 自宅前 (14,12) から池のほとり (5,13) へ。横道 y12 は道が続き、その 1 段下 y13 も道。
 // 池は x0-5/y14-19 なので、(5,13) の真下 (5,14) が水面になる。着いた時の向きは下(= 水面)
 const goToPondShore = async (page: Page) => {
@@ -163,9 +145,9 @@ const goToPondShore = async (page: Page) => {
 
 // ---- 時計を止めて実画面のコマを撮る検査の道具 ----
 
-// 昼(JST 12:00)の瞬間。clock.spec・day-night.spec と同じ。時計を入れ替えると日付も偽物になるので、
-// 撮る途中で昼夜の段階が替わって(シートごと色が変わり足元まで違って見える)落ちないよう昼に固定する
-const NOON_JST = '2026-09-20T03:00:00Z'
+// 時計を入れ替えると日付も偽物になるので、撮る途中で昼夜の段階が替わって(シートごと色が変わり足元まで
+// 違って見える)落ちないよう、昼の瞬間 NOON_JST(village.helpers.ts)に固定する
+
 // 止める時刻を今より少し先に取る。pauseAt は過去を指すと投げるので、今の時刻を読んでから止めるまでの往復分の余裕
 const PAUSE_LEAD_MS = 1_000
 // 止めた時計の rAF は、runFor で進めた分だけ 16ms 刻みで呼ばれる(Playwright の偽の rAF の間隔)

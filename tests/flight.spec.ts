@@ -20,12 +20,21 @@ import { routeToWarp } from '@/lib/village/warp'
 import { FLIGHT_MIN_DISTANCE, flightDurationMs } from '@/lib/village/flight-curve'
 // 1 マスの px は、歩行ループ(paint-camera)と同じく枠の幅をこの列数で割って出す
 import { VIEW_COLS } from '@/components/VillagePage/components/Village/utils/stage-scale'
-// 村を開く手順・歩く walk(1 マスごとに到着を待つ)・1 マス分だけ押す press・天気の差し替えと、既定で晴れを敷く test は
+// 村を開く手順・歩く walk(1 マスごとに到着を待つ)・1 マス分だけ押す press・天気の差し替えと、既定で晴れを敷く test、
+// 位置の保存先 POS_KEY・保存された現在地を読む readCell・歩行ループの眠りを待つ expectLoopIdle・待ち時間の上乗せ SLACK_MS は
 // 他の村の spec と共用。正本は village.helpers.ts
-import { openVillage, press, stubWeather, test, walk } from './village.helpers'
+import {
+  POS_KEY,
+  SLACK_MS,
+  expectLoopIdle,
+  openVillage,
+  press,
+  readCell,
+  stubWeather,
+  test,
+  walk,
+} from './village.helpers'
 
-// 位置の保存先。src/lib/preferences.ts の readPosition / writePosition と同じ組み立て
-const POS_KEY = `village:${worldSet.id}:pos`
 const PLAYER = '[data-village-player]'
 // 飛ぶ間に地上の位置へ落とす影。data-flying は飛んでいる間だけ 'true'、それ以外は 'false'
 const SHADOW = '[data-flight-shadow]'
@@ -35,8 +44,6 @@ const BUBBLE = '[data-village-bubble]'
 const FLY_PREFIX = 'player-fly-'
 // 普段の歩きのコマのうち足を出したもの(1・2)。歩いた証拠に使う。左向きは right の反転なので up / down / right だけ
 const WALKING = /^player-(up|down|right)-[12]$/
-// 遅いランナーでは描画とタイマーの発火が後ろへずれる。待ち時間にこの分を上乗せする
-const SLACK_MS = 3_000
 // 自動移動が着くまでの上限。町を横切って飛んでも、扉を通って別ワールドの地点へ移っても収まる
 const ARRIVE_MS = 10_000
 // 影の位置が、出発と着地を結ぶ線分から外れてよい距離(マス)
@@ -409,27 +416,12 @@ const hitsNote = (label: string, flying: readonly FrameSample[], hits: readonly 
 
 // ---- 村の操作 ----
 
-// 保存された現在地(ワールドとマス)を読む
-const readCell = (page: Page) =>
-  page.evaluate(key => {
-    const raw = sessionStorage.getItem(key)
-    if (raw === null) return null
-    const saved = JSON.parse(raw) as { worldId: string; cell: { x: number; y: number } }
-    return { worldId: saved.worldId, cell: saved.cell }
-  }, POS_KEY)
-
 // 村を開き、部屋の出口のマットまで歩いて町の自宅前へ出る
 const goToTown = async (page: Page) => {
   await openVillage(page, '')
   expect(await walk(page, 'ArrowDown', 3), '部屋の出口のマットまで歩いて町へ出る').toBe(3)
   expect(await readCell(page)).toEqual({ worldId: town.id, cell: TOWN_ENTRY })
 }
-
-// 歩行ループが眠るまで待つ。降りてカメラが追い付き、時間で替わるコマが無くなれば眠る
-const expectLoopIdle = (page: Page) =>
-  expect(page.locator('[data-village]')).toHaveAttribute('data-village-loop', 'idle', {
-    timeout: SLACK_MS,
-  })
 
 const openMap = async (page: Page): Promise<Locator> => {
   await page.keyboard.press('m')

@@ -8,7 +8,6 @@
 // 仕掛け、主人公の data-sprite・ワールドの data-world・キーの押し離しを 1 本の時系列に書き足して、後から並びを調べる。
 // 傘の動きは言語に依らないので ja だけで見る
 import { expect, type Page } from '@playwright/test'
-import { worldSet } from '@content/world'
 // 開く・畳む長さは lib 側の定数が正本。ここに ms を書き写すと片方だけ動いた時に気付けない
 import { UMBRELLA_CLOSE_MS, UMBRELLA_OPEN_MS } from '@/lib/village/player-pose'
 // 村を開く手順・歩く walk(1 マスごとに到着を待つ)・1 マス分だけ押す press・天気の差し替えと、既定で晴れを敷く
@@ -16,13 +15,18 @@ import { UMBRELLA_CLOSE_MS, UMBRELLA_OPEN_MS } from '@/lib/village/player-pose'
 // 扉を通る 1 歩と、開いている間の 1 押しは walk ではなく press で押す。walk は着いた後に描画を待つので、
 // 戻る頃には動きが進んでしまう。畳む間は扉を踏んでからワールドが替わるまでが延びるので、
 // 保存位置で到着を見る walk の判定ともずれうる
-import { openVillage, press, stubWeather, test, walk, type WeatherKind } from './village.helpers'
-
-// 遅いランナーでは描画とタイマーの発火が少し後ろへずれる。待ち時間の定数にこの分だけ上乗せする
-const SLACK_MS = 3_000
-
-// 位置の保存先は lib/preferences と同じ組み立て
-const POS_KEY = `village:${worldSet.id}:pos`
+// 保存された現在地を読む readCell・歩行ループの眠りを待つ expectLoopIdle・待ち時間の上乗せ SLACK_MS も同じく共用
+import {
+  SLACK_MS,
+  expectLoopIdle,
+  openVillage,
+  press,
+  readCell,
+  stubWeather,
+  test,
+  walk,
+  type WeatherKind,
+} from './village.helpers'
 
 const PLAYER = '[data-village-player]'
 // ワールドの層。data-world に描画済みのワールドが載る
@@ -171,15 +175,6 @@ const waitSince = (page: Page, kind: TimelineKind, head: string, ms: number) =>
 
 // ---- 村の操作 ----
 
-// 保存された現在地(ワールドとマス)を読む。保存は到着したマスとワープの先でだけ走る
-const readCell = (page: Page) =>
-  page.evaluate(key => {
-    const raw = sessionStorage.getItem(key)
-    if (raw === null) return null
-    const saved = JSON.parse(raw) as { worldId: string; cell: { x: number; y: number } }
-    return { worldId: saved.worldId, cell: saved.cell }
-  }, POS_KEY)
-
 // 主人公がワールドの層のどこに描かれているか(px)。層の左上からの差で測るので、カメラが動いても変わらない。
 // 左右反転(scaleX(-1))は箱の位置を変えない
 const positionInWorld = (page: Page) =>
@@ -194,12 +189,6 @@ const positionInWorld = (page: Page) =>
     },
     [PLAYER, WORLD] as const
   )
-
-// 歩行ループが眠るまで待つ。開き終えて時間で替わるコマが無くなり、歩いてもいなければ眠る
-const expectLoopIdle = (page: Page) =>
-  expect(page.locator('[data-village]')).toHaveAttribute('data-village-loop', 'idle', {
-    timeout: SLACK_MS,
-  })
 
 // 記録を仕掛け、天気を敷いて村を開く。実ネットワークではなくこの応答を見て描くことを、扉を出る前に押さえる
 const openInWeather = async (page: Page, kind: WeatherKind) => {

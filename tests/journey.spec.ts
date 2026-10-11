@@ -18,15 +18,21 @@ import { findPath } from '@/lib/village/path'
 import { mapEntries } from '@/lib/village/map-entries'
 import { objectSpotAt, spotAt } from '@/lib/village/spot'
 import { spotToward } from '@/components/VillagePage/components/Village/components/WorldMap/utils/spot-navigation'
-// 村を開く手順・歩く walk(1 マスごとに到着を待つ)・押下と到着待ちの間合い・既定で晴れを敷く test は
-// 他の村の spec と共用。正本は village.helpers.ts
+// 村を開く手順・歩く walk(1 マスごとに到着を待つ)・部屋から町へ出る leaveRoom・押下と到着待ちの間合い・
+// 位置の保存先と保存された現在地を読む readCell・歩行ループの眠りを待つ expectLoopIdle・描画待ち・
+// 既定で晴れを敷く test は他の村の spec と共用。正本は village.helpers.ts
 import {
   HOLD_MS,
+  POS_KEY,
   SETTLE_MS,
+  expectLoopIdle,
   focusVillage,
+  leaveRoom,
   openVillage,
+  readCell,
   stubWeather,
   test,
+  waitTwoFrames,
   walk,
   type WalkKey,
 } from './village.helpers'
@@ -49,8 +55,7 @@ const JOURNEYS: Journey[] = [
   },
 ]
 
-// 位置と訪問の保存先は lib/preferences と同じ組み立て
-const POS_KEY = `village:${worldSet.id}:pos`
+// 訪問の保存先は lib/preferences と同じ組み立て(位置の保存先 POS_KEY は village.helpers.ts)
 const VISITED_KEY = `village:${worldSet.id}:visited`
 const WORK_SLUG = 'meishi-cross-platform'
 
@@ -78,15 +83,6 @@ const scrollPanelToBottom = async (page: Page, panel: Locator) => {
   expect(await panelAtBottom(panel)).toBe(true)
 }
 
-// 保存された現在地(ワールドとマス)を読む。村は 2 ワールドなのでマスだけでは位置が決まらない
-const readCell = (page: Page) =>
-  page.evaluate(key => {
-    const raw = sessionStorage.getItem(key)
-    if (raw === null) return null
-    const saved = JSON.parse(raw) as { worldId: string; cell: { x: number; y: number } }
-    return { worldId: saved.worldId, cell: saved.cell }
-  }, POS_KEY)
-
 // 要素が村の枠(overflow: hidden)の中へ収まっているか。外周のマスに立つと主人公の頭と
 // 吹き出しが枠の上へ出て切れるため、切れていないことをこの実測で確かめる
 const framedInside = async (page: Page, selector: string) => {
@@ -100,23 +96,6 @@ const framedInside = async (page: Page, selector: string) => {
     target.x + target.width <= frame.x + frame.width
   )
 }
-
-// 歩行ループが眠るまで待つ。歩き終えてカメラが追い付き、時間で替わるコマが無くなれば眠る。
-// 起きる時の印(running)は入力を受けたその場で書かれるので、入力の後に見れば前の眠りを読み違えない
-const expectLoopIdle = (page: Page) =>
-  expect(page.locator('[data-village]')).toHaveAttribute('data-village-loop', 'idle', {
-    timeout: 3_000,
-  })
-
-// 次のフレームの描画が終わるまで待つ。スティックの向きと押しているキーは rAF で読まれるので、
-// 倒した・離した後にこれを挟めば、少なくとも 1 フレームがその状態を読んでいる
-const waitTwoFrames = (page: Page) =>
-  page.evaluate(
-    () =>
-      new Promise<void>(resolve => {
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
-      })
-  )
 
 // 吹き出しと人物の画面位置の関係。吹き出しは world 層の中に置かれ、付ける先のマスの真上に出る。
 // 町はワールドが表示枠より広くカメラが人物を追うので、追従が壊れると(押した時のマスに取り残されると)
@@ -216,11 +195,6 @@ const MAP_CLICK_TARGET = (() => {
   if (picked === undefined) throw new Error('地図で押せるマスが町に無い')
   return picked
 })()
-
-// 現在の部屋は下端の1マスマットから外へ出る
-const leaveRoom = async (page: Page) => {
-  await walk(page, 'ArrowDown', 3)
-}
 
 for (const { prefix, text, settings, workTitle } of JOURNEYS) {
   const label = prefix === '' ? '/' : prefix
@@ -336,42 +310,17 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
           )
         }
         await walk(page, 'ArrowDown', 2)
-        // ワールド層の位置が数フレーム動かなくなるまで待ち、その原点と --cell からマスの真ん中の画面位置を返す
-        const settledPoint = (target: { x: number; y: number }) =>
-          page.locator('[data-world]').evaluate(async (layer, cell) => {
-            let previous = ''
-            let still = 0
-            while (still < 5) {
-              await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
-              const rect = layer.getBoundingClientRect()
-              const position = `${rect.x},${rect.y}`
-              still = position === previous ? still + 1 : 0
-              previous = position
-            }
-            const rect = layer.getBoundingClientRect()
-            const size = parseFloat(getComputedStyle(layer).getPropertyValue('--cell'))
-            return {
-              x: rect.x + (cell.x + 0.5) * size,
-              y: rect.y + (cell.y + 0.5) * size,
-              size,
-            }
-          }, target)
-        // 押す位置にボタン・リンク(ミニマップなど)が重なっていないこと(重なっていれば入力側がタップ移動にしない)
-        const notOnControl = (p: { x: number; y: number }) =>
-          page.evaluate(
-            ({ x, y }) => document.elementFromPoint(x, y)?.closest('button, a') === null,
-            p
-          )
+        // 押す位置はカメラが止まってから決め、ボタン・リンク(ミニマップなど)に重なっていないことを確かめる
         if (input === 'drag') {
-          const from = await settledPoint(dragFrom)
-          expect(await notOnControl(from)).toBe(true)
+          const from = await settledCellPoint(page, dragFrom)
+          expect(await clearOfControls(page, from)).toBe(true)
           await page.mouse.move(from.x, from.y)
           await page.mouse.down()
           // 押した瞬間のタップで押したマスへ歩いて止まる(押したままなので離さない)
           await expect.poll(() => readCell(page)).toEqual({ worldId: 'town', cell: dragFrom })
         }
-        const point = await settledPoint(door)
-        expect(await notOnControl(point)).toBe(true)
+        const point = await settledCellPoint(page, door)
+        expect(await clearOfControls(page, point)).toBe(true)
         if (input === 'drag') {
           await page.mouse.move(point.x, point.y, { steps: 4 })
         } else {
@@ -381,19 +330,7 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
         }
         await expect(page.locator('[data-village-destination]')).toBeVisible()
         // 印は扉のマスに立つ(left/top はマスの左上)。drag では指を扉へ動かして経路を作り直した時にだけ扉へ移る
-        await page.waitForFunction(
-          ({ x, y, size }) => {
-            const found = document.querySelectorAll('[data-world] [data-village-destination]')
-            if (found.length !== 1) return false
-            const style = getComputedStyle(found[0])
-            return (
-              Math.abs(parseFloat(style.left) - x * size) <= 0.5 &&
-              Math.abs(parseFloat(style.top) - y * size) <= 0.5
-            )
-          },
-          { x: door.x, y: door.y, size: point.size },
-          { polling: 'raf', timeout: 2_000 }
-        )
+        await waitMarkerAt(page, door, point.size)
         if (weather === 'rain') {
           await expect(page.locator('[data-village-player]')).toHaveAttribute(
             'data-sprite',
@@ -1320,12 +1257,7 @@ test('舞台を押すと押したマスに小さな赤いピンが立ち、着�
     insideY: point.y > stage.frameY && point.y < stage.frameY + stage.frameH,
   }).toEqual({ insideX: true, insideY: true })
   // 押す位置にボタン・リンク(ミニマップなど)が重なっていないこと(重なっていれば入力側がタップ移動にしない)
-  expect(
-    await page.evaluate(
-      ({ x, y }) => document.elementFromPoint(x, y)?.closest('button, a') === null,
-      point
-    )
-  ).toBe(true)
+  expect(await clearOfControls(page, point)).toBe(true)
   await page.mouse.click(point.x, point.y)
   // 印が立った最初のフレームで位置と大きさをまとめて測る(歩き終えると消えるので、別々に読むと取り逃す)
   const marker = await page.waitForFunction(
@@ -1454,35 +1386,18 @@ test('舞台を押したまま指を動かすとピンは向かう先のマス�
     x: layer.layerX + (cell.x + 0.5) * stage.cell,
     y: layer.layerY + (cell.y + 0.5) * stage.cell,
   })
-  const notOnControl = (p: { x: number; y: number }) =>
-    page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('button, a') === null, p)
-  // 印の位置(ワールド層の中の left/top)が、指定したマスの左上と一致するまで待つ
-  const markerAt = (cell: { x: number; y: number }) =>
-    page.waitForFunction(
-      ({ x, y, size }) => {
-        const found = document.querySelectorAll('[data-world] [data-village-destination]')
-        if (found.length !== 1) return false
-        const style = getComputedStyle(found[0])
-        return (
-          Math.abs(parseFloat(style.left) - x * size) <= 0.5 &&
-          Math.abs(parseFloat(style.top) - y * size) <= 0.5
-        )
-      },
-      { x: cell.x, y: cell.y, size: stage.cell },
-      { polling: 'raf', timeout: 2_000 }
-    )
   const a = pointOf(stage, from)
-  expect(await notOnControl(a)).toBe(true)
+  expect(await clearOfControls(page, a)).toBe(true)
   await page.mouse.move(a.x, a.y)
   await page.mouse.down()
   // まず押したマス A に印が立つ
-  await markerAt(from)
+  await waitMarkerAt(page, from, stage.cell)
   // 歩き出してカメラが動いているので、B を押す位置は今の原点から決める
   const b = pointOf(await currentLayer(), to)
-  expect(await notOnControl(b)).toBe(true)
+  expect(await clearOfControls(page, b)).toBe(true)
   await page.mouse.move(b.x, b.y, { steps: 4 })
   // B へ向かう間、印は B に移っている(通り道の A に着いても下りない)
-  await markerAt(to)
+  await waitMarkerAt(page, to, stage.cell)
   await page.mouse.up()
   // 1 マス 256ms で歩き切る長さに、押してから歩き出すまでの余裕を足して待つ
   const steps = Math.abs(to.x - TOWN_ENTRY.x) + Math.abs(to.y - TOWN_ENTRY.y)
@@ -1566,7 +1481,8 @@ const settledCellPoint = (page: Page, target: { x: number; y: number }) =>
 const clearOfControls = (page: Page, point: { x: number; y: number }) =>
   page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('button, a') === null, point)
 
-// 行き先の印が1つだけ、指定したマスに立つまで待つ(left/topはマスの左上)
+// 行き先の印が1つだけ、指定したマスに立つまで待つ(left/topはマスの左上)。
+// 上の settledCellPoint・clearOfControls と合わせて、扉と舞台のピンのテストも使う
 const waitMarkerAt = (page: Page, target: { x: number; y: number }, cellSize: number) =>
   page.waitForFunction(
     ({ x, y, size }) => {
