@@ -35,7 +35,8 @@ const OUTSIDE_GATES = [
   // window の DOMParser を渡す1行だけで、守るロジックを持たない
   'src/utils/linkedom-browser-stub.ts',
   // ドット絵を文字列の行列で持つ絵のデータ。文字を消した変異体を見抜くには絵を丸ごと写したテストが要るだけで、
-  // 振る舞いは守れない。専用のテストも持たず、ADR 0011 の門でも対象外だった(ファイル別100%で固めるかは決めていない)
+  // 振る舞いは守れない。専用のテストも持たず、ADR 0011 の門でも対象外だった(ファイル別100%で固めるかは決めていない)。
+  // 主人公(actors.ts)は絵の行列と組み立ての呼び出しだけを持ち、組み立ての手順は門の中の compose-player.ts に置く
   'src/lib/pixel/actors.ts',
   'src/lib/pixel/fishing-art.ts',
   'src/lib/pixel/structures.ts',

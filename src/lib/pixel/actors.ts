@@ -4,26 +4,30 @@
 // シートへ焼くときはこの体を32×32の画布へ置き、傘と飛行のコマは余白も使う(compose-player.tsのPLAYER_BODY_*)
 // 輪郭は x(#181818)で描き、白い縁取りは scene.module.css の drop-shadow が付ける
 // ここは絵のデータと、それを組み立てる呼び出しだけを置く。組み立ての手順(頭をずらす・型紙を重ねる・画布へ置く)は compose-player.ts
-import { mirrorX } from './art'
 import type { PixelArt } from './art'
 import {
   alternateFoot,
+  coverAt,
   framed2,
   framed3,
-  mirrorArt,
+  hangLantern,
+  litFishing,
+  mirrorBack,
+  mirrorFront,
   overlayRod,
   partAt,
-  PLAYER_BODY_LEFT,
-  PLAYER_BODY_TOP,
-  PLAYER_FRAME_WIDTH,
   pose,
   stand,
+  STAND_LANTERN_TOP,
+  standLit,
+  swapCanopy,
   toFrame,
   walk,
+  walkLit,
 } from './compose-player'
-import type { Triple } from './compose-player'
+import type { Hang, Swap, Triple } from './compose-player'
 import { flightArt } from './flight-art'
-import { backLantern, frontLantern, LANTERN_BODY_TOP, overlayLantern, sideLantern } from './lantern'
+import { backLantern, frontLantern, sideLantern } from './lantern'
 import {
   umbrellaDownOriginal,
   umbrellaLeftOriginal,
@@ -982,8 +986,6 @@ const rightHoistRod: PixelArt = [
 
 // ---- 画布 ----
 // ここまでの絵はどれも16×24の体の上で組み、最後にcompose-player.tsのtoFrameで32×32の画布の下辺中央へ置く
-const FRAME_BLANK = '.'.repeat(PLAYER_FRAME_WIDTH)
-const SIDE_PAD = '.'.repeat(PLAYER_BODY_LEFT)
 
 // 素の立ち・歩きのコマ(16×24)
 const upFrames: Triple = [
@@ -1009,7 +1011,6 @@ const rightFrames: [PixelArt, PixelArt] = [
 //
 // ここで組むのは、原画に無い傘を出す・しまう途中のコマ(下の見出し)と、夜に重ねるランタンの位置だけ。
 // 原画の立ち姿は、正面は画面の右の手・背面は画面の左の手・横向きは前の手で柄を頭の横に立て、反対の手に灯りを提げる
-const UMBRELLA_WOOD = '^'
 
 // ここから下の天蓋・畳んだ傘は、原画より前に実装が描いたもの。原画に無い出す・しまう途中のコマにだけ使う
 // 開ききる手前・閉じ始め(幅21)
@@ -1061,15 +1062,6 @@ const foldedBack: PixelArt = [
   '.x~~~x',
 ]
 
-// 型紙の(x, y)の文字。型紙の外は'.'(元の絵を残す)として読む
-const cellOf = (patch: PixelArt, x: number, y: number): string =>
-  y >= 0 && y < patch.length && x >= 0 && x < patch[y].length ? patch[y][x] : '.'
-// 元の絵が透明な升にだけ描く。体の後ろへ回る天蓋と柄に使う
-const paintBehind = (art: PixelArt, patch: PixelArt, left: number, top: number): PixelArt =>
-  art.map((row, y) =>
-    [...row].map((ch, x) => (ch === '.' ? cellOf(patch, x - left, y - top) : ch)).join('')
-  )
-
 // ---- 傘を出す・しまう途中のコマ。原画に無いので実装が描いたコマ ----
 // 原画の立ち姿へそのままつながるよう、柄を扱う手は原画と同じ側(正面は画面の右、背面は画面の左)にそろえる。
 //  - 手を懐へ入れる・傘を引き出す(正面)と、柄を縮める・懐へしまう(背面)は、原画より前に描いた素の体のコマを
@@ -1077,44 +1069,11 @@ const paintBehind = (art: PixelArt, patch: PixelArt, left: number, top: number):
 //  - 柄を伸ばす・半開き・開ききる手前(正面)と、下ろす・すぼめる・閉じる(背面)は、原画の立ち姿から天蓋を外して、
 //    上の畳んだ傘・細い釣鐘・開ききる手前の天蓋に替えたもの。体・握った手・柄は原画の立ち姿のまま(13行目から下は同じ)。
 //    描き足したのは、天蓋が隠していた帽子の天辺を閉じる輪郭1行と、替えた天蓋の縁から原画の柄の上端までの柄だけ
+// 天蓋の差し替え(swapCanopy)と素の体の反転(mirrorFront・mirrorBack)は compose-player.ts
 
-// 原画の立ち姿で天蓋と縁の房が占める行(0〜12行)。13行目から下は帽子・体・柄
-const CANOPY_ROWS = 13
-// 置く天蓋。left・topは画布の列・行
-type Cover = { art: PixelArt; left: number; top: number }
-// 天蓋の石突き(最上行の^)を画布のcolumn列へ合わせて置く
-const coverAt = (art: PixelArt, column: number, top: number): Cover => ({
-  art,
-  left: column - art[0].indexOf(UMBRELLA_WOOD),
-  top,
-})
-// 原画の柄の文字(palette.ts)
-const UMBRELLA_SHAFT = '|'
-// 天蓋を差し替えた立ち姿。capTopは天蓋に隠れていた帽子の天辺を閉じる輪郭の行(12行目)、
-// shaftは原画の柄の列で、替えた天蓋の縁の下から12行目まで柄を足す(体の後ろへ回るので透明な升にだけ描く)
-type Swap = { capTop: string; shaft: number }
-const swapCanopy = (stand: PixelArt, { capTop, shaft }: Swap, cover: Cover): PixelArt => {
-  const bare = [
-    ...Array.from({ length: CANOPY_ROWS - 1 }, () => FRAME_BLANK),
-    capTop,
-    ...stand.slice(CANOPY_ROWS),
-  ]
-  const covered = paintBehind(bare, cover.art, cover.left, cover.top)
-  const rim = cover.top + cover.art.length
-  return covered.map((row, y) =>
-    y >= rim && y < CANOPY_ROWS && row[shaft] === '.'
-      ? row.slice(0, shaft) + UMBRELLA_SHAFT + row.slice(shaft + 1)
-      : row
-  )
-}
 // 原画の立ち姿の柄は、正面が23列・背面が8列を縦に上る
 const frontSwap: Swap = { capTop: '...........xxxxxxxxxx...........', shaft: 23 }
 const backSwap: Swap = { capTop: '...........xxxxxxxxxxx..........', shaft: 8 }
-
-// 素の体のコマを左右に反転する。正面の体は0〜14列に描いてあるのでその15列だけ(軸足の交代と同じ)、
-// 背面の体は16列いっぱいに左右対称に描いてあるので16列ごと反転する。どちらも体の中心の列は動かない
-const mirrorFront = (art: PixelArt): PixelArt => art.map(mirrorArt)
-const mirrorBack = (art: PixelArt): PixelArt => mirrorX(art)
 
 // ---- 傘を出して開く(正面) ----
 // 上着の内へ手を入れる
@@ -1332,16 +1291,7 @@ export const playerArt: PlayerFrames = {
 // ここから下は夜だけ使う差分。昼のコマへ灯りを重ねるだけなので、体と服のドットは昼と 1 ドットも変わらない。
 // ランタンの絵そのものは lantern.ts が正本で、ロボット(structures.ts)も同じ 1 枚を提げる。
 // 向きごとに違うのは「その向きで体のどちら側が空いているか」だけなので、
-// ここでは面を選んで重ねる位置を決めるところまでしかしない
-
-// 体のドットは静止コマが 4 行目、歩行コマが 5 行目から始まる。ランタンも同じだけ下げると、
-// 手からの位置がどのコマでも同じになり、コマ送りで灯りだけが跳ねない。
-// コマは画布へ置いてあるので、型紙も行も体の箱の位置(PLAYER_BODY_*)だけずらして重ねる
-const onFrame = (lantern: PixelArt): PixelArt => lantern.map(row => SIDE_PAD + row + SIDE_PAD)
-const standLit = (art: PixelArt, lantern: PixelArt): PixelArt =>
-  overlayLantern(art, onFrame(lantern), PLAYER_BODY_TOP + 4 + LANTERN_BODY_TOP)
-const walkLit = (art: PixelArt, lantern: PixelArt): PixelArt =>
-  overlayLantern(art, onFrame(lantern), PLAYER_BODY_TOP + 5 + LANTERN_BODY_TOP)
+// ここでは面を選んで重ねる位置を決めるところまでしかしない(重ね方は compose-player.ts の standLit・walkLit・hangLantern)
 
 // 傘を差したコマのランタン。原画はランタンを提げた姿で描かれていて、写すときにそのランタンは抜いたので、
 // 抜いた所(原画のガラスがあった所)へlantern.tsの面を重ね直す。原画の灯りは柄を持たない方の手にあり、
@@ -1350,15 +1300,6 @@ const walkLit = (art: PixelArt, lantern: PixelArt): PixelArt =>
 // 体の側に柱が来るよう必要なら左右を反転する。dxは面を体の箱から右へずらす列数、topは面の最上行の画布の行。
 // 灯りを体のドットへ重ねる位置は取れない(overlayLanternが落とす)ので、原画のガラスの中心にいちばん近い、
 // 体に掛からない位置を選んだ(ずれは縦横とも2升以内)。原画のランタンはコマごとに少しずつ動くので、コマごとに持つ
-type Hang = { face: PixelArt; mirrored: boolean; dx: number; top: number }
-const hangLantern = (art: PixelArt, { face, mirrored, dx, top }: Hang): PixelArt =>
-  overlayLantern(
-    art,
-    (mirrored ? mirrorX(face) : face).map(
-      row => '.'.repeat(PLAYER_BODY_LEFT + dx) + row + '.'.repeat(PLAYER_BODY_LEFT - dx)
-    ),
-    top
-  )
 // 原画の正面の立ち・歩き(1行目の3・2・5コマ目)は灯りを描いていないコマなので、
 // 同じ行で灯りを提げている6コマ目のガラスの位置(画布の8列・25〜26行)に合わせた
 const umbrellaHangs = {
@@ -1383,17 +1324,13 @@ const umbrellaHangs = {
 } satisfies Record<'down' | 'up' | 'right' | 'left', Hang[]>
 // 反転した素の体のコマ(手を懐へ入れる・引き出す・縮める・しまう)は、反転前と同じ面を同じ高さで、
 // 体と一緒に反転した位置へ提げる。正面の体は0〜14列を反転したので、16列の面の反転からさらに1列左へずらす
-const standTop = PLAYER_BODY_TOP + 4 + LANTERN_BODY_TOP
-const mirroredFrontHang: Hang = { face: frontLantern, mirrored: true, dx: -1, top: standTop }
-const mirroredBackHang: Hang = { face: backLantern, mirrored: true, dx: 0, top: standTop }
-
-// 釣りのコマは静止コマと同じ高さに、並び(上・下・右)どおりの面を提げる。場面が 9 つあるので
-// 向きとランタンの組をここ 1 箇所に置き、場面ごとに書き並べて面を取り違える余地を無くす
-const litFishing = ([up, down, right]: FishingFrames): FishingFrames => [
-  standLit(up, backLantern),
-  standLit(down, frontLantern),
-  standLit(right, sideLantern),
-]
+const mirroredFrontHang: Hang = {
+  face: frontLantern,
+  mirrored: true,
+  dx: -1,
+  top: STAND_LANTERN_TOP,
+}
+const mirroredBackHang: Hang = { face: backLantern, mirrored: true, dx: 0, top: STAND_LANTERN_TOP }
 
 // 夜のコマ。コマ数も並びも playerArt と同じで、違いは灯りのドットだけ
 export const playerNightArt: PlayerFrames = {

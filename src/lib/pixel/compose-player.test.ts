@@ -4,12 +4,18 @@ import { describe, expect, it } from 'vitest'
 import type { PixelArt } from './art'
 import {
   alternateFoot,
+  coverAt,
   framed2,
   framed3,
+  hangLantern,
+  litFishing,
   mirrorArt,
+  mirrorBack,
+  mirrorFront,
   moveHead,
   overlayPose,
   overlayRod,
+  paintBehind,
   partAt,
   PLAYER_BODY_LEFT,
   PLAYER_BODY_TOP,
@@ -18,9 +24,14 @@ import {
   PLAYER_HEIGHT,
   pose,
   stand,
+  STAND_LANTERN_TOP,
+  standLit,
+  swapCanopy,
   toFrame,
   walk,
+  walkLit,
 } from './compose-player'
+import { backLantern, frontLantern, sideLantern } from './lantern'
 
 // 体の幅(16)の空行と、画布の幅(32)の空行。blanks は空行を n 行並べる
 const BLANK = '.'.repeat(16)
@@ -125,5 +136,80 @@ describe('toFrame と framed', () => {
   it('3コマ・2コマの組を、並びを変えずにそれぞれ画布へ置く', () => {
     expect(framed3([['a'], ['b'], ['c']])).toEqual([toFrame(['a']), toFrame(['b']), toFrame(['c'])])
     expect(framed2([['a'], ['b']])).toEqual([toFrame(['a']), toFrame(['b'])])
+  })
+})
+
+// 画布の幅の行。marks に挙げた列だけに文字を置き、ほかは透明
+const at = (marks: Record<number, string>): string =>
+  Array.from({ length: 32 }, (_, x) => marks[x] ?? '.').join('')
+// 空の画布(32×32)
+const emptyFrame: PixelArt = Array(32).fill(FRAME_BLANK)
+
+describe('paintBehind と coverAt', () => {
+  it('元の絵が透明な升にだけ、left・top へ置いた型紙を描き、型紙の外は透明のまま', () => {
+    const art = ['.....', '.z...', '.....', '.....', '.....']
+    const painted = paintBehind(art, ['AB', 'CD'], 1, 1)
+    expect(painted).toEqual(['.....', '.zB..', '.CD..', '.....', '.....'])
+  })
+  it('天蓋の石突き(最上行の ^)を指定した列へ合わせる', () => {
+    const canopy = ['..^..', '.xxx.']
+    expect(coverAt(canopy, 10, 3)).toEqual({ art: canopy, left: 8, top: 3 })
+  })
+})
+
+describe('swapCanopy', () => {
+  it('0〜12行の天蓋を外して帽子の天辺の行と替えた天蓋を置き、天蓋の縁から12行目までの透明な升に柄を足す', () => {
+    const base = [...Array(13).fill('Q'.repeat(32)), FRAME_BLANK, at({ 5: 'b' })]
+    const capTop = at({ 4: 'x', 5: 'x', 6: 'x' })
+    const cover = coverAt(['.^.', 'x^x', 'xxx'], 5, 2)
+    expect(swapCanopy(base, { capTop, shaft: 5 }, cover)).toEqual([
+      FRAME_BLANK,
+      FRAME_BLANK,
+      at({ 5: '^' }),
+      at({ 4: 'x', 5: '^', 6: 'x' }),
+      at({ 4: 'x', 5: 'x', 6: 'x' }),
+      ...Array(7).fill(at({ 5: '|' })),
+      capTop,
+      FRAME_BLANK,
+      at({ 5: 'b' }),
+    ])
+  })
+})
+
+describe('mirrorFront と mirrorBack', () => {
+  it('正面は各行の 0〜14 列だけ、背面は行全体を左右に反転する', () => {
+    expect(mirrorFront(['abcdefghijklmnoP', 'ABCDEFGHIJKLMNOp'])).toEqual([
+      'onmlkjihgfedcbaP',
+      'ONMLKJIHGFEDCBAp',
+    ])
+    expect(mirrorBack(['abc', 'def'])).toEqual(['cba', 'fed'])
+  })
+})
+
+describe('standLit・walkLit・hangLantern・litFishing', () => {
+  // 左右で違う文字を置いた1行の面。反転とずらした列を見分けるため
+  const face = ['9' + '.'.repeat(14) + '7']
+  // 空の画布の row 行目だけを置き換える
+  const withRow = (row: number, line: string): PixelArt =>
+    emptyFrame.map((blank, y) => (y === row ? line : blank))
+
+  it('静止コマは画布の24行目、歩行コマは25行目から、体の箱の位置(左8列)へ面を重ねる', () => {
+    expect(STAND_LANTERN_TOP).toBe(24)
+    const line = '.'.repeat(8) + face[0] + '.'.repeat(8)
+    expect(standLit(emptyFrame, face)).toEqual(withRow(24, line))
+    expect(walkLit(emptyFrame, face)).toEqual(withRow(25, line))
+  })
+  it('hangLantern は面を体の箱から dx 列ずらし、mirrored なら左右を反転して top 行目へ重ねる', () => {
+    const right = { face, mirrored: false, dx: 2, top: 3 }
+    const left = { face, mirrored: true, dx: -1, top: 0 }
+    expect(hangLantern(emptyFrame, right)).toEqual(withRow(3, at({ 10: '9', 25: '7' })))
+    expect(hangLantern(emptyFrame, left)).toEqual(withRow(0, at({ 7: '7', 22: '9' })))
+  })
+  it('釣りのコマは上・下・右の順に、背面・正面・横向きの面を静止コマの高さへ提げる', () => {
+    expect(litFishing([emptyFrame, emptyFrame, emptyFrame])).toEqual([
+      standLit(emptyFrame, backLantern),
+      standLit(emptyFrame, frontLantern),
+      standLit(emptyFrame, sideLantern),
+    ])
   })
 })
