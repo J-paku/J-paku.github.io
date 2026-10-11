@@ -5,24 +5,25 @@ import type { ReactNode } from 'react'
 import type { CareerFeature, CareerRole, Locale } from '@content/types/content'
 import type { VillageText, WorldSet } from '@content/types/world'
 import type { SheetLayout } from '@/lib/pixel/art'
+// 子の CSS は、子を初めて読み込んだ順に出力される。WorldLayer が描く Lighting・TalkBubble も
+// この並びの位置を保つためだけにここで読み込む(値は使わない。消すと CSS の出力順が変わる)
 import ActionButtons from './components/ActionButtons'
 import ClockModal from './components/ClockModal'
 import Joystick from './components/Joystick'
-import Lighting from './components/Lighting'
+import './components/Lighting'
 import Minimap from './components/Minimap'
 import SpeechBox from './components/SpeechBox'
 import StopModal from './components/StopModal'
-import TalkBubble from './components/TalkBubble'
+import './components/TalkBubble'
 import Weather, { type WeatherSheets } from './components/Weather'
 import WorldMap from './components/WorldMap'
-// Ground・FishingFloat・LampVeilはscene.module.cssを読むので、CSSの出力順を変えないよう他の子より後に読み込む
-import Ground from './components/Ground'
-import FishingFloat from './components/FishingFloat'
-import LampVeil from './components/LampVeil'
+// WorldLayer は scene.module.css を読む Ground・FishingFloat・LampVeil を抱えるので、
+// CSS の出力順を変えないよう他の子より後に読み込む
+import WorldLayer from './components/WorldLayer'
 import { useDayPhase, type PhaseSheets } from './hooks/use-day-phase'
 import { useVillage } from './hooks/use-village'
 import { useWeather } from './hooks/use-weather'
-import { cellShift, initialView } from './utils/initial-view'
+import { initialView } from './utils/initial-view'
 import { pickDialog } from './utils/pick-dialog'
 import styles from './scene.module.css'
 
@@ -177,99 +178,41 @@ function Village({
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
         >
-          {/* data-world は描画済みワールドの印。rAF 側はこれが今のワールドと一致するまでカメラを動かさない */}
           {/* ワープ後の描画待ちが長引いた時だけ rAF 側が data-show を付ける。文言は持たず点滅の点だけ */}
           <div ref={loadingRef} className={styles.loading} aria-hidden='true'>
             <span />
             <span />
             <span />
           </div>
-          <div
-            ref={worldLayerRef}
-            className={styles.world}
-            style={worldStyle}
-            data-world={world.id}
-          >
-            {/* Ground は添字計算にしか使わない(index・count は4段階とも共通)。
-                背景URLは VillagePage が置いた<style>が担う */}
-            <Ground world={world} sprites={sprites} destination={destination} />
-            {/* 夜の灯り。地面の上・目印(z 1)と主人公(z 2)の下に敷く層で、
-                主人公の持つ灯りだけは use-walk-loop が人物と同じ transform を毎フレーム書く
-                (rAF が回るまでの土台として、人物・目印と同じ startShift を渡す)。
-                昼夜の出し分けは Lighting 側の [data-phase='night'] が受け持つ */}
-            <Lighting world={world} playerLightRef={playerLightRef} startShift={startShift} />
-            {/* 水面の浮きと釣り上げた巻物。灯りの上・主人公(z 2)の下に置く。
-                釣っていない間は置くマスが決まらない(at が null)ので何も描かない。
-                糸は主人公の立つマス(from)から浮きまで渡す。
-                釣っている間は歩けないので、立つマスは playerCell のままでよい */}
-            {fishing.at !== null ? (
-              <FishingFloat
-                at={fishing.at}
-                from={playerCell}
-                phase={fishing.phase}
-                sprites={sprites}
-              />
-            ) : null}
-            {/* 自動の移動で飛んでいる間に地上の位置を示す影。主人公の手前の兄弟に置き、主人公(z 2)の下に描く。
-                位置と縮み・data-flying は use-walk-loop が rAF の中で書く(影は浮かせない)。
-                飛んでいない間は data-flying='false' で CSS が隠す */}
-            <div
-              ref={flightShadowRef}
-              data-flight-shadow
-              data-flying='false'
-              className={styles.flightShadow}
-              aria-hidden='true'
-            />
-            <div
-              ref={playerRef}
-              data-village-player
-              data-sprite={startPose.key}
-              className={styles.player}
-              style={playerStyle}
-              aria-hidden='true'
-            />
-            {/* 街灯は柱の立つ下のマスだけが通れず、灯のある上のマス(笠の裏)は通れる。
-                そこに立つと主人公が街灯を塗り潰すので、重なった街灯1本ぶん(上下2マス)を
-                主人公(z 2)の上へ薄く重ねて、街灯の向こうに主人公を透かす。
-                どの街灯に重なるかは規則の層が決め、書き込みは use-walk-loop が rAF の中で行う。
-                吹き出し(z 3)より先に置くので、会話の吹き出しはこの層より手前に出る */}
-            <LampVeil veilRef={lampVeilRef} />
-            {locatorVisible ? (
-              <div
-                ref={locatorRef}
-                className={styles.locator}
-                style={locatorStyle}
-                aria-hidden='true'
-              >
-                <div
-                  className={`${styles.sprite} ${styles.locatorSprite}`}
-                  style={locatorSpriteStyle}
-                />
-              </div>
-            ) : null}
-            {talkAt !== null && talkText !== null && mode !== 'talk' ? (
-              <TalkBubble
-                text={talkText}
-                lang={lang}
-                at={talkAt}
-                actionLabel={talkLabel}
-                onAction={talkAction}
-                kind={talkKind}
-              />
-            ) : null}
-            {hintText !== null ? (
-              <div
-                ref={hintRef}
-                className={styles.hintAnchor}
-                aria-hidden='false'
-                // rAF が回り出すまでの土台。プレイヤーの今のマスへ先に置き、以後は毎フレーム上書きされる
-                style={{ transform: cellShift(playerCell) }}
-              >
-                {/* 頭はマスの上へ半マスはみ出すので、吹き出しはその分だけ上に付ける */}
-                <TalkBubble text={hintText} lang={lang} at={{ x: 0.5, y: -0.5 }} kind='thought' />
-              </div>
-            ) : null}
-          </div>
+          <WorldLayer
+            worldLayerRef={worldLayerRef}
+            world={world}
+            sprites={sprites}
+            lang={lang}
+            mode={mode}
+            destination={destination}
+            playerCell={playerCell}
+            fishing={fishing}
+            locatorVisible={locatorVisible}
+            talkAt={talkAt}
+            talkText={talkText}
+            talkLabel={talkLabel}
+            talkKind={talkKind}
+            talkAction={talkAction}
+            hintText={hintText}
+            worldStyle={worldStyle}
+            startShift={startShift}
+            startPose={startPose}
+            playerStyle={playerStyle}
+            locatorStyle={locatorStyle}
+            locatorSpriteStyle={locatorSpriteStyle}
+            playerRef={playerRef}
+            flightShadowRef={flightShadowRef}
+            playerLightRef={playerLightRef}
+            lampVeilRef={lampVeilRef}
+            locatorRef={locatorRef}
+            hintRef={hintRef}
+          />
           {/* 雨・雪は world 層ではなく枠の子。枠は表示領域(10×9)ぶんしかないので、町 30×20 を
               抱える world 層に敷くより描き替える面積が小さく、毎フレーム動く層の再描画にも巻き込まれない。
               屋内(自室・建物の中)は天井があるので降らせない */}

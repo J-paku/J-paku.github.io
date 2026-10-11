@@ -15,7 +15,7 @@ import ExitLink from './components/ExitLink'
 import Village from './components/Village'
 // Village の非公開スタイルだが、段階ごとの背景 URL 規則をここで組むのでクラス名だけ借りる。
 // import は Village より後に置く — 先に置くと scene.module.css が Village の子より前に出て、
-// CSS の出力順が変わる(Village 側が Ground を最後に読んでいるのと同じ理由)
+// CSS の出力順が変わる(Village 側が Ground を抱える WorldLayer を子の最後に読んでいるのと同じ理由)
 import sceneStyles from './components/Village/scene.module.css'
 import styles from './village-page.module.css'
 import { PHASE_INIT } from './utils/phase-init'

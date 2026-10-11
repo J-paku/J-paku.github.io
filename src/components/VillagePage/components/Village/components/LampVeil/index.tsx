@@ -9,7 +9,7 @@
 'use client'
 import type { RefObject } from 'react'
 // 共通の .sprite(シートの切り出し方と背景 URL の当たり先)を借りるために村の scene を読む。
-// Village 側は Ground・FishingFloat と同じ並びでこのファイルを読み込むので、CSS の出力順は変わらない
+// WorldLayer は Ground・FishingFloat の直後にこのファイルを読み込むので、CSS の出力順は変わらない
 import sceneStyles from '../../scene.module.css'
 import styles from './lamp-veil.module.css'
 

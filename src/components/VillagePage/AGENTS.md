@@ -21,6 +21,7 @@
 ## UI の部位 → フォルダ
 
 画面の部品は 1 部品 1 フォルダで並ぶ。クライアントの `Village` が描く部品は `components/Village/components/` の下にあり、並べる順と渡す値は `components/Village/index.tsx`。
+world 層(`.world`)の中の並びだけは `components/Village/components/WorldLayer/` が持ち、値は `components/Village/index.tsx` から受け取る。
 起動の覆いと一覧への出口の 2 つだけはサーバの `index.tsx` が作るので、この直下の `components/` にある。
 
 | 部位 | フォルダ | 中身を決める所・補足 |
@@ -31,8 +32,9 @@
 | 枠の下端の案内文と吹き出し | `components/Village/components/SpeechBox/`・`components/Village/components/TalkBubble/` | 案内文は `role='status'` の一言。吹き出しは world 層の中に置き、話しかける物の上の台詞と、話せる相手がいない時の頭上の考え事の両方を描く |
 | 会話窓と卓上時計の窓(枠に重ねる窓) | `components/Village/components/StopModal/`・`components/Village/components/ClockModal/` | 会話窓は地点の説明と釣りの結果を 1 か所で描く。どちらを出すかは `components/Village/utils/pick-dialog.ts` |
 | 地図(ミニマップ・拡大地図) | `components/Village/components/Minimap/`・`components/Village/components/WorldMap/`・`components/Village/components/MapSvg/` | MapSvg は両方の地図が縮尺だけ変えて使う地形の SVG。番号の札と凡例は WorldMap の中 |
+| world 層(カメラと一緒に動く層) | `components/Village/components/WorldLayer/` | `.world` とその中身(地面・灯り・釣りの浮き・飛ぶ間の影・主人公・街灯の重ね・目印・吹き出し)を重なりの順に並べる。値は props で受けるだけでフックを呼ばない |
 | 地面と行き先の赤いピン | `components/Village/components/Ground/` | 床タイル・建物の正面・行き先の印。動かないマスは 1 枚の箱にまとめてある |
-| 飛ぶ間の地上の影 | `components/Village/index.tsx`(`.player` の直前の `.flightShadow`。部品のフォルダは無い) | 自動移動で飛ぶ間に地上の位置へ落とす影(`data-flight-shadow`)。位置・大きさ・`data-flying` は歩行ループが DOM へ直接書く(守ること 5)。飛ぶ規則は [../../../docs/architecture/village.md](../../../docs/architecture/village.md) の「自動移動の直線飛行」 |
+| 飛ぶ間の地上の影 | `components/Village/components/WorldLayer/`(`.player` の直前の `.flightShadow`。専用の部品のフォルダは無い) | 自動移動で飛ぶ間に地上の位置へ落とす影(`data-flight-shadow`)。位置・大きさ・`data-flying` は歩行ループが DOM へ直接書く(守ること 5)。飛ぶ規則は [../../../docs/architecture/village.md](../../../docs/architecture/village.md) の「自動移動の直線飛行」 |
 | 夜の灯りと街灯の重ね | `components/Village/components/Lighting/`・`components/Village/components/LampVeil/` | 主人公の灯りと街灯の重ねは歩行ループが DOM へ直接書く(守ること 5・8) |
 | 雨・雪 | `components/Village/components/Weather/` | world 層ではなく枠の子。屋内では描かない |
 | 釣りの浮き・糸・巻物 | `components/Village/components/FishingFloat/` | 釣っている間だけ出る。進み具合は `components/Village/hooks/use-village-overlay/use-village-fishing.ts` |

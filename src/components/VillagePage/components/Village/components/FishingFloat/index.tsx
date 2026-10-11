@@ -12,7 +12,7 @@ import { FISHING_SWING_MS } from '@/lib/village/player-pose'
 import type { FishingPhase } from '../../hooks/use-village-overlay/use-village-fishing'
 import { spriteIndex, spriteStyle, type SpriteStyle } from '../../utils/sprite-style'
 // 共通の .sprite(シートの切り出し方と背景 URL の当たり先)を借りるために村の scene を読む。
-// Village 側は Ground と同じ並びでこのファイルを読み込むので、CSS の出力順は変わらない
+// WorldLayer は Ground の直後にこのファイルを読み込むので、CSS の出力順は変わらない
 import sceneStyles from '../../scene.module.css'
 import styles from './fishing-float.module.css'
 
