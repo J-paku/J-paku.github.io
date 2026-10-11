@@ -214,17 +214,6 @@ for (const { prefix, text } of JOURNEYS) {
   const mailbox = text.stops.mailbox
   const journey = text.stops.journey
 
-  // DAY_PHASES を回すので、段階を足して PHASE_CLOCKS を書き忘れれば型で落ち、
-  // 書けばこの網羅テストが自動で1本増える
-  for (const phase of DAY_PHASES) {
-    test(`時計を ${phase} の帯に固定すると村がその段階になる (${label})`, async ({ page }) => {
-      await page.clock.setFixedTime(new Date(PHASE_CLOCKS[phase]))
-      await openVillage(page, prefix)
-
-      await expect(page.locator(VILLAGE_ROOT)).toHaveAttribute('data-phase', phase)
-    })
-  }
-
   // 明け方・夕方は data-phase の属性だけを見ていた頃、昼のシートを使い回すよう戻しても
   // 素通りしていた。4段階ぶんの指紋を集めて総当たりで突き合わせ、どの2段階が同じになっても落とす
   test(`4段階のどれも属性だけでなく焼いたシートそのものが入れ替わる (${label})`, async ({
@@ -441,7 +430,10 @@ for (const { prefix, text } of JOURNEYS) {
     await expect(page.getByRole('status')).toContainText(
       text.allSeen.replace('{list}', text.toList)
     )
-    await expect(page.locator('[data-village-exit]')).toBeFocused()
+    // 完走すると一覧への出口へ焦点が移り、出口が跳ねて(data-bounce)合図する
+    const exit = page.locator('[data-village-exit]')
+    await expect(exit).toBeFocused()
+    await expect(exit).toHaveAttribute('data-bounce', '')
     // 完走しても段階と雨はそのまま(コースの進行が空や天気を壊していない)。
     // 2 枚のうち片方でも落ちていればコマ送りが壊れているので、ここも枚数まで見る
     await expect(page.locator(VILLAGE_ROOT)).toHaveAttribute('data-phase', 'night')

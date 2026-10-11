@@ -405,7 +405,7 @@ for (const { prefix, text } of JOURNEYS) {
       await page.mouse.move(x, y)
       await expect(custom, 'スティックの右 1 回でカスタム時間').toBeFocused()
       // 中央で離したことを 1 フレーム以上読ませてから倒し直す(押し直しとして数えさせる)
-      await page.waitForTimeout(50)
+      await waitTwoFrames(page)
       await page.mouse.move(x + 30, y)
       await waitTwoFrames(page)
       await page.mouse.move(x, y)
@@ -446,10 +446,13 @@ for (const { prefix, text } of JOURNEYS) {
       await page.mouse.move(x, y)
       await page.mouse.down()
       await page.mouse.move(x + 30, y)
+      // 押した瞬間の 1 つを処理させてから数える。繰り返しはまだ始まらないので、ここではちょうど 1 つ。
+      // 1 以上で見ると、押した瞬間に 2 つ進む二重の発火まで通ってしまう
+      await waitTwoFrames(page)
       await expect
-        .poll(() => hourStepsFrom18(clockWindow), { message: '押した瞬間に 1 つ進む' })
-        .toBeGreaterThanOrEqual(1)
-      await page.waitForTimeout(600)
+        .poll(() => hourStepsFrom18(clockWindow), { message: '押した瞬間にちょうど 1 つ進む' })
+        .toBe(1)
+      // 繰り返しが始まるまでの待ちは、次の poll が 2 以上になるまで待つことで兼ねる
       await expect
         .poll(() => hourStepsFrom18(clockWindow), { message: '倒し続けると繰り返して進む' })
         .toBeGreaterThanOrEqual(2)

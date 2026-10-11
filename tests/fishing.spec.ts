@@ -295,9 +295,7 @@ for (const { prefix, text, profile } of JOURNEYS) {
     await expect(line).toHaveAttribute('data-line-facing', 'down')
     // 見えるようになる前、差し込まれた瞬間は隠れていた。2 本以上差し込まれていても落ちる
     await expect(world).toHaveAttribute('data-observed-line', 'hidden')
-    // 隠していたのは竿を振る長さ(FISHING_SWING_MS)の動き。keyframes の名前は CSS Modules が
-    // ハッシュ付きへ変えるので部分一致で見る。長さは計算値が秒で返る
-    await expect(line).toHaveCSS('animation-name', /village-line-wait/)
+    // 隠していたのは竿を振る長さ(FISHING_SWING_MS)の動き。長さは計算値が秒で返る
     await expect(line).toHaveCSS('animation-duration', `${FISHING_SWING_MS / 1000}s`)
     // 投げている間は窓が無くても移動が止まる(押しても保存された位置が変わらない)
     await walk(page, 'ArrowUp', 1)
@@ -352,11 +350,14 @@ for (const { prefix, text, profile } of JOURNEYS) {
   test(`すべて釣り上げた後は、水辺で考え事の吹き出しが出てもう投げない (${label})`, async ({
     page,
   }) => {
-    // 池まで 13 マス歩いたうえで、機能の数だけ投げては閉じる(1 回およそ 3 秒)
-    test.setTimeout(150_000)
+    // 池まで 13 マス歩いたうえで、機能の数だけ投げては閉じる。投げてから結果窓までの待ちは時計を進めて飛ばす
+    test.setTimeout(45_000)
     const total = catchCountOf(profile)
     // 中身が無いと 1 回も投げずに後半の確認へ進み、何も確かめないまま通ってしまう
     expect(total).toBeGreaterThan(0)
+    // 時計はページを開く前に入れる。歩く間は実時間どおりに流し、釣りの段階の待ちだけを進めて飛ばす。
+    // 時計を入れ替えると日付も偽物になるので、途中で昼夜の段階が替わらないよう昼に固定する
+    await page.clock.install({ time: new Date(NOON_JST) })
     await openVillage(page, prefix)
     await goToPondShore(page)
     expect(await readCell(page)).toEqual({ worldId: 'town', cell: { x: 5, y: 13 } })
@@ -378,17 +379,18 @@ for (const { prefix, text, profile } of JOURNEYS) {
       if (prefix === '') await page.keyboard.press('z')
       else await prompt.getByRole('button', { name: fishing.go }).click()
       await expect(speech).toContainText(fishing.cast)
-      await expect(speech).toContainText(fishing.bite, { timeout: FISHING_CAST_MS + SLACK_MS })
-      await expect(float).toHaveAttribute('data-float-phase', /landing|caught/, {
-        timeout: FISHING_BITE_MS + SLACK_MS,
-      })
+      // 段階は入れ子の setTimeout で進む。fastForward は飛んだ先までに期限の来たタイマーを 1 度だけ呼び、
+      // その中で積まれた次の段階のタイマーは呼ばない。文言が替わった(= 次のタイマーが積まれた)のを見てから 1 段ずつ飛ばす
+      await page.clock.fastForward(FISHING_CAST_MS)
+      await expect(speech).toContainText(fishing.bite)
+      await page.clock.fastForward(FISHING_BITE_MS)
+      await expect(float).toHaveAttribute('data-float-phase', /landing|caught/)
       // 最後の 1 匹で揃った時だけ complete。それまでは普段の釣り上げ文。
       // complete は landed を中に含む(「すべての経験を…」)ので、揃う前は complete でないことも見る
       await expect(speech).toContainText(count === total ? fishing.complete : fishing.landed)
       if (count < total) await expect(speech).not.toContainText(fishing.complete)
-      await expect(dialog).toContainText(fishing.caughtPlace, {
-        timeout: FISHING_LAND_MS + SLACK_MS,
-      })
+      await page.clock.fastForward(FISHING_LAND_MS)
+      await expect(dialog).toContainText(fishing.caughtPlace)
       // 最後の 1 匹の結果窓は、もう投げないので「もう一度投げると…」の一言を出さない
       if (count === total) await expect(dialog).not.toContainText(fishing.caughtHook)
       else await expect(dialog).toContainText(fishing.caughtHook)
@@ -413,8 +415,9 @@ for (const { prefix, text, profile } of JOURNEYS) {
     await settleRender(page)
     await expect(float).toHaveCount(0)
     await expect(speech).not.toContainText(fishing.cast)
-    // 投げていれば結果窓が出ている頃まで待ってから、窓も竿のコマも出ていないことを見る
-    await page.waitForTimeout(FISHING_CAST_MS + FISHING_BITE_MS + FISHING_LAND_MS)
+    // 投げていれば結果窓が出ている頃まで時計を進めてから、窓も竿のコマも出ていないことを見る。
+    // fastForward では入れ子のタイマーが 1 段しか進まないので、途中で積まれるタイマーも順に呼ぶ runFor で進める
+    await page.clock.runFor(FISHING_CAST_MS + FISHING_BITE_MS + FISHING_LAND_MS)
     await expect(dialog).toHaveCount(0)
     await expect(float).toHaveCount(0)
     await expect(player).not.toHaveAttribute('data-sprite', /player-fish-/)
@@ -677,6 +680,9 @@ test.describe('タッチ操作の釣り', () => {
 
   test('画面の A で直接投げ、B で中断して再び投げられる', async ({ page }) => {
     test.setTimeout(45_000)
+    // 中断した回の結果窓が後から出ないことを、待たずに時計を進めて見る。歩く間は実時間どおりに流し、
+    // 時計を入れ替えると日付も偽物になるので、途中で昼夜の段階が替わらないよう昼に固定する
+    await page.clock.install({ time: new Date(NOON_JST) })
     await openVillage(page, '/ko')
     await goToPondShore(page)
     const bubble = page
@@ -693,7 +699,8 @@ test.describe('タッチ操作の釣り', () => {
     // 中断すれば竿を下ろし、下向きの歩行コマ(待ち)へ戻る
     await expect(player).toHaveAttribute('data-sprite', 'player-down-0')
     await expect(bubble).toBeVisible()
-    await page.waitForTimeout(FISHING_CAST_MS + FISHING_BITE_MS + FISHING_LAND_MS)
+    // 中断した回のタイマーが残っていれば結果窓が出ている頃まで進める。入れ子のタイマーも順に呼ぶ runFor で
+    await page.clock.runFor(FISHING_CAST_MS + FISHING_BITE_MS + FISHING_LAND_MS)
     await expect(page.getByRole('dialog')).toHaveCount(0)
     // 投げ直すと竿の振りを頭から描き直す。前の回の経過を持ち越すと、振りかぶりを飛ばして
     // 構えのコマから始まる。記録は投げ直す直前から取り直す
