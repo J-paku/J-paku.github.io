@@ -5,6 +5,7 @@
 // このファイルは React との継ぎ目(ref・effect・依存配列)だけを持ち、1 フレームの中身は utils/walk-loop/ の部品へ任せる。
 // 部品を平らな関数にしておくと、どの値がフレームをまたいで残るのか(WalkFrameState)が 1 か所で見える
 import { useCallback, useEffect, useRef } from 'react'
+import { flushSync } from 'react-dom'
 import type { Cell, Spot } from '@content/types/world'
 import type { SheetLayout } from '@/lib/pixel/art'
 import { umbrellaBusy } from '@/lib/village/player-pose'
@@ -151,10 +152,12 @@ export function useWalkLoop({
   )
 
   // 飛び立った時、立っていたマスの会話地点を下ろす。吹き出しとその行動ボタンは会話地点から描くので一緒に消える。
-  // 歩きなら次のマスへの到着が下ろすが、飛ぶ間は着地まで到着しないので、飛び立った 1 回だけここで下ろす
+  // 歩きなら次のマスへの到着が下ろすが、飛ぶ間は着地まで到着しないので、飛び立った 1 回だけここで下ろす。
+  // rAF の中の setState は次のタスクまで描かれず、同じフレームで書く data-flying='true' と食い違って
+  // 出発の吹き出しが 1 フレーム残るので、flushSync でこのフレームの中に消す
   const leaveSpot = useCallback(() => {
     runtime.activeSpot.current = null
-    setActiveSpot(null)
+    flushSync(() => setActiveSpot(null))
   }, [runtime, setActiveSpot])
 
   // 傘を開け閉めしている最中か。その間は新しい移動を始めない。時刻で決まるので毎フレーム聞き直す

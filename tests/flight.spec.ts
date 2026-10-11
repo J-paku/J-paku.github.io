@@ -47,6 +47,16 @@ const CAMERA_SLACK = 1.2
 const ROUND_PX = 2
 // 箱が枠の中に収まるかを見る時に、小数 px の丸めとして許すはみ出し(px)
 const EDGE_PX = 1
+// 写した飛ぶ長さが、距離で決まる長さから外れてよい幅(ms)。飛ぶ長さは、飛ぶ直前に地上で写したフレームから
+// 降りた後の最初のフレームまでで測る。飛び立った最初のフレームから測ると、飛び立ちのフレーム(地図を閉じる処理と
+// 飛び立ちの処理が重なる重いフレーム)の長さだけ短く出る。2026-10-11 の CPU 減速の probe 実測(経歴碑へ飛ぶ移動を
+// 4 倍・6 倍の減速で各 20 回)では、飛び立った最初のフレームから測ったずれはどれも短い側で、4 倍で最大 92ms・
+// 6 倍で最大 208.8ms(20 回中 5 回が 100ms 超え)。そのずれに飛び立ちのフレームの長さを足すと 40 回すべて
+// 24.5〜24.6ms で、着地の側の 2 つの間隔は最長 16.8ms だった。いまの測り方ではずれが 4 倍・6 倍の減速でも約 25ms で
+// 一定なので、20fps(1 フレーム 50ms)の 2 フレーム分の固定値にし、測ったフレームの長さからは決めない(重いランナーで
+// 幅が広がり、取り違えを見逃すため。最長の 1 フレーム × 2 + 5ms の幅は 6 倍の減速で落ち、4 倍でも幅 38.6ms に対し
+// ずれ 58.7ms の回があった)。1 フレームに 2 回進める取り違えは飛ぶ長さが半分(約 871ms 短く)になり、この幅でも落ちる
+const FLIGHT_SPAN_SLACK_MS = 100
 
 // ---- 村のデータ ----
 
@@ -381,6 +391,22 @@ const flightOf = (samples: readonly FrameSample[]): FlightFrames => {
   return { before: samples[first - 1], flying, landed }
 }
 
+// 飛ぶ間のフレームのうち hit に当たったもの。index は飛ぶ間の何枚目か(0 が飛び立った最初のフレーム)で、
+// 落ちた時に「飛び立ち直後の 1 枚だけ残った」のか「途中からずっと出ていた」のかを読み分けられるように添える
+type FlyingHit = { index: number; at: number; bubbles: number; dialogs: number }
+const flyingHits = (flying: readonly FrameSample[], hit: (sample: FrameSample) => boolean) =>
+  flying.flatMap((sample, index): FlyingHit[] => {
+    if (!hit(sample)) return []
+    return [{ index, at: sample.at, bubbles: sample.bubbles, dialogs: sample.dialogs }]
+  })
+
+// 当たったフレームの index と at をメッセージの後ろへ書き足す。当たりが無ければ label のまま
+const hitsNote = (label: string, flying: readonly FrameSample[], hits: readonly FlyingHit[]) => {
+  if (hits.length === 0) return label
+  const where = hits.map(h => `index ${h.index} at ${h.at.toFixed(1)}ms`).join('・')
+  return `${label}(飛ぶ ${flying.length} フレームのうち ${where})`
+}
+
 // ---- 村の操作 ----
 
 // 保存された現在地(ワールドとマス)を読む
@@ -506,36 +532,176 @@ const waitForTakeOff = (page: Page) =>
 
 // ---- 地図で同じワールドの遠い地点へ ----
 
-test('地図で遠い地点を選ぶと飛んで向かい、降りると歩く姿と地上の影に戻り、降りたマスだけが保存される', async ({
+// 自宅前から経歴碑へ地図で飛ぶ 1 回を写し、その記録から飛ぶ形を段(test.step)ごとに確かめる。
+// 同じ移動を確かめることごとに走らせ直さない(所要と、並列に走る他のテストへの負荷を減らす)。
+// 段は記録を読むだけで村を操作しないので、並べる順に意味は無い。前の段が落ちると後の段は走らない
+test('地図で遠い地点を選んで飛ぶ 1 回の記録で、降りた姿と保存・道筋・速さ・浮き・カメラ・枠を確かめる', async ({
   page,
 }) => {
   // 経歴碑は自宅前から縦の差の方が大きい上にあるので、上を向いて飛ぶ
   const rise = TOWN_ENTRY.y - MONUMENT.y
   expect(rise, '経歴碑は自宅前の上寄り').toBeGreaterThan(Math.abs(MONUMENT.x - TOWN_ENTRY.x))
-  const { samples } = await travelToMonument(page)
-  const { before, flying } = flightOf(samples)
-  expect(before.flying, '飛ぶ前の影は地上の印').toBe('false')
-  // 飛ぶ間は上向きの雲に座った 2 コマを交互に出す
-  const flyingSprites = distinct(flying.map(s => s.sprite))
-  expect(flyingSprites, '飛ぶ間のコマ').toEqual(['player-fly-up-0', 'player-fly-up-1'])
-  // 飛ぶコマと影の印は、記録したどのフレームでも揃う(片方だけ書き忘れる・遅れる配線はここで落ちる)
-  const mismatched = samples.filter(s => isFlyingSprite(s) !== (s.flying === 'true'))
-  expect(mismatched, '飛ぶコマと影の印が食い違ったフレーム').toEqual([])
-  // 飛んでいる間も歩行ループは眠らない
-  const asleep = flying.filter(s => s.loop !== 'running')
-  expect(asleep, '飛んでいる間に眠ったフレーム').toEqual([])
-  // 通り過ぎるマスでは到着せず(保存位置が変わらない)、降りたマスで 1 回だけ到着する
-  expect(savedCells(samples), '保存位置が変わった順').toEqual([
-    { worldId: town.id, cell: TOWN_ENTRY },
-    { worldId: town.id, cell: MONUMENT },
-  ])
-  // 降りた後は上向きの立ち姿と、地上の影
-  const rest = samples[samples.length - 1]
-  expect(rest.sprite, '降りた後のコマ').toBe('player-up-0')
-  expect(rest.flying, '降りた後の影').toBe('false')
-  await expect(page.locator(PLAYER)).toHaveAttribute('data-sprite', 'player-up-0')
-  await expect(page.locator(SHADOW)).toHaveAttribute('data-flying', 'false')
-  expect(await readCell(page)).toEqual({ worldId: town.id, cell: MONUMENT })
+  // 自宅前から経歴碑への直線は自宅の上を通る。配置が変わって通らなくなったら、測る前にここで落とす
+  const blocked = blockedOnSegment(town, TOWN_ENTRY, MONUMENT)
+  expect(blocked.length, '直線が歩いては立てないマスの上を通る').toBeGreaterThan(0)
+  const { cell, samples } = await travelToMonument(page)
+  const { before, flying, landed } = flightOf(samples)
+
+  await test.step('飛んで向かい、降りると歩く姿と地上の影に戻り、降りたマスだけが保存される', async () => {
+    expect(before.flying, '飛ぶ前の影は地上の印').toBe('false')
+    // 飛ぶ間は上向きの雲に座った 2 コマを交互に出す
+    const flyingSprites = distinct(flying.map(s => s.sprite))
+    expect(flyingSprites, '飛ぶ間のコマ').toEqual(['player-fly-up-0', 'player-fly-up-1'])
+    // 飛ぶコマと影の印は、記録したどのフレームでも揃う(片方だけ書き忘れる・遅れる配線はここで落ちる)
+    const mismatched = samples.filter(s => isFlyingSprite(s) !== (s.flying === 'true'))
+    expect(mismatched, '飛ぶコマと影の印が食い違ったフレーム').toEqual([])
+    // 飛んでいる間も歩行ループは眠らない
+    const asleep = flying.filter(s => s.loop !== 'running')
+    expect(asleep, '飛んでいる間に眠ったフレーム').toEqual([])
+    // 通り過ぎるマスでは到着せず(保存位置が変わらない)、降りたマスで 1 回だけ到着する
+    expect(savedCells(samples), '保存位置が変わった順').toEqual([
+      { worldId: town.id, cell: TOWN_ENTRY },
+      { worldId: town.id, cell: MONUMENT },
+    ])
+    // 降りた後は上向きの立ち姿と、地上の影
+    const rest = samples[samples.length - 1]
+    expect(rest.sprite, '降りた後のコマ').toBe('player-up-0')
+    expect(rest.flying, '降りた後の影').toBe('false')
+    await expect(page.locator(PLAYER)).toHaveAttribute('data-sprite', 'player-up-0')
+    await expect(page.locator(SHADOW)).toHaveAttribute('data-flying', 'false')
+    expect(await readCell(page)).toEqual({ worldId: town.id, cell: MONUMENT })
+  })
+
+  await test.step('出発と着地を結ぶ直線の上を飛び、歩いては通れない家の上も越える', () => {
+    const grounds = flying.map(s => groundOf(s, cell))
+    const placed = grounds.map(p => onSegment(p, TOWN_ENTRY, MONUMENT))
+    const strayed = placed.filter(p => p.off > LINE_TOLERANCE)
+    expect(strayed, '出発と着地を結ぶ線分から外れた影').toEqual([])
+    // 出発から着地へ戻らずに進み、最後は降りるマスの上
+    const backwards = placed.filter((p, i) => i > 0 && p.along < placed[i - 1].along - 1e-3)
+    expect(backwards, '後戻りした影').toEqual([])
+    const landingGap = distanceBetween(grounds[grounds.length - 1], MONUMENT)
+    expect(landingGap, '飛ぶ最後の影から降りるマスまで').toBeLessThanOrEqual(LINE_TOLERANCE)
+    // 歩いては立てないマスの上を通ったフレームがある(歩けば遠回りする道を、飛んで真っすぐ越えた)
+    const overBlocked = grounds.filter(p => !isWalkable(town, cellUnder(p)))
+    expect(overBlocked.length, '家の上を通ったフレームの数').toBeGreaterThan(0)
+  })
+
+  await test.step('飛ぶ速さは飛び立ちと降りる前に緩く真ん中で最も速く、降りる前は横にも縦にも緩み、飛ぶ長さは距離で決まる', () => {
+    const start = flying[0].at
+    const span = landed.at - start
+    // 飛ぶ間と、降りた後の最初のフレーム。隣り合う 2 フレームの間の長さの最長が 1 フレームの揺れ
+    const frames = [...flying, landed]
+    const longest = Math.max(...frames.slice(1).map((s, i) => s.at - frames[i].at))
+    // 出発のマスから影までの直線距離と、影から主人公が浮いた高さ(どちらもマス)
+    const travelled = (sample: FrameSample) => distanceBetween(groundOf(sample, cell), TOWN_ENTRY)
+    const lifted = (sample: FrameSample) => groundOf(sample, cell).y - drawnOf(sample, cell).y
+    // 飛ぶ長さの ratio(0 が飛び立ち・1 が降りた後の最初のフレーム)の時点の値。その時刻を挟む 2 フレームを
+    // 時刻で線形に補う。区切りを近くのフレームへ寄せないので、遅いフレームでも区切りが前後へずれない
+    const valueAt = (ratio: number, value: (sample: FrameSample) => number) => {
+      // 浮動小数点の丸めで降りた後のフレームを越えないように抑える
+      const at = Math.min(start + span * ratio, landed.at)
+      const after = frames.findIndex(s => s.at >= at)
+      if (after < 0) throw new Error(`${at}ms より後に記録したフレームが無い`)
+      if (after === 0) return value(frames[0])
+      const prev = frames[after - 1]
+      const next = frames[after]
+      const share = (at - prev.at) / (next.at - prev.at)
+      return value(prev) + (value(next) - value(prev)) * share
+    }
+    // ratios の隣り合う区切りの間に、value が増えた量
+    const gains = (ratios: readonly number[], value: (sample: FrameSample) => number) => {
+      const points = ratios.map(ratio => valueAt(ratio, value))
+      return points.slice(1).map((point, i) => point - points[i])
+    }
+    // 時間の前・真ん中・後ろの 1/3 に進んだマス数。今の曲線(離着陸で速さも加速度も 0 の五次)では 17 : 47 : 17。
+    // 等速なら 1 : 1 : 1、飛び立ちが最も速い減速なら前が最も長く、着地へ向けて速まるなら後ろが最も長い
+    const [firstThird, middleThird, lastThird] = gains([0, 1 / 3, 2 / 3, 1], travelled)
+    expect(firstThird, '前の 1/3 に進んだマス数').toBeGreaterThan(0)
+    expect(lastThird, '後ろの 1/3 に進んだマス数').toBeGreaterThan(0)
+    expect(middleThird, '真ん中の 1/3 と前の 1/3 の 2 倍').toBeGreaterThan(firstThird * 2)
+    expect(middleThird, '真ん中の 1/3 と後ろの 1/3 の 2 倍').toBeGreaterThan(lastThird * 2)
+    // 前と後ろの 1/3 は同じだけ進む。2 つの区切りがそれぞれ最長の 1 フレームずれ、その間を最も速く進んだとしても
+    // 収まる差まで許す。1 フレームの速さは、その間に進んだマス数を間の長さ(ms)で割る
+    const speedBetween = (from: FrameSample, to: FrameSample) =>
+      (travelled(to) - travelled(from)) / (to.at - from.at)
+    const fastest = Math.max(...frames.slice(1).map((s, i) => speedBetween(frames[i], s)))
+    const allowed = fastest * longest * 2
+    const uneven = Math.abs(firstThird - lastThird)
+    expect(uneven, '前と後ろの 1/3 に進んだマス数の差').toBeLessThanOrEqual(allowed)
+    // 降りる前の 1/4 は、横(影の進み)も縦(浮いた高さ)も速さを落としながら座ったまま降りる。
+    // 今の曲線では 3/4 の時点で残りの距離は全体の約 10%、高さは最も高い時の約 42% で、続く 1/8 ずつに
+    // 進む距離は全体の約 8.7% → 1.6%、下りる高さは最も高い時の約 34% → 8%。後の 1/8 は前の 1/8 の半分に届かない
+    const [earlyAlong, lateAlong] = gains([3 / 4, 7 / 8, 1], travelled)
+    const [earlyDrop, lateDrop] = gains([3 / 4, 7 / 8, 1], s => -lifted(s))
+    expect(lateAlong, '降りる前の最後の 1/8 に進んだマス数').toBeLessThan(earlyAlong / 2)
+    expect(lateDrop, '降りる前の最後の 1/8 に下りたマス数').toBeLessThan(earlyDrop / 2)
+    // 飛ぶ直前に地上で写したフレームから降りた後の最初のフレームまでの長さは、直線距離から決まる長さと
+    // FLIGHT_SPAN_SLACK_MS の内で一致する。飛び立った最初のフレームから測らないのは、飛び立ちのフレームの
+    // 長さだけ短く出るため(実測は FLIGHT_SPAN_SLACK_MS の注釈)。
+    // 歩行ループへ渡す経過の取り違え(秒と ms・1 フレームに 2 回進める)はここで落ちる。
+    // 幅は最長のフレームから決めない。決めると重いランナーほど幅が広がり、取り違えを通してしまう
+    const expected = flightDurationMs(distanceBetween(MONUMENT, TOWN_ENTRY))
+    const flown = landed.at - before.at
+    const drift = Math.abs(flown - expected)
+    const note = `飛んだ ${flown}ms・距離で決まる長さ ${expected}ms・最長の 1 フレーム ${longest}ms`
+    expect(drift, note).toBeLessThanOrEqual(FLIGHT_SPAN_SLACK_MS)
+  })
+
+  await test.step('飛んでいる間は主人公が影より上に浮き、影は高いほど小さく、降りると影と重なる', () => {
+    const onePx = 1 / cell
+    // 浮くのは上へだけ。横にはずれず、影より下にも描かない
+    const sideways = flying.filter(s => Math.abs(drawnOf(s, cell).x - groundOf(s, cell).x) > onePx)
+    expect(sideways, '主人公と影が横にずれたフレーム').toEqual([])
+    const sunk = flying.filter(s => drawnOf(s, cell).y > groundOf(s, cell).y + onePx)
+    expect(sunk, '主人公が影より下に描かれたフレーム').toEqual([])
+    // 飛ぶ時間の真ん中に最も近いフレームでは高く浮き、影は等倍より小さい
+    const middleAt = (flying[0].at + landed.at) / 2
+    const fromMiddle = flying.map(s => Math.abs(s.at - middleAt))
+    const middle = flying[fromMiddle.indexOf(Math.min(...fromMiddle))]
+    const lift = groundOf(middle, cell).y - drawnOf(middle, cell).y
+    expect(lift, '飛ぶ途中で影より上に浮く高さ(マス)').toBeGreaterThan(1)
+    expect(middle.shadow?.scale, '飛ぶ途中の影の倍率').toBeLessThan(0.9)
+    // 降りて眠った後は主人公と影が同じ位置に重なり、影は等倍
+    const rest = samples[samples.length - 1]
+    const restGap = {
+      x: Math.abs(drawnOf(rest, cell).x - groundOf(rest, cell).x),
+      y: Math.abs(drawnOf(rest, cell).y - groundOf(rest, cell).y),
+    }
+    expect(restGap.x, '降りた後の主人公と影の横の差').toBeLessThanOrEqual(onePx)
+    expect(restGap.y, '降りた後の主人公と影の縦の差').toBeLessThanOrEqual(onePx)
+    expect(rest.shadow?.scale, '降りた後の影の倍率').toBeCloseTo(1, 2)
+  })
+
+  await test.step('飛ぶ間のカメラは主人公に付いて動き、1 フレームで影と主人公の動いた分を超えて跳ばない', () => {
+    // 飛ぶ直前のフレームから、降りて眠るまでの隣り合うフレームを比べる
+    const span = samples.slice(samples.indexOf(before))
+    const steps = span.slice(1).map((sample, i) => ({
+      at: sample.at,
+      camera: stepOf(span[i].camera, sample.camera, 'ワールドの層'),
+      ground: stepOf(span[i].shadow, sample.shadow, '影'),
+      drawn: stepOf(span[i].player, sample.player, '主人公'),
+    }))
+    // カメラは地上の影と浮いた主人公のちょうど間(浮いた高さの半分だけ上)を狙うので、1 フレームに動く距離は
+    // 影と主人公の動いた距離の大きい方を超えない。影だけと比べないのは、上へ飛ぶ時は持ち上げの分だけカメラが
+    // 影より速く動くため(経歴碑へは飛び立ちで影の約 1.76 倍)。追従が遅れて 1.5 マスで補間をやめ、
+    // 目標へ一気に飛ぶ壊れ方はここで落ちる
+    const jumps = steps.filter(
+      s => s.camera > Math.max(s.ground, s.drawn) * CAMERA_SLACK + ROUND_PX
+    )
+    expect(jumps, '1 フレームで跳んだカメラ(px)').toEqual([])
+    // 対照: 層の transform を写せていて、カメラは記録の中で実際に上へ動いた
+    // (自宅前の原点 8 行目から、町の上端で止まる 0 行目まで)
+    const beforeCamera = before.camera
+    const landedCamera = landed.camera
+    if (beforeCamera === null || landedCamera === null) throw new Error('層の位置を写せていない')
+    const rose = (landedCamera.y - beforeCamera.y) / cell
+    expect(rose, 'カメラが上へ動いたマス数').toBeGreaterThan(4)
+  })
+
+  await test.step('飛ぶ間のどのフレームでも、主人公の絵と地上の影は村の枠の中に収まる', () => {
+    expect(outsideFrame(flying, cell), '枠からはみ出したフレーム').toEqual([])
+  })
 })
 
 test('影は飛ぶ間だけ画面に見え、飛ぶ前と降りた後は隠れる', async ({ page }) => {
@@ -552,149 +718,6 @@ test('影は飛ぶ間だけ画面に見え、飛ぶ前と降りた後は隠れ�
   await expect.poll(() => readCell(page), { timeout: ARRIVE_MS }).toEqual(atMonument)
   await expectLoopIdle(page)
   await expect(shadow, '降りた後の影').toBeHidden()
-})
-
-test('出発と着地を結ぶ直線の上を飛び、歩いては通れない家の上も越える', async ({ page }) => {
-  // 自宅前から経歴碑への直線は自宅の上を通る。配置が変わって通らなくなったら、測る前にここで落とす
-  const blocked = blockedOnSegment(town, TOWN_ENTRY, MONUMENT)
-  expect(blocked.length, '直線が歩いては立てないマスの上を通る').toBeGreaterThan(0)
-  const { cell, samples } = await travelToMonument(page)
-  const grounds = flightOf(samples).flying.map(s => groundOf(s, cell))
-  const placed = grounds.map(p => onSegment(p, TOWN_ENTRY, MONUMENT))
-  const strayed = placed.filter(p => p.off > LINE_TOLERANCE)
-  expect(strayed, '出発と着地を結ぶ線分から外れた影').toEqual([])
-  // 出発から着地へ戻らずに進み、最後は降りるマスの上
-  const backwards = placed.filter((p, i) => i > 0 && p.along < placed[i - 1].along - 1e-3)
-  expect(backwards, '後戻りした影').toEqual([])
-  const landingGap = distanceBetween(grounds[grounds.length - 1], MONUMENT)
-  expect(landingGap, '飛ぶ最後の影から降りるマスまで').toBeLessThanOrEqual(LINE_TOLERANCE)
-  // 歩いては立てないマスの上を通ったフレームがある(歩けば遠回りする道を、飛んで真っすぐ越えた)
-  const overBlocked = grounds.filter(p => !isWalkable(town, cellUnder(p)))
-  expect(overBlocked.length, '家の上を通ったフレームの数').toBeGreaterThan(0)
-})
-
-test('飛ぶ速さは飛び立ちと降りる前に緩く真ん中で最も速く、降りる前は横にも縦にも緩み、飛ぶ長さは距離で決まる', async ({
-  page,
-}) => {
-  const { cell, samples } = await travelToMonument(page)
-  const { flying, landed } = flightOf(samples)
-  const start = flying[0].at
-  const span = landed.at - start
-  // 飛ぶ間と、降りた後の最初のフレーム。隣り合う 2 フレームの間の長さの最長が 1 フレームの揺れ
-  const frames = [...flying, landed]
-  const longest = Math.max(...frames.slice(1).map((s, i) => s.at - frames[i].at))
-  // 出発のマスから影までの直線距離と、影から主人公が浮いた高さ(どちらもマス)
-  const travelled = (sample: FrameSample) => distanceBetween(groundOf(sample, cell), TOWN_ENTRY)
-  const lifted = (sample: FrameSample) => groundOf(sample, cell).y - drawnOf(sample, cell).y
-  // 飛ぶ長さの ratio(0 が飛び立ち・1 が降りた後の最初のフレーム)の時点の値。その時刻を挟む 2 フレームを
-  // 時刻で線形に補う。区切りを近くのフレームへ寄せないので、遅いフレームでも区切りが前後へずれない
-  const valueAt = (ratio: number, value: (sample: FrameSample) => number) => {
-    // 浮動小数点の丸めで降りた後のフレームを越えないように抑える
-    const at = Math.min(start + span * ratio, landed.at)
-    const after = frames.findIndex(s => s.at >= at)
-    if (after < 0) throw new Error(`${at}ms より後に記録したフレームが無い`)
-    if (after === 0) return value(frames[0])
-    const prev = frames[after - 1]
-    const next = frames[after]
-    const share = (at - prev.at) / (next.at - prev.at)
-    return value(prev) + (value(next) - value(prev)) * share
-  }
-  // ratios の隣り合う区切りの間に、value が増えた量
-  const gains = (ratios: readonly number[], value: (sample: FrameSample) => number) => {
-    const points = ratios.map(ratio => valueAt(ratio, value))
-    return points.slice(1).map((point, i) => point - points[i])
-  }
-  // 時間の前・真ん中・後ろの 1/3 に進んだマス数。今の曲線(離着陸で速さも加速度も 0 の五次)では 17 : 47 : 17。
-  // 等速なら 1 : 1 : 1、飛び立ちが最も速い減速なら前が最も長く、着地へ向けて速まるなら後ろが最も長い
-  const [firstThird, middleThird, lastThird] = gains([0, 1 / 3, 2 / 3, 1], travelled)
-  expect(firstThird, '前の 1/3 に進んだマス数').toBeGreaterThan(0)
-  expect(lastThird, '後ろの 1/3 に進んだマス数').toBeGreaterThan(0)
-  expect(middleThird, '真ん中の 1/3 と前の 1/3 の 2 倍').toBeGreaterThan(firstThird * 2)
-  expect(middleThird, '真ん中の 1/3 と後ろの 1/3 の 2 倍').toBeGreaterThan(lastThird * 2)
-  // 前と後ろの 1/3 は同じだけ進む。2 つの区切りがそれぞれ最長の 1 フレームずれ、その間を最も速く進んだとしても
-  // 収まる差まで許す。1 フレームの速さは、その間に進んだマス数を間の長さ(ms)で割る
-  const speedBetween = (from: FrameSample, to: FrameSample) =>
-    (travelled(to) - travelled(from)) / (to.at - from.at)
-  const fastest = Math.max(...frames.slice(1).map((s, i) => speedBetween(frames[i], s)))
-  const allowed = fastest * longest * 2
-  const uneven = Math.abs(firstThird - lastThird)
-  expect(uneven, '前と後ろの 1/3 に進んだマス数の差').toBeLessThanOrEqual(allowed)
-  // 降りる前の 1/4 は、横(影の進み)も縦(浮いた高さ)も速さを落としながら座ったまま降りる。
-  // 今の曲線では 3/4 の時点で残りの距離は全体の約 10%、高さは最も高い時の約 42% で、続く 1/8 ずつに
-  // 進む距離は全体の約 8.7% → 1.6%、下りる高さは最も高い時の約 34% → 8%。後の 1/8 は前の 1/8 の半分に届かない
-  const [earlyAlong, lateAlong] = gains([3 / 4, 7 / 8, 1], travelled)
-  const [earlyDrop, lateDrop] = gains([3 / 4, 7 / 8, 1], s => -lifted(s))
-  expect(lateAlong, '降りる前の最後の 1/8 に進んだマス数').toBeLessThan(earlyAlong / 2)
-  expect(lateDrop, '降りる前の最後の 1/8 に下りたマス数').toBeLessThan(earlyDrop / 2)
-  // 飛び立ってから降りるまでの長さは、直線距離から決まる長さと 1 フレームの揺れの内で一致する。
-  // 歩行ループへ渡す経過の取り違え(秒と ms・1 フレームに 2 回進める)はここで落ちる
-  const expected = flightDurationMs(distanceBetween(MONUMENT, TOWN_ENTRY))
-  const drift = Math.abs(span - expected)
-  const note = `飛んだ ${span}ms・距離で決まる長さ ${expected}ms・最長の 1 フレーム ${longest}ms`
-  expect(drift, note).toBeLessThanOrEqual(longest * 2 + 5)
-})
-
-test('飛んでいる間は主人公が影より上に浮き、影は高いほど小さく、降りると影と重なる', async ({
-  page,
-}) => {
-  const { cell, samples } = await travelToMonument(page)
-  const { flying, landed } = flightOf(samples)
-  const onePx = 1 / cell
-  // 浮くのは上へだけ。横にはずれず、影より下にも描かない
-  const sideways = flying.filter(s => Math.abs(drawnOf(s, cell).x - groundOf(s, cell).x) > onePx)
-  expect(sideways, '主人公と影が横にずれたフレーム').toEqual([])
-  const sunk = flying.filter(s => drawnOf(s, cell).y > groundOf(s, cell).y + onePx)
-  expect(sunk, '主人公が影より下に描かれたフレーム').toEqual([])
-  // 飛ぶ時間の真ん中に最も近いフレームでは高く浮き、影は等倍より小さい
-  const middleAt = (flying[0].at + landed.at) / 2
-  const fromMiddle = flying.map(s => Math.abs(s.at - middleAt))
-  const middle = flying[fromMiddle.indexOf(Math.min(...fromMiddle))]
-  const lift = groundOf(middle, cell).y - drawnOf(middle, cell).y
-  expect(lift, '飛ぶ途中で影より上に浮く高さ(マス)').toBeGreaterThan(1)
-  expect(middle.shadow?.scale, '飛ぶ途中の影の倍率').toBeLessThan(0.9)
-  // 降りて眠った後は主人公と影が同じ位置に重なり、影は等倍
-  const rest = samples[samples.length - 1]
-  const restGap = {
-    x: Math.abs(drawnOf(rest, cell).x - groundOf(rest, cell).x),
-    y: Math.abs(drawnOf(rest, cell).y - groundOf(rest, cell).y),
-  }
-  expect(restGap.x, '降りた後の主人公と影の横の差').toBeLessThanOrEqual(onePx)
-  expect(restGap.y, '降りた後の主人公と影の縦の差').toBeLessThanOrEqual(onePx)
-  expect(rest.shadow?.scale, '降りた後の影の倍率').toBeCloseTo(1, 2)
-})
-
-test('飛ぶ間のカメラは主人公に付いて動き、1 フレームで影と主人公の動いた分を超えて跳ばない', async ({
-  page,
-}) => {
-  const { cell, samples } = await travelToMonument(page)
-  const { before, landed } = flightOf(samples)
-  // 飛ぶ直前のフレームから、降りて眠るまでの隣り合うフレームを比べる
-  const span = samples.slice(samples.indexOf(before))
-  const steps = span.slice(1).map((sample, i) => ({
-    at: sample.at,
-    camera: stepOf(span[i].camera, sample.camera, 'ワールドの層'),
-    ground: stepOf(span[i].shadow, sample.shadow, '影'),
-    drawn: stepOf(span[i].player, sample.player, '主人公'),
-  }))
-  // カメラは地上の影と浮いた主人公のちょうど間(浮いた高さの半分だけ上)を狙うので、1 フレームに動く距離は
-  // 影と主人公の動いた距離の大きい方を超えない。影だけと比べないのは、上へ飛ぶ時は持ち上げの分だけカメラが
-  // 影より速く動くため(経歴碑へは飛び立ちで影の約 1.76 倍)。追従が遅れて 1.5 マスで補間をやめ、
-  // 目標へ一気に飛ぶ壊れ方はここで落ちる
-  const jumps = steps.filter(s => s.camera > Math.max(s.ground, s.drawn) * CAMERA_SLACK + ROUND_PX)
-  expect(jumps, '1 フレームで跳んだカメラ(px)').toEqual([])
-  // 対照: 層の transform を写せていて、カメラは記録の中で実際に上へ動いた
-  // (自宅前の原点 8 行目から、町の上端で止まる 0 行目まで)
-  const beforeCamera = before.camera
-  const landedCamera = landed.camera
-  if (beforeCamera === null || landedCamera === null) throw new Error('層の位置を写せていない')
-  const rose = (landedCamera.y - beforeCamera.y) / cell
-  expect(rose, 'カメラが上へ動いたマス数').toBeGreaterThan(4)
-})
-
-test('飛ぶ間のどのフレームでも、主人公の絵と地上の影は村の枠の中に収まる', async ({ page }) => {
-  const { cell, samples } = await travelToMonument(page)
-  const { flying } = flightOf(samples)
-  expect(outsideFrame(flying, cell), '枠からはみ出したフレーム').toEqual([])
 })
 
 test('町で最も上の地点へ飛ぶ間も、浮き上がりで絵が枠の上辺より上へ出ず(立っているだけで出る所では浮かない)、影は枠の中に収まる', async ({
@@ -779,8 +802,8 @@ test('地点から飛び立つと、出発の地点の吹き出しは飛び立�
   // 対照: 飛ぶ直前までは出発の地点の吹き出しが出ている(消えたのは飛び立ったから)
   expect(before.bubbles, '飛ぶ直前の吹き出しの数').toBe(1)
   // 飛ぶ間は途中のマスに到着しないので、飛び立った時に下ろさないと降りるまで出発の吹き出しが残る
-  const shown = flying.filter(s => s.bubbles !== 0).map(s => ({ at: s.at, bubbles: s.bubbles }))
-  expect(shown, '飛ぶ間に吹き出しが出ていたフレーム').toEqual([])
+  const shown = flyingHits(flying, s => s.bubbles !== 0)
+  expect(shown, hitsNote('飛ぶ間に吹き出しが出ていたフレーム', flying, shown)).toEqual([])
   // 降りた研究所では研究所の吹き出しが出る
   await expect(page.locator(BUBBLE), '研究所の前の吹き出し').toHaveCount(1)
 })
@@ -825,11 +848,11 @@ test('飛んでいる間に Z・M・ミニマップを押しても、窓も吹�
   await expectLoopIdle(page)
   const { samples } = await stopRecording(page)
   const { flying } = flightOf(samples)
-  const opened = flying.filter(s => s.dialogs !== 0).map(s => s.at)
-  expect(opened, '飛ぶ間に窓が開いていたフレーム').toEqual([])
+  const opened = flyingHits(flying, s => s.dialogs !== 0)
+  expect(opened, hitsNote('飛ぶ間に窓が開いていたフレーム', flying, opened)).toEqual([])
   // Z で話しかけていれば、話せる相手のいない空中で頭上の考え事が出る
-  const bubbled = flying.filter(s => s.bubbles !== 0).map(s => s.at)
-  expect(bubbled, '飛ぶ間に吹き出しが出ていたフレーム').toEqual([])
+  const bubbled = flyingHits(flying, s => s.bubbles !== 0)
+  expect(bubbled, hitsNote('飛ぶ間に吹き出しが出ていたフレーム', flying, bubbled)).toEqual([])
   await expect(page.getByRole('dialog'), '降りた後も窓は開いていない').toHaveCount(0)
   expect(await readCell(page), '降りたのはポストの前').toEqual(atMailbox)
 })
