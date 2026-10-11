@@ -23,7 +23,7 @@ last_reviewed: 2026-10-11
 | 層 | 置き場 | 対象 | 環境 |
 |---|---|---|---|
 | 単体(Vitest) | 対象ファイルの隣 `*.test.ts` | **純粋関数**と、`fetch`・Storage を `vi.stubGlobal` で差し替えて測る `src/lib/` の入口。DOMを使う(読む・書く・DOMParser)utils(歩行ループの部品など)もこの層。**フックを`renderHook`で呼ぶテストは置かない**([テストの境界](#テストの境界)) | `environment: 'node'`(既定)。DOM を持たない。DOMを使う(読む・書く・DOMParser)utilsだけは、ファイル先頭の`// @vitest-environment happy-dom`でそのファイルだけhappy-domで走る |
-| 統合(Vitest + React Testing Library) | 対象コンポーネントの隣 `index.test.tsx` | **環境・props・操作で分かれるコンポーネントの出し分け**。いまは作品カード(`src/components/Directory/components/WorkCard/index.test.tsx`)とその部品のLinksOverlay・WorkLinks・ShotMedia、経歴のCareerDetail、設定メニューのSettingsMenu | ファイル先頭の `// @vitest-environment happy-dom` でそのファイルだけ DOM を持つ |
+| 統合(Vitest + React Testing Library) | 対象コンポーネントの隣 `index.test.tsx` | **環境・props・操作で分かれるコンポーネントの出し分け**。いまは作品カード(`src/components/Directory/components/WorkCard/index.test.tsx`)とその部品のLinksOverlay・WorkLinks・ShotMedia、経歴のCareerDetail、設定メニューのSettingsMenu、ページ移動の計測のPageviewCounter、作品ストーリーの技術チップのTechChipPopover | ファイル先頭の `// @vitest-environment happy-dom` でそのファイルだけ DOM を持つ |
 | E2E(Playwright) | `tests/**/*.spec.ts` | 実際のクリック・キー操作。フック(配線)の振る舞いもここで見る。1本に任せず、村の導線(journey)・歩行ループの眠り(idle-loop)・傘(umbrella)・飛行(flight)などの spec がそれぞれの配線を見る | `out/` を `:4173` で静的配信 |
 
 - E2E の配信ポートは既定 `:4173` で、`E2E_PORT` で変えられる(`playwright.config.ts`)
