@@ -46,7 +46,7 @@ last_reviewed: 2026-10-01
 | 全画面モーダル | `src/components/Story/components/SceneModal/` |
 | コンテンツ | `content/{ja,ko}/works/<slug>.ts` の `story`・`ui.ts`・`village.ts`(村へ移るリンクの文言 `toVillage` だけ) |
 | 場面 SVG | `public/works/` |
-| E2E | `tests/scene-refetch.spec.ts`(取得に失敗した場面の絵を、モーダルを開き直すと取り直すか) |
+| E2E | `tests/scene-refetch.spec.ts`(取得に失敗した場面の絵を、モーダルを開き直すと取り直すか)・`tests/story.spec.ts`(CTA と場面の現れ方・前へ/次へと端のフォーカス・自動送りと一時停止・閉じた後のフォーカスの戻り先) |
 
 `src/utils/scene-durations.ts` は各場面 SVG の `animation-duration` を写した表。**SVG 側の周期を変えたらここも直す。**
 
