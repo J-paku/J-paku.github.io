@@ -8,9 +8,9 @@ import { useDialogFocus } from '../../../hooks/use-dialog-focus'
 import { useHeldDirection } from '../../../hooks/use-held-direction'
 import { useVillageTime } from '../../../hooks/use-village-time'
 import { CLOCK_FOCUSABLE_SELECTOR, focusablesIn } from '../../../utils/focusables'
-import { formatClock, HOUR_SPAN, MINUTE_SPAN, MINUTE_STEP } from '../utils/clock-time'
-
-export type ClockStep = 'choose' | 'pick'
+import { formatClock } from '../utils/clock-time'
+import { moveForDirection, nextRepeatAt, shiftHour, shiftMinute } from '../utils/step-clock-time'
+import type { ClockStep } from '../utils/step-clock-time'
 
 // まだ一度も時刻を決めていない時の針の位置。夕方は昼夜の変化が一番分かりやすい
 const DEFAULT_HOUR = 18
@@ -24,16 +24,6 @@ const ARROW_TO_DIRECTION: Record<string, Direction> = {
   ArrowLeft: 'left',
   ArrowRight: 'right',
 }
-
-// 1 段目でスティックを倒し続けた間、焦点を次のボタンへ移し直す間隔(ms)。会話窓の戻る焦点送り
-// (FOCUS_BACK_REPEAT_MS)と同じ長さで、ボタンが 1 つずつ移るのを目で追って手を離せるようにする
-const CHOOSE_REPEAT_MS = 300
-// 2 段目でスティックを倒し続けた時、繰り返しを始めるまでの待ち(ms)。押した瞬間の 1 つで止めたい
-// 人が手を離すまで(反応はおよそ 0.2〜0.25 秒)より長くし、1 つだけ動かすつもりで 2 つ進まないようにする
-const DIAL_REPEAT_DELAY_MS = 300
-// 繰り返しが始まった後の 1 ステップの間隔(ms)。時は左右どちらかへ最大 12 ステップで届くので、
-// 倒し続けて 2 秒足らず(300 + 11 × 120 ms)でどの時刻へも着き、かつ 1 ステップずつ目で数えられる速さにする
-const DIAL_REPEAT_MS = 120
 
 type UseClockModalParams = {
   text: ClockText
@@ -111,10 +101,9 @@ export function useClockModal({
 
   const chooseCustom = () => setStep('pick')
 
-  const stepHour = (delta: number) => setHour(current => wrapWithin(current + delta, HOUR_SPAN))
+  const stepHour = (delta: number) => setHour(current => shiftHour(current, delta))
 
-  const stepMinute = (delta: number) =>
-    setMinute(current => wrapWithin(current + delta, MINUTE_SPAN))
+  const stepMinute = (delta: number) => setMinute(current => shiftMinute(current, delta))
 
   const decide = () => {
     setCustomTime(hour, minute)
@@ -142,17 +131,12 @@ export function useClockModal({
     focusable[next].focus()
   }
 
-  // 向き 1 つ分の操作。キーボードとスティックが同じ割り当てを読む。
-  // 1 段目は上・左が前のボタン、下・右が次のボタン。2 段目は左右が時、上下が分(上が進む)
+  // 向き 1 つ分の操作。キーボードとスティックが同じ割り当てを読む(割り当ては utils/step-clock-time.ts)
   const applyDirection = (direction: Direction) => {
-    if (step === 'choose') {
-      moveFocus(direction === 'up' || direction === 'left' ? -1 : 1)
-      return
-    }
-    if (direction === 'left') stepHour(-1)
-    else if (direction === 'right') stepHour(1)
-    else if (direction === 'up') stepMinute(MINUTE_STEP)
-    else stepMinute(-MINUTE_STEP)
+    const move = moveForDirection(step, direction)
+    if (move.target === 'focus') moveFocus(move.delta)
+    else if (move.target === 'hour') stepHour(move.delta)
+    else stepMinute(move.delta)
   }
 
   // スティック(村の枠が受けた WASD も)の押しっぱなし。押した瞬間に 1 つ動かし、倒し続ければ繰り返す。
@@ -160,11 +144,9 @@ export function useClockModal({
   useHeldDirection({
     heldRef: scrollHeldRef,
     onHeld: (direction, pressed, now) => {
-      const repeatAt = repeatAtRef.current
-      if (!pressed && (repeatAt === null || now < repeatAt)) return
-      const interval =
-        step === 'choose' ? CHOOSE_REPEAT_MS : pressed ? DIAL_REPEAT_DELAY_MS : DIAL_REPEAT_MS
-      repeatAtRef.current = now + interval
+      const repeatAt = nextRepeatAt(step, pressed, now, repeatAtRef.current)
+      if (repeatAt === null) return
+      repeatAtRef.current = repeatAt
       applyDirection(direction)
     },
   })
