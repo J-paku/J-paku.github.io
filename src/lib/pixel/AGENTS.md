@@ -10,6 +10,7 @@
 | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | `art.ts`                                                  | エンジン本体。`compose` / `mirrorX` / `mirrorY` / `recolor` と `buildSheet`                                                                    |
 | `terrain.ts` `structures.ts` `actors.ts` `weather-art.ts` | 絵の定義(地形・建物と設置物・主人公・雨と雪)                                                                                                   |
+| `compose-player.ts`                                       | 主人公のコマの組み立て(頭をずらす・型紙を重ねる・32×32の画布へ置く)と寸法`PLAYER_*`の正本。`actors.ts`の絵を受けて行列を返す純粋関数           |
 | `umbrella-original.ts`                                    | 雨の外で傘を差した主人公の立ち・歩きのコマ。利用者の原画を写したもので手を入れない(ADR 0008)。写した直後の行列が`umbrella-original.fixture.ts` |
 | `flight-art.ts`                                           | 自動の移動で飛ぶ主人公のコマ。利用者が確定したGPT画を格子で読んで写した。手直しは孤立点・輪郭の継ぎ・画布内への寄せ・頭を立ち姿に替えるだけ    |
 | `fishing-art.ts`                                          | 釣りの演出だけに出る小物(浮き・巻物・向きごとの糸)と糸を貼る場所(`FISHING_LINES`)。地形・建物と同じシートへ並ぶ                                |
@@ -24,7 +25,7 @@
 ## 守ること
 
 1. **SVG に戻さない。** 数百マスが共有する `background-image` を SVG の data URI にすると、再描画のたびにマスごとの SVG 描画が走る(実測 約200ms)→ [../../../docs/decisions/0001-png-sprite-sheet.md](../../../docs/decisions/0001-png-sprite-sheet.md)
-2. **8×8 の部品4枚で 16×16 のメタタイルを作る。** 地形・建物は 16×16、主人公は16×24の体を32×32の画布へ置いた別シート(余白へ描くのは傘のコマだけで、傘を差した立ち・歩きのコマは体ごと`umbrella-original.ts`の原画を写す。寸法の正本は`actors.ts`の`PLAYER_*`)
+2. **8×8 の部品4枚で 16×16 のメタタイルを作る。** 地形・建物は 16×16、主人公は16×24の体を32×32の画布へ置いた別シート(余白へ描くのは傘のコマだけで、傘を差した立ち・歩きのコマは体ごと`umbrella-original.ts`の原画を写す。寸法の正本は`compose-player.ts`の`PLAYER_*`)
 3. **`palette-phase.ts` が予約している文字を地形・主人公の絵に使わない。** 光源用が `LIGHT_KEYS`、段階に関わらず色を変えない文字が `FIXED_KEYS`。予約は `sprites.test.ts` が固定している
 4. **雨と雪のシートは時間帯で色を変えない。** 地形・主人公は `phasePalette` を通すが、天気は素の `palette` のまま焼く(降る粒は地形ではないため)。「夜なのに雪が暗くならない」は仕様。実際に見える色には `src/components/VillagePage/components/Village/components/Weather/` の CSS 側(2コマの opacity と重ね順)も関わる
 5. **`DayPhase` の正本は `src/utils/day-phase.ts`。** ここでは型を import するだけで再 export しない(レイヤー境界のため)

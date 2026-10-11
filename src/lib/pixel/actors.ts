@@ -1,10 +1,27 @@
 // 主人公: 深緑のキャップにゴーグル、茶髪、緑のジャケットと斜め掛けの革ストラップ(参照画像を 15×20 で写した二頭身)
 // タイルは幅 16・高さ 24。足元をマスの下辺に揃え、頭はマスの上へ半マス(8 行)はみ出す。
 // 静止コマは 4〜23 行、歩行コマは全体が一段下がって 5〜23 行に収まり、最下行だけ脚を振る
-// シートへ焼くときはこの体を32×32の画布へ置き、傘と飛行のコマは余白も使う(下のPLAYER_BODY_*)
+// シートへ焼くときはこの体を32×32の画布へ置き、傘と飛行のコマは余白も使う(compose-player.tsのPLAYER_BODY_*)
 // 輪郭は x(#181818)で描き、白い縁取りは scene.module.css の drop-shadow が付ける
-import { mirrorX, TILE } from './art'
+// ここは絵のデータと、それを組み立てる呼び出しだけを置く。組み立ての手順(頭をずらす・型紙を重ねる・画布へ置く)は compose-player.ts
+import { mirrorX } from './art'
 import type { PixelArt } from './art'
+import {
+  alternateFoot,
+  framed2,
+  framed3,
+  mirrorArt,
+  overlayRod,
+  partAt,
+  PLAYER_BODY_LEFT,
+  PLAYER_BODY_TOP,
+  PLAYER_FRAME_WIDTH,
+  pose,
+  stand,
+  toFrame,
+  walk,
+} from './compose-player'
+import type { Triple } from './compose-player'
 import { flightArt } from './flight-art'
 import { backLantern, frontLantern, LANTERN_BODY_TOP, overlayLantern, sideLantern } from './lantern'
 import {
@@ -14,15 +31,14 @@ import {
   umbrellaUpOriginal,
 } from './umbrella-original'
 
-export const PLAYER_HEIGHT = 24
-
-// シートの1コマは32×32の画布。16×24の体を左右8列・上8行の余白の下辺中央へ置き、足元は画布の下辺のまま。
-// 傘と飛行以外は余白を空けたまま、体のドットも立つ位置も16×24の頃と変わらない。
-// 画面ではscene.module.cssの.playerが体の箱(1×1.5マス)のまま立ち、::beforeがこの画布を左右と上へ半マスずつはみ出させて描く
-export const PLAYER_BODY_LEFT = 8
-export const PLAYER_BODY_TOP = 8
-export const PLAYER_FRAME_WIDTH = TILE + PLAYER_BODY_LEFT * 2
-export const PLAYER_FRAME_HEIGHT = PLAYER_HEIGHT + PLAYER_BODY_TOP
+// コマの寸法の正本は compose-player.ts。シートを焼く側(sprites.ts)とテストは今までどおりここから読む
+export {
+  PLAYER_BODY_LEFT,
+  PLAYER_BODY_TOP,
+  PLAYER_FRAME_HEIGHT,
+  PLAYER_FRAME_WIDTH,
+  PLAYER_HEIGHT,
+} from './compose-player'
 
 // 釣りの 1 場面ぶんのコマ。並びは上・下・右(左は右の反転)
 type FishingFrames = [PixelArt, PixelArt, PixelArt]
@@ -73,9 +89,6 @@ type PlayerFrames = {
     stow: PixelArt
   }
 }
-
-// 描画の空行。頭上の余白に使う
-const BLANK = '................'
 
 // 正面。キャップの上にゴーグル、つばの下に前髪と目、頬は桃色。胸に生成りのインナーと左肩からの革ストラップ
 const downBody: PixelArt = [
@@ -148,41 +161,14 @@ const rightBody: PixelArt = [
 ]
 const rightFeet: PixelArt = ['....xxxQQQx.....', '.....xjAAjx.....']
 
-// 静止: 頭上 4 行の余白 + 体 18 行 + 足 2 行
-const stand = (body: PixelArt, feet: PixelArt): PixelArt => [
-  BLANK,
-  BLANK,
-  BLANK,
-  BLANK,
-  ...body,
-  ...feet,
-]
+// 静止コマ(頭上 4 行の余白 + 体 18 行 + 足 2 行)。釣りのコマはこれを元に組む
+const upStand = stand(upBody, upFeet)
+const downStand = stand(downBody, downFeet)
+const rightStand = stand(rightBody, rightFeet)
 
-// 歩行: 全体を一段下げ、足は 1 行に縮めて片脚を後ろへ引く(細く描く)
-const walk = (body: PixelArt, feet: string): PixelArt => [
-  BLANK,
-  BLANK,
-  BLANK,
-  BLANK,
-  BLANK,
-  ...body,
-  feet,
-]
-
-// 絵は 0〜14 列に描いているので、軸足の交代はその 15 列だけを反転する(16 列目は空のまま)
-const mirrorArt = (row: string): string => [...row.slice(0, 15)].reverse().join('') + row.slice(15)
-const alternateFoot = (art: PixelArt): PixelArt => [
-  ...art.slice(0, -1),
-  mirrorArt(art[art.length - 1]),
-]
-
-// ここから下は釣り竿。静止コマへ竿だけを重ねて「竿を持って立っている」コマを作る。
-// 型紙の '.' は元の絵を残し、それ以外は体のドットを塗り替える — ランタン(lantern.ts)と違って
-// 竿は体の手前にあり、握った手や上着の上を通るため、重なりを禁じると竿が描けない。
-// ただし夜は同じコマへランタンを重ねるので、ランタンの居場所(正面は右下、背面は左下、
+// ここから下は釣り竿。静止コマへ竿だけを重ねて「竿を持って立っている」コマを作る(重ね方は compose-player.ts の overlayRod)。
+// 夜は同じコマへランタンを重ねるので、ランタンの居場所(正面は右下、背面は左下、
 // 横向きは前下)へ竿を伸ばすと overlayLantern が落ちる。向きごとの逃げ道は下の各型紙に書く
-const overlayRod = (art: PixelArt, rod: PixelArt): PixelArt =>
-  art.map((row, y) => [...row].map((ch, x) => (rod[y][x] === '.' ? ch : rod[y][x])).join(''))
 
 // 正面。竿は右肩から左下へ斜めに渡し、穂先をマスの下辺のまん中(7 列目)で止める。
 // ここは向かい合う水のマスに置く浮きの糸と同じ列なので、竿と糸が 1 本につながって見える。
@@ -286,40 +272,8 @@ const rightRod: PixelArt = [
 //  - 背面: 奥の水へ乗り出すと頭が上がって襟足が覗き、反ると頭が手前へ来て肩に沈む
 //  - 横向き: 前はマスの端とランタンで塞がっているので、うつむきは頭を下げて顎を引き、反ると頭が上がる
 
-// 頭はコマの 4 行目から 13 行(3 面とも体の 0〜12 行)。その下の 5 行が胴と脚
-const HEAD_TOP = 4
-const HEAD_ROWS = 13
-
-// 頭だけを dy 行ずらす(負で上)。首から下は元の位置に残す。
-// 下げた頭は襟や肩の手前に重ね(うつむくと顎が襟に埋まる)、上げた頭の下に空く行は首の型紙で埋める
-const moveHead = (art: PixelArt, dy: number): PixelArt =>
-  art.map((row, y) => {
-    const below = y >= HEAD_TOP && y < HEAD_TOP + HEAD_ROWS ? BLANK : row
-    const from = y - dy
-    if (from < HEAD_TOP || from >= HEAD_TOP + HEAD_ROWS) return below
-    return [...below].map((ch, x) => (art[from][x] === '.' ? ch : art[from][x])).join('')
-  })
-
-// 型紙で「そこを透明へ戻す」印。竿は塗り重ねるだけで済むが、体を動かすと元の場所に残る物を
-// 消す必要がある(腰に下ろしていた手、ランタンの席へはみ出す顎や頬)。
-// パレットに無い文字なので、overlayRod で重ねるなどして絵に残れば validateArt が落とす
-const ERASE = '-'
-
-// overlayRod と同じく '.' は元の絵を残し、ERASE は透明にし、それ以外は塗り替える
-const overlayPose = (art: PixelArt, patch: PixelArt): PixelArt =>
-  art.map((row, y) =>
-    [...row]
-      .map((ch, x) => (patch[y][x] === '.' ? ch : patch[y][x] === ERASE ? '.' : patch[y][x]))
-      .join('')
-  )
-
-// 数行しか描かない部品(首・顎・腕)の型紙。行番号 → 行 の表を 24 行へ広げ、残りは元の絵を残す
-const partAt = (rows: Partial<Record<number, string>>): PixelArt =>
-  Array.from({ length: PLAYER_HEIGHT }, (_, y) => rows[y] ?? BLANK)
-
-// 釣りの 1 コマ。静止コマの頭を dy 行ずらし、体の部品と竿の型紙をこの順に重ねる
-const pose = (base: PixelArt, dy: number, ...patches: PixelArt[]): PixelArt =>
-  patches.reduce(overlayPose, moveHead(base, dy))
+// 頭の上下・部品の型紙(partAt)・型紙を重ねる順は compose-player.ts の pose。
+// 部品の型紙の '-' は「そこを透明へ戻す」印(腰に下ろしていた手、ランタンの席へはみ出す顎や頬を消す)
 
 // ---- 正面 ----
 // 竿を握る手は待機コマ(downRod)と同じ画面の右側に描き、投げも当たりもそこを支点に竿を回す。
@@ -560,9 +514,6 @@ const downHoistRod: PixelArt = [
   '................',
 ]
 
-const downPose = (dy: number, ...patches: PixelArt[]): PixelArt =>
-  pose(stand(downBody, downFeet), dy, ...patches)
-
 // ---- 背面 ----
 // 竿は待機コマ(upRod)と同じ画面の右の手。背中越しなので上げた腕は頭の右脇に袖(M)として見え、
 // そのぶん腰に下ろしていた手(19・20 行の 13 列)を消す。ランタンを提げる左腕(画面の左)は触らない
@@ -794,9 +745,6 @@ const upHoistRod: PixelArt = [
   '................',
   '................',
 ]
-
-const upPose = (dy: number, ...patches: PixelArt[]): PixelArt =>
-  pose(stand(upBody, upFeet), dy, ...patches)
 
 // ---- 横向き ----
 // 竿を握る手は待機コマ(rightRod)と同じく顔の前に浮かせ、腰に下ろした手前の腕はそのまま残す。
@@ -1032,21 +980,10 @@ const rightHoistRod: PixelArt = [
   '................',
 ]
 
-const rightPose = (dy: number, ...patches: PixelArt[]): PixelArt =>
-  pose(stand(rightBody, rightFeet), dy, ...patches)
-
 // ---- 画布 ----
-// シートへ焼く1コマは32×32の画布(PLAYER_FRAME_*)。ここまでの絵はどれも16×24の体の上で組み、
-// 最後にtoFrameで画布の下辺中央へ置く。傘の無いコマは余白を空けたままなので、体のドットも立つ位置も変わらない
+// ここまでの絵はどれも16×24の体の上で組み、最後にcompose-player.tsのtoFrameで32×32の画布の下辺中央へ置く
 const FRAME_BLANK = '.'.repeat(PLAYER_FRAME_WIDTH)
 const SIDE_PAD = '.'.repeat(PLAYER_BODY_LEFT)
-const toFrame = (art: PixelArt): PixelArt => [
-  ...Array.from({ length: PLAYER_BODY_TOP }, () => FRAME_BLANK),
-  ...art.map(row => SIDE_PAD + row + SIDE_PAD),
-]
-type Triple = [PixelArt, PixelArt, PixelArt]
-const framed3 = ([a, b, c]: Triple): Triple => [toFrame(a), toFrame(b), toFrame(c)]
-const framed2 = ([a, b]: [PixelArt, PixelArt]): [PixelArt, PixelArt] => [toFrame(a), toFrame(b)]
 
 // 素の立ち・歩きのコマ(16×24)
 const upFrames: Triple = [
@@ -1330,45 +1267,45 @@ export const playerArt: PlayerFrames = {
   // 第 1 引数が頭の上下(負で上)。反る(windup・backswing・pull・hoist)と乗り出す(cast・follow・tense・bite)で
   // 正面・横向きと背面の符号が逆になるのは、背面だけ水が画面の奥(上)にあるため
   windup: framed3([
-    upPose(1, upSink, upArmUp, upWindupRod),
-    downPose(-1, downNeck, downWindupRod),
-    rightPose(-1, rightNeck, rightWindupRod),
+    pose(upStand, 1, upSink, upArmUp, upWindupRod),
+    pose(downStand, -1, downNeck, downWindupRod),
+    pose(rightStand, -1, rightNeck, rightWindupRod),
   ]),
   backswing: framed3([
-    upPose(1, upSink, upArmUp, upBackswingRod),
-    downPose(-1, downNeck, downFreeArmUp, downBackswingRod),
-    rightPose(-1, rightNeck, rightBackswingRod),
+    pose(upStand, 1, upSink, upArmUp, upBackswingRod),
+    pose(downStand, -1, downNeck, downFreeArmUp, downBackswingRod),
+    pose(rightStand, -1, rightNeck, rightBackswingRod),
   ]),
   cast: framed3([
-    upPose(-1, upNeck, upArmUp, upCastRod),
-    downPose(1, downCastRod),
-    rightPose(1, rightChinTuck, rightCastRod),
+    pose(upStand, -1, upNeck, upArmUp, upCastRod),
+    pose(downStand, 1, downCastRod),
+    pose(rightStand, 1, rightChinTuck, rightCastRod),
   ]),
   // 振り抜きがいちばん深く倒れるコマ。次の待機コマで体が起き上がる
   follow: framed3([
-    upPose(-2, upStretch, upArmUp, upFollowRod),
-    downPose(2, downCheekClear, downFollowRod),
-    rightPose(2, rightChinTuckDeep, rightFollowRod),
+    pose(upStand, -2, upStretch, upArmUp, upFollowRod),
+    pose(downStand, 2, downCheekClear, downFollowRod),
+    pose(rightStand, 2, rightChinTuckDeep, rightFollowRod),
   ]),
   tense: framed3([
-    upPose(-1, upNeck, upTenseRod),
-    downPose(1, downTenseRod),
-    rightPose(1, rightChinTuck, rightTenseRod),
+    pose(upStand, -1, upNeck, upTenseRod),
+    pose(downStand, 1, downTenseRod),
+    pose(rightStand, 1, rightChinTuck, rightTenseRod),
   ]),
   bite: framed3([
-    upPose(-2, upStretch, upBiteRod),
-    downPose(2, downCheekClear, downBiteRod),
-    rightPose(2, rightChinTuckDeep, rightBiteRod),
+    pose(upStand, -2, upStretch, upBiteRod),
+    pose(downStand, 2, downCheekClear, downBiteRod),
+    pose(rightStand, 2, rightChinTuckDeep, rightBiteRod),
   ]),
   pull: framed3([
-    upPose(1, upSink, upArmUp, upPullRod),
-    downPose(-1, downNeck, downPullRod),
-    rightPose(-1, rightNeck, rightPullRod),
+    pose(upStand, 1, upSink, upArmUp, upPullRod),
+    pose(downStand, -1, downNeck, downPullRod),
+    pose(rightStand, -1, rightNeck, rightPullRod),
   ]),
   hoist: framed3([
-    upPose(1, upSink, upArmUp, upHoistRod),
-    downPose(-1, downNeck, downFreeArmUp, downHoistRod),
-    rightPose(-1, rightNeck, rightHoistRod),
+    pose(upStand, 1, upSink, upArmUp, upHoistRod),
+    pose(downStand, -1, downNeck, downFreeArmUp, downHoistRod),
+    pose(rightStand, -1, rightNeck, rightHoistRod),
   ]),
   // 傘を差して立つ・歩くコマは原画を写したまま(umbrella-original.ts)
   umbrellaUp: umbrellaUpOriginal,
