@@ -4,22 +4,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FocusEvent, KeyboardEvent, PointerEvent, RefObject } from 'react'
 import type { Cell, Direction } from '@content/types/world'
+import { classifyVillageKey, keyDirection } from '../utils/classify-village-key'
 import { VIEW_COLS } from '../utils/stage-scale'
 import type { VillageRuntime } from './use-village-runtime'
-
-// event.code で引くので IME やキー配列の影響を受けない
-const CODE_TO_DIRECTION: Record<string, Direction> = {
-  ArrowUp: 'up',
-  ArrowDown: 'down',
-  ArrowLeft: 'left',
-  ArrowRight: 'right',
-  KeyW: 'up',
-  KeyS: 'down',
-  KeyA: 'left',
-  KeyD: 'right',
-}
-
-const TALK_CODES: readonly string[] = ['KeyE', 'Enter', 'NumpadEnter']
 
 // クライアント座標をワールドのマス座標へ直す。カメラの分だけ origin でずらす。
 // 小数のカメラ原点は先に floor すると1マスずれるので、足してから floor する
@@ -100,49 +87,36 @@ export function useVillageInput({ runtime, cam }: VillageInputOptions): UseVilla
 
   const onKeyDown = useCallback(
     (event: KeyboardEvent<HTMLDivElement>) => {
-      if (event.code === 'Escape') {
-        event.preventDefault()
-        runtime.actions.current.onEscape()
-        return
-      }
-      // M は地図の開閉。開いている間も受け付ける(onMap 側が開いていれば閉じる・会話中は無視する)
-      if (event.code === 'KeyM') {
-        event.preventDefault()
-        runtime.actions.current.onMap()
-        return
-      }
-      // Z/X は画面の A/B と同じ。会話窓が開いている間も受け付け(地図は焦点が枠の外なので届かない)、
-      // 行き先は onA/onB 側が決める。
-      // 押しっぱなしの自動反復は捨てる(A が連打になって次の地点が続けて送られないように)
-      if (event.code === 'KeyZ' || event.code === 'KeyX') {
-        // Ctrl・Cmd・Alt 付きは取り消し・切り取りなどの操作なので A/B にせず、既定の動作のまま流す
-        if (event.ctrlKey || event.metaKey || event.altKey) return
-        event.preventDefault()
-        if (event.repeat) return
-        if (event.code === 'KeyZ') runtime.buttons.current.onA()
-        else runtime.buttons.current.onB()
-        return
-      }
-      if (runtime.locked.current) {
-        runtime.held.current = null
-        const scrollDirection = CODE_TO_DIRECTION[event.code]
-        // 会話窓が開いている間は全方向を本文送り・焦点移動に回す
-        if (scrollDirection !== undefined) {
-          event.preventDefault()
-          runtime.scrollHeld.current = scrollDirection
-        }
-        return
-      }
-      const direction = CODE_TO_DIRECTION[event.code]
-      if (direction !== undefined) {
-        event.preventDefault()
-        runtime.held.current = direction
-        runtime.wake.current()
-        return
-      }
-      if (TALK_CODES.includes(event.code)) {
-        event.preventDefault()
-        runtime.actions.current.onTalk()
+      // 何の行動かは classifyVillageKey が決め、ここは結果どおりに書き込む・呼ぶだけ
+      const key = classifyVillageKey(event, runtime.locked.current)
+      if (key.preventDefault) event.preventDefault()
+      switch (key.kind) {
+        case 'escape':
+          runtime.actions.current.onEscape()
+          return
+        case 'map':
+          runtime.actions.current.onMap()
+          return
+        case 'a':
+          runtime.buttons.current.onA()
+          return
+        case 'b':
+          runtime.buttons.current.onB()
+          return
+        case 'scroll':
+          runtime.held.current = null
+          runtime.scrollHeld.current = key.direction
+          return
+        case 'release':
+          runtime.held.current = null
+          return
+        case 'walk':
+          runtime.held.current = key.direction
+          runtime.wake.current()
+          return
+        case 'talk':
+          runtime.actions.current.onTalk()
+          return
       }
     },
     [runtime]
@@ -150,7 +124,7 @@ export function useVillageInput({ runtime, cam }: VillageInputOptions): UseVilla
 
   const onKeyUp = useCallback(
     (event: KeyboardEvent<HTMLDivElement>) => {
-      const direction = CODE_TO_DIRECTION[event.code]
+      const direction = keyDirection(event.code)
       if (direction === undefined) return
       if (runtime.held.current === direction) runtime.held.current = null
       if (runtime.scrollHeld.current === direction) runtime.scrollHeld.current = null
