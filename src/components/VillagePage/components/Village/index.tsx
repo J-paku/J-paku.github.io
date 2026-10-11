@@ -5,18 +5,20 @@ import type { ReactNode } from 'react'
 import type { CareerFeature, CareerRole, Locale } from '@content/types/content'
 import type { VillageText, WorldSet } from '@content/types/world'
 import type { SheetLayout } from '@/lib/pixel/art'
-// 子の CSS は、子を初めて読み込んだ順に出力される。WorldLayer が描く Lighting・TalkBubble も
+// 子の CSS は、子を初めて読み込んだ順に出力される。WorldLayer・FrameOverlays が描く部品も
 // この並びの位置を保つためだけにここで読み込む(値は使わない。消すと CSS の出力順が変わる)
 import ActionButtons from './components/ActionButtons'
-import ClockModal from './components/ClockModal'
+import './components/ClockModal'
 import Joystick from './components/Joystick'
 import './components/Lighting'
-import Minimap from './components/Minimap'
-import SpeechBox from './components/SpeechBox'
-import StopModal from './components/StopModal'
+import './components/Minimap'
+import './components/SpeechBox'
+import './components/StopModal'
 import './components/TalkBubble'
-import Weather, { type WeatherSheets } from './components/Weather'
+import './components/Weather'
+import type { WeatherSheets } from './components/Weather'
 import WorldMap from './components/WorldMap'
+import FrameOverlays from './components/FrameOverlays'
 // WorldLayer は scene.module.css を読む Ground・FishingFloat・LampVeil を抱えるので、
 // CSS の出力順を変えないよう他の子より後に読み込む
 import WorldLayer from './components/WorldLayer'
@@ -213,49 +215,30 @@ function Village({
             locatorRef={locatorRef}
             hintRef={hintRef}
           />
-          {/* 雨・雪は world 層ではなく枠の子。枠は表示領域(10×9)ぶんしかないので、町 30×20 を
-              抱える world 層に敷くより描き替える面積が小さく、毎フレーム動く層の再描画にも巻き込まれない。
-              屋内(自室・建物の中)は天井があるので降らせない */}
-          {outdoors ? <Weather kind={weather} sheets={weatherSprites} /> : null}
-          <SpeechBox text={speech} lang={lang} />
-          {dialog !== null ? (
-            <StopModal
-              stop={dialog.stop}
-              href={dialog.href}
-              external={dialog.external}
-              lang={lang}
-              closeLabel={dialog.closeLabel}
-              hasNext={hasNext}
-              listHref={listHref}
-              scrollHeldRef={scrollHeldRef}
-              onNext={onNext}
-              onClose={closeOverlay}
-              returnTo={frameRef}
-            />
-          ) : null}
-          {/* 卓上時計の設定窓。会話窓と同じく枠の中に重ね、結果は案内文の一言として伝える */}
-          {mode === 'clock' ? (
-            <ClockModal
-              text={text.clock}
-              lang={lang}
-              announce={announce}
-              onClose={closeOverlay}
-              returnTo={frameRef}
-              scrollHeldRef={scrollHeldRef}
-            />
-          ) : null}
-          {outdoors ? (
-            <Minimap
-              world={world}
-              visited={visited}
-              player={playerCell}
-              destination={destination}
-              placeNames={placeNames}
-              doors={doors}
-              label={text.openMap}
-              onOpen={openMap}
-            />
-          ) : null}
+          <FrameOverlays
+            lang={lang}
+            text={text}
+            mode={mode}
+            outdoors={outdoors}
+            weather={weather}
+            weatherSprites={weatherSprites}
+            speech={speech}
+            dialog={dialog}
+            hasNext={hasNext}
+            listHref={listHref}
+            world={world}
+            visited={visited}
+            playerCell={playerCell}
+            destination={destination}
+            placeNames={placeNames}
+            doors={doors}
+            frameRef={frameRef}
+            scrollHeldRef={scrollHeldRef}
+            onNext={onNext}
+            closeOverlay={closeOverlay}
+            openMap={openMap}
+            announce={announce}
+          />
         </div>
         {/* 縦持ちタッチでは枠と帯の間に横長で並び、useStageScale がこの高さも差し引く。それ以外は箱を作らない */}
         <div ref={exitRef} className={styles.exitSlot} data-village-exit-slot>

@@ -21,7 +21,7 @@
 ## UI の部位 → フォルダ
 
 画面の部品は 1 部品 1 フォルダで並ぶ。クライアントの `Village` が描く部品は `components/Village/components/` の下にあり、並べる順と渡す値は `components/Village/index.tsx`。
-world 層(`.world`)の中の並びだけは `components/Village/components/WorldLayer/` が持ち、値は `components/Village/index.tsx` から受け取る。
+world 層(`.world`)の中の並びは `components/Village/components/WorldLayer/`、枠に重ねる物(雨・雪からミニマップまで)の並びは `components/Village/components/FrameOverlays/` が持ち、どちらも値は `components/Village/index.tsx` から受け取る。
 起動の覆いと一覧への出口の 2 つだけはサーバの `index.tsx` が作るので、この直下の `components/` にある。
 
 | 部位 | フォルダ | 中身を決める所・補足 |
@@ -29,6 +29,7 @@ world 層(`.world`)の中の並びだけは `components/Village/components/World
 | 起動の覆い(ロゴの着地) | `components/Boot/` | `index.tsx` が舞台の先頭に置く。中央のロゴを見出し(`data-boot-target`)へ飛ばしてから外す飾りで、読み上げからは隠す。初回は hydration 前のインライン script、クライアント遷移では effect が同じ手順を走らせる |
 | 一覧への出口 | `components/ExitLink/` | `index.tsx` が作って `Village` の `exit` へ渡し、`components/Village/index.tsx` の出口の箱(`exitRef`)に入る。縦持ちタッチでは枠の下に高さを持つ。全地点で話し終えた時の焦点移動と跳ねは `components/Village/hooks/use-village-overlay/use-course-progress.ts` |
 | 操作帯(スティック・A/B) | `components/Village/components/Joystick/`・`components/Village/components/ActionButtons/` | A/B の行き先は `components/Village/hooks/use-village-buttons.ts` が mode から決め、ボタンは呼ぶだけ |
+| 枠に重ねる物(world 層の外) | `components/Village/components/FrameOverlays/` | 雨・雪・下端の案内文・会話窓・卓上時計の窓・ミニマップを枠の子として並べる。値は props で受けるだけでフックを呼ばない |
 | 枠の下端の案内文と吹き出し | `components/Village/components/SpeechBox/`・`components/Village/components/TalkBubble/` | 案内文は `role='status'` の一言。吹き出しは world 層の中に置き、話しかける物の上の台詞と、話せる相手がいない時の頭上の考え事の両方を描く |
 | 会話窓と卓上時計の窓(枠に重ねる窓) | `components/Village/components/StopModal/`・`components/Village/components/ClockModal/` | 会話窓は地点の説明と釣りの結果を 1 か所で描く。どちらを出すかは `components/Village/utils/pick-dialog.ts` |
 | 地図(ミニマップ・拡大地図) | `components/Village/components/Minimap/`・`components/Village/components/WorldMap/`・`components/Village/components/MapSvg/` | MapSvg は両方の地図が縮尺だけ変えて使う地形の SVG。番号の札と凡例は WorldMap の中 |
