@@ -4,7 +4,7 @@
 import { useLayoutEffect, useRef } from 'react'
 import type { CSSProperties } from 'react'
 import type { Locale } from '@content/types/content'
-import { shiftBubble } from './utils/shift-bubble'
+import { readShift, shiftBubble } from './utils/shift-bubble'
 import styles from './talk-bubble.module.css'
 
 export type TalkBubbleProps = {
@@ -40,11 +40,16 @@ export function TalkBubble({
     if (bubble === null) return
 
     // 枠からはみ出した分を --shift に入れて吹き出し本体を押し戻す。尾は逆向きに戻し、元の位置を指し続ける。
-    // 押し戻す量は utils/shift-bubble.ts が決め、ここは測って書き込むだけ
+    // 押し戻す量は utils/shift-bubble.ts が決め、ここは測って書き込むだけ。測った箱には今書いてある --shift が
+    // 乗っているので、その量も渡して押し戻す前の位置で測らせる(測り直しで 0 へ戻さないため)
     const clamp = () => {
       const frame = bubble.closest('[data-village]')
       if (frame === null) return
-      const shift = shiftBubble(frame.getBoundingClientRect(), bubble.getBoundingClientRect())
+      const shift = shiftBubble(
+        frame.getBoundingClientRect(),
+        bubble.getBoundingClientRect(),
+        readShift(bubble.style.getPropertyValue('--shift'))
+      )
       bubble.style.setProperty('--shift', `${shift}px`)
     }
 
