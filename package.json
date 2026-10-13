@@ -42,7 +42,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitest/browser-playwright": "4.1.10",
     "@vitest/coverage-v8": "^4.1.10",
-    "axe-core": "^4.12.1",
+    "axe-core": "^4.14.0",
     "eslint": "^9",
     "eslint-config-next": "^16.3.6",
     "happy-dom": "^20.14.5",
