@@ -37,7 +37,7 @@ push to main / PR to main
 - Pages の設定は **Settings → Pages → Source = GitHub Actions**
 - 計測先は **Settings → Secrets and variables → Actions → Variables** の `GOATCOUNTER_URL`。build step が `NEXT_PUBLIC_GOATCOUNTER_URL` として渡し、未設定なら計測タグを出さない
 - カバレッジの床の正本は`vitest.config.ts`([../quality/test-strategy.md](../quality/test-strategy.md))、Lighthouse CIの経路と基準の正本は`lighthouserc.json`([../quality/performance.md](../quality/performance.md))。Lighthouse CIの報告は外へ上げない(`upload`を設定しない)
-- 依存の更新は`.github/dependabot.yml`がnpmとGitHub Actionsをそれぞれ1つのPRにまとめて毎週知らせる。そのPRでもこのワークフローの検査が走る(配信はしない)ので、取り込む前にそのPRの検査が通ったことを確かめる。TypeScriptとESLintの大きな版上げは、周りのパッケージ(typescript-eslint・eslint-plugin-reactなど)が対応するまで`ignore`で止めている
+- 依存の更新は`.github/dependabot.yml`がnpmとGitHub Actionsをそれぞれ1つのPRにまとめて毎週知らせる。そのPRでもこのワークフローの検査が走る(配信はしない)ので、取り込む前にそのPRの検査が通ったことを確かめる。TypeScript・ESLint・Vitestの大きな版上げは、周りのパッケージ(typescript-eslint・eslint-plugin-react・Strykerのvitest-runnerなど)が対応するまで`ignore`で止めている
 
 ## キャッシュ
 
