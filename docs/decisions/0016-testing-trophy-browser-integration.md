@@ -137,21 +137,27 @@ journey のそれ以外のテストの行き先は、この表では決めてい
 ## Consequences
 
 この記録の時点(2026-10-13)では、設定もテストもまだ変えていない。以下は導入で起きること・導入で確かめることである。
+基盤の段階(同日)で測った結果・決めた形は、その項に書き足した。
 
 - **新しい依存`@vitest/browser-playwright`は4.1.10に版を固定する**(`^`を付けない)。peer が`vitest: 4.1.10`で、`latest`の5.0.4は vitest 5 を求め、今の vitest 4.1.10(`package-lock.json`)と衝突する。
   vitest を上げるときは、これも同じ版へそろえて上げることになる
 - **ブラウザ側の時間帯を別に固定する。** `TZ=UTC`(`package.json`の scripts と`vitest.config.ts`の`env`)は node のプロセスにだけ効き、ブラウザには効かない。
-  provider の`contextOptions`で固定する。`timezoneId`の実際の動きは測っていない。
+  provider の`contextOptions`で固定する。基盤の段階で`timezoneId: 'UTC'`を置き(`vitest.integration.config.ts`)、ブラウザの中の`Intl.DateTimeFormat().resolvedOptions().timeZone`が`UTC`になるのを確かめた。
+  外すと、この機器では`Asia/Tokyo`になった。
   昼夜の段階は JST で決まる([0006](0006-jst-fixed-day-phase.md))ので、村の統合テストは機器の時間帯に結果を左右させないことが要る
 - **偽の時計に気をつける。** Vitest の偽の時計を入れると、locator の操作が時計を進めない([vitest-dev/vitest#10058](https://github.com/vitest-dev/vitest/issues/10058)、2026-10-13の時点で open)。
   時間を差し替える統合テストで当たりうる
 - **Stryker 用に node だけの設定を分ける。** Browser Mode 対応が未実測のため。今の`stryker.config.mjs`は`vitest.config.ts`を読む。
+  基盤の段階では projects で分けず、統合テストを別の設定ファイル(`vitest.integration.config.ts`)にした。Stryker が読む`vitest.config.ts`へブラウザのテストを入れないためで、
+  `vitest.config.ts`は`*.browser.test.tsx`を exclude で外す。
   `stryker.config.mjs`か`vitest.config.ts`を変えると CI の変異テストはキャッシュの鍵の指紋が変わり、最初の push で全部が走る([0013](0013-incremental-mutation-on-push.md))
-- **統合テストで測ったフックのカバレッジを、今の`npm run test:coverage`の門で数えられるかは測っていない。** 基盤の段階で確かめる
+- **統合テストで測ったフックのカバレッジを、今の`npm run test:coverage`の門で数えられるかは測っていない。** 基盤の段階で確かめる。
+  基盤の段階では、統合テストのカバレッジを単体の門へ合わせず、別の設定で測る形にした(`npm run test:integration -- --coverage`、報告は`coverage/integration`)。
+  床はまだ掛けておらず、`npm run test:coverage`の門で数えられるかも確かめていない
 - **CI の時間への影響は測っていない。** 統合テストは Chromium を立てて走り、E2E は移した分だけ減る。どちらも導入の段階で実測する
 - **移行は段階を分ける。** 不変ルール「1段階 = 1セッション」([../../AGENTS.md](../../AGENTS.md))に従い、次の順で進める。3はフォルダごとに複数のセッションに分けうる
   1. 文書(このADRと[../quality/test-strategy.md](../quality/test-strategy.md))
-  2. 基盤: 依存の追加、node と browser の projects の分離、ブラウザ側の時間帯の固定、CI。まずテスト1本で実際に動くことを確かめる
+  2. 基盤: 依存の追加、node と browser の設定の分離(projects ではなく別の設定ファイル`vitest.integration.config.ts`。上の Stryker の項)、ブラウザ側の時間帯の固定、CI。まずテスト1本で実際に動くことを確かめる
   3. フォルダごとに統合テストを足し、そのフォルダのフックへ100%の門を掛け、重なる E2E を消す
 - **移行の途中は、同じ振る舞いを E2E と統合テストが二重に見る期間がある。** E2E は、統合テストが同じ欠陥を落とすのを見るまで消さないため
 - **呼び名が変わる。** happy-dom の8本(`index.test.tsx`)は単体に数え、ファイル名は変えない。0007・0009・0011の本文の「統合テスト」は happy-dom のテストを指す

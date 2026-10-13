@@ -17,7 +17,8 @@ last_reviewed: 2026-10-13
 | `content/` に作品・経歴・地点を追加 | `npm run typecheck` → `npm run test`(村なら) → `npm run build` → 関連 spec |
 | `content/world.ts`(地形・構造物・地点) | `npm run test`(`validate-world` と `village`)→ `npm run build` → `npx playwright test tests/journey.spec.ts` |
 | 純粋モジュール(`src/lib/` `src/utils/`・コンポーネント専用の utils)の追加・変更。どれも変異テストとファイル別100%の対象(規則の正本は `scripts/gate-targets.mjs`) | 隣の `*.test.ts` → `npm run typecheck` → `npm run test:coverage` → `npm run test:mutation`(既定は変わった変異体だけ。変えたファイルを別の純粋モジュールが import しているとき・依存・設定を変えたときは `npm run test:mutation -- --force`)。`src/lib/pixel/` と外部境界は下の行も足す |
-| `hooks` フォルダの下へファイルを足す | `npm run test:boundary` → その画面の spec |
+| `hooks` フォルダの下へファイルを足す | `npm run test:boundary` → その画面の統合テスト(`npm run test:integration`。その画面の統合テストがまだ無ければ spec) |
+| 統合テスト(`*.browser.test.tsx`)の追加・変更、`vitest.integration.config.ts` | `npm run test:integration`(ビルド不要。設定を変えたときは `npm run test:integration -- --coverage`) → `npm run test:boundary`。落ちた時の画面の写しは `test-results/vitest-screenshots/` |
 | `src/lib/pixel/`(絵・パレット) | `npm run test` → `npm run build` → 見た目を目視 → `npx playwright test tests/day-night.spec.ts` |
 | `src/lib/preferences.ts` / `weather.ts` / `analytics.ts` / `fetch-svg-source.ts`(外部境界) | 隣の `*.test.ts`(あれば) → `npm run typecheck` → 関連 spec |
 | 1画面の中のコンポーネント | `npm run typecheck` → `npm run lint` → `npm run build` → その画面の spec |
@@ -26,7 +27,7 @@ last_reviewed: 2026-10-13
 | CSS(色・トークン) | `npm run build` → axe(色を変えたなら必ず) |
 | 本文の折り返しに関わる CSS | `npm run build` → 日本語改行検査 → [../quality/japanese-typography.md](../quality/japanese-typography.md) |
 | import の向き・フォルダ構成 | `npm run lint` → `npm run typecheck` → `npm run build` |
-| 設定(`next.config.ts` / `tsconfig.json` / `eslint.config.mjs` / `vitest.config.ts` / `playwright.config.ts`) | `npm run typecheck` → `npm run lint` → `npm run test:coverage`(`vitest.config.ts` を変えたとき) → `npm run build` → `npm run test:e2e` 全体 |
+| 設定(`next.config.ts` / `tsconfig.json` / `eslint.config.mjs` / `vitest.config.ts` / `vitest.integration.config.ts` / `playwright.config.ts`) | `npm run typecheck` → `npm run lint` → `npm run test:coverage`(`vitest.config.ts` を変えたとき) → `npm run test:integration -- --coverage`(`vitest.integration.config.ts` を変えたとき) → `npm run build` → `npm run test:e2e` 全体 |
 | `vitest.config.ts`の`coverage`(測る範囲・床) | `npm run test:coverage`。床を変えたら、一度だけ実測より上に置いて落ちるのを見てから戻す |
 | `lighthouserc.json`(経路・下限) | `npm run build` → `npm run start`と`npx wait-on http://localhost:4173` → `npx -y @lhci/cli@0.15.1 collect && npx -y @lhci/cli@0.15.1 assert`(版の正本は`.github/workflows/deploy.yml`) |
 | 依存の版(`package.json` / `package-lock.json`。Dependabot(`.github/dependabot.yml`)の PR を取り込むときも) | PRを開き、そのPRのCI(`.github/workflows/deploy.yml`のbuildジョブ)が通ったことを確かめる。手元での再現([../operations/deployment.md](../operations/deployment.md) の「ローカルで CI を再現する」)はCIが落ちた原因を手元で追うときに使う |
@@ -37,7 +38,7 @@ last_reviewed: 2026-10-13
 ## commit の直前
 
 そこまでに触った範囲に関係なく、**`npm run verify` を1回通す**。
-中身は docs:check → lint → format:check → test:coverage → test:boundary → build の直列で、前段が落ちたら後段は走らない(正本は `package.json` の `scripts`)。
+中身は docs:check → lint → format:check → test:coverage → test:boundary → test:integration → build の直列で、前段が落ちたら後段は走らない(正本は `package.json` の `scripts`)。
 
 これに、上の表で変えた範囲が指すものだけを足す。
 
@@ -63,6 +64,7 @@ CI(`.github/workflows/deploy.yml`)が `main` への push のたびにこれら�
 E2E の全体は数分かかる(2026-10-11 の手元の実測で約3分44秒)。修理のたびに全体を回さない。
 
 - 反復中: 落ちた spec と新しく書いた spec だけ(`npx playwright test tests/journey.spec.ts -g '<名前>'`)
+- 統合テスト(`npm run test:integration`)はビルド無しで数秒なので、反復中も全体を回してよい([../quality/test-strategy.md](../quality/test-strategy.md) の「走らせる範囲」)
 - E2E の全体は手元では回さず、push で CI が回す。CI で落ちた spec が出たら、その spec だけを手元で狭く直してから push し直す
 - CI も E2E を再試行しない(`playwright.config.ts` の `retries` は 0)。1 回だけ落ちて次は通る揺れも、再実行で流さず原因を直す
 
