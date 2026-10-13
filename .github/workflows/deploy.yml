@@ -35,6 +35,22 @@ jobs:
       # カバレッジが床を下回ったらここで止まる(基準の正本はvitest.config.tsのcoverage.thresholds)
       - run: npm run test:coverage
       - run: npm run test:boundary
+      # ブラウザ本体は lock ファイルの版ごとに使い回す。OS 側の依存はキャッシュできないので hit でも入れる。
+      # 統合テスト(Vitest Browser Mode)も Chromium を使うので、その前に入れる
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+      - name: Install Playwright Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+      - name: Install Playwright system dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+      # 統合テスト。ビルド無しで実ブラウザに画面を描く(床はまだ無く、カバレッジは数字を出すだけ)
+      - run: npm run test:integration -- --coverage
       # 変異テストは前回の結果(stryker.config.mjs の incrementalFile)を引き継ぎ、変わった変異体だけを走らせる。
       # 鍵に依存・設定の指紋を入れ、どれかが変わると引き継がずに全部を走らせる(docs/decisions/0013-incremental-mutation-on-push.md)
       # キャッシュがまだ無い最初の push では、引き継ぐ結果が無いので全部が走る
@@ -57,19 +73,6 @@ jobs:
         run: npm run build
         env:
           NEXT_PUBLIC_GOATCOUNTER_URL: ${{ vars.GOATCOUNTER_URL }}
-      # ブラウザ本体は lock ファイルの版ごとに使い回す。OS 側の依存はキャッシュできないので hit でも入れる
-      - name: Cache Playwright browsers
-        id: playwright-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
-      - name: Install Playwright Chromium
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
-      - name: Install Playwright system dependencies
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: npx playwright install-deps chromium
       - run: npm run test:e2e
       - name: Start static server
         run: npx serve out -l 4173 &
