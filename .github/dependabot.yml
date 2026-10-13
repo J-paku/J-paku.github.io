@@ -16,6 +16,12 @@ updates:
       # eslint-config-nextが使うeslint-plugin-react・eslint-plugin-jsx-a11yのpeerDependenciesがeslint ^9まで
       - dependency-name: eslint
         update-types: ['version-update:semver-major']
+      # Vitest 5ではテスト名が' > 'でつながり、@stryker-mutator/vitest-runner 10.0.0のテスト絞り込みが何にも当たらず、
+      # テストが覆う変異が全部「生き残り」になる(stryker-mutator/stryker-js#6210、修正PRは未マージ)
+      - dependency-name: vitest
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@vitest/*'
+        update-types: ['version-update:semver-major']
   - package-ecosystem: github-actions
     directory: /
     schedule:
