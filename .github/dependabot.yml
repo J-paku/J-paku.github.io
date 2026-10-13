@@ -8,6 +8,14 @@ updates:
     groups:
       npm:
         patterns: ['*']
+    # 次の大きな版に周りのパッケージがまだ対応していない(2026-10-13時点)。対応したら消す
+    ignore:
+      # typescript-eslintのpeerDependenciesがtypescript <6.1.0まで
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
+      # eslint-config-nextが使うeslint-plugin-react・eslint-plugin-jsx-a11yのpeerDependenciesがeslint ^9まで
+      - dependency-name: eslint
+        update-types: ['version-update:semver-major']
   - package-ecosystem: github-actions
     directory: /
     schedule:
