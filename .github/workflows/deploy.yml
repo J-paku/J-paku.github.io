@@ -21,8 +21,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -39,7 +39,7 @@ jobs:
       # 統合テスト(Vitest Browser Mode)も Chromium を使うので、その前に入れる
       - name: Cache Playwright browsers
         id: playwright-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
@@ -55,7 +55,7 @@ jobs:
       # 鍵に依存・設定の指紋を入れ、どれかが変わると引き継がずに全部を走らせる(docs/decisions/0013-incremental-mutation-on-push.md)
       # キャッシュがまだ無い最初の push では、引き継ぐ結果が無いので全部が走る
       - name: Restore Stryker incremental result
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: reports/stryker-incremental.json
           key: stryker-incremental-${{ hashFiles('package-lock.json', 'stryker.config.mjs', 'vitest.config.ts') }}-${{ github.sha }}
@@ -64,7 +64,7 @@ jobs:
       # 変異テストが落ちても結果は残して次の push を速くする。取り消された実行は保存しない
       - name: Save Stryker incremental result
         if: ${{ !cancelled() && hashFiles('reports/stryker-incremental.json') != '' }}
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: reports/stryker-incremental.json
           key: stryker-incremental-${{ hashFiles('package-lock.json', 'stryker.config.mjs', 'vitest.config.ts') }}-${{ github.sha }}
@@ -86,7 +86,7 @@ jobs:
       # apt のアーカイブ(/var/cache/apt)は root 所有で cache アクションが復元できないので、.deb を利用者側に落として持ち回る
       - name: Cache CJK font package
         id: fonts-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/apt-fonts
           key: ${{ runner.os }}-fonts-noto-cjk-v1
@@ -101,7 +101,7 @@ jobs:
       - name: Japanese line-break check
         run: node scripts/check-ja-linebreak.mjs http://localhost:4173 / /ko/ /list/ /ko/list/ /works/meishi-cross-platform/ /ko/works/meishi-cross-platform/
       # PRでは配信しないので、成果物の受け渡しも飛ばす
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         if: github.event_name != 'pull_request'
         with:
           path: out
@@ -120,6 +120,6 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       # 配信の準備もPagesの権限が要るので、buildジョブではなくここで行う(PRではジョブごと飛ぶので条件は付けない)
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
