@@ -122,4 +122,4 @@ jobs:
       # 配信の準備もPagesの権限が要るので、buildジョブではなくここで行う(PRではジョブごと飛ぶので条件は付けない)
       - uses: actions/configure-pages@v5
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
