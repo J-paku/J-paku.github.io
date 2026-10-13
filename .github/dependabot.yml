@@ -1,10 +1,17 @@
+# パッケージごとにPRが開いて溜まったので、生態系ごとに1つのPRへまとめる
 version: 2
 updates:
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
+    groups:
+      npm:
+        patterns: ['*']
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    groups:
+      github-actions:
+        patterns: ['*']
