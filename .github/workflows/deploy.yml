@@ -101,7 +101,7 @@ jobs:
       - name: Japanese line-break check
         run: node scripts/check-ja-linebreak.mjs http://localhost:4173 / /ko/ /list/ /ko/list/ /works/meishi-cross-platform/ /ko/works/meishi-cross-platform/
       # PRでは配信しないので、成果物の受け渡しも飛ばす
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         if: github.event_name != 'pull_request'
         with:
           path: out
