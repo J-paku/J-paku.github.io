@@ -20,9 +20,10 @@ last_reviewed: 2026-10-13
 push to main / PR to main
   → build ジョブ(直列。前段が落ちたら後段は走らない)
       docs:check → typecheck → lint → format:check → test:coverage(カバレッジの床) → test:boundary
+      → Playwright Chromium をキャッシュから戻す(miss なら入れる。hit でも OS 側の依存は入れる)
+      → test:integration -- --coverage(統合テスト。ビルド無し。カバレッジは数字を出すだけで床は無い)
       → Stryker の前回の結果をキャッシュから戻す → test:mutation(変わった変異体だけ) → 結果をキャッシュへ保存(test:mutation が落ちても保存する)
-      → build
-      → Playwright Chromium をキャッシュから戻す(miss なら入れる)→ test:e2e
+      → build → test:e2e
       → out/ を :4173 で配信 → wait-on
       → axe(6経路) → Lighthouse CI(同じ6経路) → CJK フォントの .deb をキャッシュから戻して入れる → 日本語改行検査
       → upload-pages-artifact(PRでは飛ばす)
@@ -59,7 +60,7 @@ push to main / PR to main
 PRのCIが落ちたとき、その原因を手元で追うのに使う。依存の版・ワークフローを変えたときも、確かめるのはPRを開いてそのPRのCI(buildジョブ)が通ることで、ここを通しておくことは求めない([../agents/verification.md](../agents/verification.md))。落ちる場所は CI と同じ順に出る。
 
 ```bash
-npm run docs:check && npm run typecheck && npm run lint && npm run format:check && npm run test:coverage && npm run build
+npm run docs:check && npm run typecheck && npm run lint && npm run format:check && npm run test:coverage && npm run test:boundary && npm run test:integration && npm run build
 npm run test:e2e
 npm run start &
 npx wait-on http://localhost:4173

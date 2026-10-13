@@ -28,7 +28,7 @@ last_reviewed: 2026-10-13
 
 - ロジックは純粋関数(`src/lib/`・`src/utils/`・コンポーネント専用のutils)に置き、単体テスト・ファイル別カバレッジ100%・ミューテーションで固める
 - フックとコンポーネントは配線だけを持つ。`hooks`フォルダに単体テストを置かず、どのテストでも`renderHook`を使わない([テストの境界](#テストの境界))。
-  フックは、それを使う画面を統合テストで描いて見る(統合の層はまだ設定が無い。[移行中](#移行中))
+  フックは、それを使う画面を統合テストで描いて見る(統合の層は設定が入ったところで、テストはまだ村の1本だけ。[移行中](#移行中))
 - 制約は上げる方向にだけ動かす。下限を下げる・テストを消す・変異テストやファイル別100%の対象から外す・テストの境界の決まりを変えるにはADRが要る
 
 ## 4層
@@ -37,13 +37,15 @@ last_reviewed: 2026-10-13
 |---|---|---|---|
 | 静的 | — | 型・lint(レイヤー境界を含む)・整形・文書の参照(`npm run typecheck`・`npm run lint`・`npm run format:check`・`npm run docs:check`) | ソースをそのまま読む |
 | 単体(Vitest) | 対象ファイルの隣 `*.test.ts`、コンポーネントの隣 `index.test.tsx` | **純粋関数**と、`fetch`・Storage を `vi.stubGlobal` で差し替えて測る `src/lib/` の入口。DOMを使う(読む・書く・DOMParser)utils(歩行ループの部品など)。**コンポーネント1つだけを描くテスト**(環境・props・操作で分かれる出し分け)。いまは作品カード(`src/components/Directory/components/WorkCard/index.test.tsx`)とその部品のLinksOverlay・WorkLinks・ShotMedia、経歴のCareerDetail、設定メニューのSettingsMenu、ページ移動の計測のPageviewCounter、作品ストーリーの技術チップのTechChipPopoverの8本。**フックを`renderHook`で呼ぶテストは置かない**([テストの境界](#テストの境界)) | `environment: 'node'`(既定)。DOM を持たない。DOMを使う(読む・書く・DOMParser)utilsとコンポーネントを描くテストだけは、ファイル先頭の`// @vitest-environment happy-dom`でそのファイルだけhappy-domで走る |
-| 統合(Vitest Browser Mode。一番厚くする) | `*.browser.test.tsx`(名前は仮) | **画面単位のコンポーネントを、フック・子と一緒に描く。** 村も含む。モックはネットワーク(天気)と時間だけ | 実ブラウザ(Chromium)で、ビルド無しで走る。**まだ設定もテストも無い**([移行中](#移行中)) |
+| 統合(Vitest Browser Mode。一番厚くする) | `*.browser.test.tsx`(名前は仮) | **画面単位のコンポーネントを、フック・子と一緒に描く。** 村も含む。モックはネットワーク(天気)と時間だけ | 実ブラウザ(Chromium 1つ、headless)で、ビルド無しで走る(`vitest.integration.config.ts`・`npm run test:integration`)。ブラウザの時間帯は UTC に固定する。今は村の1本だけ([移行中](#移行中)) |
 | E2E(Playwright) | `tests/**/*.spec.ts` | **ビルド結果でしか確かめられないもの**(静的経路・404・初回ペイント前のテーマ・言語の接頭を保つ移動・保存が塞がれた時)と、**ページをまたぐ核心の旅程**。今はフック(配線)の振る舞いもここで見ていて、統合へ移す予定([移行中](#移行中)) | `out/` を `:4173` で静的配信 |
 
 - コンポーネント1つだけを happy-dom で描く上の8本は、ADR 0016 まで「統合」と呼んでいた。環境が happy-dom なので単体に数える。ファイルは `index.test.tsx` のまま
 - ネットワークのモックは今の方式(`vi.stubGlobal`・Playwright の route)で行い、MSW は入れない([ADR 0016](../decisions/0016-testing-trophy-browser-integration.md))
 - E2E の配信ポートは既定 `:4173` で、`E2E_PORT` で変えられる(`playwright.config.ts`)
-- Vitest が拾うのは `src/**/*.test.ts` と `src/**/*.test.tsx`(`vitest.config.ts`)。`content/` や `tests/` は対象外
+- Vitest の設定は2つのファイルに分かれる。単体の `vitest.config.ts` は `src/**/*.test.ts` と `src/**/*.test.tsx` を拾い、`src/**/*.browser.test.{ts,tsx}` を exclude で外す。
+  統合の `vitest.integration.config.ts` は `src/**/*.browser.test.{ts,tsx}` だけを拾う(名前は `*.browser.test.tsx` で付けるが、設定は `.ts` も拾う)。どちらも `content/` や `tests/` は対象外。
+  ファイルを分けたのは、変異テスト(`stryker.config.mjs`)が `vitest.config.ts` を読むため(ブラウザのテストを変異テストに入れない。[ミューテーションテスト](#ミューテーションテスト))
 - 純粋関数に切り出せる計算は切り出してから単体テストを書く。`src/lib/village/` と `src/lib/pixel/` がその形になっている
 - フィクスチャは `*.fixture.ts`(Vitest の対象から外れる名前)
 - モジュール変数に覚えを持つ関数(`src/lib/fetch-svg-source.ts` の取得の覚え)は、テストごとに `vi.resetModules()` してから import し直し、空の覚えから始める
@@ -65,17 +67,37 @@ last_reviewed: 2026-10-13
   村の画面は実ブラウザの統合テストで描く(ADR 0016。[../decisions/0009-widen-happy-dom-test-scope.md](../decisions/0009-widen-happy-dom-test-scope.md) の「村のコンポーネントを描く統合テストは引き続き作らない」を置き換えた)。
   DOMを使うutils(rAFと`performance.now`を偽物に替えた歩行ループの部品など)を単体で測るのは今までどおり。
   村のフックも`renderHook`のテストは作らず、村の画面を統合で描いて見る
-- 統合の層の設定ができるまでは、画面単位の振る舞いは今までどおり E2E で見る([移行中](#移行中))
+- 統合テストへ移し終えるまでは、画面単位の振る舞いは今までどおり E2E で見る([移行中](#移行中))
 
 ### コンポーネントを描く単体テストの約束
 
-happy-dom でコンポーネント1つを描くテスト(`index.test.tsx`)の約束。統合テストの約束は、統合の層の設定と一緒に足す。
+happy-dom でコンポーネント1つを描くテスト(`index.test.tsx`)の約束。統合テストの約束は[次の節](#統合テストの約束)。
 
 - 確かめるのは利用者に見えるもの(role・`aria-*`・`inert`・要素の有無)。クラス名に頼るときは、部品と同じ CSS Modules を
   テストでも import して引く(Vitest は CSS を処理せず、CSS Modules を `_<キー>_<ファイル名のハッシュ>` を返す Proxy に置き換える)
 - 環境の差し替えは `vi.stubGlobal` で行い、`afterEach` で `vi.unstubAllGlobals()` と URL(`history.replaceState`)を戻す
 - `fetch` も差し替えて外へ通信させない。happy-dom は相対 URL を `http://localhost:3000` へ取りに行く
 - 実データは `readContent('ja')` から条件で選ぶ(slug を名指ししない)。`server-only` は単体と同じく mock する
+
+### 統合テストの約束
+
+実ブラウザで画面を描くテスト(`*.browser.test.tsx`)の約束。例は村の `src/components/VillagePage/components/Village/index.browser.test.tsx`。
+
+- 画面単位のコンポーネントを、フック・子と一緒に本物のまま描く。レイアウト・rAF・`ResizeObserver` は差し替えない
+- 差し替えるのはネットワークと時間だけ。`fetch` は単体と同じく `vi.stubGlobal` で差し替え、`afterEach` で `vi.unstubAllGlobals()` して戻す(村は天気の応答)。
+  Vitest の偽の時計を入れると locator の操作が時計を進めない([ADR 0016](../decisions/0016-testing-trophy-browser-integration.md) の Consequences)ので、時間を差し替えるテストはそこに当たりうる
+- ブラウザの操作は `vitest/browser` の `page` と `userEvent` で行う。画面の大きさは `page.viewport(幅, 高さ)` で変え、要素は `page.getByRole(…)` で引く。
+  断定は単体と同じく利用者に見えるもの(role・名前・`aria-*`・要素の有無・枠の寸法)で行う
+- ブラウザでは node の API(`node:fs`・`node:zlib`・`node:crypto`)を読み込めない。それを使って組む props は、設定の globalSetup が node で組んで `provide` し、テストは `inject` で受け取る。
+  村は `src/components/VillagePage/components/Village/village-props.fixture.ts` が `provide('villageJa', …)` し、テストが `inject('villageJa')` する。
+  組み方は `src/components/VillagePage/index.tsx` の写しなので、あちらを変えたらフィクスチャも合わせる(`exit` は要素なので渡せず、テストが組む)
+- globalSetup が読み込む `server-only` は中身の無い版(パッケージ同梱の `empty.js`)へ alias し、`process.env` は空の入れ物に define する(`next/link` が `process.env` を読み、ブラウザには `process` が無い)。
+  どちらも `vitest.integration.config.ts` にある
+- ブラウザの時間帯は provider の `contextOptions.timezoneId` で UTC に固定する(`TZ=UTC` は node のプロセスにしか効かない)。
+  外すとこの機器では `Asia/Tokyo` になった(2026-10-13 の実測)。村の統合テストは前提としてブラウザの時間帯が UTC であることを先に確かめる
+- 落ちた時の画面の写しは `test-results/vitest-screenshots/`、添付は `test-results/vitest-attachments/` に出る(git は追わない)
+- 走らせると React の「not wrapped in act(...)」の `console.error` が出力に混ざる。テストは通る。既知のもので、まだ手当てしていない
+- カバレッジは `npm run test:integration -- --coverage` で測り、フックも含む。報告は `coverage/integration` に出て、床はまだ無い([カバレッジの床](#カバレッジの床))
 
 ## 移行中
 
@@ -84,20 +106,17 @@ happy-dom でコンポーネント1つを描くテスト(`index.test.tsx`)の約
 
 ### 今の実物(2026-10-13)
 
-- **統合の層(Vitest Browser Mode)の設定はまだ無い。** 統合テストは0本で、`vitest.config.ts` が走らせるのは node と happy-dom だけ
-- フックの振る舞いは今も E2E が見ていて、フックはカバレッジを測っていない([カバレッジの床](#カバレッジの床))。
-  フック(`hooks`フォルダの下、2026-10-13 に数えて43ファイル)のうち村(`src/components/VillagePage/`)の30は、村のコンポーネントを描くテストが無いので E2E でしか動かない
+- **統合の層の基盤は入った。** 設定は `vitest.integration.config.ts`(`@vitest/browser-playwright` は 4.1.10 に版を固定。peer が同じ版の vitest で、5.x は vitest 5 を求めて衝突する)で、
+  `npm run test:integration` で走る。単体の `vitest.config.ts` は `src/**/*.browser.test.{ts,tsx}` を外し、変異テストは今までどおり単体だけで回る
+- **統合テストは1本。** `src/components/VillagePage/components/Village/index.browser.test.tsx` が実際の Chromium で村の画面を描き、
+  ビューポート 1280×720 で枠が 640×576(64px のマス)、600×900 へ変えると 600×540(60px のマス)に描き直されるかを見る。差し替えるのは天気の `fetch` だけ。
+  `src/components/VillagePage/components/Village/hooks/use-stage-scale.ts` の `observe` を外すと落ちるのを見てから採った([新しい検査は必ず一度落とす](#新しい検査は必ず一度落とす))
+- CI(`.github/workflows/deploy.yml` の build ジョブ)は `npm run test:boundary` の後に Playwright の Chromium を入れ、`npm run test:integration -- --coverage` を走らせる。カバレッジは数字を出すだけで床は無い
+- このテストは、VillagePage が `<style>` で差し込むスプライトの背景 CSS(`spriteBackgroundCss`)を入れていないので、村の絵は描かれない。絵を見る統合テストを作るときに渡し方を決める
+- フックの振る舞いは今も主に E2E が見ている。単体の門(`npm run test:coverage`)はフックを測らない([カバレッジの床](#カバレッジの床))。
+  フック(`hooks`フォルダの下、2026-10-13 に数えて43ファイル)のうち村(`src/components/VillagePage/`)の30は、統合テストが村を描くようになったが、そのテストが見るのは枠の寸法だけで、ほかの振る舞いは E2E でしか確かめていない
 - E2E は下の15本のまま。まだ1本も統合へ移していない
 - ファイル別100%を掛けるフックのフォルダの一覧は、まだ空(一覧を持つ設定もまだ無い)
-
-### 次の段階で入るもの(基盤)
-
-- `@vitest/browser-playwright` を 4.1.10 に版を固定して入れる。peer が同じ版の vitest(4.1.10)で、5.x は vitest 5 を求めて衝突する
-- Vitest の設定を node(単体)と browser(統合)の projects に分ける。今の `include`(`src/**/*.test.ts`・`src/**/*.test.tsx`)は `*.browser.test.tsx` も拾うので、分けないと統合テストが node で走る
-- 変異テスト(Stryker)用に node だけの設定を分ける。変異テストは単体だけで回す(Stryker の Browser Mode 対応は未実測)
-- ブラウザ側の時間帯を固定する。`TZ=UTC`(`package.json` の scripts と `vitest.config.ts` の `env`)は node のプロセスにしか効かない
-- CI で統合テストを走らせる
-- まずテスト1本で、実際に動くことと一度落ちることを確かめる
 
 ### フォルダごとの移行(基盤の後)
 
@@ -164,7 +183,8 @@ E2E は `out/` を配る。**先に `npm run build` を済ませる。**
 `npm run test:coverage`は`npm run test`と同じテストをv8のカバレッジ付きで走らせ、床を下回ると落ちる。CIはこちらを走らせる(手元の`npm run test`は測らない)。
 
 - 測る範囲・外す名前(テスト・`*.fixture.ts`・`*.test-helper.ts`・`src/**/hooks/**`)・床の値の正本は`vitest.config.ts`の`coverage`。数値はここへ書き写さない
-- **今の設定では、フックは測らない**(`src/**/hooks/**`を外す)。今はフックの振る舞いを E2E が見ているため
+- **単体の門ではフックを測らない**(`vitest.config.ts`が`src/**/hooks/**`を外す)。フックは単体テストを置かない層で、振る舞いは統合テストで見る(移し終えるまでは E2E が見る)。
+  統合の`npm run test:integration -- --coverage`(`vitest.integration.config.ts`の`coverage`)はフックも含めて測り、報告を`coverage/integration`へ出すが、床はまだ無い(CI も数字を出すだけ)
 - **移行後の規則:** 統合テストへ移し終えたフォルダのフックから、ファイル別100%を掛ける。掛けたフォルダの一覧は減らせないよう検査し、
   全部移したら一覧を消して全フックを対象にする([移行中](#移行中)・[../decisions/0016-testing-trophy-browser-integration.md](../decisions/0016-testing-trophy-browser-integration.md))。まだ掛けたフォルダは無い
 - 床は2種類ある。全体の床と、純粋モジュールのファイルごとのファイル別100%
@@ -203,7 +223,7 @@ E2E は `out/` を配る。**先に `npm run build` を済ませる。**
 
 `npm run test:boundary`(`scripts/check-test-boundary.mjs`)は、`hooks`フォルダの中に単体テストがあることと、srcのどのテストでも`renderHook`を使うことを落とす。
 フックは配線だけを持ち、ロジックは純粋関数へ移して単体で見る([../decisions/0011-extreme-constraints.md](../decisions/0011-extreme-constraints.md))。
-フックの振る舞いは、それを使う画面を統合テストで描いて見る(ADR 0016。この検査の決まりは ADR 0016 でも変えていない)。統合の層ができるまでは E2E が見る([移行中](#移行中))。
+フックの振る舞いは、それを使う画面を統合テストで描いて見る(ADR 0016。この検査の決まりは ADR 0016 でも変えていない)。統合テストへ移し終えるまでは E2E が見る([移行中](#移行中))。
 src の中に置いた統合テストの名前(`*.browser.test.tsx`)も、この検査が拾う名前(`*.test.ts`・`*.test.tsx`)に入るので、統合テストを`hooks`フォルダに置く・`renderHook`を使うのも落ちる。
 
 - 例外の一覧(許可リスト)は無い。ADR 0011より前からあった村のフックのテスト4つ(`use-map-data`・`use-village-time`・`use-village-world`・`use-village-travel`)は、
@@ -221,7 +241,9 @@ PASS は調査を止めるので、FAIL より危険である。
 
 ## 走らせる範囲
 
-反復中は落ちた spec だけを狭く走らせる(`npx playwright test tests/journey.spec.ts -g '<名前>'`)。
+統合テスト(`npm run test:integration`)はビルド無しで数秒で終わる(2026-10-13 の手元の実測で、1本のいま約3.4秒、`-- --coverage` 付きで約4.3秒)ので、反復中も全体を走らせてよい。
+
+E2E の反復中は落ちた spec だけを狭く走らせる(`npx playwright test tests/journey.spec.ts -g '<名前>'`)。
 **E2E の全体は手元では回さず、push で CI が回す**(E2E で commit の直前に走らせるのは、変えた範囲が指す spec だけ)。詳しくは [../agents/verification.md](../agents/verification.md)。
 
 E2E は CI でも再試行しない(`playwright.config.ts` の `retries` は 0)。再試行で通った失敗は緑として残り、揺れる検査を隠すため。
