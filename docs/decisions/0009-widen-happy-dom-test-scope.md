@@ -4,7 +4,7 @@ read_when:
   - happy-dom で見るテストの対象を広げる・狭めるとき
   - 村のフックや部品を happy-dom のテストで見てよいか迷ったとき
 source_of_truth: false
-last_reviewed: 2026-10-10
+last_reviewed: 2026-10-13
 ---
 
 # 0009. happy-dom で見るテストを、props・操作で分かれる部品、DOM を使う utils、寸法・rAF の実物に頼らない村のフック・部品へ広げる
@@ -12,6 +12,9 @@ last_reviewed: 2026-10-10
 ## Status
 
 Superseded by [0011](0011-extreme-constraints.md)(村のフックを `renderHook` で見る部分。2026-10-10 から。コンポーネントを描く統合テスト、DOM を使う utils、歩行ループの部品を happy-dom で見る部分は、この記録のまま)
+
+一部を [0016](0016-testing-trophy-browser-integration.md) が置き換えた(2026-10-13。「村のコンポーネントを描く統合テストは引き続き作らない」は、村も画面単位で Vitest Browser Mode の統合テストの対象にする形に替わった。
+happy-dom でコンポーネントを描くテストは、ここでは「統合テスト」と呼んでいるが、0016 からは単体に数える。コンポーネント1つを happy-dom で描くテストの対象の決め方(呼び名だけが単体に替わる)、DOM を使う utils と歩行ループの部品を happy-dom で見る部分は、この記録のまま)
 
 採った時点: Accepted(2026-09-29、`148a540`・`532f480`・`00326c0`・`69b92e0`・`11764fc`。今の層の分け方は`60750cf`が [../quality/test-strategy.md](../quality/test-strategy.md) に書いた)。[0007](0007-component-tests-happy-dom.md) の対象の決め方を置き換える
 
