@@ -31,13 +31,21 @@ export default defineConfig({
     // (package.json 側の TZ=UTC は npm 経由の入口、こちらは npx vitest を直接叩く入口を塞ぐ)
     env: { TZ: 'UTC' },
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
-    exclude: [...configDefaults.exclude, '**/.claude/**', 'tests/**'],
+    // *.browser.test.{ts,tsx} は統合テスト(vitest.integration.config.ts、実ブラウザ)の名前。include の *.test.ts・*.test.tsx に
+    // 当たってしまうので外す(docs/decisions/0016-testing-trophy-browser-integration.md)
+    exclude: [
+      ...configDefaults.exclude,
+      '**/.claude/**',
+      'tests/**',
+      'src/**/*.browser.test.{ts,tsx}',
+    ],
     // 測るのは--coverageを付けたとき(npm run test:coverage、CIはこちら)だけ。npm run testは今までどおり速く回す
     coverage: {
       provider: 'v8',
       enabled: false,
       include: ['src/**/*.{ts,tsx}'],
-      // hooks/ 配下は単体テストを置かない層なので測らない。フックの動きは E2E が見る
+      // hooks/ 配下は単体テストを置かない層なので測らない。フックの動きは統合テスト(vitest.integration.config.ts)で見る。
+      // 統合テストへ移し終えるまでは E2E が見る
       // (hooks/ にテストを置いていないかは scripts/check-test-boundary.mjs が検査する)
       exclude: [
         'src/**/*.test.{ts,tsx}',
