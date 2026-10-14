@@ -6,6 +6,8 @@ import nextConfig from './next.config'
 
 // 画面(コンテナ)の props は node でしか組めない(fs・zlib・crypto を使う)ので、各コンテナの隣の container.fixture.ts が
 // テストの前に node で組んで provide する。コンテナを足すたびにここを直さずに済むよう、src の下から全部拾う。
+// 置けるのはコンテナの一覧(scripts/container-dirs.mjs)のフォルダだけで、ほかに置くと npm run test:boundary
+// (scripts/check-test-boundary.mjs)が落とす(ここは全部拾うので、黙って走らせないため)。
 // 探す起点はこのファイルの場所にする(走らせた場所で拾う物が変わらないように)。順は名前で並べて、走るたびに揃える
 const ROOT = fileURLToPath(new URL('.', import.meta.url))
 const CONTAINER_FIXTURES = globSync('src/**/container.fixture.ts', { cwd: ROOT })
@@ -21,7 +23,9 @@ if (CONTAINER_FIXTURES.length === 0) {
 // (docs/decisions/0016-testing-trophy-browser-integration.md)。
 // 単体の vitest.config.ts と別のファイルにするのは、変異テスト(stryker.config.mjs)が vitest.config.ts を読むため。
 // Stryker の Browser Mode 対応は未実測なので、変異テストは node と happy-dom の単体だけで回す(ADR 0016)。
-// 単体の設定は *.browser.test.{ts,tsx} を exclude で外し、ここは *.browser.test.{ts,tsx} だけを拾う
+// 単体の設定は *.browser.test.{ts,tsx} を exclude で外し、ここはコンテナの隣の container.browser.test.tsx だけを拾う(ADR 0017 の D5)。
+// ほかの名前の *.browser.test.ts・*.browser.test.tsx はどちらの設定にも拾われないが、npm run test:boundary
+// (scripts/check-test-boundary.mjs)が落とすので、走らないまま黙って残ることは無い
 export default defineConfig({
   // next/link などは Next のビルドが process.env.X を値へ置き換える前提で書かれていて、ブラウザには process が無い。
   // ここで process.env の中身を決める。中身は Next のビルドが next.config から入れる値のうち、テストの結果に表れるものだけ:
@@ -44,7 +48,7 @@ export default defineConfig({
   },
   test: {
     globals: true,
-    include: ['src/**/*.browser.test.{ts,tsx}'],
+    include: ['src/**/container.browser.test.tsx'],
     exclude: [...configDefaults.exclude, '**/.claude/**', 'tests/**'],
     // 上で拾った container.fixture.ts を、テストの前に node で走らせる
     globalSetup: CONTAINER_FIXTURES,
