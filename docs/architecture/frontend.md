@@ -46,8 +46,8 @@ src/components/Directory/components/WorkCard/
 
 - **フックのフォルダには `index.ts` を作らない**(不変ルール4)。呼び出し側はファイルを直接指す
 - 画面専用のフックは、それを使う部品のフォルダの中の `hooks` フォルダに置く(`src/components/VillagePage/components/Village/hooks/`・
-  `src/components/Directory/components/WorkCard/hooks/` など。`src/components/Story/hooks/` のように画面のフォルダ直下に置き、
-  下位部品(`StoryBody`)から使う例もある)。横断するものだけ `src/hooks/` に置く
+  `src/components/Directory/components/WorkCard/hooks/`・`src/components/Story/components/StoryBody/hooks/use-active-scene.ts`(今読んでいる場面を `IntersectionObserver` で追う)など)。
+  横断するものだけ `src/hooks/` に置く
 - 命名は `use-` 始まりの kebab-case
 - `hooks` フォルダには `use-` 始まりのフック以外を置かない。テストも置かない(フックは配線だけを持ち、ロジックは純粋関数へ移して測る。
   [../quality/test-strategy.md](../quality/test-strategy.md) の「テストの境界」)。純粋関数・レンダラーは `utils` フォルダへ
