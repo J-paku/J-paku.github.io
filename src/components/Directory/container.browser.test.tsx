@@ -1,16 +1,19 @@
 // 一覧の画面(コンテナ)の統合テスト(Vitest Browser Mode)。一覧を実際の Chromium で、フック・子と一緒に描き(ADR 0016)、
-// 作品カードの出し分けを、利用者に見える形
+// 作品カード・キャプチャ枠の中身の出し分けを、利用者に見える形
 // (role・名前・aria-*・inert・行き先・要素の有無)で確かめる。CSS も Vite が実際に当てるので、押せるかどうかは本物の重なりで決まる。
 // props は入口(index.tsx)と同じ組み方で container.fixture.ts が node で組み、inject で受け取る。
-// 差し替えるのはネットワーク(場面 SVG の取得)と、タッチ端末かどうかの問い合わせ1つだけ(理由は viewAsTouch の注釈)。
+// 実データに無い形は、作品を差し替えた props の写しをテストが直接渡す。
+// 差し替えるのはネットワーク(場面 SVG の取得)と時間(リールの自動送り)と、タッチ端末かどうかの問い合わせ1つだけ(理由は viewAsTouch の注釈)。
 // 動きを控える設定は差し替えず、Chromium の模擬(CDP)で本物の media query を切り替える
 import { act, cleanup, render, within } from '@testing-library/react'
 import { inject } from 'vitest'
 import { cdp, page, userEvent } from 'vitest/browser'
 import type { Work } from '@content/types/content'
+import { sceneCycleMs } from '@/utils/cycle-scenes'
 // 部品と同じ CSS Modules を import すれば、部品と同じクラス名が引ける
 import cardStyles from './components/WorkCard/work-card.module.css'
 import shotStyles from './components/WorkCard/components/Shot/shot.module.css'
+import playerStyles from '@/components/ui/ScenePlayer/scene-player.module.css'
 import type { DirectoryData } from './container.fixture'
 import DirectoryContainer from './container'
 
@@ -33,6 +36,7 @@ const reelWork = pickWork(
   'リールを持つ',
   work => work.storyReel === true && (work.story?.scenes.length ?? 0) > 0
 )
+const reelScenes = reelWork.story?.scenes ?? []
 // 動画もリールも持たず、静止画だけを持つ作品
 const stillWork = pickWork(
   works,
@@ -48,6 +52,12 @@ const motionLinkWork = pickWork(
 
 const renderDirectory = (data: DirectoryData = directoryJa) =>
   render(<DirectoryContainer {...data} />)
+
+// 作品を1件差し替えた画面の props。同じ slug の作品と入れ替え、並び順は実データのまま
+const withWork = (work: Work): DirectoryData => ({
+  ...directoryJa,
+  works: works.map(candidate => (candidate.slug === work.slug ? work : candidate)),
+})
 
 const queryOrThrow = (root: HTMLElement, selector: string): HTMLElement => {
   const element = root.querySelector<HTMLElement>(selector)
@@ -72,6 +82,7 @@ const cardOf = (work: Work): HTMLElement => {
 
 // 画面キャプチャの枠。リンクの覆いが外側の押下を判定する基準でもある
 const shotOf = (work: Work) => queryOrThrow(cardOf(work), `.${shotStyles.shot}`)
+const reelOf = (work: Work) => queryOrThrow(shotOf(work), `.${shotStyles.reel}`)
 
 // トグルが aria-controls で指す詳細の領域
 const detailRegionOf = (toggle: HTMLElement): HTMLElement => {
@@ -106,6 +117,22 @@ const preferReducedMotion = async () => {
   await cdp().send('Emulation.setEmulatedMedia', {
     features: [{ name: 'prefers-reduced-motion', value: 'reduce' }],
   })
+}
+
+// 場面 SVG の取得を、テストが手放すまで返さずに留める。手放すと失敗で返す。
+// 失敗した取得は取得の覚え(src/lib/fetch-svg-source.ts)から消えるので、次のテストは空の覚えから始まる
+const heldFetches: Array<(reason: Error) => void> = []
+const releaseSceneFetches = () => {
+  for (const reject of heldFetches.splice(0)) reject(new Error(NO_NETWORK))
+}
+const holdSceneFetches = () => {
+  vi.stubGlobal(
+    'fetch',
+    () =>
+      new Promise<Response>((_, reject) => {
+        heldFetches.push(reject)
+      })
+  )
 }
 
 // 交差の観察が一度回る(要素への最初の通知が来る)のを待つ。カードのフックの観察者が受けた通知による更新は
@@ -144,6 +171,7 @@ beforeEach(async () => {
 afterEach(async () => {
   // 先に外してから環境を戻す(effect の後始末が差し替えた環境のまま走るように)
   cleanup()
+  releaseSceneFetches()
   vi.useRealTimers()
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
@@ -315,6 +343,153 @@ describe('作品カード(WorkCard)', () => {
           message: '丸ごと収まった枠は色を戻す',
         })
         .toBe(true)
+    })
+  })
+})
+
+describe('キャプチャ枠の中身(ShotMedia)', () => {
+  describe('動画', () => {
+    it('画面に入るまでは、読み上げから外した動画にsrcを付けず、ポスターの静止画だけを出す', async () => {
+      await page.viewport(375, 667)
+      renderDirectory()
+
+      const shot = shotOf(videoWork)
+      expect(
+        cardOf(videoWork).getBoundingClientRect().top,
+        'カードは最初の画面の外'
+      ).toBeGreaterThan(window.innerHeight)
+      await intersectionSettled(shot)
+      await settleNotice()
+
+      const video = videoIn(shot)
+      expect(video.getAttribute('aria-hidden')).toBe('true')
+      expect(video.hasAttribute('src')).toBe(false)
+      expect(video.getAttribute('poster')).toBe(videoWork.thumbnail)
+      expect(shot.querySelector('img')).toBeNull()
+    })
+
+    it('画面に入った後は動画のsrcを付け、再生中なら自動再生を付ける', async () => {
+      renderDirectory()
+
+      const video = videoIn(shotOf(videoWork))
+      await expect
+        .poll(() => video.getAttribute('src'), {
+          message: '最初の画面にあるカードの動画は読み込む',
+        })
+        .toBe(videoWork.video)
+      expect(video.hasAttribute('autoplay')).toBe(true)
+      // ブラウザは音の出る動画の自動再生を止めるので、消音で流す
+      expect(video.muted).toBe(true)
+    })
+
+    it('画面に入った後に一時停止すると自動再生を外し、止める相手はこの動画', async () => {
+      const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause')
+      renderDirectory()
+
+      const shot = shotOf(videoWork)
+      const video = videoIn(shot)
+      await expect
+        .poll(() => video.getAttribute('src'), {
+          message: '最初の画面にあるカードの動画は読み込む',
+        })
+        .toBe(videoWork.video)
+
+      await userEvent.click(within(shot).getByRole('button', { name: ui.work.pauseMotion }))
+      await expect.poll(() => video.hasAttribute('autoplay')).toBe(false)
+      expect(video.getAttribute('src')).toBe(videoWork.video)
+      // 親の一時停止ボタンが止める相手(ShotMedia が受け取る videoRef)は、この枠の動画
+      expect(pause.mock.contexts).toHaveLength(1)
+      expect(pause.mock.contexts[0]).toBe(video)
+    })
+  })
+
+  describe('リール', () => {
+    it('読み上げから外した枠に場面を並べ、動画も静止画も出さない。取れない場面は準備中の文言に替わる', async () => {
+      renderDirectory()
+
+      const shot = shotOf(reelWork)
+      const reel = reelOf(reelWork)
+      expect(reel.getAttribute('aria-hidden')).toBe('true')
+      expect(shot.querySelector('video')).toBeNull()
+      expect(shot.querySelector('img')).toBeNull()
+      expect(await within(reel).findAllByText(ui.work.shotPlaceholder)).toHaveLength(
+        reelScenes.length
+      )
+    })
+
+    it('自動送りで今の場面だけを見せる場面にし、ほかの場面は伏せる', () => {
+      // 先頭以外を指す添字で見る(先頭固定の取り違えを見分けるため、場面が2つ以上ある前提)
+      expect(reelScenes.length).toBeGreaterThanOrEqual(2)
+      const activeIndex = reelScenes.length - 1
+      // 時間だけを差し替え、場面ごとの周期で送る setTimeout を末尾の場面まで進める
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+      renderDirectory()
+
+      for (const scene of reelScenes.slice(0, activeIndex)) {
+        act(() => {
+          vi.advanceTimersByTime(sceneCycleMs(scene.id))
+        })
+      }
+      const frames = [...reelOf(reelWork).querySelectorAll(`.${playerStyles.frame}`)]
+      expect(frames.map(frame => frame.classList.contains(playerStyles.frameActive))).toEqual(
+        reelScenes.map((_, index) => index === activeIndex)
+      )
+    })
+
+    it('再生中は、どの場面の動きも止めない', async () => {
+      // 場面 SVG の受け皿が止めた印を持つ。取得の失敗で文言へ替わると受け皿ごと消えるので、数え終わるまで取得を返さない
+      holdSceneFetches()
+      renderDirectory()
+
+      const reel = reelOf(reelWork)
+      expect(reel.querySelectorAll(`.${playerStyles.sceneSvg}`)).toHaveLength(reelScenes.length)
+      expect(reel.querySelectorAll('[data-paused]')).toHaveLength(0)
+
+      // 取れない場面は準備中の文言に替わる。待たずに終えると、失敗の通知がテストの外で状態を更新する
+      releaseSceneFetches()
+      await within(reel).findAllByText(ui.work.shotPlaceholder)
+    })
+
+    it('一時停止中は、すべての場面の動きを止める', async () => {
+      holdSceneFetches()
+      renderDirectory()
+
+      const reel = reelOf(reelWork)
+      await userEvent.click(
+        within(shotOf(reelWork)).getByRole('button', { name: ui.work.pauseMotion })
+      )
+      await expect.poll(() => reel.querySelectorAll('[data-paused]').length).toBe(reelScenes.length)
+
+      releaseSceneFetches()
+      await within(reel).findAllByText(ui.work.shotPlaceholder)
+    })
+  })
+
+  describe('静止画と準備中の文言', () => {
+    const stillCases: [string, Work][] = [
+      ['動きを持たない作品は', stillWork],
+      // リールの指示だけを残して場面を外した写し。場面が無ければリールにならない
+      ['リールの指示があっても場面を持たない作品は', { ...reelWork, story: undefined }],
+    ]
+
+    it.each(stillCases)('%s、作品の静止画を装飾として出す', (_label, work) => {
+      renderDirectory(withWork(work))
+
+      const shot = shotOf(work)
+      const image = queryOrThrow(shot, 'img')
+      expect(image.getAttribute('src')).toBe(work.thumbnail)
+      expect(image.getAttribute('alt')).toBe('')
+      expect(shot.querySelector('video')).toBeNull()
+      expect(shot.querySelector(`.${shotStyles.reel}`)).toBeNull()
+    })
+
+    it('静止画も持たない作品では、準備中の文言を出す', () => {
+      const work: Work = { ...stillWork, thumbnail: undefined }
+      renderDirectory(withWork(work))
+
+      const shot = shotOf(work)
+      expect(within(shot).getByText(ui.work.shotPlaceholder)).toBeDefined()
+      expect(shot.querySelector('img')).toBeNull()
     })
   })
 })
