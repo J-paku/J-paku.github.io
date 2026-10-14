@@ -65,7 +65,7 @@ export default defineConfig({
       screenshotDirectory: 'test-results/vitest-screenshots',
     },
     // 測るのは --coverage を付けたときだけ。フックもここで測る(単体の設定はフックを外す)。
-    // 床はまだ掛けない。フックのファイル別100%は統合テストへ移し終えたフォルダから掛ける(ADR 0016)
+    // フックのファイル別100%はまだ掛けない。統合テストへ移し終えたフォルダから掛ける(ADR 0016)
     coverage: {
       provider: 'v8',
       enabled: false,
@@ -73,6 +73,15 @@ export default defineConfig({
       exclude: ['src/**/*.test.{ts,tsx}', 'src/**/*.fixture.ts', 'src/**/*.test-helper.ts'],
       reporter: ['text-summary'],
       reportsDirectory: 'coverage/integration',
+      // 2026-10-14の実測(statements 42.72%・branches 31.8%・functions 45.09%・lines 45.61%)から2pt引いて切り捨てた値。
+      // 測る対象は src の全部で、統合テストが通らない純粋モジュール(単体の門で100%に固めている)も分母に入るので低く見える。
+      // 目標値ではなく、統合テストを消したり使われないコードを増やしたりしたときに落とすための床(ADR 0017)
+      thresholds: {
+        statements: 40,
+        branches: 29,
+        functions: 43,
+        lines: 43,
+      },
     },
   },
 })

@@ -5,7 +5,7 @@ read_when:
   - 配信が反映されないとき
   - 配信を戻したいとき
 source_of_truth: true
-last_reviewed: 2026-10-13
+last_reviewed: 2026-10-14
 ---
 
 # 配信
@@ -21,7 +21,7 @@ push to main / PR to main
   → build ジョブ(直列。前段が落ちたら後段は走らない)
       docs:check → typecheck → lint → format:check → test:coverage(カバレッジの床) → test:boundary
       → Playwright Chromium をキャッシュから戻す(miss なら入れる。hit でも OS 側の依存は入れる)
-      → test:integration -- --coverage(統合テスト。ビルド無し。カバレッジは数字を出すだけで床は無い)
+      → test:integration -- --coverage(統合テスト。ビルド無し。統合のカバレッジの床を下回ると落ちる)
       → Stryker の前回の結果をキャッシュから戻す → test:mutation(変わった変異体だけ) → 結果をキャッシュへ保存(test:mutation が落ちても保存する)
       → build → test:e2e
       → out/ を :4173 で配信 → wait-on
@@ -36,7 +36,7 @@ push to main / PR to main
 - 権限は最上位が`contents: read`だけで、buildジョブはそれを引き継ぐ。`pages: write`・`id-token: write`はdeployジョブにだけ渡す。buildジョブはマージ前のPRのコードや、Dependabotが上げた新しいパッケージの`npm ci`を走らせるので、配信の権限を持たせない
 - Pages の設定は **Settings → Pages → Source = GitHub Actions**
 - 計測先は **Settings → Secrets and variables → Actions → Variables** の `GOATCOUNTER_URL`。build step が `NEXT_PUBLIC_GOATCOUNTER_URL` として渡し、未設定なら計測タグを出さない
-- カバレッジの床の正本は`vitest.config.ts`([../quality/test-strategy.md](../quality/test-strategy.md))、Lighthouse CIの経路と基準の正本は`lighthouserc.json`([../quality/performance.md](../quality/performance.md))。Lighthouse CIの報告は外へ上げない(`upload`を設定しない)
+- カバレッジの床の正本は、単体が`vitest.config.ts`、統合が`vitest.integration.config.ts`(どちらも`coverage.thresholds`。[../quality/test-strategy.md](../quality/test-strategy.md))、Lighthouse CIの経路と基準の正本は`lighthouserc.json`([../quality/performance.md](../quality/performance.md))。Lighthouse CIの報告は外へ上げない(`upload`を設定しない)
 - 依存の更新は`.github/dependabot.yml`がnpmとGitHub Actionsをそれぞれ1つのPRにまとめて毎週知らせる。そのPRでもこのワークフローの検査が走る(配信はしない)ので、取り込む前にそのPRの検査が通ったことを確かめる。TypeScript・ESLint・Vitestの大きな版上げは、周りのパッケージ(typescript-eslint・eslint-plugin-react・Strykerのvitest-runnerなど)が対応するまで`ignore`で止めている
 
 ## キャッシュ
