@@ -49,7 +49,7 @@ jobs:
       - name: Install Playwright system dependencies
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
-      # 統合テスト。ビルド無しで実ブラウザに画面を描く(床はまだ無く、カバレッジは数字を出すだけ)
+      # 統合テスト。ビルド無しで実ブラウザに画面を描く。カバレッジが床を下回ったらここで止まる(基準の正本はvitest.integration.config.tsのcoverage.thresholds)
       - run: npm run test:integration -- --coverage
       # 変異テストは前回の結果(stryker.config.mjs の incrementalFile)を引き継ぎ、変わった変異体だけを走らせる。
       # 鍵に依存・設定の指紋を入れ、どれかが変わると引き継がずに全部を走らせる(docs/decisions/0013-incremental-mutation-on-push.md)
