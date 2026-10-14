@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import type { Locale, UiStrings } from '@content/types/content'
 import { toHref } from '@/utils/locale-path'
-import SettingsMenu from '@/components/ui/SettingsMenu'
+import SettingsMenu from '@/components/ui/SettingsMenu/container'
 import styles from './navigation.module.css'
 
 type NavigationProps = {

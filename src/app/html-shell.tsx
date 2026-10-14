@@ -3,7 +3,7 @@
 // globals.css は各 layout 側で読む
 import type { ReactNode } from 'react'
 import type { Locale } from '@content/types/content'
-import PageviewCounter from '@/components/ui/PageviewCounter'
+import PageviewCounter from '@/components/ui/PageviewCounter/container'
 
 type HtmlShellProps = {
   locale: Locale

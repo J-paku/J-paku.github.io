@@ -2,14 +2,14 @@
 // ドロップダウンへ統合する。開閉状態は自前で持ち、他に同型のドロップダウンが無いため
 // 独自にキーボード(Escape)・外側クリック・フォーカス復帰を実装する。
 // フォーカス復帰は Escape と項目選択(自分で閉じる操作)にのみ適用し、外側クリックでは行わない
-// — 外側クリックはユーザーが別の要素を狙った操作なので、そのフォーカス先を奪わない
+// — 外側クリックはユーザーが別の要素を狙った操作なので、そのフォーカス先を奪わない。
+// 適用中のテーマと切り替え(保存を伴う)は隣の container.tsx から props で受け取り、ここは表示と開閉だけを持つ
 'use client'
 import { useId } from 'react'
 import Link from 'next/link'
 import type { Locale, UiStrings } from '@content/types/content'
 import { toHref } from '@/utils/locale-path'
 import type { Theme } from '@/lib/preferences'
-import { useThemeChoice } from './hooks/use-theme-choice'
 import { useMenuOpen } from './hooks/use-menu-open'
 import GearIcon from './components/GearIcon'
 import styles from './settings-menu.module.css'
@@ -18,13 +18,16 @@ type SettingsMenuProps = {
   locale: Locale
   pathname: string
   ui: UiStrings
+  // 適用中のテーマ(押された状態で示す選択肢)
+  theme: Theme
+  // テーマの選択肢が押されたときに呼ぶ。適用と保存はコンテナ側が行う
+  onThemeChange: (next: Theme) => void
 }
 
 const LOCALES: Locale[] = ['ja', 'ko']
 const THEMES: Theme[] = ['light', 'dark']
 
-function SettingsMenu({ locale, pathname, ui }: SettingsMenuProps) {
-  const { theme, setTheme } = useThemeChoice()
+function SettingsMenu({ locale, pathname, ui, theme, onThemeChange }: SettingsMenuProps) {
   // ラベルの原点は視覚テキスト<p>ひとつ。aria-label と二重に持たせるとスクリーンリーダーが
   // 同じ文字列を2回読み上げるため、aria-labelledby で<p>を指し直す
   const localeLabelId = useId()
@@ -76,7 +79,7 @@ function SettingsMenu({ locale, pathname, ui }: SettingsMenuProps) {
                 className={styles.optionButton}
                 aria-pressed={item === theme}
                 onClick={() => {
-                  setTheme(item)
+                  onThemeChange(item)
                   closeAndFocusTrigger()
                 }}
               >
