@@ -12,7 +12,7 @@ last_reviewed: 2026-10-10
 歩いて回れる一画面のマップ。**Canvas も WebGL もゲームエンジンも使わない。** マス目は CSS Grid、
 キャラクターは `transform` 1枚、絵は PNG スプライトシートの `background-position` で切り出す。
 
-歩行ループ(`src/components/VillagePage/components/Village/hooks/use-walk-loop/use-walk-loop.ts`)は rAF で人物とカメラの `transform` を DOM へ直接書くが、入力も経路も無く描き終えた
+歩行ループ(`src/components/VillagePage/hooks/use-walk-loop/use-walk-loop.ts`)は rAF で人物とカメラの `transform` を DOM へ直接書くが、入力も経路も無く描き終えた
 (カメラが追い付き、釣り・傘のコマも動き終えた)間は次のフレームを頼まずに眠る。キー・スティック・タップ・ワールドの移動・窓を閉じる・
 釣りの段階の切り替わり・傘を開く/畳む動きの始まり・枠の大きさの変化で起こし、回っているかは枠の `data-village-loop`(`running` / `idle`)に出る。
 

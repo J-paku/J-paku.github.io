@@ -13,7 +13,7 @@ import {
   initialClockTime,
   realtimeClockTime,
   type ClockTime,
-} from '../utils/set-clock-time'
+} from '../components/Village/utils/set-clock-time'
 
 export type VillageTimeState = ClockTime & {
   setRealtime: () => void

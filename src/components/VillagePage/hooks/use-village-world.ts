@@ -2,7 +2,7 @@
 import { useCallback, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import type { Cell, Direction, World, WorldSet } from '@content/types/world'
-import { enterRuntimeWorld, resolveWorld } from '../utils/enter-world'
+import { enterRuntimeWorld, resolveWorld } from '../components/Village/utils/enter-world'
 import type { VillageRuntime } from './use-village-runtime'
 
 export type EnterWorld = (id: string, next: World, cell: Cell, facing: Direction) => void

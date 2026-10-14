@@ -1,5 +1,5 @@
-// 卓上時計の設定窓。村の枠の中に重ねて開き、選んだ時刻は use-village-time の store へ書く。
-// 空・灯り・ポストの LED はその store を見ているので、この窓は時刻を決めるところまでを受け持つ
+// 卓上時計の設定窓。村の枠の中に重ねて開き、選んだ時刻をコンテナから受け取った手へ渡す。
+// 空・灯り・ポストの LED への反映はコンテナが担い、この窓は時刻を決めるところまでを受け持つ
 'use client'
 
 import { useId, useRef, type RefObject } from 'react'
@@ -8,13 +8,14 @@ import type { Locale } from '@content/types/content'
 import type { ClockText, Direction } from '@content/types/world'
 import PhraseText from '@/components/ui/PhraseText'
 
-import { useClockModal } from './hooks/use-clock-modal'
+import { useClockModal, type ClockSettings } from './hooks/use-clock-modal'
 import { MINUTE_STEP, pad2 } from './utils/clock-time'
 import styles from './clock-modal.module.css'
 
 export type ClockModalProps = {
   text: ClockText
   lang: Locale
+  clock: ClockSettings
   // 結果の一言を枠の下端の案内文(role='status')へ流す手
   announce: (message: string) => void
   onClose: () => void
@@ -26,6 +27,7 @@ export type ClockModalProps = {
 export function ClockModal({
   text,
   lang,
+  clock,
   announce,
   onClose,
   returnTo,
@@ -45,7 +47,7 @@ export function ClockModal({
     decide,
     cancelPick,
     handleKeyDown,
-  } = useClockModal({ text, dialogRef, returnTo, scrollHeldRef, announce, onClose })
+  } = useClockModal({ text, clock, dialogRef, returnTo, scrollHeldRef, announce, onClose })
 
   return (
     // data-village-clock・data-step は E2E がこの窓と段階を見分けるための目印

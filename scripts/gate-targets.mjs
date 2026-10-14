@@ -106,7 +106,7 @@ const MUST_EXCLUDE = [
   'src/lib/pixel/png.test-helper.ts',
   'src/components/VillagePage/components/Village/utils/walk-loop/types.ts',
   'src/hooks/use-reveal.ts',
-  'src/components/VillagePage/components/Village/hooks/use-village.ts',
+  'src/components/VillagePage/hooks/use-village.ts',
 ]
 
 // 3. 置き場ごとの変異テストの対象の件数の下限。2026-10-11 の実測は lib 31・utils 8・components 42 で、

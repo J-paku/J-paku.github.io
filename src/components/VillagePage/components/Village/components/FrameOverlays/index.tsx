@@ -6,21 +6,21 @@ import type { RefObject } from 'react'
 import type { Locale } from '@content/types/content'
 import type { Cell, Direction, VillageText, World } from '@content/types/world'
 import type { DoorMarker } from '@/lib/village/door-marker'
-import type { Precipitation } from '@/lib/weather'
-import ClockModal from '../ClockModal'
+import ClockModal, { type ClockModalProps } from '../ClockModal'
 import Minimap from '../Minimap'
 import SpeechBox from '../SpeechBox'
 import StopModal from '../StopModal'
-import Weather, { type WeatherSheets } from '../Weather'
+import Weather, { type WeatherProps, type WeatherSheets } from '../Weather'
 import type { Dialog } from '../../utils/pick-dialog'
 
 export type FrameOverlaysProps = {
   lang: Locale
   text: VillageText
+  clock: ClockModalProps['clock']
   mode: 'walk' | 'talk' | 'map' | 'clock' | 'fishing'
   // 屋外か。屋内(自室・建物の中)では雨・雪もミニマップも出さない
   outdoors: boolean
-  weather: Precipitation
+  weather: WeatherProps['kind']
   weatherSprites: WeatherSheets
   // 枠の下端の案内文(role='status')の一言
   speech: string
@@ -48,6 +48,7 @@ export type FrameOverlaysProps = {
 export function FrameOverlays({
   lang,
   text,
+  clock,
   mode,
   outdoors,
   weather,
@@ -95,6 +96,7 @@ export function FrameOverlays({
       {mode === 'clock' ? (
         <ClockModal
           text={text.clock}
+          clock={clock}
           lang={lang}
           announce={announce}
           onClose={closeOverlay}

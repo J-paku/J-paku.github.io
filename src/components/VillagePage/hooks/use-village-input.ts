@@ -4,8 +4,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FocusEvent, KeyboardEvent, PointerEvent, RefObject } from 'react'
 import type { Cell, Direction } from '@content/types/world'
-import { classifyVillageKey, keyDirection } from '../utils/classify-village-key'
-import { VIEW_COLS } from '../utils/stage-scale'
+import { classifyVillageKey, keyDirection } from '../components/Village/utils/classify-village-key'
+import { VIEW_COLS } from '../components/Village/utils/stage-scale'
 import type { VillageRuntime } from './use-village-runtime'
 
 // クライアント座標をワールドのマス座標へ直す。カメラの分だけ origin でずらす。

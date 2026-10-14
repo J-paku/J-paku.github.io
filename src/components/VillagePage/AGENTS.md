@@ -6,11 +6,14 @@
 ## 守ること
 
 1. **`'use client'` を `index.tsx` へ上げない。** サーバで組み立てる部分(content の読み出し・シート合成)が巻き込まれる
-2. **`components/Village/hooks/use-village.ts` のフックを呼ぶ順を入れ替えない。** 寸法 → 入力 → 復元 → rAF → 重ね表示 の順がそのまま effect の実行順になる
+2. **`hooks/use-village.ts` のフックを呼ぶ順と、`container.tsx` が画面のフックを呼ぶ順(`useDayPhase` → `useWeather` → `useVillage`)を入れ替えない。** 寸法 → 入力 → 復元 → rAF → 重ね表示 の順がそのまま effect の実行順になる。
+   村の画面のフックが `Village` から `container.tsx` へ上がったので、`<main>` の中で `Village` の後ろにある `Navigation`(設定メニュー)の effect は、子の effect として村のフックより先に走る
+   (`Village` にフックがあった頃は後だった)。マウントの時にそちらで走るのは `useLightDismiss`(閉じているので何もしない)とテーマの購読だけで、今は互いに見えない。
+   `Navigation` の側に村のフックと状態を分け合う effect を入れるときは、この順を前提にする
 3. **移動・衝突・経路・地点判定のロジックをここに書かない。** `src/lib/village/` の純粋関数に置く(React・DOM なしで網羅的にテストできるため)
 4. **保存は `src/lib/preferences.ts` 経由。** `sessionStorage` を直接触らない
-5. 歩行ループ(`components/Village/hooks/use-walk-loop/use-walk-loop.ts`。フレームの中身は `components/Village/utils/walk-loop/` に分けてある)は rAF の中で **DOM へ直接書く**。React state を経由させない(再レンダーで駒が飛ぶ)
-6. `components/Village/hooks/use-stage-scale.ts` は `--cell` と `--band` を実測で書く(寸法の計算式は `components/Village/utils/stage-scale.ts`)。重ね表示(会話窓・地図)は `--band` を超えて操作帯を覆わない
+5. 歩行ループ(`hooks/use-walk-loop/use-walk-loop.ts`。フレームの中身は `components/Village/utils/walk-loop/` に分けてある)は rAF の中で **DOM へ直接書く**。React state を経由させない(再レンダーで駒が飛ぶ)
+6. `hooks/use-stage-scale.ts` は `--cell` と `--band` を実測で書く(寸法の計算式は `components/Village/utils/stage-scale.ts`)。重ね表示(会話窓・地図)は `--band` を超えて操作帯を覆わない
 7. 村の枠の中に出す窓(会話窓 `StopModal`・卓上時計の窓 `ClockModal`・拡大地図 `WorldMap`)は `role='dialog'` + `aria-modal='true'` の `div` と手製のフォーカストラップ(`components/Village/hooks/use-dialog-focus.ts`)で作る。
    ネイティブ `<dialog>` の `showModal()` は top layer へ出て操作帯(`--band`)を覆うので使わない(守ること 6)。
    `showModal()` を使うのは村の外の全画面モーダル(作品ストーリーの場面モーダル `src/components/Story/components/SceneModal/`)だけ → [../../../docs/quality/accessibility.md](../../../docs/quality/accessibility.md)
@@ -27,8 +30,8 @@ world 層(`.world`)の中の並びは `components/Village/components/WorldLayer/
 | 部位 | フォルダ | 中身を決める所・補足 |
 |---|---|---|
 | 起動の覆い(ロゴの着地) | `components/Boot/` | `index.tsx` が舞台の先頭に置く。中央のロゴを見出し(`data-boot-target`)へ飛ばしてから外す飾りで、読み上げからは隠す。初回は hydration 前のインライン script、クライアント遷移では effect が同じ手順を走らせる |
-| 一覧への出口 | `components/ExitLink/` | `index.tsx` が作って `Village` の `exit` へ渡し、`components/Village/index.tsx` の出口の箱(`exitRef`)に入る。縦持ちタッチでは枠の下に高さを持つ。全地点で話し終えた時の焦点移動と跳ねは `components/Village/hooks/use-village-overlay/use-course-progress.ts` |
-| 操作帯(スティック・A/B) | `components/Village/components/Joystick/`・`components/Village/components/ActionButtons/` | A/B の行き先は `components/Village/hooks/use-village-buttons.ts` が mode から決め、ボタンは呼ぶだけ |
+| 一覧への出口 | `components/ExitLink/` | `container.tsx` が作って `Village` の `exit` へ渡し、`components/Village/index.tsx` の出口の箱(`exitRef`)に入る。縦持ちタッチでは枠の下に高さを持つ。全地点で話し終えた時の焦点移動と跳ねは `hooks/use-village-overlay/use-course-progress.ts` |
+| 操作帯(スティック・A/B) | `components/Village/components/Joystick/`・`components/Village/components/ActionButtons/` | A/B の行き先は `hooks/use-village-buttons.ts` が mode から決め、ボタンは呼ぶだけ |
 | 枠に重ねる物(world 層の外) | `components/Village/components/FrameOverlays/` | 雨・雪・下端の案内文・会話窓・卓上時計の窓・ミニマップを枠の子として並べる。値は props で受けるだけでフックを呼ばない |
 | 枠の下端の案内文と吹き出し | `components/Village/components/SpeechBox/`・`components/Village/components/TalkBubble/` | 案内文は `role='status'` の一言。吹き出しは world 層の中に置き、話しかける物の上の台詞と、話せる相手がいない時の頭上の考え事の両方を描く |
 | 会話窓と卓上時計の窓(枠に重ねる窓) | `components/Village/components/StopModal/`・`components/Village/components/ClockModal/` | 会話窓は地点の説明と釣りの結果を 1 か所で描く。どちらを出すかは `components/Village/utils/pick-dialog.ts` |
@@ -38,7 +41,7 @@ world 層(`.world`)の中の並びは `components/Village/components/WorldLayer/
 | 飛ぶ間の地上の影 | `components/Village/components/WorldLayer/`(`.player` の直前の `.flightShadow`。専用の部品のフォルダは無い) | 自動移動で飛ぶ間に地上の位置へ落とす影(`data-flight-shadow`)。位置・大きさ・`data-flying` は歩行ループが DOM へ直接書く(守ること 5)。飛ぶ規則は [../../../docs/architecture/village.md](../../../docs/architecture/village.md) の「自動移動の直線飛行」 |
 | 夜の灯りと街灯の重ね | `components/Village/components/Lighting/`・`components/Village/components/LampVeil/` | 主人公の灯りと街灯の重ねは歩行ループが DOM へ直接書く(守ること 5・8) |
 | 雨・雪 | `components/Village/components/Weather/` | world 層ではなく枠の子。屋内では描かない |
-| 釣りの浮き・糸・巻物 | `components/Village/components/FishingFloat/` | 釣っている間だけ出る。進み具合は `components/Village/hooks/use-village-overlay/use-village-fishing.ts` |
+| 釣りの浮き・糸・巻物 | `components/Village/components/FishingFloat/` | 釣っている間だけ出る。進み具合は `hooks/use-village-overlay/use-village-fishing.ts` |
 
 フォルダを消した・名前を変えた時は `npm run docs:check` がこの表の古いパスを落とすが、**足した時は検出されない。** 部品を足したら自分で行に加える。
 

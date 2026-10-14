@@ -2,7 +2,7 @@
 // フック(hooks/use-village-world.ts)は React の state を合わせて、眠っている歩行ループを起こすだけにする
 import type { Cell, Direction, World, WorldSet } from '@content/types/world'
 import { createMoveState } from '@/lib/village/movement'
-import type { VillageRuntime } from '../hooks/use-village-runtime'
+import type { VillageRuntime } from '../../../hooks/use-village-runtime'
 import { findWorld } from './find-world'
 
 // ワールドを移るときに置き換える runtime の写し

@@ -8,8 +8,7 @@ import type { SheetLayout } from '@/lib/pixel/art'
 import { FISHING_LINES } from '@/lib/pixel/fishing-art'
 import { FISHING_LAND_MS } from '@/lib/village/fishing'
 import { directionTo } from '@/lib/village/movement'
-import { FISHING_SWING_MS } from '@/lib/village/player-pose'
-import type { FishingPhase } from '../../hooks/use-village-overlay/use-village-fishing'
+import { FISHING_SWING_MS, type FishingPosePhase } from '@/lib/village/player-pose'
 import { spriteIndex, spriteStyle, type SpriteStyle } from '../../utils/sprite-style'
 // 共通の .sprite(シートの切り出し方と背景 URL の当たり先)を借りるために村の scene を読む。
 // WorldLayer は Ground の直後にこのファイルを読み込むので、CSS の出力順は変わらない
@@ -21,7 +20,7 @@ export type FishingFloatProps = {
   at: Cell
   // 竿を持って立っているマス(ワールド座標)。浮きのマスとの差が糸を渡す向きになる
   from: Cell
-  phase: FishingPhase
+  phase: FishingPosePhase | 'idle'
   sprites: SheetLayout
 }
 
@@ -30,7 +29,7 @@ type FloatStyle = SpriteStyle & { '--land-ms': string }
 type LineStyle = SpriteStyle & { '--swing-ms': string }
 
 // 段階ごとの絵。待機中は水面に何も無いので持たない
-const FLOAT_ART: Partial<Record<FishingPhase, string>> = {
+const FLOAT_ART: Partial<Record<FishingFloatProps['phase'], string>> = {
   casting: 'bobber',
   bite: 'bobber-bite',
   landing: 'scroll',
@@ -38,7 +37,7 @@ const FLOAT_ART: Partial<Record<FishingPhase, string>> = {
 }
 
 // 糸を渡すのは浮きが水面にある間だけ。巻物が跳ねた後は竿の先から結ぶ相手が無い
-const LINE_PHASES: ReadonlySet<FishingPhase> = new Set(['casting', 'bite'])
+const LINE_PHASES: ReadonlySet<FishingFloatProps['phase']> = new Set(['casting', 'bite'])
 
 export function FishingFloat({ at, from, phase, sprites }: FishingFloatProps) {
   const art = FLOAT_ART[phase]

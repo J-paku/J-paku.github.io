@@ -8,10 +8,10 @@ import { spotAt } from '@/lib/village/spot'
 import { warpAt } from '@/lib/village/warp'
 import { writePosition } from '@/lib/preferences'
 import type { EnterWorld } from '../use-village-world'
-import { findWorld } from '../../utils/find-world'
+import { findWorld } from '../../components/Village/utils/find-world'
 import type { VillageRuntime } from '../use-village-runtime'
-import { pickDefaultSpeech } from '../../utils/pick-default-speech'
-import { headToSpeech } from '../../utils/spot-text'
+import { pickDefaultSpeech } from '../../components/Village/utils/pick-default-speech'
+import { headToSpeech } from '../../components/Village/utils/spot-text'
 
 type VillageArriveOptions = {
   worldSet: WorldSet

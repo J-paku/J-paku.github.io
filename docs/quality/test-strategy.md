@@ -81,7 +81,7 @@ happy-dom でコンポーネント1つを描くテスト(`index.test.tsx`)の約
 
 ### 統合テストの約束
 
-実ブラウザで画面を描くテスト(`*.browser.test.tsx`)の約束。例は村の `src/components/VillagePage/components/Village/index.browser.test.tsx`。
+実ブラウザでコンテナを描くテスト(`container.browser.test.tsx`)の約束。例は村の `src/components/VillagePage/container.browser.test.tsx`。
 
 - 画面単位のコンポーネントを、フック・子と一緒に本物のまま描く。レイアウト・rAF・`ResizeObserver` は差し替えない
 - 差し替えるのはネットワークと時間だけ。`fetch` は単体と同じく `vi.stubGlobal` で差し替え、`afterEach` で `vi.unstubAllGlobals()` して戻す(村は天気の応答)。
@@ -108,9 +108,8 @@ happy-dom でコンポーネント1つを描くテスト(`index.test.tsx`)の約
 
 - **統合の層の基盤は入った。** 設定は `vitest.integration.config.ts`(`@vitest/browser-playwright` は 4.1.10 に版を固定。peer が同じ版の vitest で、5.x は vitest 5 を求めて衝突する)で、
   `npm run test:integration` で走る。単体の `vitest.config.ts` は `src/**/*.browser.test.{ts,tsx}` を外し、変異テストは今までどおり単体だけで回る
-- **統合テストは1本。** `src/components/VillagePage/components/Village/index.browser.test.tsx` が実際の Chromium で村の画面を描き、
-  ビューポート 1280×720 で枠が 640×576(64px のマス)、600×900 へ変えると 600×540(60px のマス)に描き直されるかを見る。差し替えるのは天気の `fetch` だけ。
-  `src/components/VillagePage/components/Village/hooks/use-stage-scale.ts` の `observe` を外すと落ちるのを見てから採った([新しい検査は必ず一度落とす](#新しい検査は必ず一度落とす))
+- 村の1本は実際の Chromium で村の画面を描き、ビューポート 1280×720 で枠が 640×576(64px のマス)、600×900 へ変えると 600×540(60px のマス)に描き直されるかを見る。差し替えるのは天気の `fetch` だけ。
+  寸法を測るフック(今の `src/components/VillagePage/hooks/use-stage-scale.ts`)の `observe` を外すと落ちるのを見てから採った([新しい検査は必ず一度落とす](#新しい検査は必ず一度落とす))
 - CI(`.github/workflows/deploy.yml` の build ジョブ)は `npm run test:boundary` の後に Playwright の Chromium を入れ、`npm run test:integration -- --coverage` を走らせる。カバレッジは数字を出すだけで床は無い
 - このテストは、VillagePage が `<style>` で差し込むスプライトの背景 CSS(`spriteBackgroundCss`)を入れていないので、村の絵は描かれない。絵を見る統合テストを作るときに渡し方を決める
 - フックの振る舞いは今も主に E2E が見ている。単体の門(`npm run test:coverage`)はフックを測らない([カバレッジの床](#カバレッジの床))。

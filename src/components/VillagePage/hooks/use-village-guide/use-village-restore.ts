@@ -7,9 +7,9 @@ import { isWalkable } from '@/lib/village/collision'
 import { spotAt } from '@/lib/village/spot'
 import { clearVillageProgress, readPosition, readVisited } from '@/lib/preferences'
 import type { EnterWorld } from '../use-village-world'
-import { findWorld } from '../../utils/find-world'
+import { findWorld } from '../../components/Village/utils/find-world'
 import type { VillageRuntime } from '../use-village-runtime'
-import { pickDefaultSpeech } from '../../utils/pick-default-speech'
+import { pickDefaultSpeech } from '../../components/Village/utils/pick-default-speech'
 
 // 空の訪問済み。初期値と「読み込み直後」で同じ実体を使い、無駄な再描画を起こさない
 export const EMPTY_VISITED: ReadonlySet<string> = new Set<string>()
