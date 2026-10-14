@@ -12,7 +12,8 @@ const FULL_COVERAGE = { statements: 100, branches: 100, functions: 100, lines: 1
 // 一覧は src をたどって作るので実在しないパスは入らない。名指しで外したパスが実在しないときは、gate-targets.mjs を読み込む時点で落ちる
 
 // 既定の環境は node(純粋関数と src/lib の入口)。ファイル先頭に `// @vitest-environment happy-dom` を書いたテスト
-// (コンポーネントの *.test.tsx と、DOM を読む・書く/DOMParser を使う *.test.ts)だけが happy-dom で走る。
+// (utils の純粋モジュールのうち、DOM を読む・書く/DOMParser を使うものの *.test.ts)だけが happy-dom で走る。
+// コンポーネントを描くテストは単体には置かず、コンテナの隣の統合テスト(vitest.integration.config.ts)だけに書く(ADR 0017)。
 // 既定を替えないのは、単体テストを書かれたとおり DOM の無い node で走らせ続けるため
 export default defineConfig({
   resolve: {
