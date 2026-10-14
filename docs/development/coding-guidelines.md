@@ -3,7 +3,7 @@ status: active
 read_when:
   - コードを書く前に書き方を確かめたいとき
 source_of_truth: true
-last_reviewed: 2026-09-21
+last_reviewed: 2026-10-14
 ---
 
 # 書き方
@@ -26,7 +26,9 @@ last_reviewed: 2026-09-21
 
 ## 命名とファイル
 
-- ファイル名は **kebab-case**。コンポーネントフォルダだけ **PascalCase**、その入口が `index.tsx`
+- ファイル名は **kebab-case**。コンポーネントフォルダだけ **PascalCase**、その入口が `index.tsx`。
+  例外はコンテナ(`container.tsx`)を持つ横断部品で、外から `container.tsx` を直接指す(何も描かない `PageviewCounter` は `index.tsx` を持たない)。
+  画面のフォルダの `index.tsx` はサーバのローダー → [../architecture/frontend.md](../architecture/frontend.md) の「ローダー・コンテナ・表示部品」
 - フックは `use-` 始まり。**フックのフォルダに `index.ts` を作らない**(不変ルール4)
 - `hooks` フォルダには `use-` 始まりのフック(と `.test.ts`)以外を置かない。純粋関数・レンダラーは `utils` フォルダへ
 - ファイル名は動詞-名詞の kebab-case、3語まで(例: `paint-camera.ts`)。長い名前を付けない

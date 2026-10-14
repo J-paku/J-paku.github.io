@@ -4,7 +4,7 @@ read_when:
   - コンテンツの読み込み・検証を変えるとき
   - ブラウザ保存や外部 API 取得を足すとき
 source_of_truth: true
-last_reviewed: 2026-10-01
+last_reviewed: 2026-10-14
 ---
 
 # データの流れ
@@ -18,12 +18,17 @@ last_reviewed: 2026-10-01
 content/ja/*.ts  content/ko/*.ts  content/world.ts
         └────────── src/lib/content/read.ts ──────────┘
                             ↓ 検証を通ってから
-                    src/app/**/page.tsx(サーバ)
+          src/components/<画面>/index.tsx(ローダー。サーバ)
+                            ↓ 直列化できる props
+          src/components/<画面>/container.tsx(コンテナ)
                             ↓ props
-                    src/components/**
+                         表示部品
 ```
 
+ローダーを描くのは `src/app/**/page.tsx`(サーバ)。ルートもメタデータと静的経路(作品の slug)のために `read.ts` を読む。
+
 - `src/lib/content/read.ts` が唯一の入口。先頭で `import 'server-only'` しており、クライアントへ持ち込むと import の時点で落ちる
+- `src/components/` の中で読み出すのは画面のローダー(`index.tsx`)だけ。コンテナと表示部品は props で受け取る([boundaries.md](boundaries.md) の「コンテナと表示部品」)
 - 作品はバレルや glob で集めず、`read.ts` の **登録表 `WORKS`** に ja/ko を1行ずつ足す。登録表と `content/ja/works/*.ts` の実ファイル一覧はビルド時に突き合わせ、漏れがあればビルドが落ちる
 - 検証は2本。`validate.ts` が ja/ko の slug・status・場面 ID の一致を、`validate-world.ts` が村の座標・ID 重複・到達性・歩数上限を見る。問題があれば `read.ts` が `throw` してビルドが止まる
 - **`content/` は `src/` を import しない。** 型は `content/types/` に置く(`content.ts` = 表示データ、`world.ts` = 村)
@@ -34,6 +39,7 @@ content/ja/*.ts  content/ko/*.ts  content/world.ts
 ## 2. ブラウザ保存
 
 **`src/lib/preferences.ts` が唯一の窓口**(不変ルール3)。他のファイルから `localStorage` / `sessionStorage` を直接触らない。
+窓口を import してよいのはコンテナとその隣の `hooks` フォルダだけ(村は `src/components/VillagePage/hooks/` の位置の保存・復元・訪問の記録、テーマは `src/components/ui/SettingsMenu/hooks/use-theme-choice.ts`)。
 
 | 何を | どこに | キー |
 |---|---|---|
@@ -51,14 +57,14 @@ content/ja/*.ts  content/ko/*.ts  content/world.ts
 
 村の天気は `src/lib/weather.ts` が Open-Meteo(API キー不要)を呼ぶ。
 
-- 呼ぶのはクライアント。村を描いたあと `use-weather.ts` がマウント時に1回だけ実行する
+- 呼ぶのはクライアント。村を描いたあと、村のコンテナが呼ぶ `src/components/VillagePage/hooks/use-weather.ts` がマウント時に1回だけ実行する
 - 送るのは固定の緯度経度(大阪)だけ。訪問者の位置情報は扱わない。応答は保存しない
 - **失敗は全部 `'none'` に丸める。** タイムアウト(5秒)・ネットワーク障害・応答形の不一致・オフライン、どれでも雨は降らないだけで、村の描画も操作も止めない
 - 雨が出ないのはバグではなくフォールバック。E2E は応答を差し替えて両方を確かめる(`tests/day-night.spec.ts`)
 
 アクセス計測は GoatCounter。計測タグの読み込みは `src/app/html-shell.tsx` で、ページ読み込み時の1件はタグが自動で送る。
 計測先 URL は環境変数 `NEXT_PUBLIC_GOATCOUNTER_URL`(GitHub の変数 `GOATCOUNTER_URL`)からビルド時に入り、未設定なら計測タグを出さない。
-next/link による移動はタグから見えないため、`src/components/ui/PageviewCounter/` が pathname の変わるたびに `src/lib/analytics.ts` の送信関数を呼ぶ
+next/link による移動はタグから見えないため、`src/components/ui/PageviewCounter/container.tsx` が pathname の変わるたびに `src/lib/analytics.ts` の送信関数を呼ぶ
 (マウント時は送らず、読み込み時の1件と二重にしない)。Cookie は使わない。計測が落ちても画面は動く。
 
 Web フォントは `src/app/html-shell.tsx` が Google Fonts の配信 CSS を `<link>` で読む(自前の `@font-face` は持たない)。
@@ -75,3 +81,6 @@ Inter・Playfair Display は共通で、Noto Sans・Noto Serif だけ locale で
 
 `src/utils/` は同じ入力に同じ出力を返す純粋関数と定数に限る。
 DOM の実測(`ResizeObserver` など)はページが閉じれば消えるので「外」ではなく、フックに置く。
+
+`src/lib/` の外の世界に触れる入口(`preferences`・`weather`・`analytics`・`fetch-svg-source`・`content/`・`metadata`)を `src/components/` と `src/hooks/` の中で import してよいのは、
+コンテナ(`container.tsx`)とその隣の `hooks` フォルダだけ(content の読み出しは画面のローダー `index.tsx`)。表示部品へは値を props で渡す → [boundaries.md](boundaries.md) の「コンテナと表示部品」

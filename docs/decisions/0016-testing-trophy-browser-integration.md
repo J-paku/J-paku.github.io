@@ -5,7 +5,7 @@ read_when:
   - E2E を消して統合テストへ移したくなったとき
   - フックをどう確かめ、どこまでカバレッジを測るかを問われたとき
 source_of_truth: false
-last_reviewed: 2026-10-13
+last_reviewed: 2026-10-14
 ---
 
 # 0016. 層の基準をテスティングトロフィーにし、画面単位の統合テストを実ブラウザ(Vitest Browser Mode)で一番厚くする
@@ -21,6 +21,10 @@ Accepted(2026-10-13、利用者の決定)。次の部分を置き換える。
   それは単体に数え、「統合」は Vitest Browser Mode で画面を描くテストを指す
 
 `hooks`フォルダに単体テストを置かない・どのテストでも`renderHook`を使わない(0011。`npm run test:boundary`)は変えない
+
+一部を [0017](0017-screen-containers.md) が置き換えた(2026-10-14。下の4層の表のうち、単体の層に「コンポーネント1つだけを描くテスト(happy-dom の8本)」を置く部分は、
+その断定をコンテナの隣の `container.browser.test.tsx` へ移して消し、コンポーネントを描くテストは統合だけになった。統合のファイル名 `*.browser.test.tsx`(仮)は、コンテナごとにちょうど1本の `container.browser.test.tsx` に決まった。
+Consequences の「移行は段階を分ける」に対しては、利用者の決定で6つのコンテナの統合テストを1回のセッションで入れた。E2E を消す条件・フックのファイル別100%の決め方は、この記録のまま)
 
 ## Context
 
