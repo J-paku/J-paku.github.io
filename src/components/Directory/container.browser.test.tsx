@@ -1,8 +1,8 @@
 // 一覧の画面(コンテナ)の統合テスト(Vitest Browser Mode)。一覧を実際の Chromium で、フック・子と一緒に描き(ADR 0016)、
-// 作品カード・キャプチャ枠の中身の出し分けを、利用者に見える形
+// 作品カード・キャプチャ枠の中身・リンクの覆いの出し分けを、利用者に見える形
 // (role・名前・aria-*・inert・行き先・要素の有無)で確かめる。CSS も Vite が実際に当てるので、押せるかどうかは本物の重なりで決まる。
 // props は入口(index.tsx)と同じ組み方で container.fixture.ts が node で組み、inject で受け取る。
-// 実データに無い形は、作品を差し替えた props の写しをテストが直接渡す。
+// 実データに無い形(リンクを持たない作品など)は、作品を差し替えた props の写しをテストが直接渡す。
 // 差し替えるのはネットワーク(場面 SVG の取得)と時間(リールの自動送り)と、タッチ端末かどうかの問い合わせ1つだけ(理由は viewAsTouch の注釈)。
 // 動きを控える設定は差し替えず、Chromium の模擬(CDP)で本物の media query を切り替える
 import { act, cleanup, render, within } from '@testing-library/react'
@@ -18,6 +18,7 @@ import type { DirectoryData } from './container.fixture'
 import DirectoryContainer from './container'
 
 const directoryJa = inject('directoryJa')
+const directoryKo = inject('directoryKo')
 const { works, ui } = directoryJa
 
 const pickWork = (candidates: Work[], label: string, predicate: (work: Work) => boolean): Work => {
@@ -43,12 +44,25 @@ const stillWork = pickWork(
   '静止画だけを持つ',
   work => work.thumbnail !== undefined && work.video === undefined && work.storyReel !== true
 )
+// 公開ページとGitHubの両方を持ち、動き(動画・リール)を持たない作品。覆いのトリガーはマウスでもタッチでも出る
+const stillLinkWork = pickWork(
+  works,
+  '公開ページとGitHubを持つ動きの無い',
+  work =>
+    work.links.live !== undefined &&
+    work.links.repo !== undefined &&
+    work.video === undefined &&
+    work.storyReel !== true
+)
 // 公開ページとGitHubの両方を持ち、動画を持つ作品。マウスでは全面トグル、タッチでは覆いの中の一時停止ボタンが出る
 const motionLinkWork = pickWork(
   works,
   '公開ページとGitHubを持つ動画の',
   work => work.links.live !== undefined && work.links.repo !== undefined && work.video !== undefined
 )
+// 外部リンクを持たず、ストーリーだけを持つ作品(覆いはストーリーへの入口1つになる)
+const isStoryOnly = (work: Work) =>
+  work.links.live === undefined && work.links.repo === undefined && work.story !== undefined
 
 const renderDirectory = (data: DirectoryData = directoryJa) =>
   render(<DirectoryContainer {...data} />)
@@ -82,6 +96,10 @@ const cardOf = (work: Work): HTMLElement => {
 
 // 画面キャプチャの枠。リンクの覆いが外側の押下を判定する基準でもある
 const shotOf = (work: Work) => queryOrThrow(cardOf(work), `.${shotStyles.shot}`)
+// リンクの覆い。表示の切り替えは CSS が受け持ち、開いている印はクラスで見る
+const overlayOf = (work: Work) => queryOrThrow(shotOf(work), `.${shotStyles.shotOverlay}`)
+const isOverlayOpen = (overlay: HTMLElement) =>
+  overlay.classList.contains(shotStyles.shotOverlayOpen)
 const reelOf = (work: Work) => queryOrThrow(shotOf(work), `.${shotStyles.reel}`)
 
 // トグルが aria-controls で指す詳細の領域
@@ -490,6 +508,161 @@ describe('キャプチャ枠の中身(ShotMedia)', () => {
       const shot = shotOf(work)
       expect(within(shot).getByText(ui.work.shotPlaceholder)).toBeDefined()
       expect(shot.querySelector('img')).toBeNull()
+    })
+  })
+})
+
+describe('リンクの覆い(LinksOverlay)', () => {
+  describe('覆いの有無', () => {
+    it('リンクもストーリーも持たない作品では、トリガーも覆いも描かない', () => {
+      // リンクもストーリーも持たない作品(準備中の作品の形)。いまの実データには無いので、実データから外して作る
+      const bareWork: Work = { ...stillLinkWork, links: {}, story: undefined }
+      viewAsTouch()
+      renderDirectory(withWork(bareWork))
+
+      // 枠に残るのは静止画だけ
+      const shot = shotOf(bareWork)
+      expect([...shot.children].map(child => child.tagName)).toEqual(['IMG'])
+    })
+  })
+
+  describe('トリガー(タップで開閉する入口)', () => {
+    it.each([
+      ['動きの無いカードをマウスで', stillLinkWork, false],
+      ['動きの無いカードをタッチで', stillLinkWork, true],
+      ['動きを持つカードをタッチで', motionLinkWork, true],
+    ])('%s見るときは、閉じた状態のトリガーを置く', (_label, work, isTouch) => {
+      if (isTouch) viewAsTouch()
+      renderDirectory()
+
+      const trigger = within(shotOf(work)).getByRole('button', { name: ui.work.openLinks })
+      expect(trigger.getAttribute('aria-expanded')).toBe('false')
+    })
+
+    it('動きを持つカードをマウスで見るときは、トリガーも覆い内の一時停止ボタンも置かず(全面トグルが担う)、覆いのリンクは置く', () => {
+      renderDirectory()
+
+      const overlay = overlayOf(motionLinkWork)
+      expect(within(overlay).queryAllByRole('button')).toHaveLength(0)
+      // 枠の中で押せるボタンは、覆いの外の全面トグルだけ
+      const buttons = within(shotOf(motionLinkWork)).getAllByRole('button')
+      expect(buttons.map(button => button.getAttribute('aria-label'))).toEqual([
+        ui.work.pauseMotion,
+      ])
+      expect(within(overlay).getByRole('link', { name: ui.work.live }).getAttribute('href')).toBe(
+        motionLinkWork.links.live
+      )
+    })
+
+    it('トリガーを押すと覆いが開いてaria-expandedがtrueになり、覆いの空きを押すと閉じる', async () => {
+      renderDirectory()
+
+      const trigger = within(shotOf(stillLinkWork)).getByRole('button', {
+        name: ui.work.openLinks,
+      })
+      const overlay = overlayOf(stillLinkWork)
+      expect(isOverlayOpen(overlay)).toBe(false)
+
+      // マウスではホバーした枠に覆いが出てトリガーに重なる(マウスの利用者はリンクを直接押す)。トリガーはキーボードで押す
+      trigger.focus()
+      await userEvent.keyboard('{Enter}')
+      await expect.element(trigger).toHaveAttribute('aria-expanded', 'true')
+      expect(isOverlayOpen(overlay)).toBe(true)
+
+      // 覆いの空きを押す。リンクのボタンは下端の中央に並ぶので、左上の角は空いている
+      await userEvent.click(overlay, { position: { x: 4, y: 4 } })
+      await expect.element(trigger).toHaveAttribute('aria-expanded', 'false')
+      expect(isOverlayOpen(overlay)).toBe(false)
+    })
+  })
+
+  describe('覆いの中のリンク', () => {
+    const linkCases: [string, Work][] = [
+      ['公開ページとGitHub', stillLinkWork],
+      ['公開ページだけ', { ...stillLinkWork, links: { live: stillLinkWork.links.live } }],
+      ['GitHubだけ', { ...stillLinkWork, links: { repo: stillLinkWork.links.repo } }],
+    ]
+
+    it.each(linkCases)(
+      '外部リンクが%sの作品は、「リンクを開く」トリガーと持っているリンクだけを置き、ストーリーへの入口は置かない',
+      (_label, work) => {
+        viewAsTouch()
+        renderDirectory(withWork(work))
+
+        const shot = within(shotOf(work))
+        expect(shot.getByRole('button', { name: ui.work.openLinks })).toBeDefined()
+        // 持たないリンクは要素ごと無い(行き先がundefinedのまま一致する)
+        const live = shot.queryByRole('link', { name: ui.work.live })
+        const repo = shot.queryByRole('link', { name: ui.work.repo })
+        expect(live?.getAttribute('href')).toBe(work.links.live)
+        expect(repo?.getAttribute('href')).toBe(work.links.repo)
+        expect(shot.queryByRole('link', { name: ui.work.story })).toBeNull()
+      }
+    )
+
+    it('公開ページとGitHubへの外部リンクは、行き先へ参照元を渡さない(rel=noreferrer)', () => {
+      viewAsTouch()
+      renderDirectory()
+
+      const overlay = within(overlayOf(stillLinkWork))
+      for (const name of [ui.work.live, ui.work.repo]) {
+        expect(overlay.getByRole('link', { name }).getAttribute('rel')).toBe('noreferrer')
+      }
+    })
+
+    it.each([
+      ['ja', directoryJa, ''],
+      ['ko', directoryKo, '/ko'],
+    ] as const)(
+      'ストーリーだけを持つ作品は、「ストーリーを開く」トリガーと、その言語のストーリーページへの入口を1つだけ置く(%s)',
+      (_locale, data, prefix) => {
+        const work = pickWork(data.works, 'ストーリーだけを持つ', isStoryOnly)
+        viewAsTouch()
+        renderDirectory(data)
+
+        const shot = within(shotOf(work))
+        expect(shot.getByRole('button', { name: data.ui.work.openStory })).toBeDefined()
+        const links = shot.getAllByRole('link')
+        expect(links).toHaveLength(1)
+        expect(links[0].textContent).toBe(data.ui.work.story)
+        expect(links[0].getAttribute('href')).toBe(`${prefix}/works/${work.slug}/`)
+      }
+    )
+  })
+
+  describe('覆いの中の一時停止ボタン(タッチ環境の操作口)', () => {
+    it('動きを持つカードをタッチで見るときは一時停止ボタンを置き、押すと再生へ替わり、開いた覆いは閉じない', async () => {
+      viewAsTouch()
+      renderDirectory()
+
+      const shot = within(shotOf(motionLinkWork))
+      const trigger = shot.getByRole('button', { name: ui.work.openLinks })
+      await userEvent.click(trigger)
+      await expect.element(trigger).toHaveAttribute('aria-expanded', 'true')
+
+      // 押されたボタンは覆いの中にある(覆いの背景を押せば閉じる)。ホバー中の動画カードの覆いは CSS が押下を通さないので、キーボードで押す
+      const toggle = shot.getByRole('button', { name: ui.work.pauseMotion })
+      expect(overlayOf(motionLinkWork).contains(toggle)).toBe(true)
+      toggle.focus()
+      await userEvent.keyboard('{Enter}')
+      await expect.element(toggle).toHaveAttribute('aria-label', ui.work.resumeMotion)
+      // 覆いの背景を押したことにはならない(押下は覆いの閉じる処理へ伝わらない)
+      expect(trigger.getAttribute('aria-expanded')).toBe('true')
+
+      await userEvent.keyboard('{Enter}')
+      await expect.element(toggle).toHaveAttribute('aria-label', ui.work.pauseMotion)
+    })
+
+    it.each([
+      ['マウスで', false],
+      ['タッチで', true],
+    ])('動きの無いカードを%s見るときは一時停止ボタンを置かない', (_label, isTouch) => {
+      if (isTouch) viewAsTouch()
+      renderDirectory()
+
+      const shot = within(shotOf(stillLinkWork))
+      expect(shot.queryByRole('button', { name: ui.work.pauseMotion })).toBeNull()
+      expect(shot.queryByRole('button', { name: ui.work.resumeMotion })).toBeNull()
     })
   })
 })
