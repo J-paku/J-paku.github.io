@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Locale, UiStrings, WorkStoryScene } from '@content/types/content'
 import PhraseText from '@/components/ui/PhraseText'
-import { useActiveScene } from '../../hooks/use-active-scene'
+import { useActiveScene } from './hooks/use-active-scene'
 import IntroPreview from '../IntroPreview'
 import SceneModal from '../SceneModal'
 import SceneSection from '../SceneSection'
