@@ -1,7 +1,8 @@
 // 村の統合テスト(*.browser.test.tsx)へ渡す Village の props を、VillagePage(サーバ)と同じ関数で node 側で組む。
 // content の読み出しは node:fs、シートを焼く png.ts は node:zlib、URL の指紋は node:crypto を使うので、ブラウザでは読み込めない。
-// vitest.integration.config.ts の globalSetup がこのファイルを node で走らせて provide し、テストは inject で受け取る。
-// 組み方は src/components/VillagePage/index.tsx の写し。あちらを変えたらここも合わせる
+// vitest.integration.config.ts の globalSetup が src の下の container.fixture.ts としてこのファイルを拾い、node で走らせて
+// provide し、テストは inject で受け取る。
+// 組み方は隣の index.tsx(src/components/VillagePage/index.tsx)の写し。あちらを変えたらここも合わせる
 // (exit だけは要素なので渡せず、テストが listHref と text.toList から ExitLink を組む)
 import type { ComponentProps } from 'react'
 import type { TestProject } from 'vitest/node'
@@ -12,9 +13,9 @@ import { buildWeatherSprites } from '@/lib/pixel/sprites'
 import { careerRoleLabels } from '@/utils/career-role-labels'
 import { DAY_PHASES } from '@/utils/day-phase'
 import { toHref } from '@/utils/locale-path'
-import { sheetLayout, sheetUrl } from '../../utils/sprite-css'
-import { resolveStopLinks } from '../../utils/stop-links'
-import type Village from './index'
+import { sheetLayout, sheetUrl } from './utils/sprite-css'
+import { resolveStopLinks } from './utils/stop-links'
+import type Village from './components/Village'
 
 export type VillageData = Omit<ComponentProps<typeof Village>, 'exit'>
 
