@@ -2,7 +2,7 @@
 import type { RefObject } from 'react'
 import type { UiStrings, Work, WorkStoryScene } from '@content/types/content'
 import DeviceFrame from '@/components/ui/DeviceFrame'
-import ScenePlayer from '@/components/ui/ScenePlayer'
+import ScenePlayer from '@/components/ui/ScenePlayer/container'
 
 // 親の shot.module.css のクラス表。CSS の読み込み順を変えないよう、この部品は CSS を直接 import しない
 type ShotStyles = { readonly [key: string]: string }

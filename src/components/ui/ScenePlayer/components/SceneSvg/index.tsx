@@ -8,16 +8,16 @@
 // ただし素のDOMへ展開すると4場面ぶんのSVGが同時に置かれ、互いのクラス名(.anim など。場面ごとに
 // animation-duration が違う)と id(#hex・#dummyCard など)を奪い合う。シャドウルートなら
 // スタイルも id 参照も各場面の中に閉じるので、この構成では必須。
-import { useEffect, useEffectEvent, useRef, useState } from 'react'
-import { fetchSvgSource } from '@/lib/fetch-svg-source'
+// 原文の取得はコンテナ(../../container.tsx)が持ち、ここは渡された原文を流し込むだけにする
+import { useEffect, useRef } from 'react'
 
 type SceneSvgProps = {
-  src: string
+  // 取れた場面SVGの原文。届くまでは null で、受け皿だけを置いて待つ
+  source: string | null
   className: string
   // 値が変わるたびにSVGを組み直し、中のアニメーションを頭から再生させる
   restartKey: string
   paused: boolean
-  onError: () => void
 }
 
 // シャドウルート側の下地。SVG自身の見た目は取り込んだ markup が持つ。
@@ -28,27 +28,9 @@ svg { display: block; width: 100%; height: 100%; }
 :host([data-paused]) * { animation-play-state: paused; }
 `
 
-function SceneSvg({ src, className, restartKey, paused, onError }: SceneSvgProps) {
+function SceneSvg({ source, className, restartKey, paused }: SceneSvgProps) {
   const hostRef = useRef<HTMLDivElement>(null)
   const shadowRef = useRef<ShadowRoot | null>(null)
-  const [source, setSource] = useState<string | null>(null)
-
-  // onError をそのまま effect の依存に置くと、呼び出し側が再レンダーするたび取得し直してしまう
-  const handleError = useEffectEvent(onError)
-
-  useEffect(() => {
-    let cancelled = false
-    fetchSvgSource(src)
-      .then(text => {
-        if (!cancelled) setSource(text)
-      })
-      .catch(() => {
-        if (!cancelled) handleError()
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [src])
 
   useEffect(() => {
     const host = hostRef.current
