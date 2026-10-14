@@ -33,13 +33,6 @@ const isOpen = (trigger: Element) => trigger.getAttribute('aria-expanded') === '
 beforeEach(() => {
   // 外へ通信させない
   vi.stubGlobal('fetch', () => Promise.reject(new Error('テストでは通信しない')))
-  // next.configのtrailingSlash: trueは、ビルド時にこの環境変数としてnext/linkへ渡る(next/dist/build/define-env.js)。
-  // 無いとnext/linkがhrefの末尾スラッシュを落とし、配信物と違うhrefになる。ブラウザではvi.stubEnvがimport.meta.envしか
-  // 書き換えず、next/linkが実行時に読むglobalThis.process.envへ届かない(2026-10-14の実測)ので、processごと差し替えて足す
-  vi.stubGlobal('process', {
-    ...globalThis.process,
-    env: { ...globalThis.process.env, __NEXT_TRAILING_SLASH: 'true' },
-  })
   document.addEventListener('click', preventNavigation)
 })
 
