@@ -47,21 +47,24 @@ export default defineConfig({
       // hooks/ 配下は単体テストを置かない層なので測らない。フックの動きは統合テスト(vitest.integration.config.ts)で見る。
       // 統合テストへ移し終えるまでは E2E が見る
       // (hooks/ にテストを置いていないかは scripts/check-test-boundary.mjs が検査する)
+      // components/ の .tsx も同じ理由で測らない。コンポーネントを描くテストは各コンテナ横の統合テストにだけ置き、そちらで測る(ADR 0017)
       exclude: [
         'src/**/*.test.{ts,tsx}',
         'src/**/*.fixture.ts',
         'src/**/*.test-helper.ts',
         'src/**/hooks/**',
+        'src/components/**/*.tsx',
       ],
       reporter: ['text-summary'],
       reportsDirectory: 'coverage',
-      // 2026-10-11の実測(statements 85.28%・branches 85.62%・functions 79.24%・lines 84.49%)から2pt引いて切り捨てた値。
+      // 2026-10-14の実測(statements 97.45%・branches 98.74%・functions 95.27%・lines 97.31%)から2pt引いて切り捨てた値。
+      // コンポーネント(components/ の .tsx)を統合テストのカバレッジへ移し、単体の測る対象から外したので測り直した(ADR 0017)。
       // 目標値ではなく、テストを消したり使われないコードを増やしたりしたときに落とすための床
       thresholds: {
-        statements: 83,
-        branches: 83,
-        functions: 77,
-        lines: 82,
+        statements: 95,
+        branches: 96,
+        functions: 93,
+        lines: 95,
         // ファイル別100%(一覧は scripts/gate-targets.mjs の COVERAGE_TARGETS)
         ...Object.fromEntries(COVERAGE_TARGETS.map(file => [file, FULL_COVERAGE])),
       },
