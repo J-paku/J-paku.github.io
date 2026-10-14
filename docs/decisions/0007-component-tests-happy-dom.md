@@ -13,7 +13,7 @@ last_reviewed: 2026-10-01
 
 Superseded by [0009](0009-widen-happy-dom-test-scope.md)(対象の範囲。2026-09-29 の`148a540`・`532f480`・`00326c0`・`69b92e0`・`11764fc`から、環境で分かれる出し分けの外と、村のフック・歩行ループの部品・DOM を使う utils へ広がった)
 
-採った時点: Accepted(2026-09-28。`vitest.config.ts` と `src/components/Directory/components/WorkCard/index.test.tsx`)
+採った時点: Accepted(2026-09-28。`vitest.config.ts` と、当時の作品カード `WorkCard` の隣の `index.test.tsx`(今は断定を `src/components/Directory/container.browser.test.tsx` へ移して消した))
 
 ## Context
 

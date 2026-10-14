@@ -3,6 +3,7 @@
 // 観察対象が可変本数のため、useFullyVisible/useReveal と違い単一 ref ではなく
 // index ごとの ref コールバックを Map で束ね、Observer 自体は1個だけ生成して使い回す
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { canObserveIntersection } from '@/utils/observe-fallback'
 
 // 中央だけを判定帯にする。上下45%を除外し、中央10%の帯を通過した場面をアクティブにする
 const ROOT_MARGIN = '-45% 0px -45% 0px'
@@ -22,7 +23,7 @@ export function useActiveScene(count: number): {
 
   useEffect(() => {
     // IntersectionObserver が無い環境(テスト環境など)では先頭の場面を出したまま何もしない
-    if (typeof IntersectionObserver === 'undefined') return
+    if (!canObserveIntersection()) return
 
     const observer = new IntersectionObserver(
       entries => {

@@ -36,7 +36,7 @@ last_reviewed: 2026-10-13
 | 層 | 置き場・ファイル名 | 対象 | 環境 |
 |---|---|---|---|
 | 静的 | — | 型・lint(レイヤー境界を含む)・整形・文書の参照(`npm run typecheck`・`npm run lint`・`npm run format:check`・`npm run docs:check`) | ソースをそのまま読む |
-| 単体(Vitest) | 対象ファイルの隣 `*.test.ts`、コンポーネントの隣 `index.test.tsx` | **純粋関数**と、`fetch`・Storage を `vi.stubGlobal` で差し替えて測る `src/lib/` の入口。DOMを使う(読む・書く・DOMParser)utils(歩行ループの部品など)。**コンポーネント1つだけを描くテスト**(環境・props・操作で分かれる出し分け)。いまは作品カード(`src/components/Directory/components/WorkCard/index.test.tsx`)とその部品のLinksOverlay・WorkLinks・ShotMedia、経歴のCareerDetail、設定メニューのSettingsMenu、ページ移動の計測のPageviewCounter、作品ストーリーの技術チップのTechChipPopoverの8本。**フックを`renderHook`で呼ぶテストは置かない**([テストの境界](#テストの境界)) | `environment: 'node'`(既定)。DOM を持たない。DOMを使う(読む・書く・DOMParser)utilsとコンポーネントを描くテストだけは、ファイル先頭の`// @vitest-environment happy-dom`でそのファイルだけhappy-domで走る |
+| 単体(Vitest) | 対象ファイルの隣 `*.test.ts` | **純粋関数**と、`fetch`・Storage を `vi.stubGlobal` で差し替えて測る `src/lib/` の入口。DOMを使う(読む・書く・DOMParser)utils(歩行ループの部品など)。**コンポーネントを描くテストと、フックを`renderHook`で呼ぶテストは置かない**([テストの境界](#テストの境界)) | `environment: 'node'`(既定)。DOM を持たない。DOMを使う(読む・書く・DOMParser)utilsだけは、ファイル先頭の`// @vitest-environment happy-dom`でそのファイルだけhappy-domで走る |
 | 統合(Vitest Browser Mode。一番厚くする) | `*.browser.test.tsx`(名前は仮) | **画面単位のコンポーネントを、フック・子と一緒に描く。** 村も含む。モックはネットワーク(天気)と時間だけ | 実ブラウザ(Chromium 1つ、headless)で、ビルド無しで走る(`vitest.integration.config.ts`・`npm run test:integration`)。ブラウザの時間帯は UTC に固定する。今は村の1本だけ([移行中](#移行中)) |
 | E2E(Playwright) | `tests/**/*.spec.ts` | **ビルド結果でしか確かめられないもの**(静的経路・404・初回ペイント前のテーマ・言語の接頭を保つ移動・保存が塞がれた時)と、**ページをまたぐ核心の旅程**。今はフック(配線)の振る舞いもここで見ていて、統合へ移す予定([移行中](#移行中)) | `out/` を `:4173` で静的配信 |
 
@@ -134,7 +134,7 @@ happy-dom でコンポーネント1つを描くテスト(`index.test.tsx`)の約
 
 journey のそれ以外のテストの行き先は、この表では決めていない。
 
-## E2E の15本
+## E2E の16本
 
 今走っている spec の全部。統合へ移す予定のものも、消すまではここに残す([移行中](#移行中))。
 
@@ -155,6 +155,7 @@ journey のそれ以外のテストの行き先は、この表では決めてい
 | `tests/storage-blocked.spec.ts` | 保存(localStorage / sessionStorage)が使えないとき。プロパティを読むだけで投げる形とメソッドが投げる形の両方で、初回ペイント前のテーマ読み込み・テーマの切り替え・会話・歩いて町へ出るまでが、捕まえられない例外(pageerror)を出さずに動くか |
 | `tests/scene-refetch.spec.ts` | 作品ストーリーの場面の絵。取得に失敗した場面が、同じページのままモーダルを開き直すと取り直されて絵が出るか、成功した絵は取り直さないか |
 | `tests/story.spec.ts` | 作品ストーリーの場面モーダルと本文の配線。CTA が今読んでいる場面から開くか、場面の文が画面に入ると現れるか、前へ・次へで端のボタンが無効になってフォーカスが隣へ移るか、時計を止めて自動送りが場面の周期ちょうどで進み一時停止の間は送らないか、自動送りで端へ着く時は無効になるボタンのフォーカスだけを逃がすか、Esc・閉じる・余白で閉じると開いたボタンへフォーカスが戻り背景の固定が解けるか |
+| `tests/observer-missing.spec.ts` | `IntersectionObserver` が無い環境での、一覧のカードの出現・写真の色(use-reveal・use-fully-visible)と、作品ストーリーの今の場面(use-active-scene)。一覧は、どのカードも最初から現れ(opacity 1)、作品カードの動画(`#seatmap-demo video`)に src が入り、画面に入りきらない写真も色が付いたまま(grayscale 0)か。観察器がある時の対照(画面の外のカードはまだ opacity 0・grayscale 1)も見る。作品ストーリーは、場面を下へ送っても今の場面が先頭のままで、CTA が最初の場面から開くか(観察器がある時の対照は `tests/story.spec.ts` の CTA と場面の現れ方のテスト)。統合では観察器を後から消せない(読み込みの時にそれを覚えた `next/link` が TypeError を投げる)ので E2E で見る |
 
 テストの件数は `npx playwright test --list` の末尾で数える(2026-10-11 で 130 件)。
 
