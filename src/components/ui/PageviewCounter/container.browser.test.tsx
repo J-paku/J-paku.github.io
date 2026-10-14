@@ -1,12 +1,12 @@
-// @vitest-environment happy-dom
-// ページ移動の計測(PageviewCounter)の統合テスト。next/navigation の usePathname を差し替えて経路を動かし、
+// ページ移動の計測(PageviewCounter)の統合テスト(Vitest Browser Mode)。実際の Chromium で描く。
+// ルーターの外で描くため next/navigation の usePathname を差し替えて経路を動かし、
 // GoatCounter の送信関数(window.goatcounter.count)を偽物に替えて、何回・どのパスで数えさせるかを確かめる。
 // 計測タグ(count.js)を読み込むのはこの部品ではないので描かず、偽物の送信関数の外へは何も出さない
 import { cleanup, render } from '@testing-library/react'
 import { StrictMode } from 'react'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import PageviewCounter from './index'
+import PageviewCounter from './container'
 
 // 今の経路。usePathname はこの値を返す
 const navigation = vi.hoisted(() => ({ pathname: '/list/' }))
@@ -72,11 +72,13 @@ describe('数える回数', () => {
 
 describe('外への送信', () => {
   it('計測タグを読み込まず、通信もしない(数えるのは偽物の送信関数だけ)', () => {
+    // 実ブラウザの文書にはテストを動かすための script が元からある。描く前の一覧と比べ、1本も足していないことを見る
+    const scriptsBefore = Array.from(document.scripts)
     const { rerender } = render(counterTree())
     navigate(rerender, '/works/sample/')
 
     expect(count).toHaveBeenCalledTimes(1)
-    expect(document.querySelector('script')).toBeNull()
+    expect(Array.from(document.scripts)).toEqual(scriptsBefore)
     expect(fetchSpy).not.toHaveBeenCalled()
   })
 
