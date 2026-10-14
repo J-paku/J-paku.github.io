@@ -2,6 +2,7 @@ import { defineConfig, configDefaults } from 'vitest/config'
 import { playwright } from '@vitest/browser-playwright'
 import { globSync } from 'node:fs'
 import { fileURLToPath, URL } from 'node:url'
+import nextConfig from './next.config'
 
 // 画面(コンテナ)の props は node でしか組めない(fs・zlib・crypto を使う)ので、各コンテナの隣の container.fixture.ts が
 // テストの前に node で組んで provide する。コンテナを足すたびにここを直さずに済むよう、src の下から全部拾う。
@@ -23,8 +24,15 @@ if (CONTAINER_FIXTURES.length === 0) {
 // 単体の設定は *.browser.test.{ts,tsx} を exclude で外し、ここは *.browser.test.{ts,tsx} だけを拾う
 export default defineConfig({
   // next/link などは Next のビルドが process.env.X を値へ置き換える前提で書かれていて、ブラウザには process が無い。
-  // 置き換える物の無い空の入れ物にして、未設定(undefined)として読ませる
-  define: { 'process.env': '{}' },
+  // ここで process.env の中身を決める。中身は Next のビルドが next.config から入れる値のうち、テストの結果に表れるものだけ:
+  //   __NEXT_TRAILING_SLASH: next.config の trailingSlash(next/dist/build/define-env.js と同じ元)。無いと next/link が
+  //   href の末尾のスラッシュを落とし、配信物と違う href になる
+  // 先に束ねた依存(next/link)の中の process.env.X はこの置き換えを受けない。それでも効くのは、Vite がブラウザで最初に読む
+  // /@vite/env(vite/dist/client/env.mjs)が define の値を globalThis.process.env へ書き、束の中の process.env.X が
+  // 実行時にそれを読むため(2026-10-14 の実測。テストごとに process を差し替えなくてよい)
+  define: {
+    'process.env': JSON.stringify({ __NEXT_TRAILING_SLASH: nextConfig.trailingSlash }),
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
