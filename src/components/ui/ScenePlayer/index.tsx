@@ -1,8 +1,8 @@
 'use client'
 
 // 場面ごとの画面キャプチャを絶対配置で重ね、activeIndex の1枚だけを opacity で見せる(クロスフェード)。
-// 資産が未納の場面は取得失敗で検知し、以降はプレースホルダ文言へ切り替える(WorkCard shotPlaceholder 踏襲)
-import { useState } from 'react'
+// 原文の取得はコンテナ(./container.tsx)が持ち、ここは取れた原文を描き、取得に失敗した場面はプレースホルダ文言で描く
+// (WorkCard shotPlaceholder 踏襲)
 import type { WorkStoryScene } from '@content/types/content'
 import SceneSvg from './components/SceneSvg'
 import styles from './scene-player.module.css'
@@ -13,12 +13,20 @@ type ScenePlayerProps = {
   placeholder: string
   // 呼び出し側が一時停止を持つ場合だけ渡す。SVG内部のアニメーションを今の絵のまま止める
   paused?: boolean
+  // 取れた場面SVGの原文(場面の id → 原文)。届く前の場面は持たない
+  sources: ReadonlyMap<string, string>
+  // 読み込みに失敗した場面の id。この場面はプレースホルダのまま留める
+  failedScenes: ReadonlySet<string>
 }
 
-function ScenePlayer({ scenes, activeIndex, placeholder, paused = false }: ScenePlayerProps) {
-  // 読み込みに失敗した場面の id を集める。一度失敗した画像は再試行させずプレースホルダのまま留める
-  const [failedScenes, setFailedScenes] = useState<Set<string>>(new Set())
-
+function ScenePlayer({
+  scenes,
+  activeIndex,
+  placeholder,
+  paused = false,
+  sources,
+  failedScenes,
+}: ScenePlayerProps) {
   return (
     <div className={styles.player}>
       {scenes.map((scene, index) => {
@@ -33,13 +41,10 @@ function ScenePlayer({ scenes, activeIndex, placeholder, paused = false }: Scene
               // 活性/非活性が切り替わった時だけ restartKey が変わる。SVG内部のCSSアニメーションは
               // 組み直しでしか再始動しないため、場面が活性化するたび頭から再生させる
               <SceneSvg
-                src={scene.image}
+                source={sources.get(scene.id) ?? null}
                 className={styles.sceneSvg}
                 restartKey={isActive ? 'on' : 'off'}
                 paused={paused}
-                onError={() => {
-                  setFailedScenes(prev => new Set(prev).add(scene.id))
-                }}
               />
             )}
           </div>

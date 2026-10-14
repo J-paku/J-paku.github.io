@@ -16,7 +16,7 @@
 import { useRef } from 'react'
 import type { WorkStoryScene } from '@content/types/content'
 import DeviceFrame from '@/components/ui/DeviceFrame'
-import ScenePlayer from '@/components/ui/ScenePlayer'
+import ScenePlayer from '@/components/ui/ScenePlayer/container'
 import PlaybackPulse from '@/components/ui/PlaybackPulse'
 import ControlIcon from './components/ControlIcon'
 import { useModalDialog } from './hooks/use-modal-dialog'
