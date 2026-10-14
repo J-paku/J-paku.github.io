@@ -1,9 +1,9 @@
 // 設定メニューのコンテナ。外の世界(ルート属性と preferences 経由の保存)に触れるテーマの選択(useThemeChoice)を
-// ここで呼び、適用中のテーマと切り替えを表示部品(index.tsx)へ props で渡す。言語・パス・文言は受け取ったまま渡す
+// ここで呼び、適用中のテーマと切り替えを表示部品(components/SettingsMenuView)へ props で渡す。言語・パス・文言は受け取ったまま渡す
 'use client'
 import type { Locale, UiStrings } from '@content/types/content'
 import { useThemeChoice } from './hooks/use-theme-choice'
-import SettingsMenu from './index'
+import SettingsMenu from './components/SettingsMenuView'
 
 type SettingsMenuContainerProps = {
   locale: Locale
