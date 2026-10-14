@@ -4,7 +4,7 @@ read_when:
   - happy-dom で見るテストの対象を広げる・狭めるとき
   - 村のフックや部品を happy-dom のテストで見てよいか迷ったとき
 source_of_truth: false
-last_reviewed: 2026-10-13
+last_reviewed: 2026-10-14
 ---
 
 # 0009. happy-dom で見るテストを、props・操作で分かれる部品、DOM を使う utils、寸法・rAF の実物に頼らない村のフック・部品へ広げる
@@ -16,13 +16,16 @@ Superseded by [0011](0011-extreme-constraints.md)(村のフックを `renderHook
 一部を [0016](0016-testing-trophy-browser-integration.md) が置き換えた(2026-10-13。「村のコンポーネントを描く統合テストは引き続き作らない」は、村も画面単位で Vitest Browser Mode の統合テストの対象にする形に替わった。
 happy-dom でコンポーネントを描くテストは、ここでは「統合テスト」と呼んでいるが、0016 からは単体に数える。コンポーネント1つを happy-dom で描くテストの対象の決め方(呼び名だけが単体に替わる)、DOM を使う utils と歩行ループの部品を happy-dom で見る部分は、この記録のまま)
 
+一部を [0017](0017-screen-containers.md) が置き換えた(2026-10-14。「コンポーネントを描く統合テスト」— props・操作で分かれる出し分けもコンポーネント1つを happy-dom で描いて見る部分 — は、
+その断定をコンテナの隣の `container.browser.test.tsx`(実ブラウザの統合テスト)へ移して消した。DOM を使う utils と歩行ループの部品を happy-dom で見る部分は、この記録のまま)
+
 採った時点: Accepted(2026-09-29、`148a540`・`532f480`・`00326c0`・`69b92e0`・`11764fc`。今の層の分け方は`60750cf`が [../quality/test-strategy.md](../quality/test-strategy.md) に書いた)。[0007](0007-component-tests-happy-dom.md) の対象の決め方を置き換える
 
 ## Context
 
 [0007](0007-component-tests-happy-dom.md) は happy-dom の統合テストを足したとき、対象を**環境で分かれる出し分け**だけに絞り、
 寸法・rAF に依存する村(`src/components/VillagePage/`)は対象にしないとした。そのときの対象は作品カード
-(当時の `WorkCard` の隣の `index.test.tsx`。今は断定を `src/components/Directory/container.browser.test.tsx` へ移して消した)1つだった。
+(当時の `WorkCard` の隣の `index.test.tsx`。今は [0017](0017-screen-containers.md) で断定を `src/components/Directory/container.browser.test.tsx` へ移して消した)1つだった。
 
 2026-09-29 に、happy-dom で走るテストを5つのコミットで足した。
 
@@ -31,7 +34,7 @@ happy-dom でコンポーネントを描くテストは、ここでは「統合�
   各ファイルの見出しが見るとしている分岐は、環境(動きの有無・ポインタの種類)だけでなく、作品・経歴が持つ項目(リンクの種類・手順や技術スタックの有無)と、
   操作(開閉・Esc・外側の押下・テーマ選択)で分かれる表示を含む
 - `532f480` — 村のフック3つ(当時の `Village` の `hooks` フォルダの `use-map-data.ts`・`use-village-world.ts`・
-  `use-village-overlay` の中の `use-village-travel.ts`。今は `src/components/VillagePage/hooks/` へ移した)を `renderHook` で25件。
+  `use-village-overlay` の中の `use-village-travel.ts`。今は [0017](0017-screen-containers.md) で `src/components/VillagePage/hooks/` へ移した)を `renderHook` で25件。
   本文は「選んだ基準は、本文が DOM・rAF・タイマー・保存に触れず、引数と runtime の ref・コールバックの結果だけで確かめられること」
 - `00326c0` — 村の歩行ループの部品(`src/components/VillagePage/components/Village/utils/walk-loop/`)に78件。
   本文は「DOM へ直接書く部品は happy-dom で(中略)見る。rAF と performance.now は差し替えて決定的に回す」

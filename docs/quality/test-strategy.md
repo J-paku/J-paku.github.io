@@ -5,7 +5,7 @@ read_when:
   - どのテストを走らせるか決めるとき
   - ロジックをどこに置き、どのテストで固めるか決めるとき
 source_of_truth: true
-last_reviewed: 2026-10-13
+last_reviewed: 2026-10-14
 ---
 
 # テスト
@@ -28,7 +28,8 @@ last_reviewed: 2026-10-13
 
 - ロジックは純粋関数(`src/lib/`・`src/utils/`・コンポーネント専用のutils)に置き、単体テスト・ファイル別カバレッジ100%・ミューテーションで固める
 - フックとコンポーネントは配線だけを持つ。`hooks`フォルダに単体テストを置かず、どのテストでも`renderHook`を使わない([テストの境界](#テストの境界))。
-  フックは、それを使う画面を統合テストで描いて見る(統合の層は設定が入ったところで、テストはまだ村の1本だけ。[移行中](#移行中))
+  フックとコンポーネントは、それを使うコンテナ(`container.tsx`)を統合テストで描いて見る。
+  コンポーネントを描くテストはコンテナの隣の `container.browser.test.tsx` だけ(コンテナごとに1本。[../decisions/0017-screen-containers.md](../decisions/0017-screen-containers.md))
 - 制約は上げる方向にだけ動かす。下限を下げる・テストを消す・変異テストやファイル別100%の対象から外す・テストの境界の決まりを変えるにはADRが要る
 
 ## 4層
@@ -37,17 +38,21 @@ last_reviewed: 2026-10-13
 |---|---|---|---|
 | 静的 | — | 型・lint(レイヤー境界を含む)・整形・文書の参照(`npm run typecheck`・`npm run lint`・`npm run format:check`・`npm run docs:check`) | ソースをそのまま読む |
 | 単体(Vitest) | 対象ファイルの隣 `*.test.ts` | **純粋関数**と、`fetch`・Storage を `vi.stubGlobal` で差し替えて測る `src/lib/` の入口。DOMを使う(読む・書く・DOMParser)utils(歩行ループの部品など)。**コンポーネントを描くテストと、フックを`renderHook`で呼ぶテストは置かない**([テストの境界](#テストの境界)) | `environment: 'node'`(既定)。DOM を持たない。DOMを使う(読む・書く・DOMParser)utilsだけは、ファイル先頭の`// @vitest-environment happy-dom`でそのファイルだけhappy-domで走る |
-| 統合(Vitest Browser Mode。一番厚くする) | `*.browser.test.tsx`(名前は仮) | **画面単位のコンポーネントを、フック・子と一緒に描く。** 村も含む。モックはネットワーク(天気)と時間だけ | 実ブラウザ(Chromium 1つ、headless)で、ビルド無しで走る(`vitest.integration.config.ts`・`npm run test:integration`)。ブラウザの時間帯は UTC に固定する。今は村の1本だけ([移行中](#移行中)) |
+| 統合(Vitest Browser Mode。一番厚くする) | コンテナの隣の `container.browser.test.tsx`(コンテナごとにちょうど1本) | **コンテナ(画面の3つと横断部品の3つ)を、フック・子と一緒に描く。** コンポーネントを描くテストはこの層だけ。村も含む。モックはネットワーク(天気など)と時間だけ | 実ブラウザ(Chromium 1つ、headless)で、ビルド無しで走る(`vitest.integration.config.ts`・`npm run test:integration`)。ブラウザの時間帯は UTC に固定する。今は6本([移行中](#移行中)) |
 | E2E(Playwright) | `tests/**/*.spec.ts` | **ビルド結果でしか確かめられないもの**(静的経路・404・初回ペイント前のテーマ・言語の接頭を保つ移動・保存が塞がれた時)と、**ページをまたぐ核心の旅程**。今はフック(配線)の振る舞いもここで見ていて、統合へ移す予定([移行中](#移行中)) | `out/` を `:4173` で静的配信 |
 
-- コンポーネント1つだけを happy-dom で描く上の8本は、ADR 0016 まで「統合」と呼んでいた。環境が happy-dom なので単体に数える。ファイルは `index.test.tsx` のまま
+- コンポーネント1つだけを happy-dom で描いていた単体の8本(`index.test.tsx`。ADR 0016 まで「統合」と呼んでいた)は、断定を各コンテナの統合テストへ移して消した。
+  `*.test.tsx` はコンポーネントのテストに使わない([../decisions/0017-screen-containers.md](../decisions/0017-screen-containers.md))。
+  ただし `IntersectionObserver` の無い環境を見る1件(作品カード)は統合で作れず(テストの中で後から消すと、読み込みの時にそれを覚えた `next/link` が TypeError を投げる)、
+  E2E の `tests/observer-missing.spec.ts` へ移した。観察器が無いときの判定は `src/utils/observe-fallback.ts` の単体テスト(ファイル別100%・変異100%)が、
+  フックへのつなぎはこの E2E が守る
 - ネットワークのモックは今の方式(`vi.stubGlobal`・Playwright の route)で行い、MSW は入れない([ADR 0016](../decisions/0016-testing-trophy-browser-integration.md))
 - E2E の配信ポートは既定 `:4173` で、`E2E_PORT` で変えられる(`playwright.config.ts`)
 - Vitest の設定は2つのファイルに分かれる。単体の `vitest.config.ts` は `src/**/*.test.ts` と `src/**/*.test.tsx` を拾い、`src/**/*.browser.test.{ts,tsx}` を exclude で外す。
-  統合の `vitest.integration.config.ts` は `src/**/*.browser.test.{ts,tsx}` だけを拾う(名前は `*.browser.test.tsx` で付けるが、設定は `.ts` も拾う)。どちらも `content/` や `tests/` は対象外。
+  統合の `vitest.integration.config.ts` は `src/**/container.browser.test.tsx` だけを拾う(ほかの名前の `*.browser.test.ts`・`*.browser.test.tsx` はどちらの設定にも拾われないが、`npm run test:boundary` が落とす)。どちらも `content/` や `tests/` は対象外。
   ファイルを分けたのは、変異テスト(`stryker.config.mjs`)が `vitest.config.ts` を読むため(ブラウザのテストを変異テストに入れない。[ミューテーションテスト](#ミューテーションテスト))
 - 純粋関数に切り出せる計算は切り出してから単体テストを書く。`src/lib/village/` と `src/lib/pixel/` がその形になっている
-- フィクスチャは `*.fixture.ts`(Vitest の対象から外れる名前)
+- フィクスチャは `*.fixture.ts`(Vitest の対象から外れる名前)。統合テストの props を node で組むものは、コンテナの隣の `container.fixture.ts`([統合テストの約束](#統合テストの約束))
 - モジュール変数に覚えを持つ関数(`src/lib/fetch-svg-source.ts` の取得の覚え)は、テストごとに `vi.resetModules()` してから import し直し、空の覚えから始める
 
 ### どの層に置くか
@@ -55,11 +60,10 @@ last_reviewed: 2026-10-13
 **確かめられる一番小さい層に置く。** 小さい層(単体)から順に当てはめ、確かめたいものが再現する最初の層に置く。
 
 - **計算だけ**(入力が同じなら出力も同じ)→ 単体
-- **フック・コンポーネントの中のロジック** → 純粋関数へ移してから単体。フックそのもの(配線)は`renderHook`で呼ばず、それを使う画面を統合で描いて見る
-- **コンポーネント1つの、環境で分かれる出し分け**(URL のハッシュ・`matchMedia`・`IntersectionObserver` の有無)→ 単体(happy-dom)。
-  実ブラウザでは作りにくい環境(`IntersectionObserver` が無い等)を `vi.stubGlobal` で作り、画面に何が出るかを見る
-- **コンポーネント1つの、props・操作で変わる出力**(任意の項目を渡すと節が出て外すと消える、押すと開閉してフォーカスが戻る)→ 単体(happy-dom)
-- **画面単位で、フック・子と一緒に動く振る舞い**(実際の配置・寸法・スクロール・rAF・歩行・時間で変わる表示)→ 統合。
+- **フック・コンポーネントの中のロジック** → 純粋関数へ移してから単体。フックそのもの(配線)は`renderHook`で呼ばず、それを使うコンテナを統合で描いて見る
+- **コンポーネントの出し分け**(環境・props・操作で変わる出力。任意の項目を渡すと節が出て外すと消える、押すと開閉してフォーカスが戻る、など)→ 統合。
+  そのコンポーネントを含むコンテナを描いて見る([統合テストの約束](#統合テストの約束))
+- **コンテナ単位で、フック・子と一緒に動く振る舞い**(実際の配置・寸法・スクロール・rAF・歩行・時間で変わる表示)→ 統合。
   happy-dom は配置を計算せず(作品カードの `getBoundingClientRect()` は幅・高さとも 0 だった)、`ResizeObserver.observe()` は実装が無いので、寸法に頼るものは実ブラウザで見る
 - **ビルド結果でしか確かめられないもの**(静的経路・`out/404.html`・初回ペイント前のテーマ・言語の接頭を保つ移動・保存が塞がれた時)と、**ページをまたぐ核心の旅程** → E2E
 - **上の層でバグが出たら、下の層にテストを足す。** E2E で見つかった欠陥は、統合か単体にもそれを落とすテストを足す
@@ -69,52 +73,63 @@ last_reviewed: 2026-10-13
   村のフックも`renderHook`のテストは作らず、村の画面を統合で描いて見る
 - 統合テストへ移し終えるまでは、画面単位の振る舞いは今までどおり E2E で見る([移行中](#移行中))
 
-### コンポーネントを描く単体テストの約束
-
-happy-dom でコンポーネント1つを描くテスト(`index.test.tsx`)の約束。統合テストの約束は[次の節](#統合テストの約束)。
-
-- 確かめるのは利用者に見えるもの(role・`aria-*`・`inert`・要素の有無)。クラス名に頼るときは、部品と同じ CSS Modules を
-  テストでも import して引く(Vitest は CSS を処理せず、CSS Modules を `_<キー>_<ファイル名のハッシュ>` を返す Proxy に置き換える)
-- 環境の差し替えは `vi.stubGlobal` で行い、`afterEach` で `vi.unstubAllGlobals()` と URL(`history.replaceState`)を戻す
-- `fetch` も差し替えて外へ通信させない。happy-dom は相対 URL を `http://localhost:3000` へ取りに行く
-- 実データは `readContent('ja')` から条件で選ぶ(slug を名指ししない)。`server-only` は単体と同じく mock する
-
 ### 統合テストの約束
 
 実ブラウザでコンテナを描くテスト(`container.browser.test.tsx`)の約束。例は村の `src/components/VillagePage/container.browser.test.tsx`。
 
-- 画面単位のコンポーネントを、フック・子と一緒に本物のまま描く。レイアウト・rAF・`ResizeObserver` は差し替えない
-- 差し替えるのはネットワークと時間だけ。`fetch` は単体と同じく `vi.stubGlobal` で差し替え、`afterEach` で `vi.unstubAllGlobals()` して戻す(村は天気の応答)。
+- 置き場はコンテナ(`container.tsx`)の隣で、コンテナごとにちょうど1本。コンポーネントを描くテストはこれ以外に置かない(`npm run test:boundary` が落とす。[テストの境界](#テストの境界))
+- コンテナを、フック・子と一緒に本物のまま描く。レイアウト・rAF・`ResizeObserver` は差し替えない
+- ブラウザの環境の設定(ビューポートの大きさ、`prefers-reduced-motion` を CDP や `matchMedia` で再現すること)はモックではなく環境として扱い、使ってよい
+- 差し替えるのはネットワークと時間だけ。`fetch` は `vi.stubGlobal` で差し替え、`afterEach` で `vi.unstubAllGlobals()` して戻す(村は天気の応答)。
   Vitest の偽の時計を入れると locator の操作が時計を進めない([ADR 0016](../decisions/0016-testing-trophy-browser-integration.md) の Consequences)ので、時間を差し替えるテストはそこに当たりうる
+- ルーターの文脈は Next の実物の Context を Provider で渡す(モジュールのモックではない)。ページ移動の計測のテストは
+  `PathnameContext`(`next/dist/shared/lib/hooks-client-context.shared-runtime`)の Provider で今の経路を渡し、経路を変えるときは別の value で描き直す
 - ブラウザの操作は `vitest/browser` の `page` と `userEvent` で行う。画面の大きさは `page.viewport(幅, 高さ)` で変え、要素は `page.getByRole(…)` で引く。
-  断定は単体と同じく利用者に見えるもの(role・名前・`aria-*`・要素の有無・枠の寸法)で行う
-- ブラウザでは node の API(`node:fs`・`node:zlib`・`node:crypto`)を読み込めない。それを使って組む props は、設定の globalSetup が node で組んで `provide` し、テストは `inject` で受け取る。
-  村は `src/components/VillagePage/container.fixture.ts` が `provide('villageJa', …)` し、テストが `inject('villageJa')` する。
-  組み方は `src/components/VillagePage/index.tsx` の写しなので、あちらを変えたらフィクスチャも合わせる(`exit` は要素なので渡せず、テストが組む)
-- globalSetup が読み込む `server-only` は中身の無い版(パッケージ同梱の `empty.js`)へ alias し、`process.env` は空の入れ物に define する(`next/link` が `process.env` を読み、ブラウザには `process` が無い)。
-  どちらも `vitest.integration.config.ts` にある
+  断定は利用者に見えるもの(role・名前・文字・`aria-*`・要素の有無・枠の寸法)で行う
+- 実際のコンテンツでは作れない場合(説明の無い作品など)は、コンテナの props を変えた版をテストが直接渡す
+- ブラウザでは node の API(`node:fs`・`node:zlib`・`node:crypto`)を読み込めない。それを使って組む props は、コンテナの隣の `container.fixture.ts` が
+  `export function setup(project: TestProject)` の中で node で組んで `project.provide(…)` し、テストは `inject` で受け取る。
+  `vitest.integration.config.ts` が `src` の下の `container.fixture.ts` を全部拾って globalSetup に入れる(1つも拾えないと設定を読む時点で落ちる)。
+  置けるのはコンテナの一覧(`scripts/container-dirs.mjs`)のフォルダだけで、ほかに置くと `npm run test:boundary` が落とす(全部拾うので、黙って走らせないため)。
+  今は村・一覧・作品ストーリー・設定メニューの4つ(`src/components/VillagePage/container.fixture.ts`・`src/components/Directory/container.fixture.ts`・`src/components/Story/container.fixture.ts`・
+  `src/components/ui/SettingsMenu/container.fixture.ts`)。設定メニューは ui の文言が要り、テストが `@content/ja/ui` を直接 import すると content の実データの import 規則(ESLint)に掛かり、
+  `readContent` は `node:fs` を使うのでブラウザで読めないため、フィクスチャが provide する。
+  画面の3つは、ローダーとフィクスチャが同じ純粋な組み立て関数(読み出した結果を引数で受ける)を使う。村は `src/components/VillagePage/utils/village-props.ts`、
+  一覧は `src/components/Directory/utils/directory-props.ts`、作品ストーリーは `src/components/Story/utils/story-props.ts`
+  (ストーリーが無ければ null を返し、`notFound()` はローダーに残る)。組み方はこの関数1か所にあり、フィクスチャはローダーを写さない
+- globalSetup が読み込む `server-only` は中身の無い版(パッケージ同梱の `empty.js`)へ alias する。
+  `process.env` は、`next.config` の `trailingSlash` を `__NEXT_TRAILING_SLASH` として入れた中身に define する(`next/link` が `process.env` を読み、ブラウザには `process` が無い。
+  無いと `next/link` が href の末尾のスラッシュを落とし、配信物と違う href になる)。先に束ねた依存(`next/link`)の中の `process.env` はこの置き換えを受けないが、
+  Vite がブラウザで最初に読む `/@vite/env` が define の値を `globalThis.process.env` へ書き、`next/link` は実行時にそれを読む(2026-10-14 の実測)。
+  そのため `next/link` が読む値はテストごとに差し替えず、この define で決める。どれも `vitest.integration.config.ts` にある
 - ブラウザの時間帯は provider の `contextOptions.timezoneId` で UTC に固定する(`TZ=UTC` は node のプロセスにしか効かない)。
   外すとこの機器では `Asia/Tokyo` になった(2026-10-13 の実測)。村の統合テストは前提としてブラウザの時間帯が UTC であることを先に確かめる
 - 落ちた時の画面の写しは `test-results/vitest-screenshots/`、添付は `test-results/vitest-attachments/` に出る(git は追わない)
 - 走らせると React の「not wrapped in act(...)」の `console.error` が出力に混ざる。テストは通る。既知のもので、まだ手当てしていない
-- カバレッジは `npm run test:integration -- --coverage` で測り、フックも含む。報告は `coverage/integration` に出て、床はまだ無い([カバレッジの床](#カバレッジの床))
+- カバレッジは `npm run test:integration -- --coverage` で測り、フックとコンポーネントも含む。報告は `coverage/integration` に出て、全体の床を下回ると落ちる([カバレッジの床](#カバレッジの床))
 
 ## 移行中
 
 テスティングトロフィーへの移行([../decisions/0016-testing-trophy-browser-integration.md](../decisions/0016-testing-trophy-browser-integration.md))の途中にある。
 今の実物と、これから入るものを分けて書く。移行が終わったらこの節を消す。
 
-### 今の実物(2026-10-13)
+### 今の実物(2026-10-14)
 
 - **統合の層の基盤は入った。** 設定は `vitest.integration.config.ts`(`@vitest/browser-playwright` は 4.1.10 に版を固定。peer が同じ版の vitest で、5.x は vitest 5 を求めて衝突する)で、
   `npm run test:integration` で走る。単体の `vitest.config.ts` は `src/**/*.browser.test.{ts,tsx}` を外し、変異テストは今までどおり単体だけで回る
+- **統合テストはコンテナごとに1本の6本**([../decisions/0017-screen-containers.md](../decisions/0017-screen-containers.md))。
+  `src/components/VillagePage/container.browser.test.tsx`(村)・`src/components/Directory/container.browser.test.tsx`(一覧)・`src/components/Story/container.browser.test.tsx`(作品ストーリー)・
+  `src/components/ui/SettingsMenu/container.browser.test.tsx`(設定メニュー)・`src/components/ui/PageviewCounter/container.browser.test.tsx`(ページ移動の計測)・
+  `src/components/ui/ScenePlayer/container.browser.test.tsx`(場面の再生)。happy-dom でコンポーネントを描いていた8本の断定は、ここへ移してから消した
+  (`IntersectionObserver` の無い環境の1件だけは統合で作れず、E2E の `tests/observer-missing.spec.ts` へ移した。[4層](#4層)の下の注)
 - 村の1本は実際の Chromium で村の画面を描き、ビューポート 1280×720 で枠が 640×576(64px のマス)、600×900 へ変えると 600×540(60px のマス)に描き直されるかを見る。差し替えるのは天気の `fetch` だけ。
   寸法を測るフック(今の `src/components/VillagePage/hooks/use-stage-scale.ts`)の `observe` を外すと落ちるのを見てから採った([新しい検査は必ず一度落とす](#新しい検査は必ず一度落とす))
-- CI(`.github/workflows/deploy.yml` の build ジョブ)は `npm run test:boundary` の後に Playwright の Chromium を入れ、`npm run test:integration -- --coverage` を走らせる。カバレッジは数字を出すだけで床は無い
-- このテストは、VillagePage が `<style>` で差し込むスプライトの背景 CSS(`spriteBackgroundCss`)を入れていないので、村の絵は描かれない。絵を見る統合テストを作るときに渡し方を決める
+- CI(`.github/workflows/deploy.yml` の build ジョブ)は `npm run test:boundary` の後に Playwright の Chromium を入れ、`npm run test:integration -- --coverage` を走らせる。統合のカバレッジの床を下回ると落ちる
+- 村の統合テストは、ローダーが `<style>` で差し込むスプライトの背景 CSS(`spriteBackgroundCss`)を入れていないので、村の絵は描かれない。絵を見る統合テストを作るときに渡し方を決める
 - フックの振る舞いは今も主に E2E が見ている。単体の門(`npm run test:coverage`)はフックを測らない([カバレッジの床](#カバレッジの床))。
-  フック(`hooks`フォルダの下、2026-10-13 に数えて43ファイル)のうち村(`src/components/VillagePage/`)の30は、統合テストが村を描くようになったが、そのテストが見るのは枠の寸法だけで、ほかの振る舞いは E2E でしか確かめていない
-- E2E は下の15本のまま。まだ1本も統合へ移していない
+  村(`src/components/VillagePage/`)のフックは、統合テストが村を描くようになったが、そのテストが主に見るのは枠の寸法で、ほかの振る舞いは主に E2E で確かめている
+- E2E は下の16本。まだ1本も統合へ移していない。コンテナの統合テストを入れた ADR 0017 は既存の spec を変えず、
+  統合で作れない `IntersectionObserver` の無い環境のために `tests/observer-missing.spec.ts` を1本足した
 - ファイル別100%を掛けるフックのフォルダの一覧は、まだ空(一覧を持つ設定もまだ無い)
 
 ### フォルダごとの移行(基盤の後)
@@ -122,14 +137,15 @@ happy-dom でコンポーネント1つを描くテスト(`index.test.tsx`)の約
 - 統合テストを足し終えたフォルダから順に、そのフォルダのフックへファイル別100%を掛ける。掛けたフォルダの一覧は減らせないよう機械で検査する。
   全部移したら一覧を消し、「全フック」を対象にする規則にする
 - 重なる E2E は、**統合テストが同じ欠陥を一度落とすのを見てから消す**([新しい検査は必ず一度落とす](#新しい検査は必ず一度落とす)。
-  消すことは [ADR 0016](../decisions/0016-testing-trophy-browser-integration.md) が決めた。どの欠陥でどの統合テストが落ちたかは消すコミットの本文に書く)。消したら下の15本の表からも外す
-- 不変ルール「1段階 = 1セッション」([../../AGENTS.md](../../AGENTS.md))に従い、フォルダの移行は複数のセッションに分けうる
+  消すことは [ADR 0016](../decisions/0016-testing-trophy-browser-integration.md) が決めた。どの欠陥でどの統合テストが落ちたかは消すコミットの本文に書く)。消したら下の16本の表からも外す
+- 不変ルール「1段階 = 1セッション」([../../AGENTS.md](../../AGENTS.md))に従い、フォルダの移行は複数のセッションに分けうる。
+  6つのコンテナの統合テストを入れた段階だけは、利用者の決定で1回のセッションで行った([../decisions/0017-screen-containers.md](../decisions/0017-screen-containers.md))
 
 ### E2E の行き先(予定)
 
 | 行き先 | spec |
 |---|---|
-| E2E に残す | `tests/not-found.spec.ts`・`tests/directory.spec.ts`・`tests/storage-blocked.spec.ts`・`tests/journey.spec.ts` の一部(村↔作品↔一覧の移動、完走1回) |
+| E2E に残す | `tests/not-found.spec.ts`・`tests/directory.spec.ts`・`tests/storage-blocked.spec.ts`・`tests/observer-missing.spec.ts`(`IntersectionObserver` の無い環境は統合で作れない)・`tests/journey.spec.ts` の一部(村↔作品↔一覧の移動、完走1回) |
 | 統合へ移す | `tests/layout.spec.ts`・`tests/day-night.spec.ts`・`tests/night-transition.spec.ts`・`tests/clock.spec.ts`・`tests/dialog-focus.spec.ts`・`tests/fishing.spec.ts`・`tests/idle-loop.spec.ts`・`tests/flight.spec.ts`・`tests/umbrella.spec.ts`・`tests/story.spec.ts`・`tests/scene-refetch.spec.ts` |
 
 journey のそれ以外のテストの行き先は、この表では決めていない。
@@ -182,12 +198,14 @@ E2E は `out/` を配る。**先に `npm run build` を済ませる。**
 
 `npm run test:coverage`は`npm run test`と同じテストをv8のカバレッジ付きで走らせ、床を下回ると落ちる。CIはこちらを走らせる(手元の`npm run test`は測らない)。
 
-- 測る範囲・外す名前(テスト・`*.fixture.ts`・`*.test-helper.ts`・`src/**/hooks/**`)・床の値の正本は`vitest.config.ts`の`coverage`。数値はここへ書き写さない
-- **単体の門ではフックを測らない**(`vitest.config.ts`が`src/**/hooks/**`を外す)。フックは単体テストを置かない層で、振る舞いは統合テストで見る(移し終えるまでは E2E が見る)。
-  統合の`npm run test:integration -- --coverage`(`vitest.integration.config.ts`の`coverage`)はフックも含めて測り、報告を`coverage/integration`へ出すが、床はまだ無い(CI も数字を出すだけ)
+- 測る範囲・外す名前(テスト・`*.fixture.ts`・`*.test-helper.ts`・`src/**/hooks/**`・`src/components/**/*.tsx`)・床の値の正本は`vitest.config.ts`の`coverage`。数値はここへ書き写さない
+- **単体の門ではフックとコンポーネントを測らない**(`vitest.config.ts`が`src/**/hooks/**`と`src/components/**/*.tsx`を外す)。どちらも単体テストを置かない層で、
+  コンテナの統合テストが描いて測る(フックの振る舞いは、移し終えるまでは E2E も見る。[../decisions/0017-screen-containers.md](../decisions/0017-screen-containers.md))
+- **統合の門。** `npm run test:integration -- --coverage`(`vitest.integration.config.ts`の`coverage`)はフックとコンポーネントも含めて測り、報告を`coverage/integration`へ出し、全体の床を下回ると落ちる。
+  床の決め方は単体と同じく実測から2pt引いた値で、正本は`vitest.integration.config.ts`の`coverage`。数値はここへ書き写さない
 - **移行後の規則:** 統合テストへ移し終えたフォルダのフックから、ファイル別100%を掛ける。掛けたフォルダの一覧は減らせないよう検査し、
   全部移したら一覧を消して全フックを対象にする([移行中](#移行中)・[../decisions/0016-testing-trophy-browser-integration.md](../decisions/0016-testing-trophy-browser-integration.md))。まだ掛けたフォルダは無い
-- 床は2種類ある。全体の床と、純粋モジュールのファイルごとのファイル別100%
+- 単体の床は2種類ある。全体の床と、純粋モジュールのファイルごとのファイル別100%
 - 全体の床は目標値ではなく、テストを消したり測られないコードを増やしたりしたときに落とすためのもの。決め方(実測から2pt引いて切り捨て)は`vitest.config.ts`の注釈にある
 - ファイル別100%は`vitest.config.ts`の`FULL_COVERAGE`(文・分岐・関数・行をそれぞれ100)で、そのファイルに4つのどれかで測られない所が1つでもあれば落ちる
 - 対象は**純粋モジュールの置き場(`src/lib/`・`src/utils/`・コンポーネント専用のutils)にある`.ts`の全部**で、一覧を手で並べない。
@@ -221,14 +239,27 @@ E2E は `out/` を配る。**先に `npm run build` を済ませる。**
 
 ## テストの境界
 
-`npm run test:boundary`(`scripts/check-test-boundary.mjs`)は、`hooks`フォルダの中に単体テストがあることと、srcのどのテストでも`renderHook`を使うことを落とす。
+`npm run test:boundary` は `scripts/check-test-boundary.mjs` と `scripts/check-layers.mjs` を走らせる。テストの置き場を見るのは前者で、`hooks`フォルダの中に単体テストがあることと、srcのどのテストでも`renderHook`を使うことを落とす。
 フックは配線だけを持ち、ロジックは純粋関数へ移して単体で見る([../decisions/0011-extreme-constraints.md](../decisions/0011-extreme-constraints.md))。
-フックの振る舞いは、それを使う画面を統合テストで描いて見る(ADR 0016。この検査の決まりは ADR 0016 でも変えていない)。統合テストへ移し終えるまでは E2E が見る([移行中](#移行中))。
+フックの振る舞いは、それを使うコンテナを統合テストで描いて見る(ADR 0016。この検査の決まりは ADR 0016 でも変えていない)。統合テストへ移し終えるまでは E2E が見る([移行中](#移行中))。
 src の中に置いた統合テストの名前(`*.browser.test.tsx`)も、この検査が拾う名前(`*.test.ts`・`*.test.tsx`)に入るので、統合テストを`hooks`フォルダに置く・`renderHook`を使うのも落ちる。
+
+加えて、コンポーネントを描くテストの置き場を見る([../decisions/0017-screen-containers.md](../decisions/0017-screen-containers.md))。
+コンテナを置くフォルダは一覧 `scripts/container-dirs.mjs`(画面の3つと横断部品の3つ。`scripts/check-layers.mjs` と同じもの)で決まる。
+`*.test.tsx`(単体の設定が拾う名前)を src のどこかに置くこと、`*.browser.test.ts`・`*.browser.test.tsx` を一覧のフォルダの `container.tsx` の隣の `container.browser.test.tsx` 以外に置くこと、
+一覧のフォルダに `container.browser.test.tsx` が無いこと(同じフォルダに同じ名前は1つしか無いので、コンテナごとにちょうど1本になる)、
+`container.browser.test.tsx` が同じフォルダの `./container` を(型だけでなく)import していないこと(自分のコンテナを描く)、
+単体の側(`*.test.ts`・`*.test-helper.ts`・`*.fixture.ts`)がコンポーネントを描く道具(`@testing-library/react`・`react-dom` とその下。型だけの import も)を import すること、
+`container.fixture.ts` を一覧のフォルダの外に置くことを落とす。
+単体の側の描く道具を落とすのは、happy-dom でコンポーネントを描くと、名前を `*.test.ts` にするだけで置き場の決まりをすり抜けるため。
+`container.fixture.ts` の置き場を落とすのは、統合の設定が src の下の `container.fixture.ts` を全部 globalSetup に入れ、ほかに置いても黙って走るため。
 
 - 例外の一覧(許可リスト)は無い。ADR 0011より前からあった村のフックのテスト4つ(`use-map-data`・`use-village-time`・`use-village-world`・`use-village-travel`)は、
   各フックのロジックを純粋関数へ移して純粋関数のテストで見るようにし、消した
 - この決まりを変えるにはADRが要る
+- 同じコマンドで走る `scripts/check-layers.mjs` はテストではなく層を見る(表示部品が外の世界へ届く import を、つながりをたどって落とす。
+  `fetch`・`localStorage` など import の要らない外の世界の入口を表示部品が使うこと、一覧の外の `container.tsx`、画面のコンテナを自分のローダー・統合テスト・フィクスチャの外から import することも落とす)。
+  決まりは [../architecture/boundaries.md](../architecture/boundaries.md) の「コンテナと表示部品」
 
 ## 新しい検査は必ず一度落とす
 
@@ -241,7 +272,7 @@ PASS は調査を止めるので、FAIL より危険である。
 
 ## 走らせる範囲
 
-統合テスト(`npm run test:integration`)はビルド無しで数秒で終わる(2026-10-13 の手元の実測で、1本のいま約3.4秒、`-- --coverage` 付きで約4.3秒)ので、反復中も全体を走らせてよい。
+統合テスト(`npm run test:integration`)はビルド無しで走る(2026-10-13 の手元の実測で、1本だった時に約3.4秒、`-- --coverage` 付きで約4.3秒)ので、反復中も全体を走らせてよい。
 
 E2E の反復中は落ちた spec だけを狭く走らせる(`npx playwright test tests/journey.spec.ts -g '<名前>'`)。
 **E2E の全体は手元では回さず、push で CI が回す**(E2E で commit の直前に走らせるのは、変えた範囲が指す spec だけ)。詳しくは [../agents/verification.md](../agents/verification.md)。

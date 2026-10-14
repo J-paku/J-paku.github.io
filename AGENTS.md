@@ -13,12 +13,14 @@ Next.js 16(App Router)の静的エクスポートで、サーバもデータベ�
 1. **locale は `location.pathname` からのみ決まる。** `?lang=`・自動リダイレクトを作らない
 2. **表示文字列を `content/` の外にハードコードしない。** コンポーネントに日本語・韓国語リテラル禁止
 3. **`localStorage` / `sessionStorage` へのアクセスは `src/lib/preferences.ts` 一箇所だけ。** 例外は `src/app/html-shell.tsx` のインラインスクリプト1本だけで、初回ペイント前にテーマを当てるためにある
-4. **フックはフォルダ化しても `index.ts` を作らない。`hooks` フォルダには `use-` 始まりのフック以外を置かない。** コンポーネントのみ `index.tsx` が入口
+4. **フックはフォルダ化しても `index.ts` を作らない。`hooks` フォルダには `use-` 始まりのフック以外を置かない。** コンポーネントのみ `index.tsx` が入口(コンテナを持つ横断部品は、外から `container.tsx` を直接指す)。
+   **画面の状態・データのフックと、外の世界に触れる import(保存・天気・計測・SVG の取得・村の時計のストアなど)は、コンテナ(`container.tsx`)とその隣の `hooks` フォルダにだけ置く。** content の読み出しは画面のローダー(`index.tsx`)が行う
 5. **wip 作品は詳細ページを作らない。** カードにリンクを付けず、slug 直接アクセスは NotFound
 6. **1段階 = 1セッション**(大きな改修を1回のセッションに詰め込まない)
-7. **新しいロジックは純粋関数(`src/lib/`・`src/utils/`・コンポーネント専用のutils)に置き、新しく作ったファイルごとにカバレッジ100%・ミューテーション100%を守る。`hooks`フォルダに単体テストを置かず、どのテストでも`renderHook`を使わない**
+7. **新しいロジックは純粋関数(`src/lib/`・`src/utils/`・コンポーネント専用のutils)に置き、新しく作ったファイルごとにカバレッジ100%・ミューテーション100%を守る。`hooks`フォルダに単体テストを置かず、どのテストでも`renderHook`を使わない。コンポーネントを描くテストは、コンテナの隣の `container.browser.test.tsx`(コンテナごとに1本)だけに書く**
 
-決めた理由は 1 が [docs/decisions/0002-locale-from-url-only.md](docs/decisions/0002-locale-from-url-only.md)、2 が [docs/decisions/0003-content-outside-src.md](docs/decisions/0003-content-outside-src.md)、冒頭の方針と 7 が [docs/decisions/0011-extreme-constraints.md](docs/decisions/0011-extreme-constraints.md) にある。
+決めた理由は 1 が [docs/decisions/0002-locale-from-url-only.md](docs/decisions/0002-locale-from-url-only.md)、2 が [docs/decisions/0003-content-outside-src.md](docs/decisions/0003-content-outside-src.md)、冒頭の方針と 7 が [docs/decisions/0011-extreme-constraints.md](docs/decisions/0011-extreme-constraints.md)、
+4 のコンテナと 7 のコンポーネントを描くテストが [docs/decisions/0017-screen-containers.md](docs/decisions/0017-screen-containers.md) にある。
 3〜5 の詳しい決まりは [docs/architecture/data-flow.md](docs/architecture/data-flow.md)・[docs/architecture/frontend.md](docs/architecture/frontend.md)・[docs/product/business-rules.md](docs/product/business-rules.md) にある。
 レイヤー境界(import の向き)と、そのうち機械が守らせている範囲は [docs/architecture/boundaries.md](docs/architecture/boundaries.md)。
 
@@ -40,7 +42,7 @@ Next.js 16(App Router)の静的エクスポートで、サーバもデータベ�
 | ルーティング・メタデータ・言語切り替え | [docs/architecture/overview.md](docs/architecture/overview.md) |
 | ブラウザ保存・外部 API 取得・コンテンツ読み込み | [docs/architecture/data-flow.md](docs/architecture/data-flow.md) |
 | 外部通信・実画面のキャプチャを足してよいか | [docs/quality/security.md](docs/quality/security.md) → [docs/architecture/data-flow.md](docs/architecture/data-flow.md) |
-| import の向き・レイヤー・server/client 境界 | [docs/architecture/boundaries.md](docs/architecture/boundaries.md) |
+| import の向き・レイヤー・コンテナと表示部品・server/client 境界 | [docs/architecture/boundaries.md](docs/architecture/boundaries.md) |
 | テストの追加・修正 | [docs/quality/test-strategy.md](docs/quality/test-strategy.md) |
 | テスト・E2E が落ちる | [docs/quality/test-strategy.md](docs/quality/test-strategy.md) → [docs/development/debugging.md](docs/development/debugging.md) |
 | アクセシビリティ(axe が落ちた・読み上げ) | [docs/quality/accessibility.md](docs/quality/accessibility.md) |

@@ -4,7 +4,7 @@ read_when:
   - 村の地形・会話地点・移動・当たり判定を変えるとき
   - 村の UI(操作帯・会話窓・地図)を変えるとき
 source_of_truth: true
-last_reviewed: 2026-10-10
+last_reviewed: 2026-10-14
 ---
 
 # 村(トップ画面)
@@ -23,7 +23,7 @@ last_reviewed: 2026-10-10
 | データ | `content/world.ts` / `content/{ja,ko}/village.ts` | 地形・構造物・会話地点・ワープ / 文言 | 無し |
 | 規則 | `src/lib/village/` | 移動・衝突・経路・地点判定の純粋関数 | React・DOM に依存しない |
 | 絵 | `src/lib/pixel/` | ドット絵の定義とシート合成 | 同上。→ [../../src/lib/pixel/AGENTS.md](../../src/lib/pixel/AGENTS.md) |
-| 画面 | `src/components/VillagePage/` | 組み立てと操作 | → [../../src/components/VillagePage/AGENTS.md](../../src/components/VillagePage/AGENTS.md) |
+| 画面 | `src/components/VillagePage/` | 組み立てと操作(サーバのローダー `index.tsx`・状態を持つコンテナ `container.tsx`・表示部品) | → [../../src/components/VillagePage/AGENTS.md](../../src/components/VillagePage/AGENTS.md) |
 
 **規則の層に画面の都合を持ち込まない。** ここが純粋なので、移動も経路も Vitest で単体テストできている。
 

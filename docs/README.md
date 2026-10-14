@@ -3,7 +3,7 @@ status: active
 read_when:
   - どの文書を読めばよいか AGENTS.md で決まらなかったとき
 source_of_truth: false
-last_reviewed: 2026-09-21
+last_reviewed: 2026-10-14
 ---
 
 # docs/
@@ -41,6 +41,9 @@ last_reviewed: 2026-09-21
 | 過去の設計判断 | [decisions/](decisions/README.md) |
 | 表示文字列・村の地形の実データ | `content/`(→ [../content/README.md](../content/README.md)) |
 | 依存の向き(機械が守らせる) | `eslint.config.mjs` |
+| 表示部品が外の世界に触れないこと(import と、`fetch`・`localStorage` など import の要らない入口。機械が守らせる) | `scripts/check-layers.mjs` |
+| コンテナ(`container.tsx`)を置くフォルダの一覧(機械が守らせる。一覧の外の `container.tsx` を `scripts/check-layers.mjs` が落とす) | `scripts/container-dirs.mjs` |
+| コンポーネントを描くテストとフィクスチャの置き場(機械が守らせる) | `scripts/check-test-boundary.mjs` |
 | インストール済みの版 | `package.json` |
 | 人間向けのサイト紹介 | [../README.md](../README.md) |
 

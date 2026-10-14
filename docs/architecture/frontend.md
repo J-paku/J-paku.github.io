@@ -4,7 +4,7 @@ read_when:
   - コンポーネントやフックを追加・分割するとき
   - スタイル・色・テーマを触るとき
 source_of_truth: true
-last_reviewed: 2026-10-10
+last_reviewed: 2026-10-14
 ---
 
 # 画面とコンポーネント
@@ -23,9 +23,35 @@ last_reviewed: 2026-10-10
 
 どのファイルがどの画面に属するかの一覧は [../product/feature-map.md](../product/feature-map.md)。
 
+## ローダー・コンテナ・表示部品
+
+画面の3つと、複数の画面にまたがり外の I/O に触れる横断部品の3つは、ファイルを役割で分ける([ADR 0017](../decisions/0017-screen-containers.md))。
+
+| ファイル | 役割 | 置く所 |
+|---|---|---|
+| `index.tsx`(画面のローダー) | サーバでしかできないことだけを行う。content の読み出し(`@/lib/content/read`)・`node:` のモジュールを使うスプライトの生成・`notFound()`・初回の HTML に必ず要るインラインの `<style>`・`<script>`。直列化できる props で `./container` を描く | 画面の3つ(`src/components/VillagePage/`・`src/components/Directory/`・`src/components/Story/`)。ルート(`src/app/`)はこれを import する |
+| `container.tsx`(コンテナ) | 画面の組み立て(静的なマークアップを含む)。画面の状態・データのフックとストアを呼び、外の世界に触れる import を持つ。フックが無くてもよい | 画面の3つと、横断部品の `src/components/ui/SettingsMenu/`・`src/components/ui/PageviewCounter/`・`src/components/ui/ScenePlayer/` |
+| コンテナの隣の `hooks` フォルダ | 外の世界に触れるフックを置いてよい唯一の所。画面のフォルダの直下のもの(`src/components/VillagePage/hooks/`)は画面の状態・データのフックで、コンテナだけが呼ぶ | `src/components/VillagePage/hooks/`・`src/components/ui/SettingsMenu/hooks/`・`src/components/ui/ScenePlayer/hooks/` |
+| 表示部品(上のどれでもない `.tsx` と `src/hooks/`) | 受け取った props を描く。その部品の DOM の中で閉じる UI のフック(フォーカス・スクロール・観察器・外側の押下で閉じるなど)は使ってよい | それ以外の全部 |
+
+- コンテナを置くのは上の6つだけ(一覧の正本は `scripts/container-dirs.mjs`。一覧の外の `container.tsx` と、一覧のフォルダに `container.tsx` が無いことを `npm run test:boundary` が落とす)。
+  フックを持つからコンテナにするのではなく、役割(画面か、外の I/O に触れる横断部品か)で決める。足すなら一覧と [ADR 0017](../decisions/0017-screen-containers.md) の D1 を直す
+- 表示部品は、外の世界に触れるモジュール・村の時計のストア・`next/navigation`・画面のフック(画面のフォルダの直下の `hooks` フォルダ)を import しない。
+  一覧と正本は [boundaries.md](boundaries.md) の「コンテナと表示部品」
+- コンポーネントを描くテストは、コンテナの隣の `container.browser.test.tsx` だけ(コンテナごとに1本)→ [../quality/test-strategy.md](../quality/test-strategy.md)
+
 ## コンポーネントのフォルダ
 
 コンポーネントは必ず**フォルダ + `index.tsx`** で作る。外からは `@/components/<Name>` だけを見ればよい状態にする。
+例外はコンテナを持つ横断部品で、外から `container.tsx` を直接指す(`@/components/ui/SettingsMenu/container` など)。フォルダの形は3つで違う。
+
+- `ScenePlayer` — `container.tsx` と、コンテナが描く表示部品の `index.tsx` を持つ。場面 SVG の原本を取るフックはコンテナの隣の `src/components/ui/ScenePlayer/hooks/` に置く
+- `SettingsMenu` — 表示部品が自分の UI のフック(`use-menu-open`)を持つので、表示部品を `src/components/ui/SettingsMenu/components/SettingsMenuView/` へ下ろし、
+  そのフックはその隣の `src/components/ui/SettingsMenu/components/SettingsMenuView/hooks/` に置く。フォルダの直下に `index.tsx` は無い。
+  直下の `src/components/ui/SettingsMenu/hooks/` はコンテナの隣で、コンテナのフック(テーマの保存の `use-theme-choice`)の置き場だから
+- `PageviewCounter` — 何も描かないので表示部品が無く、`container.tsx` だけを持つ
+
+**表示部品が自分の UI のフックを持つなら `components/<Name>View/` へ下ろし、その隣の `hooks` フォルダに置く。** コンテナのあるフォルダの直下の `hooks` フォルダは、コンテナのフックの置き場なので使わない。
 
 ```
 src/components/Directory/components/WorkCard/
@@ -45,9 +71,12 @@ src/components/Directory/components/WorkCard/
 ## フック
 
 - **フックのフォルダには `index.ts` を作らない**(不変ルール4)。呼び出し側はファイルを直接指す
-- 画面専用のフックは、それを使う部品のフォルダの中の `hooks` フォルダに置く(`src/components/VillagePage/components/Village/hooks/`・
+- 画面の状態・データのフック(保存・天気・時計のストアなど外の世界に触れるもの)は、コンテナのあるフォルダの直下の `hooks` フォルダに置き、コンテナだけが呼ぶ
+  (`src/components/VillagePage/hooks/`。下のフォルダ `use-village-guide`・`use-village-overlay`・`use-walk-loop` を含む)。
+  横断部品の外の世界に触れるフック(テーマの保存・場面 SVG の原本の取得)も、そのコンテナの隣の `hooks` フォルダに置く
+- その部品の DOM の中で閉じる UI のフックは、それを使う部品のフォルダの中の `hooks` フォルダに置く(`src/components/VillagePage/components/Village/hooks/`(窓のフォーカスの輪と押しっぱなしの向き)・
   `src/components/Directory/components/WorkCard/hooks/`・`src/components/Story/components/StoryBody/hooks/use-active-scene.ts`(今読んでいる場面を `IntersectionObserver` で追う)など)。
-  横断するものだけ `src/hooks/` に置く
+  画面のフォルダの直下の `hooks` フォルダはコンテナの隣のフォルダなので、UI のフックを置かない。横断するものだけ `src/hooks/` に置く(`src/hooks/` は表示部品の側で、外の世界に触れない)
 - 命名は `use-` 始まりの kebab-case
 - `hooks` フォルダには `use-` 始まりのフック以外を置かない。テストも置かない(フックは配線だけを持ち、ロジックは純粋関数へ移して測る。
   [../quality/test-strategy.md](../quality/test-strategy.md) の「テストの境界」)。純粋関数・レンダラーは `utils` フォルダへ
