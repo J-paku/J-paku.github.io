@@ -1,5 +1,5 @@
 // 一覧の画面(コンテナ)の統合テスト(Vitest Browser Mode)。一覧を実際の Chromium で、フック・子と一緒に描き(ADR 0016)、
-// 作品カード・キャプチャ枠の中身・リンクの覆いの出し分けを、利用者に見える形
+// 作品カード・キャプチャ枠の中身・リンクの覆い・下部パネルのリンクの出し分けを、利用者に見える形
 // (role・名前・aria-*・inert・行き先・要素の有無)で確かめる。CSS も Vite が実際に当てるので、押せるかどうかは本物の重なりで決まる。
 // props は入口(index.tsx)と同じ組み方で container.fixture.ts が node で組み、inject で受け取る。
 // 実データに無い形(リンクを持たない作品など)は、作品を差し替えた props の写しをテストが直接渡す。
@@ -13,6 +13,7 @@ import { sceneCycleMs } from '@/utils/cycle-scenes'
 // 部品と同じ CSS Modules を import すれば、部品と同じクラス名が引ける
 import cardStyles from './components/WorkCard/work-card.module.css'
 import shotStyles from './components/WorkCard/components/Shot/shot.module.css'
+import workLinksStyles from './components/WorkCard/components/WorkLinks/work-links.module.css'
 import playerStyles from '@/components/ui/ScenePlayer/scene-player.module.css'
 import type { DirectoryData } from './container.fixture'
 import DirectoryContainer from './container'
@@ -43,6 +44,12 @@ const stillWork = pickWork(
   works,
   '静止画だけを持つ',
   work => work.thumbnail !== undefined && work.video === undefined && work.storyReel !== true
+)
+// 公開ページとGitHubの両方を持ち、ストーリーは持たない作品(下部パネルのリンク)
+const linkWork = pickWork(
+  works,
+  '公開ページとGitHubを持ちストーリーを持たない',
+  work => work.links.live !== undefined && work.links.repo !== undefined && work.story === undefined
 )
 // 公開ページとGitHubの両方を持ち、動き(動画・リール)を持たない作品。覆いのトリガーはマウスでもタッチでも出る
 const stillLinkWork = pickWork(
@@ -100,6 +107,8 @@ const shotOf = (work: Work) => queryOrThrow(cardOf(work), `.${shotStyles.shot}`)
 const overlayOf = (work: Work) => queryOrThrow(shotOf(work), `.${shotStyles.shotOverlay}`)
 const isOverlayOpen = (overlay: HTMLElement) =>
   overlay.classList.contains(shotStyles.shotOverlayOpen)
+// 事実のパネル(仕様表・タグ・リンク)。下部パネルのリンクはこの中に並ぶ
+const factPanelOf = (work: Work) => queryOrThrow(cardOf(work), `.${cardStyles.panel}`)
 const reelOf = (work: Work) => queryOrThrow(shotOf(work), `.${shotStyles.reel}`)
 
 // トグルが aria-controls で指す詳細の領域
@@ -664,5 +673,77 @@ describe('リンクの覆い(LinksOverlay)', () => {
       expect(shot.queryByRole('button', { name: ui.work.pauseMotion })).toBeNull()
       expect(shot.queryByRole('button', { name: ui.work.resumeMotion })).toBeNull()
     })
+  })
+})
+
+describe('下部パネルのリンク(WorkLinks)', () => {
+  it('リンクもストーリーも持たない作品では何も描かない', () => {
+    // リンクもストーリーも持たない作品(準備中の作品の形)。いまの実データには無いので、実データから外して作る
+    const bareWork: Work = { ...linkWork, links: {}, story: undefined }
+    renderDirectory(withWork(bareWork))
+
+    const panel = factPanelOf(bareWork)
+    expect(panel.querySelector(`.${workLinksStyles.links}`)).toBeNull()
+    expect(within(panel).queryAllByRole('link')).toHaveLength(0)
+  })
+
+  const linkCases: [string, Work][] = [
+    ['公開ページとGitHub', linkWork],
+    ['公開ページだけ', { ...linkWork, links: { live: linkWork.links.live } }],
+    ['GitHubだけ', { ...linkWork, links: { repo: linkWork.links.repo } }],
+  ]
+
+  it.each(linkCases)(
+    '外部リンクが%sでストーリーを持たない作品は、持っているリンクだけを出す',
+    (_label, work) => {
+      renderDirectory(withWork(work))
+
+      // 持たないリンクは要素ごと無い(行き先がundefinedのまま一致する)
+      const panel = within(factPanelOf(work))
+      const live = panel.queryByRole('link', { name: ui.work.live })
+      const repo = panel.queryByRole('link', { name: ui.work.repo })
+      expect(live?.getAttribute('href')).toBe(work.links.live)
+      expect(repo?.getAttribute('href')).toBe(work.links.repo)
+      expect(panel.queryByRole('link', { name: ui.work.story })).toBeNull()
+    }
+  )
+
+  it('公開ページとGitHubへの外部リンクは、行き先へ参照元を渡さない(rel=noreferrer)', () => {
+    renderDirectory()
+
+    const panel = within(factPanelOf(linkWork))
+    for (const name of [ui.work.live, ui.work.repo]) {
+      expect(panel.getByRole('link', { name }).getAttribute('rel')).toBe('noreferrer')
+    }
+  })
+
+  it.each([
+    ['ja', directoryJa, ''],
+    ['ko', directoryKo, '/ko'],
+  ] as const)(
+    'ストーリーを持つ作品は、その言語のストーリーページへのリンクを出す(%s)',
+    (_locale, data, prefix) => {
+      const work = pickWork(
+        data.works,
+        'ストーリーを持つ',
+        candidate => candidate.story !== undefined
+      )
+      renderDirectory(data)
+
+      const story = within(factPanelOf(work)).getByRole('link', { name: data.ui.work.story })
+      expect(story.getAttribute('href')).toBe(`${prefix}/works/${work.slug}/`)
+    }
+  )
+
+  it('外部リンクとストーリーの両方を持つ作品にも、ストーリーへの常設の入口を並べて出す', () => {
+    const storyWork = pickWork(works, 'ストーリーを持つ', work => work.story !== undefined)
+    const work: Work = { ...linkWork, story: storyWork.story }
+    renderDirectory(withWork(work))
+
+    expect(
+      within(factPanelOf(work))
+        .getAllByRole('link')
+        .map(link => link.textContent)
+    ).toEqual([ui.work.live, ui.work.repo, ui.work.story])
   })
 })
