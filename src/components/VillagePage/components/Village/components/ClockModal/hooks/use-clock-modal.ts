@@ -1,12 +1,11 @@
 // 卓上時計の窓の中身。段階(選択 → 時刻)・針の値・焦点とキー操作をここに集め、
-// index.tsx は受け取った手を並べるだけにする。時刻の保存先は Village/hooks/use-village-time.ts の store
+// index.tsx は受け取った手を並べるだけにする。時刻の読み書きはコンテナから props で受け取る
 import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent, RefObject } from 'react'
 import type { ClockText, Direction } from '@content/types/world'
 import { wrapWithin } from '@/utils/wrap-within'
 import { useDialogFocus } from '../../../hooks/use-dialog-focus'
 import { useHeldDirection } from '../../../hooks/use-held-direction'
-import { useVillageTime } from '../../../hooks/use-village-time'
 import { CLOCK_FOCUSABLE_SELECTOR, focusablesIn } from '../../../utils/focusables'
 import { formatClock } from '../utils/clock-time'
 import { moveForDirection, nextRepeatAt, shiftHour, shiftMinute } from '../utils/step-clock-time'
@@ -25,8 +24,16 @@ const ARROW_TO_DIRECTION: Record<string, Direction> = {
   ArrowRight: 'right',
 }
 
+export type ClockSettings = {
+  savedHour: number | null
+  savedMinute: number | null
+  setRealtime: () => void
+  setCustomTime: (hour: number, minute: number) => void
+}
+
 type UseClockModalParams = {
   text: ClockText
+  clock: ClockSettings
   dialogRef: RefObject<HTMLDivElement | null>
   returnTo: RefObject<HTMLElement | null>
   // スティック(と会話中の方向キー)の押しっぱなしの向き。村の入力が書き、ここは読むだけ
@@ -53,19 +60,15 @@ type UseClockModal = {
 
 export function useClockModal({
   text,
+  clock: { savedHour, savedMinute, setRealtime, setCustomTime },
   dialogRef,
   returnTo,
   scrollHeldRef,
   announce,
   onClose,
 }: UseClockModalParams): UseClockModal {
-  const setRealtime = useVillageTime(state => state.setRealtime)
-  const setCustomTime = useVillageTime(state => state.setCustomTime)
-  // 針の初期位置。前に決めた時刻が残っていればそこから始める(setRealtime は値を消さない)
-  const savedHour = useVillageTime(state => state.customHour)
-  const savedMinute = useVillageTime(state => state.customMinute)
-
   const [step, setStep] = useState<ClockStep>('choose')
+  // 開いた時の props だけを針の初期位置に使う。開いている間の更新では選びかけの針を戻さない。
   const [hour, setHour] = useState(() => savedHour ?? DEFAULT_HOUR)
   const [minute, setMinute] = useState(() => savedMinute ?? DEFAULT_MINUTE)
   const decideRef = useRef<HTMLButtonElement>(null)

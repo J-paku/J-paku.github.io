@@ -30,8 +30,8 @@ happy-dom でコンポーネントを描くテストは、ここでは「統合�
   本文は「対象は条件分岐の数を数えて多い順に選び、村は対象にしない(寸法と rAF に依存するため)」。
   各ファイルの見出しが見るとしている分岐は、環境(動きの有無・ポインタの種類)だけでなく、作品・経歴が持つ項目(リンクの種類・手順や技術スタックの有無)と、
   操作(開閉・Esc・外側の押下・テーマ選択)で分かれる表示を含む
-- `532f480` — 村のフック3つ(`src/components/VillagePage/components/Village/hooks/use-map-data.ts`・`src/components/VillagePage/components/Village/hooks/use-village-world.ts`・
-  `src/components/VillagePage/components/Village/hooks/use-village-overlay/use-village-travel.ts`)を `renderHook` で25件。
+- `532f480` — 村のフック3つ(当時の `Village` の `hooks` フォルダの `use-map-data.ts`・`use-village-world.ts`・
+  `use-village-overlay` の中の `use-village-travel.ts`。今は `src/components/VillagePage/hooks/` へ移した)を `renderHook` で25件。
   本文は「選んだ基準は、本文が DOM・rAF・タイマー・保存に触れず、引数と runtime の ref・コールバックの結果だけで確かめられること」
 - `00326c0` — 村の歩行ループの部品(`src/components/VillagePage/components/Village/utils/walk-loop/`)に78件。
   本文は「DOM へ直接書く部品は happy-dom で(中略)見る。rAF と performance.now は差し替えて決定的に回す」

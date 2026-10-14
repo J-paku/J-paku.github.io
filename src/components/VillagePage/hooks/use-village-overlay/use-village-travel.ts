@@ -9,7 +9,7 @@ import {
   planTravelTo,
   type TravelInput,
   type TravelPlan,
-} from '../../utils/plan-travel'
+} from '../../components/Village/utils/plan-travel'
 import type { VillageRuntime } from '../use-village-runtime'
 
 type VillageTravelOptions = {

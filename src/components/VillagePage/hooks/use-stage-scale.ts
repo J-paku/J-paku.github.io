@@ -4,7 +4,12 @@
 // 重ね表示(会話窓・地図)が帯を覆わないようにする
 import { useEffect } from 'react'
 import type { RefObject } from 'react'
-import { bandGap, bandHeight, computeCell, hasGutters } from '../utils/stage-scale'
+import {
+  bandGap,
+  bandHeight,
+  computeCell,
+  hasGutters,
+} from '../components/Village/utils/stage-scale'
 
 export type StageScaleOptions = {
   // --cell を書き込む要素(舞台いっぱいの .root)

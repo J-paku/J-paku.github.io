@@ -3,7 +3,7 @@ import { useMemo } from 'react'
 import type { VillageText, World, WorldSet } from '@content/types/world'
 import { doorMarkers, type DoorMarker } from '@/lib/village/door-marker'
 import { mapEntries, type MapEntry } from '@/lib/village/map-entries'
-import { collectPlaceNames } from '../utils/collect-place-names'
+import { collectPlaceNames } from '../components/Village/utils/collect-place-names'
 
 export type MapDataOptions = {
   worldSet: WorldSet

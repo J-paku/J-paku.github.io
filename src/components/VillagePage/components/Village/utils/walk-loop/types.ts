@@ -2,7 +2,7 @@
 // 入れ物(WalkFrameState)にまとめて部品へ渡す。部品ごとに ref を持たせると、
 // どの値をどの部品が書くのかがフックの外から追えなくなるため 1 か所に集める
 import type { Cell, World } from '@content/types/world'
-import type { VillageRuntime } from '../../hooks/use-village-runtime'
+import type { VillageRuntime } from '../../../../hooks/use-village-runtime'
 
 export type WalkFrameState = {
   spriteKey: string
