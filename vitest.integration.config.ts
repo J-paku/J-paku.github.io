@@ -1,6 +1,20 @@
 import { defineConfig, configDefaults } from 'vitest/config'
 import { playwright } from '@vitest/browser-playwright'
+import { globSync } from 'node:fs'
 import { fileURLToPath, URL } from 'node:url'
+
+// 画面(コンテナ)の props は node でしか組めない(fs・zlib・crypto を使う)ので、各コンテナの隣の container.fixture.ts が
+// テストの前に node で組んで provide する。コンテナを足すたびにここを直さずに済むよう、src の下から全部拾う。
+// 探す起点はこのファイルの場所にする(走らせた場所で拾う物が変わらないように)。順は名前で並べて、走るたびに揃える
+const ROOT = fileURLToPath(new URL('.', import.meta.url))
+const CONTAINER_FIXTURES = globSync('src/**/container.fixture.ts', { cwd: ROOT })
+  .sort()
+  .map(file => fileURLToPath(new URL(file, import.meta.url)))
+// 1 つも拾えないと globalSetup が空のまま進み、テストの inject が undefined を受けて分かりにくい所で落ちる。
+// パターンや起点の誤りで黙って 0 個になるのを、設定を読む時点で止める
+if (CONTAINER_FIXTURES.length === 0) {
+  throw new Error(`src の下に container.fixture.ts が 1 つも見つからない(探した起点: ${ROOT})`)
+}
 
 // 統合テスト(Vitest Browser Mode)の設定。画面単位のコンポーネントを実際の Chromium で、ビルド無しで描く
 // (docs/decisions/0016-testing-trophy-browser-integration.md)。
@@ -24,8 +38,8 @@ export default defineConfig({
     globals: true,
     include: ['src/**/*.browser.test.{ts,tsx}'],
     exclude: [...configDefaults.exclude, '**/.claude/**', 'tests/**'],
-    // 村の props は node でしか組めない(fs・zlib・crypto を使う)ので、テストの前に node で組んで provide する
-    globalSetup: ['./src/components/VillagePage/components/Village/village-props.fixture.ts'],
+    // 上で拾った container.fixture.ts を、テストの前に node で走らせる
+    globalSetup: CONTAINER_FIXTURES,
     // 落ちた時の画面の写しは、既定だとテストの隣(src の中)とリポジトリ直下に出る。git が無視する test-results/ へ寄せる
     attachmentsDir: 'test-results/vitest-attachments',
     browser: {

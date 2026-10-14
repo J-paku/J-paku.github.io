@@ -89,7 +89,7 @@ happy-dom でコンポーネント1つを描くテスト(`index.test.tsx`)の約
 - ブラウザの操作は `vitest/browser` の `page` と `userEvent` で行う。画面の大きさは `page.viewport(幅, 高さ)` で変え、要素は `page.getByRole(…)` で引く。
   断定は単体と同じく利用者に見えるもの(role・名前・`aria-*`・要素の有無・枠の寸法)で行う
 - ブラウザでは node の API(`node:fs`・`node:zlib`・`node:crypto`)を読み込めない。それを使って組む props は、設定の globalSetup が node で組んで `provide` し、テストは `inject` で受け取る。
-  村は `src/components/VillagePage/components/Village/village-props.fixture.ts` が `provide('villageJa', …)` し、テストが `inject('villageJa')` する。
+  村は `src/components/VillagePage/container.fixture.ts` が `provide('villageJa', …)` し、テストが `inject('villageJa')` する。
   組み方は `src/components/VillagePage/index.tsx` の写しなので、あちらを変えたらフィクスチャも合わせる(`exit` は要素なので渡せず、テストが組む)
 - globalSetup が読み込む `server-only` は中身の無い版(パッケージ同梱の `empty.js`)へ alias し、`process.env` は空の入れ物に define する(`next/link` が `process.env` を読み、ブラウザには `process` が無い)。
   どちらも `vitest.integration.config.ts` にある
