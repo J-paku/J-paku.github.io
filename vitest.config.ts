@@ -45,8 +45,8 @@ export default defineConfig({
       provider: 'v8',
       enabled: false,
       include: ['src/**/*.{ts,tsx}'],
-      // hooks/ 配下は単体テストを置かない層なので測らない。フックの動きは統合テスト(vitest.integration.config.ts)で見る。
-      // 統合テストへ移し終えるまでは E2E が見る
+      // hooks/ 配下は単体テストを置かない層なので測らない。フックの動きは統合テスト(vitest.integration.config.ts)で見て、
+      // そちらのカバレッジがフックを全部ファイル別100%で固める(ADR 0018)
       // (hooks/ にテストを置いていないかは scripts/check-test-boundary.mjs が検査する)
       // components/ の .tsx も同じ理由で測らない。コンポーネントを描くテストは各コンテナ横の統合テストにだけ置き、そちらで測る(ADR 0017)
       exclude: [

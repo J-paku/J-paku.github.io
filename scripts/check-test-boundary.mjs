@@ -5,6 +5,8 @@
 // フックは単体テストを置かない層で、動きはそのフックを使うコンポーネントを統合テスト(*.browser.test.tsx)で描いて見る
 // (統合テストへ移し終えるまでは E2E が見る。vitest.config.ts のカバレッジでも測らない)。
 // hooks/ の外へテストを移しても、renderHook でフックを呼べば同じことになるので、それも落とす。
+// テストの部品・フィクスチャ(*.test-helper.ts・*.fixture.ts)も hooks/ 配下に置かない。統合のカバレッジ(vitest.integration.config.ts)は
+// この名前を exclude で外すので、hooks/ の下に置くとフックのファイル別100%の門(ADR 0018)の外に黙って残る。
 // ストアを import して getState() で状態を戻すだけのテストは、フックを描かないので落とさない。
 // 例外を許す一覧は持たない(移し終えて 0 件になった。足したくなったら、ロジックを純粋関数へ切り出してそちらで測る)。
 //
@@ -60,6 +62,9 @@ const SKIP_DIRS = new Set(['node_modules', '.git'])
 // 違反ごとに出す理由。落ちた人がこのファイルを開かなくても直し方が分かるように書く
 const REASON_HOOK_TEST =
   'hooks/ 配下にテストは置かない(統合テストの *.browser.test.tsx も)。ロジックを純粋関数(src/lib/ か utils/)へ移してそちらで測り、フックの動きは、そのフックを使うコンポーネントを統合テスト(*.browser.test.tsx)で描いて見る'
+const REASON_HOOK_SUPPORT =
+  'hooks/ 配下にテストの部品・フィクスチャ(*.test-helper.ts・*.fixture.ts)は置かない。統合のカバレッジ(vitest.integration.config.ts)はこの名前を exclude で外すので、' +
+  'hooks/ の下に置くとフックのファイル別100%の門の外に黙って残る。テストが読む部品はテストの側(hooks/ の外)に置き、フックの中身ならフックの名前にする(ADR 0018)'
 const REASON_RENDER_HOOK =
   'renderHook でフックを呼ぶテストは置かない(hooks/ の外でも同じ)。ロジックを純粋関数へ移してそちらで測り、フックの動きは、そのフックを使うコンポーネントを統合テスト(*.browser.test.tsx)で描いて見る'
 const REASON_UNIT_TSX =
@@ -101,6 +106,10 @@ const violationOf = (file, readCode) => {
   if (usesRenderHook(readCode())) return REASON_RENDER_HOOK
   return undefined
 }
+
+// テストの部品・フィクスチャの違反の理由(違反でなければ undefined)。hooks/ 配下の部品は、それだけで違反
+const supportViolationOf = file =>
+  TEST_SUPPORT.test(file) && HOOKS_DIR.test(file) ? REASON_HOOK_SUPPORT : undefined
 
 // コンポーネントを描くテスト・フィクスチャの置き場の違反の理由(違反でなければ undefined)。
 // exists は同じフォルダの相手が実在するか、dirs はコンテナの一覧
@@ -160,6 +169,15 @@ const VIOLATION_CASES = [
   ['src/a.test.ts', 'const a = 1 // renderHook を使わない', undefined],
   ['src/a.test.ts', '/*\n * renderHook を使わない\n */', undefined],
   ['src/a.test.ts', 'const renderHooked = 1', undefined],
+]
+// [パス, 期待する理由]
+const SUPPORT_CASES = [
+  ['src/hooks/a.test-helper.ts', REASON_HOOK_SUPPORT],
+  ['src/components/A/hooks/use-b/b.fixture.ts', REASON_HOOK_SUPPORT],
+  ['src/components/A/hooks/container.fixture.ts', REASON_HOOK_SUPPORT],
+  ['src/components/A/hooks/use-b.ts', undefined],
+  ['src/use-hooks/a.test-helper.ts', undefined],
+  ['src/components/A/a.fixture.ts', undefined],
 ]
 // 置き場の判定に使う偽の作業ツリーとコンテナの一覧(D は container.tsx があるが一覧の外)と、[パス, 期待する理由]
 const FAKE_DIRS = ['src/components/A', 'src/components/B', 'src/components/C']
@@ -258,6 +276,9 @@ const selfCheckFailures = [
   ...VIOLATION_CASES.filter(
     ([file, code, expected]) => violationOf(file, () => code) !== expected
   ).map(([file, code, expected]) => `違反の判定 ${file} ${JSON.stringify(code)} → ${expected}`),
+  ...SUPPORT_CASES.filter(([file, expected]) => supportViolationOf(file) !== expected).map(
+    ([file, expected]) => `部品の置き場の判定 ${file} → ${expected}`
+  ),
   ...PLACEMENT_CASES.filter(
     ([file, expected]) => placementViolationOf(file, fakeExists, FAKE_DIRS) !== expected
   ).map(([file, expected]) => `置き場の判定 ${file} → ${expected}`),
@@ -293,7 +314,7 @@ const read = file => readFileSync(path.join(ROOT, file), 'utf8')
 const failures = []
 for (const file of [...testFiles, ...supportFiles]) {
   const reason =
-    (TEST_FILE.test(file) ? violationOf(file, () => read(file)) : undefined) ??
+    (TEST_FILE.test(file) ? violationOf(file, () => read(file)) : supportViolationOf(file)) ??
     placementViolationOf(file, exists, CONTAINER_DIRS) ??
     importViolationOf(file, read(file))
   if (reason !== undefined) failures.push(`${file}: ${reason}`)
