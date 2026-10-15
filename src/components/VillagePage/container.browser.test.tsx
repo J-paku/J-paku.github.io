@@ -96,7 +96,7 @@ import {
   type Recording,
   type Saved,
 } from './village-walk-flight.test-helper'
-import { PHASE_CLOCKS, RealImage, startVillageClock } from './village-time.test-helper'
+import { PHASE_CLOCKS, RealImage, routeSheets, startVillageClock } from './village-time.test-helper'
 
 const villageJa = inject('villageJa')
 
@@ -2217,6 +2217,89 @@ describe('画面の大きさ・窓・時計・昼夜', () => {
       await walkOutToTown()
       await runFor(FRAME_MS * SETTLE_FRAMES)
       expect(countOf(WEATHER_LAYERS), '失敗したら何も降らない').toBe(0)
+    })
+  })
+
+  // E2E の同じ検査はさらに、描いた地形と主人公の背景がその段階の焼いたシートを指し、画像として読めるか(expectDrawable)を見る。
+  // その背景はローダーの <style> が描き、シートの PNG はビルドが焼くので、統合では描かれない。そこは E2E に残す
+  describe('開いたまま時間帯が替わる(tests/night-transition.spec.ts)', () => {
+    // JST 2026-09-23 16:59(昼の帯の終わり)。2 時間 2 分進めると JST 19:01 で夜の帯に入る
+    const START = '2026-09-23T07:59:00Z'
+    const TWO_HOURS_LATER = 2 * 60 * 60 * 1000 + 2 * 60 * 1000
+    // 段階を確かめ直す間隔(hooks/use-day-phase.ts の CHECK_INTERVAL_MS)
+    const CHECK_INTERVAL_MS = 60_000
+
+    // 再読み込みせずに開いたまま時間を進める。Date と setInterval を偽の時計に載せて昼から始める
+    const openDay = async () => {
+      startVillageClock(START, 'phase-check')
+      await renderVillage()
+      expect(phase(), '開いた時は昼').toBe('day')
+    }
+
+    test('2 時間開いたまま夜へ移ると、地形と主人公の夜のシートを取りに行って夜になる', async () => {
+      const requested: string[] = []
+      routeSheets(async url => {
+        requested.push(url)
+      })
+      await openDay()
+      vi.advanceTimersByTime(TWO_HOURS_LATER)
+      await expect.poll(phase, { message: '2 時間後は再読み込みせずに夜' }).toBe('night')
+      // 夜の段階は地形と主人公の両方のシートで描く
+      expect(requested.some(url => url.includes('/sprite-night-'))).toBe(true)
+      expect(requested.some(url => url.includes('/player-night-'))).toBe(true)
+    })
+
+    test('夜の画像が届かない間は直前の昼の村を残し、届くようになれば夜へ移る', async () => {
+      let unavailable = true
+      let failures = 0
+      routeSheets(async url => {
+        if (!unavailable || !url.includes('-night-')) return
+        failures += 1
+        throw new Error(`404: ${url}`)
+      })
+      await openDay()
+      // 開いた時の先読みで夜の絵も一度取りに行って失敗している。夜へ入った時に取り直してまた失敗するのを、増えた数で見る
+      await expect
+        .poll(() => failures, { message: '開いた時の先読みが失敗した' })
+        .toBeGreaterThan(0)
+      const preloadFailures = failures
+      vi.advanceTimersByTime(TWO_HOURS_LATER)
+      await expect
+        .poll(() => failures, { message: '夜へ入って夜の絵を取り直し、また失敗した' })
+        .toBeGreaterThan(preloadFailures)
+      await runFor(FRAME_MS * SETTLE_FRAMES)
+      expect(phase(), '夜の絵が届かない間は昼のまま').toBe('day')
+
+      unavailable = false
+      vi.advanceTimersByTime(CHECK_INTERVAL_MS)
+      await expect.poll(phase, { message: '届くようになった次の確かめで夜へ移る' }).toBe('night')
+    })
+
+    test('夜の主人公の絵だけ遅れても、両方の絵が揃うまで昼を残す', async () => {
+      // 夜の主人公の絵への応答を、テストが手放すまで返さずに留める
+      let release = () => {}
+      const pending = new Promise<void>(resolve => {
+        release = resolve
+      })
+      let requests = 0
+      routeSheets(async url => {
+        if (!url.includes('/player-night-')) return
+        requests += 1
+        await pending
+      })
+      try {
+        await openDay()
+        vi.advanceTimersByTime(TWO_HOURS_LATER)
+        await expect
+          .poll(() => requests, { message: '夜の主人公の絵を取りに行った' })
+          .toBeGreaterThan(0)
+        await runFor(FRAME_MS * SETTLE_FRAMES)
+        expect(phase(), '主人公の夜の絵が届くまで昼のまま').toBe('day')
+        release()
+        await expect.poll(phase, { message: '両方揃えば夜へ移る' }).toBe('night')
+      } finally {
+        release()
+      }
     })
   })
 })
