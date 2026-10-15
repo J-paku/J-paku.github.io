@@ -259,9 +259,10 @@ export const emulateReducedMotion = () =>
     features: [{ name: 'prefers-reduced-motion', value: 'reduce' }],
   })
 
-// タッチ端末(pointer: coarse)。E2E の hasTouch に当たる。描く前に呼ぶ
-export const emulateTouch = () =>
-  cdp().send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 })
+// タッチ端末(pointer: coarse)。E2E の hasTouch に当たる。描く前に呼ぶ。
+// 同時に触れる指の数は既定で 1 本。2 本の指を置く検査(touches)だけ増やす
+export const emulateTouch = (maxTouchPoints = 1) =>
+  cdp().send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints })
 
 // どちらの設定も外す。テストの後始末で呼ぶ。
 // タッチの模擬を外しても pointer: fine・hover: hover には戻らず、どちらも none のまま同じページの後のテストへ残る。
@@ -271,7 +272,8 @@ export const emulateTouch = () =>
 // setDeviceMetricsOverride の mobile: false・clearDeviceMetricsOverride のどれでも none のまま。
 // setTouchEmulationEnabled の maxTouchPoints: 0 は 1〜16 の外として CDP が断る)。
 // 村の CSS とフックは pointer: coarse かどうかで分けるので、none でもマウスの端末と同じに描く
-// (hover: hover and pointer: fine で隠すスティックは、帯ごと隠れている)
+// (hover: hover and pointer: fine で隠すスティックは、帯ごと隠れている)。coarse へ戻っていないことは
+// container.browser.test.tsx の先頭の beforeEach が、どのテストの始めにも前提として確かめる
 export const resetEmulation = async () => {
   await cdp().send('Emulation.setEmulatedMedia', { features: [] })
   await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false })
@@ -325,6 +327,17 @@ export const finger = {
     cdp().send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [pagePoint(x, y)] }),
   up: () => cdp().send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }),
 }
+
+// 指を何本か置いたまま動かす。points には今触れている指を id 付きで全部並べる。CDP は前の並びとの差から、
+// 増えた指を置き・動いた指を動かし・並びから消えた指を離す。一部の指だけを離す時は、残す指だけを並べた touchMove を送る。
+// touchEnd は指を並べずに送り、触れている指を全部離す(CDP は touchEnd に指を並べることを認めない)。
+// emulateTouch に 2 以上を渡した後で使う
+export type TouchPoint = { id: number; x: number; y: number }
+export const touches = (type: 'touchStart' | 'touchMove' | 'touchEnd', points: TouchPoint[]) =>
+  cdp().send('Input.dispatchTouchEvent', {
+    type,
+    touchPoints: points.map(({ id, x, y }) => ({ id, ...pagePoint(x, y) })),
+  })
 
 // 指で 1 回叩く(E2E の page.touchscreen.tap)。emulateTouch の後で使う
 export const tap = async (x: number, y: number) => {
