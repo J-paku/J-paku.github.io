@@ -45,3 +45,18 @@ export const startVillageClock = (at: string, scope: ClockScope): void => {
 
 // 差し替える前の Image。シートの取得を差し替えている間も、テスト自身が絵を読めるかを確かめるのに使う
 export const RealImage = window.Image
+
+// 段階のシートの絵の取得(ネットワーク)を差し替える。村は段階が替わる時、地形と主人公のシートが両方 decode できるまで
+// 前の段階を残す(hooks/use-day-phase.ts)。統合テストはビルドしないので /sprites/ の PNG が無く(scripts/build-sprites.mjs が
+// ビルドで焼く)、本物の取得はどれも失敗する。E2E が page.route で配信を差し替えるのと同じく、URL ごとの応答をテストが決める。
+// respond が resolve すれば届いた、reject すれば 404 などで失敗した、決着しなければまだ届いていない。
+// 村がシートを読むのは new Image() の src と decode() だけなので、その 2 つを持つ物に替える
+export const routeSheets = (respond: (url: string) => Promise<void>): void => {
+  class SheetImage {
+    src = ''
+    decode(): Promise<void> {
+      return respond(this.src)
+    }
+  }
+  vi.stubGlobal('Image', SheetImage)
+}
