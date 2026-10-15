@@ -147,6 +147,15 @@ export const press = async (key: WalkKey) => {
   await userEvent.keyboard(`{/${key}}`)
 }
 
+// 押しっぱなしの向きを rAF で読む経路(会話窓の本文送り・窓の外から焦点を入れる方向)へ、押した瞬間の 1 回として読ませる。
+// 押してすぐ離すと、同じフレームの間に離されて rAF が向きを 1 度も読まないことがあるので、2 フレーム置いてから離す
+// (押し続けた時の繰り返しは 300ms 先からなので、2 フレームでは始まらない)。歩くための 1 マス分の押し方は press
+export const tapHeld = async (key: WalkKey) => {
+  await userEvent.keyboard(`{${key}>}`)
+  await runFor(FRAME_MS * 2)
+  await userEvent.keyboard(`{/${key}}`)
+}
+
 // 方向キーで cells マス歩く。1 マスごとに押して離し、到着(保存位置の変化)を待ってから次へ進む。
 // 戻り値は実際に到着したマス数(壁や水へ向きを変えただけの 1 回は数えない)
 export const walk = async (setId: string, key: WalkKey, cells: number): Promise<number> => {
