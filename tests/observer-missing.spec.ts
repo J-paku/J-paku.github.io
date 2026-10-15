@@ -9,7 +9,8 @@
 // ここではページのどのスクリプトより先に消すので、next/link も読み込みの時点で「無い」と覚えて観察を使わない。
 // 消した画面だけを見ると「観察が働いて現れた」のと見分けられないので、消さない普通のページでは画面の外のカードが
 // まだ現れず写真も灰色のまま、という対照を同じ spec で見る。作品ストーリーの対照(観察できれば、同じ場面を画面の中央まで
-// 送ると CTA がその場面から開く)は tests/story.spec.ts の「CTA は今読んでいる場面からモーダルを開き…」が見ている。
+// 送ると CTA がその場面から開く)は、作品ストーリーの統合テスト(src/components/Story/container.browser.test.tsx)の
+// 「CTA は今読んでいる場面からモーダルを開き…」が見ている。
 // どれも言語に依らないので ja だけで見る
 import { expect, type Locator, type Page } from '@playwright/test'
 import { ui } from '@content/ja/ui'
@@ -23,7 +24,7 @@ const videoWork = seatmapDemo
 const videoSrc = videoWork.video
 if (videoSrc === undefined) throw new Error(`${videoWork.slug} が動画を持たない`)
 
-// 場面を持つ作品ストーリー(story.spec と同じ作品)。先頭と末尾の間に、送り先にする途中の場面が要る
+// 場面を持つ作品ストーリー(作品ストーリーの統合テストと同じ作品)。先頭と末尾の間に、送り先にする途中の場面が要る
 const storyWork = meishiCrossPlatform
 const scenes = storyWork.story?.scenes ?? []
 if (scenes.length < 3) throw new Error(`${storyWork.slug} の場面が3つ未満(${scenes.length}つ)`)
@@ -172,14 +173,14 @@ test('IntersectionObserver が無いと、場面を下へ送っても今の場�
   await page.goto(`/works/${storyWork.slug}/`)
   expect(await canObserve(page), 'IntersectionObserver は消えている').toBe(false)
 
-  // 探し方は story.spec の locate と同じ。CTA は文言を文節ごとに区切って描くので名前でなく中の文字で選ぶ
+  // CTA は文言を文節ごとに区切って描くので名前でなく中の文字で選ぶ
   const main = page.getByRole('main')
   const preview = main.getByRole('button', { name: ui.workStory.viewScene, exact: true }).first()
   const cta = main.getByRole('button').filter({ hasText: ui.workStory.viewScene })
   const dialog = page.getByRole('dialog')
   const counter = dialog.locator('[aria-live="polite"]')
   await expect(cta).toHaveCount(1)
-  // プレビューのシャドウルートに場面の絵が出たら、クライアントの島が動いている(story.spec の openStory と同じ待ち)
+  // プレビューのシャドウルートに場面の絵が出たら、クライアントの島が動いている
   await expect
     .poll(
       () =>
@@ -199,7 +200,7 @@ test('IntersectionObserver が無いと、場面を下へ送っても今の場�
   await page.keyboard.press('Escape')
   await expect(dialog).toHaveCount(0)
 
-  // 前提: 最後に送る場面(末尾の1つ手前。story.spec の対照と同じ場面)は最初は画面の下の外にある
+  // 前提: 最後に送る場面(末尾の1つ手前。作品ストーリーの統合テストの対照と同じ場面)は最初は画面の下の外にある
   const fold = foldOf(page)
   const last = scenes.length - 2
   const sectionOf = (index: number) =>
