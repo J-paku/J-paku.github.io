@@ -2,7 +2,8 @@
 // 開閉のフックと一緒に描き、開閉・Esc・外側の押下・言語リンク・テーマ選択の結果を、利用者に見える形
 // (role・aria-expanded・aria-current・aria-pressed・フォーカスの行き先)で確かめる。テーマの保存は本物の localStorage へ書かせて読む
 import { cleanup, fireEvent, render } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, inject, it, vi } from 'vitest'
+import { renderToString } from 'react-dom/server'
+import { afterEach, beforeEach, describe, expect, inject, it, onTestFinished, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 import type { Locale } from '@content/types/content'
 import { THEME_STORAGE_KEY, type Theme } from '@/lib/preferences'
@@ -178,6 +179,33 @@ describe('テーマ', () => {
       }
     }
   )
+
+  it('書き出す HTML(サーバの描画)へハイドレーションしても歯車を作り直さず、開くと適用中のテーマ(dark)が押されている', async () => {
+    // 初回ペイントの前に html-shell がルート属性へ書いた適用値。サーバの描画は保存値を知れないので light で描く
+    document.documentElement.dataset.theme = 'dark'
+    const host = document.createElement('div')
+    host.innerHTML = renderToString(<SettingsMenu locale='ja' pathname={PATHNAME} ui={ui} />)
+    document.body.append(host)
+    // ハイドレーションの前に落ちても、書き出した HTML を次のテストへ残さない(描いた後は cleanup も外す)
+    onTestFinished(() => host.remove())
+    const trigger = triggerOf()
+
+    render(<SettingsMenu locale='ja' pathname={PATHNAME} ui={ui} />, {
+      container: host,
+      hydrate: true,
+    })
+
+    // サーバとクライアントの最初の描画が食い違うと、React は書き出した要素を捨てて作り直す
+    expect(triggerOf(), 'ハイドレーションしても書き出した歯車をそのまま使う').toBe(trigger)
+    await userEvent.click(trigger)
+    const group = page.getByRole('group', { name: ui.theme.label, exact: true })
+    for (const theme of ['light', 'dark'] as const) {
+      const option = group.getByRole('button', { name: ui.theme[theme], exact: true }).element()
+      expect(option.getAttribute('aria-pressed'), `${theme} の選択肢`).toBe(
+        String(theme === 'dark')
+      )
+    }
+  })
 
   it.each([
     ['light', 'dark'],
