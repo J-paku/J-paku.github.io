@@ -4,6 +4,7 @@
 import { useEffect, useEffectEvent, useState } from 'react'
 import type { WorkStoryScene } from '@content/types/content'
 import { fetchSvgSource } from '@/lib/fetch-svg-source'
+import { markFailed } from '../utils/mark-failed'
 
 export function useSceneSources(scenes: WorkStoryScene[]) {
   // 取れた原文(場面の id → 原文)。届く前の場面は持たない
@@ -30,7 +31,7 @@ export function useSceneSources(scenes: WorkStoryScene[]) {
         })
         .catch(() => {
           if (cancelled) return
-          setFailedScenes(prev => (prev.has(scene.id) ? prev : new Set(prev).add(scene.id)))
+          setFailedScenes(prev => markFailed(prev, scene.id))
         })
     }
     return () => {
