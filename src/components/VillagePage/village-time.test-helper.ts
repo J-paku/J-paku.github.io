@@ -40,3 +40,8 @@ export const startVillageClock = (at: string, scope: ClockScope): void => {
   vi.useFakeTimers(CLOCK_SCOPES[scope])
   vi.setSystemTime(new Date(at))
 }
+
+// ---- 段階のシートの絵(ネットワーク) ----
+
+// 差し替える前の Image。シートの取得を差し替えている間も、テスト自身が絵を読めるかを確かめるのに使う
+export const RealImage = window.Image

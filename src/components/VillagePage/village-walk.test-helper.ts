@@ -109,6 +109,22 @@ export const isVisible = (element: Element | null) => {
   return box.width > 0 && box.height > 0 && getComputedStyle(element).visibility !== 'hidden'
 }
 
+// 要素が本当に描かれているか。昼夜の出し分けは CSS なので要素は昼も DOM に残り、「ある・ない」では判定できない。
+// どの手段で消していても取り逃さないよう、display・visibility・不透明度・面積を先祖まで遡って見る
+// (昼夜の灯りの検査を E2E からこの統合テストへ移した時に、E2E の物差しをそのまま写した。isVisible は自分の visibility しか見ない)
+export const isPainted = (element: Element): boolean => {
+  const rect = element.getBoundingClientRect()
+  if (rect.width === 0 || rect.height === 0) return false
+  const hidden = (node: Element | null): boolean => {
+    if (node === null) return false
+    const style = getComputedStyle(node)
+    if (style.display === 'none' || style.visibility === 'hidden') return true
+    if (Number(style.opacity) === 0) return true
+    return hidden(node.parentElement)
+  }
+  return !hidden(element)
+}
+
 // 起動の覆いが外れるまで時計を進め、キー操作を受け取る村の枠へ焦点を置く
 export const focusVillage = async () => {
   await advanceUntil(() => document.getElementById('boot') === null, '起動の覆いが外れる')
