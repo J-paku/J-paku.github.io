@@ -439,7 +439,7 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
     await expect(map.getByRole('heading', { name: text.mapTitle })).toBeVisible()
     await map.getByRole('button', { name: text.fastTravel.replace('{place}', lab.place) }).click()
     await expect(map).toHaveCount(0)
-    // 自宅前から研究所の前まで直線で飛ぶ(飛び方は tests/flight.spec.ts)。飛ぶ長さは直線距離で決まるので
+    // 自宅前から研究所の前まで直線で飛ぶ(飛び方は村の統合テストの「自動移動の直線飛行」)。飛ぶ長さは直線距離で決まるので
     // lib の flightDurationMs で求め、押してから飛び立つまでと着いて吹き出しが描かれるまでの余裕を足して待つ
     const labCell = town.spots.find(spot => spot.id === 'lab')?.cell
     if (labCell === undefined) throw new Error('町に研究所の地点が無い')
@@ -479,7 +479,7 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
       box.y + ((cell.y + 0.5) / town.height) * box.height
     )
     await expect(map).toHaveCount(0)
-    // 地図からの移動は飛ぶ(飛び方は tests/flight.spec.ts)。直線距離はこのマス数を超えないので、飛ぶ長さは
+    // 地図からの移動は飛ぶ(飛び方は村の統合テストの「自動移動の直線飛行」)。直線距離はこのマス数を超えないので、飛ぶ長さは
     // flightDurationMs(steps) を超えない。近すぎて飛ばない時は 1 マス 256ms で歩き切る。
     // その長い方に、押してから動き出すまでの余裕を足した上限で待つ
     const moveMs = Math.max(steps * 256, flightDurationMs(steps))
@@ -666,7 +666,7 @@ for (const { prefix, text, settings, workTitle } of JOURNEYS) {
     await expect(page.locator('[data-village-bubble]')).toHaveCount(0)
   })
 
-  // 次へは飛んで移り、飛んでいる間は方向キーを読まない(tests/flight.spec.ts)。動きを控える設定では
+  // 次へは飛んで移り、飛んでいる間は方向キーを読まない(村の統合テストの「自動移動の直線飛行」)。動きを控える設定では
   // 飛ばずに今までどおり 1 マスずつ高速で歩くので、自動で歩いている途中への割り込みはこの設定で確かめる
   test.describe(`動きを控える設定の次へ (${label})`, () => {
     test.use({ reducedMotion: 'reduce' })
