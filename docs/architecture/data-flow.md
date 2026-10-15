@@ -4,7 +4,7 @@ read_when:
   - コンテンツの読み込み・検証を変えるとき
   - ブラウザ保存や外部 API 取得を足すとき
 source_of_truth: true
-last_reviewed: 2026-10-14
+last_reviewed: 2026-10-15
 ---
 
 # データの流れ
