@@ -71,7 +71,6 @@ E2E はビルドした `out/` を配って走る。
 ```bash
 npm run build
 npx playwright test tests/journey.spec.ts   # 導線
-npx playwright test tests/layout.spec.ts    # 舞台の寸法と操作帯
 npx playwright test tests/day-night.spec.ts # 昼夜と天気
 ```
 
