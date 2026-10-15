@@ -86,12 +86,12 @@ AIエージェントに実装を任せることで、複数の作業を並行し
 
 『Clean Code』の著者Robert C. Martinが「extreme constraints」と呼んだ考え方（[出典](https://x.com/unclebobmartin/status/2080257779395154409)）を参考に、ロジックを純粋関数に切り出してテストで検証し、制約は原則として厳しくする方向にのみ変更します。この方針を採用した経緯は[ADR 0011](docs/decisions/0011-extreme-constraints.md)に記録しています。
 
-`main`へのpush時には、GitHub Actionsで以下のチェックを実行します。
+`main`へのpush時と、`main`へのPull Requestでは、GitHub Actionsで以下のチェックを実行します。
 
 - **ソースコードに対するチェック：** docs:check、typecheck、lint、format:check、単体テスト（全体のカバレッジの下限値と、純粋なモジュールのファイルごとのカバレッジ）、テストの配置・実装ルール（`hooks`フォルダへの単体テスト配置禁止、`renderHook`の使用禁止、コンポーネントを描画するテストはコンテナごとの統合テスト1本のみ）、表示部品からアプリの外へ届くimportの禁止、統合テスト（Vitest Browser Modeで、ビルドせずに実際のChromiumで画面を描画）、ミューテーションテスト（Strykerを使い、コードに意図的な変更を加えてテストが検出できるかを確認）
 - **ビルド後の成果物に対するチェック：** E2E、axe、Lighthouse CI、日本語の改行チェック
 
-これらのチェックを通過した場合にのみ、GitHub Pagesへ公開します。また、ローカルでテストが成功しただけでは完了とせず、公開後のサイトでも受け入れ確認を行います。
+これらのチェックを通過した場合にのみ、GitHub Pagesへ公開します（公開するのは`main`へのpushのときだけです）。また、ローカルでテストが成功しただけでは完了とせず、公開後のサイトでも受け入れ確認を行います。
 
 検証手順は[docs/agents/verification.md](docs/agents/verification.md)、デプロイの仕組みは[docs/operations/deployment.md](docs/operations/deployment.md)にまとめています。
 
@@ -144,7 +144,7 @@ npm run typecheck  # tsc --noEmit
 
 ### ディレクトリ
 
-`content/`に表示文字列と村の定義、`src/`にアプリ本体、`scripts/`にビルドと検査、`tests/`にE2Eを置いています。単体テストは`tests/`ではなく`src`の中に対象と並べて置いています。設計文書は`docs/`で、どのファイルがどの画面に対応するかは [docs/product/feature-map.md](docs/product/feature-map.md) にあります。
+`content/`に表示文字列と村の定義、`src/`にアプリ本体、`scripts/`にビルドと検査、`tests/`にE2Eを置いています。単体テストと統合テストは`tests/`ではなく`src`の中に対象と並べて置いています。設計文書は`docs/`で、どのファイルがどの画面に対応するかは [docs/product/feature-map.md](docs/product/feature-map.md) にあります。
 
 > 配信はSettings → Pages → Sourceを「GitHub Actions」にした状態で、`main`へのpushにより行われます。
 

@@ -52,7 +52,7 @@ last_reviewed: 2026-10-15
 `typecheck` は反復中の速い確認として上の表に残す。
 
 表が指していないかぎり、**E2E の全体・変異テスト・axe・Lighthouse CI・日本語改行検査は手元で走らせない。**
-CI(`.github/workflows/deploy.yml`)が `main` への push のたびにこれらを走らせ、`deploy` ジョブは `needs: build` なので、どれか1つでも落ちれば公開されない。
+CI(`.github/workflows/deploy.yml`)が `main` への push と `main` への PR のたびにこれらを走らせ(PR では配信しない)、`deploy` ジョブは `needs: build` なので、どれか1つでも落ちれば公開されない。
 手元で同じものを回すのは、同じ門を2回通るだけである。そのかわり**完了は CI が通ったことで言う**(ローカルの PASS だけで完了と言わない)。
 
 例外は、表の「依存の版」と「`.github/workflows/`」の行。そのときは門そのもの(道具の版・CI の手順)が変わるので、`main`へ直接pushせず、表のとおりPRを開いてそのPRのCIが通ってから取り込む(手元での再現はCIが落ちた原因を追うときだけ)。

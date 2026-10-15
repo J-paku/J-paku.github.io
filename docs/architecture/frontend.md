@@ -4,7 +4,7 @@ read_when:
   - コンポーネントやフックを追加・分割するとき
   - スタイル・色・テーマを触るとき
 source_of_truth: true
-last_reviewed: 2026-10-14
+last_reviewed: 2026-10-15
 ---
 
 # 画面とコンポーネント
@@ -89,7 +89,7 @@ src/components/Directory/components/WorkCard/
   `WorldMap` の下位部品 → `world-map.module.css`、`Story` の `StoryBody` → `story.module.css`)
 - ファイルの置き方の例外は村に2つある。`src/components/VillagePage/components/Boot/boot.css` は CSS Modules ではなく、`#boot` の id で当てる大域 CSS。
   `src/components/VillagePage/components/Village/scene.module.css` はフォルダ名(`Village`)と違う名前で、下位部品
-  (`Ground`・`LampVeil`・`FishingFloat`。後の2つは自分の `*.module.css` と両方読む)に加えて親の `src/components/VillagePage/index.tsx` も
+  (`WorldLayer`・`Ground`・`LampVeil`・`FishingFloat`。後の2つは自分の `*.module.css` と両方読む)に加えて親の `src/components/VillagePage/index.tsx` も
   読む(スプライトの背景 CSS のクラス名に使う。`src/components/VillagePage/utils/sprite-css.ts`)
 - **新しく書く CSS に色リテラル(`#rrggbb` / `rgb()` / `hsl()`)を置かない。** 色の定義は `src/styles/tokens.css` に置き、参照は `var(--...)` で行う
 - テーマは `<html data-theme="light|dark">` の1属性だけで決まる。`prefers-color-scheme` の分岐は持たない
