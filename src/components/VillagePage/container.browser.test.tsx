@@ -3,6 +3,7 @@
 // 差し替えるのはネットワーク(天気の通信・段階のシートの絵の取得)と時間だけ。レイアウト・ResizeObserver・入力は本物を使う。
 // 時間の差し替え方は describe ごとに違う(掛け方は village-time.test-helper.ts の startVillageClock):
 //   - 「歩く・待つ・釣り・傘・飛ぶ」は rAF・performance.now・タイマー・Date を偽の時計に載せ、テストが 1 フレーム(16ms)ずつ進める
+//     (傘の 1 件だけは setTimeout を本物のまま残し、フレームをタイマーより先に進める)
 //   - 「画面の大きさ・窓・時計・昼夜」は rAF・タイマー・performance.now を本物のまま使い、段階を決めるテストだけ Date を止める
 //     (開いたまま時間帯が替わるテストは Date と setInterval を止め、テストが進める)
 //   - その間にある画面の大きさのテストは時間を差し替えない
@@ -17,6 +18,7 @@ import { userEvent } from 'vitest/browser'
 import type { Cell, World } from '@content/types/world'
 import { isWalkable } from '@/lib/village/collision'
 import { FLIGHT_MIN_DISTANCE, flightDurationMs } from '@/lib/village/flight-curve'
+import { mapEntries, type MapEntry } from '@/lib/village/map-entries'
 import { findPath } from '@/lib/village/path'
 import { routeToWarp } from '@/lib/village/warp'
 import { DAY_PHASES } from '@/utils/day-phase'
@@ -36,6 +38,7 @@ import {
   MAP_FOCUSABLE_SELECTOR,
   STOP_FOCUSABLE_SELECTOR,
 } from './components/Village/utils/focusables'
+import { spotToward } from './components/Village/components/WorldMap/utils/spot-navigation'
 import { useVillageTime } from './hooks/use-village-time'
 import {
   FRAME_MS,
@@ -690,6 +693,61 @@ describe('歩く・待つ・釣り・傘・飛ぶ', () => {
       }
     }, 30_000)
 
+    // ここから下の 2 本は E2E に無い分岐(かかった後・巻物が跳ねた後の中断と、釣り場の地点で全部を釣り上げた後)。
+    // use-village-fishing の待っているタイマーの片付けと、use-village-overlay の釣り場の地点の止め方を見る
+
+    test('かかった後や巻物が跳ねた後に X で中断すると、待っていた釣り上げと結果窓は後から出ない', async () => {
+      await openVillage()
+      await goToPondShore()
+      expect(readCell(setId)).toEqual({ worldId: 'town', cell: { x: 5, y: 13 } })
+      // かかった後(釣り上げを待つタイマーが残っている)で中断する
+      await userEvent.keyboard('z')
+      await advanceUntil(() => floatPhase() === 'bite', 'かかる', FISHING_CAST_MS + SLACK_MS)
+      await userEvent.keyboard('x')
+      await expect.poll(floatEl, { message: 'X で中断すると浮きを片付ける' }).toBeNull()
+      await runFor(FISHING_BITE_MS + FISHING_LAND_MS)
+      expect(dialog.query(), 'かかった後に中断した回の結果窓').toBeNull()
+      expect(speech()).not.toContain(fishing.landed)
+      // 巻物が跳ねた後(結果窓を待つタイマーが残っている)で中断する
+      await userEvent.keyboard('z')
+      await advanceUntil(
+        () => floatPhase() === 'landing',
+        '巻物が跳ねる',
+        FISHING_CAST_MS + FISHING_BITE_MS + SLACK_MS
+      )
+      await userEvent.keyboard('x')
+      await expect.poll(floatEl, { message: 'X で中断すると巻物を片付ける' }).toBeNull()
+      await runFor(FISHING_LAND_MS * 2)
+      expect(dialog.query(), '巻物が跳ねた後に中断した回の結果窓').toBeNull()
+    }, 30_000)
+
+    test('釣り場の地点(東の岸)でも、全部を釣り上げた後は Z を押しても投げない', async () => {
+      const total = villageJa.catches.length
+      expect(total).toBeGreaterThan(0)
+      await openVillage()
+      await goToPondShore()
+      await goToEastShore()
+      expect(readCell(setId)).toEqual({ worldId: 'town', cell: { x: 6, y: 15 } })
+      for (let count = 1; count <= total; count += 1) {
+        await userEvent.keyboard('z')
+        await advanceUntil(
+          () => dialogText().includes(fishing.caughtPlace),
+          `${count} 匹目の結果窓`,
+          FISHING_CAST_MS + FISHING_BITE_MS + FISHING_LAND_MS + SLACK_MS
+        )
+        await dialog.getByRole('button', { name: text.close }).click()
+        await expect.element(dialog).not.toBeInTheDocument()
+        await runFor(FRAME_MS * 2)
+      }
+      // 揃えた後の釣り場の地点は考え事の吹き出しになり、Z を押しても投げず、移動も止めない
+      expect(isVisible(thoughtBubble()), '釣り場の地点の考え事の吹き出し').toBe(true)
+      await userEvent.keyboard('z')
+      await runFor(FISHING_CAST_MS)
+      expect(floatEl()).toBeNull()
+      expect(speech()).not.toContain(fishing.cast)
+      expect(await walk(setId, 'ArrowUp', 1), '投げていないので歩ける').toBe(1)
+    }, 60_000)
+
     describe('動きを控える設定の釣り', () => {
       test('時間で替わるコマを出さず、段階ごとの静止コマ(構え・張る・掲げる)だけを描く', async () => {
         await emulateReducedMotion()
@@ -1024,6 +1082,100 @@ describe('歩く・待つ・釣り・傘・飛ぶ', () => {
         const entering = back.enteredAt - doorPressedAt
         expect(entering, '上を押してから部屋が描かれるまでの ms').toBeLessThan(UMBRELLA_CLOSE_MS)
       })
+    })
+
+    // ここから下は E2E に無い分岐(畳む途中で地図を開く・村を離れる)。use-village-umbrella の待っている扉の処理を見る
+
+    // 扉にぶつかって畳み始めるまで進める。畳む最初のコマが記録されたら畳む途中
+    const startClosingAtDoor = async (timeline: readonly TimelineEntry[]) => {
+      expect(await walk(setId, 'ArrowDown', 3)).toBe(3)
+      await waitSince(timeline, 'sprite', OPEN_PREFIX, UMBRELLA_OPEN_MS)
+      await press('ArrowUp')
+      await waitSince(timeline, 'sprite', CLOSE_PREFIX, 0)
+      expect(worldShown(), '畳んでいる間は町に留まる').toBe('town')
+    }
+
+    test('雨の日に扉の前で傘を畳んでいる間に地図を開くと、部屋へは入らず、閉じた後は傘を差した姿で町に残る', async () => {
+      const timeline = await openInWeather('rain')
+      await startClosingAtDoor(timeline)
+      // 地図は屋外でしか描かないので、開いた地図の下で部屋へ入ると窓の無いまま移動だけ止まってしまう
+      await userEvent.keyboard('m')
+      const map = page.getByRole('dialog')
+      await expect.element(map.getByRole('heading', { name: text.mapTitle })).toBeVisible()
+      await runFor(UMBRELLA_CLOSE_MS + FRAME_MS * 4)
+      expect(worldShown(), '畳み終える頃を過ぎても町のまま').toBe('town')
+      expect(readCell(setId), '自宅前に立ったまま').toEqual(DOORSTEP)
+      await userEvent.keyboard('m')
+      await expect.element(map).not.toBeInTheDocument()
+      // 扉の前に戻した姿は、傘を差して扉(上)を向いた立ち姿
+      await advanceUntil(
+        () => villagePlayer().dataset.sprite === 'player-umbrella-up-0',
+        '傘を差した上向きの立ち姿'
+      )
+    })
+
+    test('雨の日に扉の前で傘を畳んでいる間に村を離れると、待っていた扉の処理は後から走らない', async () => {
+      const timeline = await openInWeather('rain')
+      await startClosingAtDoor(timeline)
+      cleanup()
+      // 待っていた扉の処理が残っていれば、畳み終える頃に部屋へ移った位置を保存する
+      await runFor(UMBRELLA_CLOSE_MS * 2)
+      expect(readCell(setId), '離れた後も保存は自宅前のまま').toEqual(DOORSTEP)
+    })
+
+    // 畳み終える時刻と、部屋へ移す処理を待たせたタイマーの時刻は同じ。実機ではその時刻のフレームがタイマーより先に来ることがあり
+    // (タイマーが遅れて走る)、押しっぱなしの足はそのフレームで扉へもう一度ぶつかる。偽の時計(frames)ではタイマーが先に走るので、
+    // setTimeout だけを本物の時計に残してフレームを先に進め、その順を作る
+    test('雨の日に扉の前で畳み終えた後、部屋へ移るまで扉を押し続けても、傘を畳み直さずに 1 回だけ部屋へ入る', async () => {
+      vi.useRealTimers()
+      startVillageClock(PHASE_CLOCKS.day, 'frames-real-timeouts')
+      const timeline = recordTimeline(document.body)
+      const weather = stubWeather('rain')
+      await page.viewport(1280, 720)
+      render(<VillagePageContainer {...villageJa} />)
+      // 起動の覆いは setTimeout で外れるので、この時計では本物の時間で待つ
+      await expect
+        .poll(() => document.getElementById('boot'), {
+          message: '起動の覆いが外れる',
+          timeout: SLACK_MS,
+        })
+        .toBeNull()
+      villageFrame().focus()
+      await expect.poll(() => weather.calls(), { message: '天気を問い合わせた' }).toBeGreaterThan(0)
+      expect(await walk(setId, 'ArrowDown', 3)).toBe(3)
+      await waitSince(timeline, 'sprite', OPEN_PREFIX, UMBRELLA_OPEN_MS)
+      // 上を押したままにする。上へ向き直って自宅の扉 (14,11) にぶつかり、畳み始める
+      await userEvent.keyboard('{ArrowUp>}')
+      await waitSince(timeline, 'sprite', CLOSE_PREFIX, 0)
+      // 畳み終えるまでフレームを進める。本物の時間はほとんど経たないので、部屋へ移すタイマーはまだ走らない
+      await advanceUntil(
+        () => villagePlayer().dataset.sprite === 'player-up-0',
+        '畳み終えて傘の無い上向きの立ち姿になる',
+        UMBRELLA_CLOSE_MS + SLACK_MS
+      )
+      expect(worldShown(), '前提: 畳み終えた時はまだ町にいる(タイマーより先にフレームが来た)').toBe(
+        'town'
+      )
+      const closedAt = performance.now()
+      // 畳み終えた後も押し続ける。足は扉へぶつかり続けるが、部屋へ移す処理を待っている間は畳み直さない
+      await runFor(FRAME_MS * 10)
+      expect(worldShown(), '前提: 押し続けた間もまだ町にいる').toBe('town')
+      // 本物の時間でタイマーが走るのを待ち、部屋へ移す
+      await new Promise(resolve => setTimeout(resolve, UMBRELLA_CLOSE_MS))
+      await advanceUntil(() => worldShown() === 'room', '部屋へ移る')
+      await advanceUntil(() => cellText() === JSON.stringify(ROOM_ENTRY), '部屋の出口手前に立つ')
+      await userEvent.keyboard('{/ArrowUp}')
+
+      const visits = visitsOf(timeline)
+      expect(
+        visits.map(visit => visit.world),
+        '部屋へは 1 回だけ入る'
+      ).toEqual(['room', 'town', 'room'])
+      const afterClosed = visits[1].keys.filter(({ at }) => at >= closedAt)
+      expect(
+        keysStartingWith(afterClosed, UMBRELLA_PREFIX),
+        '畳み終えた後に町で描いた傘のコマ'
+      ).toEqual([])
     })
   })
 
@@ -2145,6 +2297,214 @@ describe('画面の大きさ・窓・時計・昼夜', () => {
         expect(bubble.right, '吹き出しの右端が枠の中').toBeLessThanOrEqual(stage.right)
       })
     })
+
+    // ここから下の 5 件は tests/journey.spec.ts が見ている窓の中の操作(Z/X・本文送り・地図の方向キー)のうち、
+    // 窓のフック(use-village-buttons・use-held-scroll・use-map-focus)の分岐を統合で通すもの。journey の行き先は
+    // この段では決めていないので、journey はそのまま残す(ADR 0018)
+    test('Z(画面の A)は歩いている時は話しかけ、会話中は次の地点へ進み、X(画面の B)は歩いている時は何もせず会話中は閉じる', async () => {
+      await renderVillage()
+      await expect
+        .poll(() => document.querySelector('[data-village-bubble]'), {
+          message: '出発の机の前で吹き出しが出る',
+          timeout: 3_000,
+        })
+        .not.toBeNull()
+      villageFrame().focus()
+      const dialog = page.getByRole('dialog')
+      // 歩いている時の X は閉じる窓が無いので何もしない
+      await userEvent.keyboard('x')
+      await runFor(FRAME_MS * SETTLE_FRAMES)
+      expect(
+        document.querySelector('[role="dialog"]'),
+        '歩いている時の X では窓が開かない'
+      ).toBeNull()
+      await expectFrameFocused('X の後も焦点は村の枠')
+      // 歩いている時の Z は話しかける(E と同じ)
+      await userEvent.keyboard('z')
+      await expect
+        .element(dialog.getByRole('heading', { name: text.stops.home.title }), {
+          message: 'Z で机に話しかけ、会話窓の見出しに焦点がある',
+        })
+        .toHaveFocus()
+      // 焦点がボタンでない(見出しの)時の Z は、窓の「次へ」と同じ行き先へ進む
+      await userEvent.keyboard('z')
+      await expect
+        .element(dialog.getByRole('heading', { name: text.stops.meishi.title }), {
+          message: '会話中の Z で次の地点(名刺工房)へ進む',
+          timeout: 10_000,
+        })
+        .toBeVisible()
+      // 会話中の X は窓を閉じる
+      await userEvent.keyboard('x')
+      await expect.element(dialog).not.toBeInTheDocument()
+    })
+
+    test('会話窓は下の押しっぱなしで本文を送り切ってから操作へ焦点を渡し、上で 1 つずつ戻って見出しへ帰り、本文も巻き戻る', async () => {
+      // 本文が窓より長くなる狭い画面で開く
+      await page.viewport(390, 664)
+      await renderVillage()
+      await userEvent.keyboard('e')
+      const dialog = page.getByRole('dialog')
+      const title = dialog.getByRole('heading', { name: text.stops.home.title })
+      await expect.element(title, { message: '開いた直後の焦点は見出し' }).toHaveFocus()
+      const panel = queryOne('[data-village-panel]', dialog.element())
+      expect(panel.scrollHeight, '本文が窓より長い(送る余地がある)').toBeGreaterThan(
+        panel.clientHeight
+      )
+      const items = Array.from(
+        dialog.element().querySelectorAll<HTMLElement>(STOP_FOCUSABLE_SELECTOR)
+      )
+      expect(items.length, '焦点を移せる操作が 2 つ以上ある').toBeGreaterThanOrEqual(2)
+      const expectFocusOn = (element: Element, message: string) =>
+        expect.element(page.elementLocator(element), { message }).toHaveFocus()
+
+      // 下を押し続けると本文が送られ、送り切ったフレームで先頭の操作へ焦点が渡る
+      await userEvent.keyboard('{ArrowDown>}')
+      await expect
+        .poll(() => panel.scrollTop, { message: '押している間は本文が送られる' })
+        .toBeGreaterThan(0)
+      await expectFocusOn(items[0], '送り切ると先頭の操作へ焦点が移る')
+      // 押し続けても次の操作へは流れない(前へ渡すのは押した瞬間だけ)
+      await runFor(FRAME_MS * SETTLE_FRAMES)
+      expect(document.activeElement, '押し続けても先頭の操作に留まる').toBe(items[0])
+      await userEvent.keyboard('{/ArrowDown}')
+
+      // 押し直すたびに下は 1 つ先へ、上は 1 つ前へ
+      await tapHeld('ArrowDown')
+      await expectFocusOn(items[1], '下をもう 1 回で次の操作へ')
+      await tapHeld('ArrowUp')
+      await expectFocusOn(items[0], '上 1 回で 1 つ前へ')
+      // 先頭から上は本文(見出し)へ戻り、押し続ければ本文が先頭まで巻き戻る
+      await userEvent.keyboard('{ArrowUp>}')
+      await expectFocusOn(title.element(), '先頭の操作から上で見出しへ戻る')
+      await expect
+        .poll(() => panel.scrollTop, {
+          message: '上を押し続けると本文が先頭まで巻き戻る',
+          timeout: 5_000,
+        })
+        .toBe(0)
+      await userEvent.keyboard('{/ArrowUp}')
+    })
+
+    // 拡大地図の地点の印(字 + 番号の札)は、隣り合うマスの地点どうしで重なるので実測でずらして離す。
+    // ずらす量は px なので、開いたまま画面の大きさが変わると測り直さないと重なる
+    test('拡大地図を開いたまま画面の大きさが変わっても、地点の印どうしは重ならない', async () => {
+      await renderVillage()
+      await walkOutToTown()
+      await userEvent.keyboard('m')
+      const map = page.getByRole('dialog')
+      await expect.element(map.getByRole('heading', { name: text.mapTitle })).toBeVisible()
+      // 印は字と札を合わせた範囲(ボタンの子の外接矩形。札はボタンの外へはみ出す)
+      const badgeBoxes = () =>
+        Array.from(map.element().querySelectorAll('[data-spot-id]')).map(spot => {
+          const rects = Array.from(spot.children).map(child => child.getBoundingClientRect())
+          return {
+            id: spot.getAttribute('data-spot-id'),
+            left: Math.min(...rects.map(rect => rect.left)),
+            right: Math.max(...rects.map(rect => rect.right)),
+            top: Math.min(...rects.map(rect => rect.top)),
+            bottom: Math.max(...rects.map(rect => rect.bottom)),
+          }
+        })
+      // 重なっている印の組(接するだけは数えない)
+      const overlapping = () => {
+        const boxes = badgeBoxes()
+        return boxes.flatMap((a, index) =>
+          boxes
+            .slice(index + 1)
+            .filter(
+              b => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
+            )
+            .map(b => `${a.id}/${b.id}`)
+        )
+      }
+      expect(badgeBoxes().length, '地図に地点の印が並ぶ').toBeGreaterThanOrEqual(2)
+      expect(overlapping(), '開いた時、印どうしは重ならない').toEqual([])
+      await page.viewport(390, 664)
+      await runFor(FRAME_MS * SETTLE_FRAMES)
+      expect(overlapping(), '小さい画面へ変えた後も、印どうしは重ならない').toEqual([])
+    })
+
+    test('本文が窓に収まる会話窓では、下を押した瞬間に先頭の操作へ焦点が渡る', async () => {
+      await renderVillage()
+      await userEvent.keyboard('e')
+      const dialog = page.getByRole('dialog')
+      await expect
+        .element(dialog.getByRole('heading', { name: text.stops.home.title }))
+        .toHaveFocus()
+      const panel = queryOne('[data-village-panel]', dialog.element())
+      expect(panel.scrollHeight, '本文が窓に収まっている(送る余地が無い)').toBeLessThanOrEqual(
+        panel.clientHeight
+      )
+      // 送る本文が無いので、押した瞬間(押し直し)に先頭の操作へ渡す
+      await tapHeld('ArrowDown')
+      await expect
+        .element(page.elementLocator(queryOne(STOP_FOCUSABLE_SELECTOR, dialog.element())), {
+          message: '下を押した瞬間に先頭の操作へ焦点が移る',
+        })
+        .toHaveFocus()
+    })
+
+    test('拡大地図は方向キーでその向きの地点へ焦点を移し、M で閉じる', async () => {
+      await renderVillage()
+      await walkOutToTown()
+      await userEvent.keyboard('m')
+      const map = page.getByRole('dialog')
+      await expect.element(map.getByRole('heading', { name: text.mapTitle })).toBeVisible()
+      const focusedSpot = () =>
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement.dataset.spotId
+          : undefined
+      // 地図を開いた直後は番号 1(自室)の印に焦点がある
+      const entries = mapEntries(villageJa.worldSet, villageJa.worldSet.worlds.town, new Set())
+      const first = entries[0]
+      await expect.poll(focusedSpot, { message: '開いた直後の焦点は番号 1 の地点' }).toBe(first.id)
+      // 焦点が地点に無い(並びの先頭の閉じるボタンの)時は、Tab と同じく番号 1 の地点から入る
+      await userEvent.tab({ shift: true })
+      await expect
+        .element(map.getByRole('button', { name: text.closeMap }), {
+          message: '番号 1 の地点の前は閉じるボタン',
+        })
+        .toHaveFocus()
+      await userEvent.keyboard('{ArrowRight}')
+      await expect
+        .poll(focusedSpot, { message: '閉じるボタンから方向キーで番号 1 の地点へ' })
+        .toBe(first.id)
+      // 右か下のうち、実際に地点がある向きを町のデータから選ぶ(tests/journey.spec.ts と同じ選び方)
+      const moves: { key: WalkKey; spot: MapEntry | null }[] = [
+        { key: 'ArrowRight', spot: spotToward(entries, first.id, 'right') },
+        { key: 'ArrowDown', spot: spotToward(entries, first.id, 'down') },
+      ]
+      const move = moves.find(candidate => candidate.spot !== null)
+      if (move === undefined || move.spot === null) {
+        throw new Error('最初の地点の右にも下にも地点が無い')
+      }
+      const moved = move.spot
+      expect(moved.id).not.toBe(first.id)
+      await userEvent.keyboard(`{${move.key}}`)
+      await expect
+        .poll(focusedSpot, { message: 'その向きで最も近い地点へ焦点が移る' })
+        .toBe(moved.id)
+      // 押した向きに地点が無ければ、焦点は動かない
+      const DIRECTIONS = {
+        ArrowUp: 'up',
+        ArrowDown: 'down',
+        ArrowLeft: 'left',
+        ArrowRight: 'right',
+      } as const
+      const dead = (Object.keys(DIRECTIONS) as WalkKey[]).find(
+        key => spotToward(entries, moved.id, DIRECTIONS[key]) === null
+      )
+      if (dead === undefined) throw new Error(`${moved.id} からはどの向きにも地点がある`)
+      await userEvent.keyboard(`{${dead}}`)
+      await runFor(FRAME_MS * SETTLE_FRAMES)
+      expect(focusedSpot(), 'その向きに地点が無ければ焦点は動かない').toBe(moved.id)
+      // 焦点が移っただけで地図は閉じない。M は開閉の切り替えで、地図の中でも閉じる
+      await expect.element(map.getByRole('heading', { name: text.mapTitle })).toBeVisible()
+      await userEvent.keyboard('m')
+      await expect.element(map).not.toBeInTheDocument()
+      await expectFrameFocused('閉じると村の枠へ焦点が戻る')
+    })
   })
 
   describe('卓上時計(tests/clock.spec.ts)', () => {
@@ -2435,6 +2795,71 @@ describe('画面の大きさ・窓・時計・昼夜', () => {
       await expect.element(clockWindow()).not.toBeInTheDocument()
       await runFor(FRAME_MS * SETTLE_FRAMES)
       expect(phase(), '2 段目を閉じただけでは段階が変わらない').toBe('day')
+    })
+
+    // 窓の見出し(焦点を持たない所)を押すと、焦点は窓を含む村の枠へ移る。そこから方向・Z を使った時の分岐を見る
+    test('焦点が窓の外(村の枠)にある時、方向は進むなら先頭・戻るなら末尾のボタンから入り、Z は何も押さない', async () => {
+      await startAtClock()
+      const heading = () => clockWindow().getByRole('heading', { name: clock.place })
+
+      await openClock()
+      await expect.element(clockWindow()).toHaveAttribute('data-step', 'choose')
+      await userEvent.click(heading())
+      await expect.element(frame(), { message: '見出しを押すと焦点は村の枠へ移る' }).toHaveFocus()
+      // 焦点がボタンに無い時の Z は押す物が無く、時計の窓には「次へ」も無いので何もしない
+      await userEvent.keyboard('z')
+      await runFor(FRAME_MS * SETTLE_FRAMES)
+      await expect
+        .element(clockWindow(), { message: '窓は 1 段目のまま開いている' })
+        .toHaveAttribute('data-step', 'choose')
+
+      // 戻る向き(上)は並びの末尾から入る
+      await tapHeld('ArrowUp')
+      await expect
+        .element(button(clock.cancel), { message: '窓の外から上で末尾のやめるへ' })
+        .toHaveFocus()
+      // 進む向き(下)は並びの先頭から入る
+      await userEvent.click(heading())
+      await expect.element(frame()).toHaveFocus()
+      await tapHeld('ArrowDown')
+      await expect
+        .element(button(clock.realtime), { message: '窓の外から下で先頭の現在時間へ' })
+        .toHaveFocus()
+    })
+
+    // スティックと同じ押しっぱなしの経路(村の枠が受けた WASD を runtime の scrollHeld へ書き、窓が rAF で読む)を、
+    // キーボードで通して見る。スティックそのものは下の「スティックと A/B」が見る
+    test('2 段目の窓は押しっぱなしの向き(WASD)で時が進み続け、離すと止まる', async () => {
+      await startAtClock()
+
+      await openClock()
+      await clickButton(clock.custom)
+      await expect.element(clockWindow()).toHaveAttribute('data-step', 'pick')
+      await expectPicked('18', '00')
+
+      // 右(D)を押したまま離さない。押した瞬間に 1 つ、少し待ってからは繰り返して進む
+      await userEvent.keyboard('{d>}')
+      // 押した瞬間の 1 つを処理させてから数える。繰り返しはまだ始まらないので、ここではちょうど 1 つ
+      await runFor(FRAME_MS * 2)
+      await expect.poll(hourSteps, { message: '押した瞬間にちょうど 1 つ進む' }).toBe(1)
+      await expect
+        .poll(hourSteps, { message: '押し続けると繰り返して進む', timeout: 3_000 })
+        .toBeGreaterThanOrEqual(2)
+      await userEvent.keyboard('{/d}')
+
+      // 離した後は止まる。止まった値を決定の一言と突き合わせる。押し続けていれば繰り返しの間隔(2 段目は 120ms)ごとに
+      // 進むので、その 2 回ぶんを超える 20 フレーム(約 333ms)の間に進まないことを見る
+      await runFor(FRAME_MS * 2)
+      const hour = hourOf()
+      await runFor(FRAME_MS * 20)
+      expect(hourOf(), '離した後は進まない').toBe(hour)
+
+      await userEvent.keyboard('z')
+      await expect.element(clockWindow()).not.toBeInTheDocument()
+      await expect.poll(phase, { message: 'Z で決定されて昼から変わる' }).not.toBe('day')
+      await expect
+        .element(page.getByRole('status'))
+        .toHaveTextContent(clock.setCustom.replace('{time}', `${hour}:00`))
     })
 
     // タッチ端末ではキーボードが無く、窓の操作は操作帯のスティックと A/B だけになる。寸法と入力種別は E2E と同じ縦持ち 390×664。
@@ -2856,6 +3281,22 @@ describe('画面の大きさ・窓・時計・昼夜', () => {
       unavailable = false
       vi.advanceTimersByTime(CHECK_INTERVAL_MS)
       await expect.poll(phase, { message: '届くようになった次の確かめで夜へ移る' }).toBe('night')
+    })
+
+    // 実際の段階の表は全段階のシートを持つので作れない。夜を抜いた表を props で渡し、描く絵の無い段階へ移らないことを見る
+    test('段階のシートの表に無い段階へは移らず、直前の段階を残す', async () => {
+      routeSheets(async () => {})
+      startVillageClock(START, 'phase-check')
+      await renderVillage({
+        phaseSheets: villageJa.phaseSheets.filter(sheet => sheet.phase !== 'night'),
+      })
+      expect(phase(), '開いた時は昼').toBe('day')
+      vi.advanceTimersByTime(TWO_HOURS_LATER)
+      await runFor(FRAME_MS * SETTLE_FRAMES)
+      expect(phase(), '描くシートの無い夜へは移らない').toBe('day')
+      // 同じ表でも、シートのある段階へは移る(表を絞ったせいで段階が全く動かないのではない)
+      vi.advanceTimersByTime(10 * 60 * 60 * 1000)
+      await expect.poll(phase, { message: '翌朝(明け方)のシートはあるので移る' }).toBe('dawn')
     })
 
     test('夜の主人公の絵だけ遅れても、両方の絵が揃うまで昼を残す', async () => {
