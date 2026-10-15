@@ -174,6 +174,15 @@ export const playerOnScreen = () => {
   }
 }
 
+// ワールドのマスの真ん中が画面のどこに描かれているか(px)。ワールドの層の原点と --cell から出すので、
+// カメラが動いた後でも今描かれている位置を指す。押す位置を決める時に使う
+export const cellCenter = (cell: Cell) => {
+  const layer = worldLayer()
+  const origin = layer.getBoundingClientRect()
+  const size = parseFloat(getComputedStyle(layer).getPropertyValue('--cell'))
+  return { x: origin.x + (cell.x + 0.5) * size, y: origin.y + (cell.y + 0.5) * size }
+}
+
 // ---- 天気(通信の差し替え) ----
 
 // Open-Meteo の問い合わせ先の頭(src/lib/weather.ts が組み立てる URL の頭)
@@ -268,6 +277,13 @@ export const mouse = {
       buttons: 0,
       clickCount: 1,
     }),
+}
+
+// 左ボタンで 1 回押す(E2E の page.mouse.click)
+export const click = async (x: number, y: number) => {
+  await mouse.move(x, y, false)
+  await mouse.down(x, y)
+  await mouse.up(x, y)
 }
 
 // 指を 1 本置く・動かす・離す。emulateTouch の後で使う
