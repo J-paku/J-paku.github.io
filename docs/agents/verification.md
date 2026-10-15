@@ -48,7 +48,7 @@ last_reviewed: 2026-10-14
   変異体を全部走らせるのは週1回、手で `npm run test:mutation -- --force`([../decisions/0013-incremental-mutation-on-push.md](../decisions/0013-incremental-mutation-on-push.md))
 
 `npm run typecheck` を入れないのは、`npm run build` の `next build` が同じ `tsconfig.json` で型を検査するから。
-2026-10-11 に src のソース・単体テスト(`src/lib/village/is-moving.test.ts`)・E2E の spec(`tests/flight.spec.ts`)へそれぞれわざと型の誤りを入れ、`tsc --noEmit` と `next build` が3つとも同じ誤り(TS2322)で落ちるのを確かめた。
+2026-10-11 に src のソース・単体テスト(`src/lib/village/is-moving.test.ts`)・E2E の spec(当時の flight の spec。2026-10-15 に統合テストへ移して消した)へそれぞれわざと型の誤りを入れ、`tsc --noEmit` と `next build` が3つとも同じ誤り(TS2322)で落ちるのを確かめた。
 `typecheck` は反復中の速い確認として上の表に残す。
 
 表が指していないかぎり、**E2E の全体・変異テスト・axe・Lighthouse CI・日本語改行検査は手元で走らせない。**
