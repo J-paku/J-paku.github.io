@@ -31,15 +31,15 @@ tests/       Playwright E2E
 
 App Router のルートグループを2本持ち、同じサーバコンポーネントを locale 違いで呼ぶ。
 
-| URL | ファイル | 画面 |
-|---|---|---|
-| `/` | `src/app/(ja)/page.tsx` | 村 |
-| `/ko/` | `src/app/(ko)/ko/page.tsx` | 村 |
-| `/list/` | `src/app/(ja)/list/page.tsx` | 一覧 |
-| `/ko/list/` | `src/app/(ko)/ko/list/page.tsx` | 一覧 |
-| `/works/<slug>/` | `src/app/(ja)/works/[slug]/page.tsx` | 作品ストーリー |
+| URL                 | ファイル                                | 画面           |
+| ------------------- | --------------------------------------- | -------------- |
+| `/`                 | `src/app/(ja)/page.tsx`                 | 村             |
+| `/ko/`              | `src/app/(ko)/ko/page.tsx`              | 村             |
+| `/list/`            | `src/app/(ja)/list/page.tsx`            | 一覧           |
+| `/ko/list/`         | `src/app/(ko)/ko/list/page.tsx`         | 一覧           |
+| `/works/<slug>/`    | `src/app/(ja)/works/[slug]/page.tsx`    | 作品ストーリー |
 | `/ko/works/<slug>/` | `src/app/(ko)/ko/works/[slug]/page.tsx` | 作品ストーリー |
-| 404 | `public/404.html` | 二言語の 404 |
+| 404                 | `public/404.html`                       | 二言語の 404   |
 
 - `trailingSlash: true` なので `/ko/list/` は `out/ko/list/index.html` という実ファイルになる
 - `<slug>` は `generateStaticParams` が列挙し、`dynamicParams = false` で未知の slug は 404

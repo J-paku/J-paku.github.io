@@ -12,12 +12,12 @@ last_reviewed: 2026-10-14
 画面は3つ。それぞれ `src/components/` 直下の1フォルダが本体で、`src/app/` 側はルート定義と、ja/ko が共有する枠・組み立て
 (`src/app/html-shell.tsx` / `src/app/locale-routes.tsx`)を持ち、画面本体は持たない。
 
-| 画面 | 本体 |
-|---|---|
-| 村 | `src/components/VillagePage/`(詳細は [village.md](village.md)) |
-| 一覧 | `src/components/Directory/` |
-| 作品ストーリー | `src/components/Story/` |
-| 横断部品 | `src/components/ui/`(複数の画面にまたがって使う部品か、2箇所以上から使う部品を置く。同じ画面の中の2箇所でもよい。全画面に掛かる殻(`src/app/html-shell.tsx`)や他の横断部品から使う部品は、import が1箇所でも複数の画面にまたがるものとして数える) |
+| 画面           | 本体                                                                                                                                                                                                                                             |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 村             | `src/components/VillagePage/`(詳細は [village.md](village.md))                                                                                                                                                                                   |
+| 一覧           | `src/components/Directory/`                                                                                                                                                                                                                      |
+| 作品ストーリー | `src/components/Story/`                                                                                                                                                                                                                          |
+| 横断部品       | `src/components/ui/`(複数の画面にまたがって使う部品か、2箇所以上から使う部品を置く。同じ画面の中の2箇所でもよい。全画面に掛かる殻(`src/app/html-shell.tsx`)や他の横断部品から使う部品は、import が1箇所でも複数の画面にまたがるものとして数える) |
 
 どこまでがサーバで、どこからがクライアントの島かは [boundaries.md](boundaries.md) にまとめてある。
 
@@ -27,12 +27,12 @@ last_reviewed: 2026-10-14
 
 画面の3つと、複数の画面にまたがり外の I/O に触れる横断部品の3つは、ファイルを役割で分ける([ADR 0017](../decisions/0017-screen-containers.md))。
 
-| ファイル | 役割 | 置く所 |
-|---|---|---|
-| `index.tsx`(画面のローダー) | サーバでしかできないことだけを行う。content の読み出し(`@/lib/content/read`)・`node:` のモジュールを使うスプライトの生成・`notFound()`・初回の HTML に必ず要るインラインの `<style>`・`<script>`。直列化できる props で `./container` を描く | 画面の3つ(`src/components/VillagePage/`・`src/components/Directory/`・`src/components/Story/`)。ルート(`src/app/`)はこれを import する |
-| `container.tsx`(コンテナ) | 画面の組み立て(静的なマークアップを含む)。画面の状態・データのフックとストアを呼び、外の世界に触れる import を持つ。フックが無くてもよい | 画面の3つと、横断部品の `src/components/ui/SettingsMenu/`・`src/components/ui/PageviewCounter/`・`src/components/ui/ScenePlayer/` |
-| コンテナの隣の `hooks` フォルダ | 外の世界に触れるフックを置いてよい唯一の所。画面のフォルダの直下のもの(`src/components/VillagePage/hooks/`)は画面の状態・データのフックで、コンテナだけが呼ぶ | `src/components/VillagePage/hooks/`・`src/components/ui/SettingsMenu/hooks/`・`src/components/ui/ScenePlayer/hooks/` |
-| 表示部品(上のどれでもない `.tsx` と `src/hooks/`) | 受け取った props を描く。その部品の DOM の中で閉じる UI のフック(フォーカス・スクロール・観察器・外側の押下で閉じるなど)は使ってよい | それ以外の全部 |
+| ファイル                                          | 役割                                                                                                                                                                                                                                         | 置く所                                                                                                                                 |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `index.tsx`(画面のローダー)                       | サーバでしかできないことだけを行う。content の読み出し(`@/lib/content/read`)・`node:` のモジュールを使うスプライトの生成・`notFound()`・初回の HTML に必ず要るインラインの `<style>`・`<script>`。直列化できる props で `./container` を描く | 画面の3つ(`src/components/VillagePage/`・`src/components/Directory/`・`src/components/Story/`)。ルート(`src/app/`)はこれを import する |
+| `container.tsx`(コンテナ)                         | 画面の組み立て(静的なマークアップを含む)。画面の状態・データのフックとストアを呼び、外の世界に触れる import を持つ。フックが無くてもよい                                                                                                     | 画面の3つと、横断部品の `src/components/ui/SettingsMenu/`・`src/components/ui/PageviewCounter/`・`src/components/ui/ScenePlayer/`      |
+| コンテナの隣の `hooks` フォルダ                   | 外の世界に触れるフックを置いてよい唯一の所。画面のフォルダの直下のもの(`src/components/VillagePage/hooks/`)は画面の状態・データのフックで、コンテナだけが呼ぶ                                                                                | `src/components/VillagePage/hooks/`・`src/components/ui/SettingsMenu/hooks/`・`src/components/ui/ScenePlayer/hooks/`                   |
+| 表示部品(上のどれでもない `.tsx` と `src/hooks/`) | 受け取った props を描く。その部品の DOM の中で閉じる UI のフック(フォーカス・スクロール・観察器・外側の押下で閉じるなど)は使ってよい                                                                                                         | それ以外の全部                                                                                                                         |
 
 - コンテナを置くのは上の6つだけ(一覧の正本は `scripts/container-dirs.mjs`。一覧の外の `container.tsx` と、一覧のフォルダに `container.tsx` が無いことを `npm run test:boundary` が落とす)。
   フックを持つからコンテナにするのではなく、役割(画面か、外の I/O に触れる横断部品か)で決める。足すなら一覧と [ADR 0017](../decisions/0017-screen-containers.md) の D1 を直す

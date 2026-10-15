@@ -28,32 +28,32 @@ Next.js 16(App Router)の静的エクスポートで、サーバもデータベ�
 
 左の行にひとつ当てはまったら、そこに挙がっている文書だけを読む。複数当てはまるときだけ足す。
 
-| 作業 | 読む文書 |
-|---|---|
-| 表示文字列・作品・経歴・スキルの追加/修正 | [content/AGENTS.md](content/AGENTS.md) → [docs/product/domain-model.md](docs/product/domain-model.md) |
-| 村の地形・会話地点・移動・当たり判定 | [docs/architecture/village.md](docs/architecture/village.md) → [content/AGENTS.md](content/AGENTS.md) |
-| ドット絵・スプライトシート・パレット(昼夜・天気) | [src/lib/pixel/AGENTS.md](src/lib/pixel/AGENTS.md) → [docs/architecture/village.md](docs/architecture/village.md) |
-| 村の画面・操作帯・会話窓・地図の UI | [src/components/VillagePage/AGENTS.md](src/components/VillagePage/AGENTS.md) |
-| 一覧(`/list`)・作品ストーリー(`/works/<slug>`)の UI | [docs/architecture/frontend.md](docs/architecture/frontend.md) |
-| コンポーネント・フックを新しく作る/分ける/移す | [docs/architecture/frontend.md](docs/architecture/frontend.md) → [docs/development/coding-guidelines.md](docs/development/coding-guidelines.md) |
-| どのファイルがどの画面のものか分からない | [docs/product/feature-map.md](docs/product/feature-map.md) |
-| 語の意味が分からない(地点・ワールド・作品・経歴) | [docs/product/terminology.md](docs/product/terminology.md) |
-| 色・テーマ・CSS Modules の書き方 | [docs/architecture/frontend.md](docs/architecture/frontend.md) |
-| ルーティング・メタデータ・言語切り替え | [docs/architecture/overview.md](docs/architecture/overview.md) |
-| ブラウザ保存・外部 API 取得・コンテンツ読み込み | [docs/architecture/data-flow.md](docs/architecture/data-flow.md) |
-| 外部通信・実画面のキャプチャを足してよいか | [docs/quality/security.md](docs/quality/security.md) → [docs/architecture/data-flow.md](docs/architecture/data-flow.md) |
-| import の向き・レイヤー・コンテナと表示部品・server/client 境界 | [docs/architecture/boundaries.md](docs/architecture/boundaries.md) |
-| テストの追加・修正 | [docs/quality/test-strategy.md](docs/quality/test-strategy.md) |
-| テスト・E2E が落ちる | [docs/quality/test-strategy.md](docs/quality/test-strategy.md) → [docs/development/debugging.md](docs/development/debugging.md) |
-| アクセシビリティ(axe が落ちた・読み上げ) | [docs/quality/accessibility.md](docs/quality/accessibility.md) |
-| 日本語の改行・禁則が崩れた | [docs/quality/japanese-typography.md](docs/quality/japanese-typography.md) |
-| 描画が重い・入力が落ちる・転送量 | [docs/quality/performance.md](docs/quality/performance.md) |
-| CI・GitHub Pages への配信・切り戻し | [docs/operations/deployment.md](docs/operations/deployment.md) |
-| 環境構築・コマンドが分からない | [docs/development/setup.md](docs/development/setup.md) → [docs/development/commands.md](docs/development/commands.md) |
-| 設定ファイル・依存の版を変える | [docs/agents/verification.md](docs/agents/verification.md) |
-| 文書そのものを直す | [docs/README.md](docs/README.md)(直したら `npm run docs:check`) |
-| 動かない原因を調べる | [docs/development/debugging.md](docs/development/debugging.md) |
-| 「なぜこの作りなのか」を知りたい・既存の設計を置き換えたい | [docs/decisions/README.md](docs/decisions/README.md) |
+| 作業                                                            | 読む文書                                                                                                                                        |
+| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| 表示文字列・作品・経歴・スキルの追加/修正                       | [content/AGENTS.md](content/AGENTS.md) → [docs/product/domain-model.md](docs/product/domain-model.md)                                           |
+| 村の地形・会話地点・移動・当たり判定                            | [docs/architecture/village.md](docs/architecture/village.md) → [content/AGENTS.md](content/AGENTS.md)                                           |
+| ドット絵・スプライトシート・パレット(昼夜・天気)                | [src/lib/pixel/AGENTS.md](src/lib/pixel/AGENTS.md) → [docs/architecture/village.md](docs/architecture/village.md)                               |
+| 村の画面・操作帯・会話窓・地図の UI                             | [src/components/VillagePage/AGENTS.md](src/components/VillagePage/AGENTS.md)                                                                    |
+| 一覧(`/list`)・作品ストーリー(`/works/<slug>`)の UI             | [docs/architecture/frontend.md](docs/architecture/frontend.md)                                                                                  |
+| コンポーネント・フックを新しく作る/分ける/移す                  | [docs/architecture/frontend.md](docs/architecture/frontend.md) → [docs/development/coding-guidelines.md](docs/development/coding-guidelines.md) |
+| どのファイルがどの画面のものか分からない                        | [docs/product/feature-map.md](docs/product/feature-map.md)                                                                                      |
+| 語の意味が分からない(地点・ワールド・作品・経歴)                | [docs/product/terminology.md](docs/product/terminology.md)                                                                                      |
+| 色・テーマ・CSS Modules の書き方                                | [docs/architecture/frontend.md](docs/architecture/frontend.md)                                                                                  |
+| ルーティング・メタデータ・言語切り替え                          | [docs/architecture/overview.md](docs/architecture/overview.md)                                                                                  |
+| ブラウザ保存・外部 API 取得・コンテンツ読み込み                 | [docs/architecture/data-flow.md](docs/architecture/data-flow.md)                                                                                |
+| 外部通信・実画面のキャプチャを足してよいか                      | [docs/quality/security.md](docs/quality/security.md) → [docs/architecture/data-flow.md](docs/architecture/data-flow.md)                         |
+| import の向き・レイヤー・コンテナと表示部品・server/client 境界 | [docs/architecture/boundaries.md](docs/architecture/boundaries.md)                                                                              |
+| テストの追加・修正                                              | [docs/quality/test-strategy.md](docs/quality/test-strategy.md)                                                                                  |
+| テスト・E2E が落ちる                                            | [docs/quality/test-strategy.md](docs/quality/test-strategy.md) → [docs/development/debugging.md](docs/development/debugging.md)                 |
+| アクセシビリティ(axe が落ちた・読み上げ)                        | [docs/quality/accessibility.md](docs/quality/accessibility.md)                                                                                  |
+| 日本語の改行・禁則が崩れた                                      | [docs/quality/japanese-typography.md](docs/quality/japanese-typography.md)                                                                      |
+| 描画が重い・入力が落ちる・転送量                                | [docs/quality/performance.md](docs/quality/performance.md)                                                                                      |
+| CI・GitHub Pages への配信・切り戻し                             | [docs/operations/deployment.md](docs/operations/deployment.md)                                                                                  |
+| 環境構築・コマンドが分からない                                  | [docs/development/setup.md](docs/development/setup.md) → [docs/development/commands.md](docs/development/commands.md)                           |
+| 設定ファイル・依存の版を変える                                  | [docs/agents/verification.md](docs/agents/verification.md)                                                                                      |
+| 文書そのものを直す                                              | [docs/README.md](docs/README.md)(直したら `npm run docs:check`)                                                                                 |
+| 動かない原因を調べる                                            | [docs/development/debugging.md](docs/development/debugging.md)                                                                                  |
+| 「なぜこの作りなのか」を知りたい・既存の設計を置き換えたい      | [docs/decisions/README.md](docs/decisions/README.md)                                                                                            |
 
 どれにも当てはまらないときだけ [docs/README.md](docs/README.md)(文書全体の地図)を開く。
 
