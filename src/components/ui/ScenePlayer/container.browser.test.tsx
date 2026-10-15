@@ -186,6 +186,63 @@ test('場面の並びを渡し直すと、URL が替わった場面だけを取�
   expect(requested, '取りに行くのは URL が替わった場面だけ').toEqual([nextScenes[2].image])
 })
 
+test('渡し直す前の並びの取得が後から届いても、新しい並びの絵を前の絵や失敗で上書きしない', async () => {
+  const scenes = makeScenes()
+  // 最初の並びの取得は、テストが手放すまで返さずに留める(URL のパスごとに、返す口と落とす口を覚える)
+  const held = new Map<
+    string,
+    { resolve: (response: Response) => void; reject: (reason: Error) => void }
+  >()
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(
+      (input: RequestInfo | URL) =>
+        new Promise<Response>((resolve, reject) => {
+          held.set(new URL(new Request(input).url).pathname, { resolve, reject })
+        })
+    )
+  )
+  const { rerender } = render(
+    <ScenePlayer scenes={scenes} activeIndex={0} placeholder={PLACEHOLDER} />
+  )
+  await expect.poll(() => held.size, { message: '最初の並びの3場面を取りに行く' }).toBe(3)
+  const heldOf = (scene: WorkStoryScene) => {
+    const entry = held.get(scene.image)
+    if (entry === undefined) throw new Error(`${scene.image} の取得を留めていない`)
+    return entry
+  }
+
+  // 2つ目・3つ目の場面だけ URL と絵を替えて渡し直す。1つ目は同じ URL なので、留めている取得を新しい並びも待ち合わせる
+  const nextArts = [ART[0], `${ART[1]} v2`, `${ART[2]} v2`]
+  const nextScenes = scenes.map(scene =>
+    scene.id === 'scene-1'
+      ? { ...scene }
+      : { ...scene, image: scene.image.replace('.svg', '-v2.svg') }
+  )
+  const requested = stubSceneFetch(nextScenes, {}, nextArts)
+  rerender(<ScenePlayer scenes={nextScenes} activeIndex={0} placeholder={PLACEHOLDER} />)
+  await waitForArt([nextArts[1], nextArts[2]])
+
+  // 前の並びの取得を遅れて返す。2つ目は通信の失敗、3つ目は前の絵。最後に返す1つ目は新しい並びも待っている取得なので、
+  // その絵が出た時には、先に返した2つの結果も届き終えている(同じ形の Promise の連なりを先に返したため)
+  heldOf(scenes[1]).reject(new TypeError('Failed to fetch'))
+  heldOf(scenes[2]).resolve(
+    new Response(svgOf(ART[2]), { headers: { 'content-type': 'image/svg+xml' } })
+  )
+  heldOf(scenes[0]).resolve(
+    new Response(svgOf(ART[0]), { headers: { 'content-type': 'image/svg+xml' } })
+  )
+  await waitForArt([ART[0]])
+
+  expect(placeholders().elements(), '前の並びの失敗で新しい絵を文言に替えない').toHaveLength(0)
+  expect(artOf(ART[2]).query(), '前の並びの絵で新しい絵を上書きしない').toBeNull()
+  await waitForArt([nextArts[1], nextArts[2]])
+  expect(requested, '新しく取りに行くのは URL が替わった2場面だけ').toEqual([
+    nextScenes[1].image,
+    nextScenes[2].image,
+  ])
+})
+
 test('見せる場面を送るとその場面へクロスフェードし、入れ替わった2場面の絵だけを頭から組み直す', async () => {
   const scenes = makeScenes()
   const requested = stubSceneFetch(scenes)
