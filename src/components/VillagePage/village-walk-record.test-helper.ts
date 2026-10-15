@@ -13,6 +13,16 @@ const observe = (target: Node, callback: MutationCallback, options: MutationObse
   onTestFinished(() => observer.disconnect())
 }
 
+// 窓へ捕捉段のリスナーを付け、テストの終わりに外す
+const listen = <K extends keyof WindowEventMap>(
+  type: K,
+  listener: (event: WindowEventMap[K]) => void
+) => {
+  const controller = new AbortController()
+  window.addEventListener(type, listener, { capture: true, signal: controller.signal })
+  onTestFinished(() => controller.abort())
+}
+
 // ある属性の書き換えを順に控える。values は書かれた値の並び(同じ値の重複も残す)
 export type AttributeMark = { value: string; at: number }
 
@@ -77,4 +87,41 @@ export const recordLineMounts = (world: HTMLElement): string[] => {
     { childList: true }
   )
   return mounts
+}
+
+// ---- 傘の時系列 ----
+
+// sprite は主人公の data-sprite、world はワールドの層の data-world、key は「keydown:ArrowUp」の形の押し離し
+export type TimelineKind = 'sprite' | 'world' | 'key'
+export type TimelineEntry = { kind: TimelineKind; value: string; at: number }
+
+// root の下の主人公のコマ・ワールドの印と、キーの押し離しを 1 本の時系列に書き足す。
+// 主人公の要素が入れ替わっても拾えるよう root の下を丸ごと見る。描く前に呼ぶ
+export const recordTimeline = (root: Node): TimelineEntry[] => {
+  const timeline: TimelineEntry[] = []
+  observe(
+    root,
+    records => {
+      const at = performance.now()
+      for (const { target, name, value } of writtenValues(records)) {
+        const isWorld = name === 'data-world'
+        if (!isWorld && !target.matches('[data-village-player]')) continue
+        timeline.push({ kind: isWorld ? 'world' : 'sprite', value, at })
+      }
+    },
+    {
+      subtree: true,
+      attributes: true,
+      attributeOldValue: true,
+      attributeFilter: ['data-sprite', 'data-world'],
+    }
+  )
+  for (const type of ['keydown', 'keyup'] as const) {
+    listen(type, event => {
+      if (!event.repeat) {
+        timeline.push({ kind: 'key', value: `${type}:${event.key}`, at: performance.now() })
+      }
+    })
+  }
+  return timeline
 }

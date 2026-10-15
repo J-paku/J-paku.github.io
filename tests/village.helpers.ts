@@ -169,7 +169,7 @@ export const leaveRoom = async (page: Page) => {
 
 // 方向キーを 1 マス分だけ押して離す(walk と同じ押し方。始まった移動は離しても最後まで進む)。
 // walk と違って到着(保存位置の変化)も描画も待たない。保存で到着を知れない spec(保存を塞ぐ
-// storage-blocked)や、到着と描画を待つと戻る頃には動きが進んでしまう spec(傘の umbrella)が使う
+// storage-blocked)が使う
 export const press = async (page: Page, key: WalkKey) => {
   await page.keyboard.down(key)
   await page.waitForTimeout(HOLD_MS)
