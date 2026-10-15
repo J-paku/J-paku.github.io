@@ -27,12 +27,18 @@ export const PHASE_CLOCKS: Record<DayPhase, string> = {
 //   date: Date だけ。E2E の page.clock.setFixedTime に当たり、rAF・タイマー・performance.now は本物のまま進む
 //   phase-check: Date と setInterval。use-day-phase.ts が段階を 1 分ごとに確かめ直す時計を、テストが
 //           vi.advanceTimersByTime で進める。setTimeout と rAF は本物のまま
-export type ClockScope = 'frames' | 'date' | 'phase-check'
+//   frames-real-timeouts: rAF・performance.now・Date だけ。setTimeout は本物のまま本物の時間で走る。
+//           テストがフレームを本物の時間より速く進めると、同じ時刻に予約したタイマーより先にフレームが来る
+//           (実機で、フレームが先に来てタイマーが遅れて走るのと同じ順)。frames ではタイマーが先に走るので作れない
+export type ClockScope = 'frames' | 'date' | 'phase-check' | 'frames-real-timeouts'
 const CLOCK_SCOPES: Record<ClockScope, Parameters<typeof vi.useFakeTimers>[0]> = {
   // 既定の偽物(nextTick と queueMicrotask を除く全部)
   frames: undefined,
   date: { toFake: ['Date'] },
   'phase-check': { toFake: ['Date', 'setInterval', 'clearInterval'] },
+  'frames-real-timeouts': {
+    toFake: ['requestAnimationFrame', 'cancelAnimationFrame', 'performance', 'Date'],
+  },
 }
 
 // 偽の時計を scope の範囲で入れ、at の瞬間に止める。描く前に呼ぶ(村が最初に読む時刻・rAF から偽物にする)
