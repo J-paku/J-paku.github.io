@@ -36,15 +36,17 @@ export function useCardMotion(work: Work) {
   const [pulseKey, setPulseKey] = useState(0)
 
   // 動画・リール共通のトグル操作(ユーチューブ式)。動画を持つカードだけ実際の再生要素を操作し、
-  // リールは isMotionPaused の状態変化だけで ScenePlayer の paused を切り替える
+  // リールは isMotionPaused の状態変化だけで ScenePlayer の paused を切り替える。
+  // 動画の要素は showVideo の間だけ描かれる(ShotMedia)ので、押した時に要素が無いことと動画を出していないことは同じ。
+  // そのため要素の有無だけで分ける
   function handleToggleMotion() {
     const nextPaused = !isMotionPaused
     setIsMotionPaused(nextPaused)
     setPulseKey(prev => prev + 1)
-    if (!showVideo) return
     const videoElement = videoRef.current
     if (videoElement === null) return
     if (nextPaused) videoElement.pause()
+    // play() の約束が拒まれても(流し直しが始まる前にまた止めた時の AbortError など)、ボタンの状態は押したとおりなので捨てる
     else videoElement.play().catch(() => {})
   }
 
