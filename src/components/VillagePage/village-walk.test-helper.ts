@@ -43,12 +43,20 @@ const yieldTask = () =>
 const realRequestFrame = window.requestAnimationFrame
 const framesFaked = () => window.requestAnimationFrame !== realRequestFrame
 
+// フレームを進めた直後(その回の rAF を全部呼んだ後、React が確定する前)に呼ぶ手。
+// 飛行の記録がこの瞬間を写す。rAF の中で書く DOM と同じフレームの中の値になる
+let afterFrame: (() => void) | null = null
+export const onEachFrame = (hook: (() => void) | null) => {
+  afterFrame = hook
+}
+
 // 1 フレーム進める。rAF まで偽物なら、偽の時計を 1 フレーム分進めてそのフレームの rAF と期限の来たタイマーを呼び、
 // React が確定と effect を終えるまで手番を渡す(確定の 1 タスクと、その後に別のタスクで走る effect の分に、遊びを 1 回足して 3 回)。
 // rAF が本物なら、本物の次のフレームを待つ
 export const stepFrame = async () => {
   if (framesFaked()) {
     vi.advanceTimersByTime(FRAME_MS)
+    afterFrame?.()
     await yieldTask()
     await yieldTask()
     await yieldTask()
@@ -57,6 +65,7 @@ export const stepFrame = async () => {
   await new Promise<void>(resolve => {
     requestAnimationFrame(() => resolve())
   })
+  afterFrame?.()
 }
 
 // ms が経つまでフレームを進める(偽の時計なら端数を 1 フレームに切り上げる)

@@ -125,3 +125,32 @@ export const recordTimeline = (root: Node): TimelineEntry[] => {
   }
   return timeline
 }
+
+// ---- 押し離しの瞬間の印 ----
+
+// 押し離し・クリックの瞬間に、飛行の影が飛んでいる印(data-flying)を出していたかを控える。
+// 捕捉の段階で窓に付けるので村の枠より先に読む。クリックは key を 'click' として控える
+export type KeyMark = { type: string; key: string; flying: string | null }
+export const recordKeys = (): KeyMark[] => {
+  const marks: KeyMark[] = []
+  const flyingNow = () =>
+    document.querySelector<HTMLElement>('[data-flight-shadow]')?.dataset.flying ?? null
+  for (const type of ['keydown', 'keyup'] as const) {
+    listen(type, event => {
+      if (!event.repeat) marks.push({ type, key: event.key, flying: flyingNow() })
+    })
+  }
+  listen('click', () => {
+    marks.push({ type: 'click', key: 'click', flying: flyingNow() })
+  })
+  return marks
+}
+
+// key を押し下ろした時刻(performance.now())を控える。押した瞬間と、その前に写したフレームを突き合わせるのに使う
+export const recordKeyDownTimes = (key: string): number[] => {
+  const times: number[] = []
+  listen('keydown', event => {
+    if (event.key === key && !event.repeat) times.push(performance.now())
+  })
+  return times
+}
