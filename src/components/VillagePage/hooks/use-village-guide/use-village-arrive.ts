@@ -124,13 +124,15 @@ export function useVillageArrive({
           : headToSpeech(text, goalSpot)
       )
       // 出口の範囲に入った時、または次へで目的地に着いた時に開く。
-      // 閉じた後に同じ出口内で横へ動いても繰り返し開かない
+      // 閉じた後に同じ出口内で横へ動いても繰り返し開かない。
+      // どちらの時も着いたマスには地点がある。出口の範囲は地点が持つ範囲で、自動で開く目的地(次へ・地点の物を押した時)は
+      // その地点に話しかけられるマス(spotAt がその地点を返すマス)なので、地点が無いまま開くことは無い
       if (
         (spot?.arrivalArea !== undefined && previousSpot?.id !== spot.id) ||
         (runtime.autoTalk.current && goal !== null && goal.x === cell.x && goal.y === cell.y)
       ) {
         runtime.autoTalk.current = false
-        if (spot !== null) runtime.actions.current.onTalk()
+        runtime.actions.current?.onTalk()
       }
       // 追加の依存は runtime と入口フックが持つ ref・setState で、描画をまたいでも同じ実体。作り直す回数は分割前と同じ
     },

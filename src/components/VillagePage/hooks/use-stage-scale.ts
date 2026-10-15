@@ -17,19 +17,19 @@ export type StageScaleOptions = {
   // 縦持ちで枠の下に置く十字キー帯。横持ち・PC では absolute か非表示なので高さ 0 として扱う
   band: RefObject<HTMLDivElement | null>
   // 縦持ちで枠のすぐ下に置く一覧への出口。それ以外は display: contents で箱を作らないので高さ 0
-  exit?: RefObject<HTMLDivElement | null>
+  exit: RefObject<HTMLDivElement | null>
   cols: number
   rows: number
 }
 
 export function useStageScale({ root, band, exit, cols, rows }: StageScaleOptions): void {
   useEffect(() => {
-    const rootEl = root.current
-    if (rootEl === null) return
+    // 舞台・帯・出口の箱は Village がいつも描き(見せ方は CSS が替える)、ref は effect より先に付くので、ここでは必ずある
+    const rootEl = root.current!
     const apply = () => {
       const bandEl = band.current
       // 出口も帯と同じく通常フローにいる時だけ高さを持つ(display: contents なら offsetHeight は 0)
-      const reserved = bandHeight(bandEl) + bandHeight(exit?.current ?? null)
+      const reserved = bandHeight(bandEl) + bandHeight(exit.current)
       const cell = computeCell(rootEl.clientWidth, rootEl.clientHeight, reserved, cols, rows)
       // 帯が静的配置(縦持ち)のときだけ、実測した上端までの距離を --band に書く。
       // absolute / display:none のときは帯が枠に重なっているだけなので 0
@@ -49,8 +49,8 @@ export function useStageScale({ root, band, exit, cols, rows }: StageScaleOption
     apply()
     const observer = new ResizeObserver(apply)
     observer.observe(rootEl)
-    if (band.current !== null) observer.observe(band.current)
-    if (exit?.current) observer.observe(exit.current)
+    observer.observe(band.current!)
+    observer.observe(exit.current!)
     return () => observer.disconnect()
   }, [root, band, exit, cols, rows])
 }

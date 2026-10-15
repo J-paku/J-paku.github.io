@@ -66,12 +66,15 @@ export function useVillageUmbrella({
   // 6 倍で 2 コマが抜けていた)。錠(umbrellaBusy)も起点に従うので、付け直した分だけ後ろへ延びる。
   // useEffect ではなく useLayoutEffect なのは、rAF の中から始まった描画(既定の優先度)の useEffect は React が
   // 確定とは別のタスクへ回し、その合間の rAF で歩行ループが新しい場面を古い起点のまま描いてしまうため。
-  // 確定と同じタスクで付け直せば、新しいタイルを見るフレームは必ず付け直した起点で描く
+  // 確定と同じタスクで付け直せば、新しいタイルを見るフレームは必ず付け直した起点で描く。
+  // 印が立っている時の傘はいつも開き始め(opening)のまま。印は下の passDoor が開き始めを書くのと同じ所でだけ立ち、
+  // そこからこの確定までに傘の段階を書きうる所は、どれもこの間には書かない — 扉の処理は開け閉めの間の歩行ループから
+  // 呼ばれず、畳み終えるのを待つタイマーは印を立てる時には予約されておらず(予約中は passDoor が先に返る)、
+  // 動きなしの姿へ合わせる effect は開け閉めの最中は書かない
   useLayoutEffect(() => {
     if (!restampOpeningRef.current) return
     restampOpeningRef.current = false
     const { umbrellaPose: umbrellaPoseRef, wake: wakeRef } = runtime
-    if (umbrellaPoseRef.current?.phase !== 'opening') return
     umbrellaPoseRef.current = { phase: 'opening', since: performance.now() }
     wakeRef.current()
   }, [world, runtime])

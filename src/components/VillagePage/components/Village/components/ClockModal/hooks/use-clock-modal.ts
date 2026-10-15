@@ -123,10 +123,11 @@ export function useClockModal({
   // 1 段目で焦点をボタンの並びの中で 1 つ動かす。端では反対の端へ回り込む(ボタンが 3 つしかなく、
   // 行き止まりにすると「やめる」から「現在時間」へ戻るのに 2 回押し直すことになるため)
   const moveFocus = (delta: number) => {
+    // 窓が外れた後、押しっぱなしのループの片付けより先にフレームが来た時(遷移で村を外した直後)は窓が無い
     const dialog = dialogRef.current
     if (dialog === null) return
+    // 1 段目のボタン(現在時間・カスタム・やめる)はいつも描かれ、無効にもならないので並びは空にならない
     const focusable = focusablesIn(dialog, CLOCK_FOCUSABLE_SELECTOR)
-    if (focusable.length === 0) return
     const index = focusable.findIndex(element => element === document.activeElement)
     // 焦点が並びの外にある時は、進むなら先頭・戻るなら末尾から入る
     const entry = delta > 0 ? 0 : focusable.length - 1

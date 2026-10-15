@@ -99,15 +99,16 @@ export function useWalkLoop({
       // 束の中の ref は描画をまたいで同じ実体なので、取り出す時機が早まっても読む値は変わらない
       const {
         frame: frameRef,
-        player: playerRef,
         worldLayer: layerRef,
         loading: loadingRef,
         flightShadow: shadowRef,
       } = dom
       const { state: stateRef, world: worldRef } = runtime
+      // ループは村の effect が回して後片付けで止めるが、村を外すと枠の ref は commit の中で先に外れ、
+      // 後片付けはその後に回るので、その間にフレームが来うる。ResizeObserver の最初の知らせより前なら
+      // paintCamera は枠そのものの幅を読むので、外れた枠では描かずに抜ける(すぐ後の後片付けがループを止める)
       const frame = frameRef.current
-      const player = playerRef.current
-      if (frame === null || player === null) return false
+      if (frame === null) return false
       const frameState = frameStateRef.current
       const state = stateRef.current
       const world = worldRef.current
@@ -186,14 +187,11 @@ export function useWalkLoop({
         ),
       dom.frame
     )
-    const wake = loop.wake
-    runtime.wake.current = wake
+    runtime.wake.current = loop.wake
     loop.start()
-    return () => {
-      loop.stop()
-      // 外したループを起こさない。後始末の後に届いた入力で、描く先の無いループが回り出すのを防ぐ
-      if (runtime.wake.current === wake) runtime.wake.current = () => {}
-    }
+    // 止めたループは wake されても回らない(createAnimationLoop)。runtime.wake に残る手は、後始末の後に届いた入力で
+    // 呼ばれても何もしないので、別の手へ差し替えない(作り直す時は次のループの手が上書きする)
+    return () => loop.stop()
   }, [
     arrive,
     bump,
@@ -210,8 +208,8 @@ export function useWalkLoop({
   // 枠の幅を覚え、変わったらループを起こして新しいマス寸法で描き直させる。
   // 幅を読むのは大きさが変わった時だけで、描く側は毎フレーム覚えた値を使う
   useEffect(() => {
-    const frame = dom.frame.current
-    if (frame === null) return
+    // 枠は村がいつも描き、ref は effect より先に付くので、ここでは必ずある
+    const frame = dom.frame.current!
     const observer = new ResizeObserver(() => {
       frameStateRef.current.frameWidth = frame.clientWidth
       runtime.wake.current()
@@ -234,7 +232,7 @@ export function useWalkLoop({
       runtime.wake.current()
     } else if (plan?.kind === 'talk') {
       runtime.activeSpot.current = plan.spot
-      runtime.actions.current.onTalk()
+      runtime.actions.current?.onTalk()
     }
     consumeTap()
   }, [tapped, consumeTap, runtime, setDestination])

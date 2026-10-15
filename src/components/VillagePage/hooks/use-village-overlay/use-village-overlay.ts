@@ -99,8 +99,12 @@ export function useVillageOverlay({
   // 錠の effect の後に登録する(effect の実行順を保つ)
   useFishingPose(fishingPhase, runtime)
 
+  // 錠の間に呼ばれるのは 1 つの場合だけ。autoTalk の地点(ロボットなど)に着くと歩行ループのフレームの中で onTalk が呼ばれ、
+  // 描き直す前に Z が届くと、mode が walk のままの古い pressA(runtime.buttons)がもう一度ここを呼ぶ。開き直しても会話・時計の窓は 1 つのまま
+  // (X で閉じれば済み、訪問済みの地点は markVisited が数えない)。釣りは押した入力(E・Enter・Z・A・吹き出しのボタン)からしか始まらず、
+  // 水辺は地点の物・コース順・出口の範囲を持たないので、着いても onTalk は呼ばれない。押した入力は React が同期で描き直し
+  // (マイクロタスクで commit し、effect もその場で流す)、次のキーより前に runtime.buttons が新しい pressA に替わるので、2 度投げることもない
   const openTalk = useCallback(() => {
-    if (runtime.locked.current) return
     // 歩いている間も飛んでいる間も話しかけない(空中で会話窓を開かない)
     if (isMoving(runtime.state.current)) return
     const spot = runtime.activeSpot.current

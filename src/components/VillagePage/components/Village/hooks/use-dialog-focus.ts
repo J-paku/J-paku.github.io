@@ -6,8 +6,9 @@ import { focusablesIn } from '../utils/focusables'
 import { wrapFocusIndex } from '../utils/wrap-focus-index'
 
 type UseDialogFocusParams = {
-  // 開いている間だけ返却先を控える。窓は開いている間だけ描かれるので、呼び出し元は今のところ常に true
-  open: boolean
+  // 開いているか。窓は開いている間だけ描かれる(描かれている間が開いている間)ので常に true で、型でそう固める。
+  // 閉じている間の場合を持たないので、このフックはこの値を読まない
+  open: true
   // Tab の輪を回す根。この中の selector に合う要素を DOM 順に並べる
   rootRef: RefObject<HTMLElement | null>
   selector: string
@@ -21,7 +22,6 @@ type UseDialogFocusParams = {
 
 // 戻り値は onKeyDown の中から呼ぶ Tab の手。Tab だった時は true を返す(呼び出し元はそこで打ち切る)
 export function useDialogFocus({
-  open,
   rootRef,
   selector,
   returnTo,
@@ -30,21 +30,19 @@ export function useDialogFocus({
 }: UseDialogFocusParams): (event: KeyboardEvent<HTMLElement>) => boolean {
   // 返却先はマウント時に控え、アンマウントの片付けでそこへ戻す
   useEffect(() => {
-    if (!open) return
     const returnTarget = returnTo.current
     initialFocusRef?.current?.focus()
 
     return () => {
       returnTarget?.focus()
     }
-  }, [open, returnTo, initialFocusRef])
+  }, [returnTo, initialFocusRef])
 
   const trapTab = (event: KeyboardEvent<HTMLElement>) => {
     if (event.key !== 'Tab') return false
 
-    const root = rootRef.current
-    if (root === null) return true
-    const focusable = focusablesIn(root, selector)
+    // 呼ぶのは窓(か、窓を包む覆い)の keydown だけ。キーを受けている間は窓が描かれていて、根の ref は付いている
+    const focusable = focusablesIn(rootRef.current!, selector)
 
     // 端で回すかどうかは utils/wrap-focus-index.ts が決め、ここは結果どおりに焦点を移すだけ
     const target = wrapFocusIndex<Element>({

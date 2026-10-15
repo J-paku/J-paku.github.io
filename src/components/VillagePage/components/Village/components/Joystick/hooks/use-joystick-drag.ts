@@ -25,8 +25,8 @@ export function useJoystickDrag(onHold: (dir: Direction | null) => void) {
   // CSS の user-select・touch-callout だけでは止まらないため、passive: false で直接登録して既定動作を止める。
   // touchstart の preventDefault は pointer イベントを止めないので、倒す処理は下の pointer ハンドラのまま
   useEffect(() => {
-    const base = baseRef.current
-    if (base === null) return
+    // 土台はスティックがいつも描き、ref は effect より先に付くので、ここでは必ずある
+    const base = baseRef.current!
 
     const preventTouchDefault = (event: TouchEvent) => {
       event.preventDefault()
@@ -38,11 +38,9 @@ export function useJoystickDrag(onHold: (dir: Direction | null) => void) {
     }
   }, [])
 
+  // 呼ぶのは土台の pointer の処理だけ。つまみは土台の子でいつも描かれ、土台が押せる間は ref が付いている
   const moveKnob = (position: Position) => {
-    const knob = knobRef.current
-    if (knob === null) return
-
-    knob.style.transform = knobTransform(position)
+    knobRef.current!.style.transform = knobTransform(position)
   }
 
   const updateDirection = (direction: Direction | null) => {
