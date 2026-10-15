@@ -3,8 +3,8 @@
 // Playwright が集めるのは testDir 直下の *.spec.ts / *.test.ts だけなので、この名前なら
 // テスト本体として拾われない(中身は test を extend して渡すだけで test() を呼ばないので、
 // 拾われると「テストが無い」で落ちる)。
-// 部屋から町へ出る leaveRoom は開始マスから下へ 3 マス歩く形だけをここに置く。時計の前から出る clock.spec と、
-// 出た後に屋外にいることまで確かめる day-night.spec は、歩き方か確かめることが違うので各 spec に置いたままにする
+// 部屋から町へ出る leaveRoom は開始マスから下へ 3 マス歩く形だけをここに置く。時計の前から出る clock.spec は、
+// 歩き方が違うので spec に置いたままにする
 import { errors, expect, test as base, type BrowserContext, type Page } from '@playwright/test'
 import { worldSet } from '@content/world'
 

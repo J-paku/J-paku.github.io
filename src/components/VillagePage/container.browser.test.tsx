@@ -19,6 +19,7 @@ import { isWalkable } from '@/lib/village/collision'
 import { FLIGHT_MIN_DISTANCE, flightDurationMs } from '@/lib/village/flight-curve'
 import { findPath } from '@/lib/village/path'
 import { routeToWarp } from '@/lib/village/warp'
+import { DAY_PHASES } from '@/utils/day-phase'
 import { FISHING_BITE_MS, FISHING_CAST_MS, FISHING_LAND_MS } from '@/lib/village/fishing'
 import {
   BITE_BRACE_MS,
@@ -42,6 +43,7 @@ import {
   emulateTouch,
   expectLoopIdle,
   focusVillage,
+  isPainted,
   isVisible,
   leaveRoom,
   loopState,
@@ -94,7 +96,7 @@ import {
   type Recording,
   type Saved,
 } from './village-walk-flight.test-helper'
-import { PHASE_CLOCKS, startVillageClock } from './village-time.test-helper'
+import { PHASE_CLOCKS, RealImage, startVillageClock } from './village-time.test-helper'
 
 const villageJa = inject('villageJa')
 
@@ -1689,11 +1691,15 @@ test('画面の大きさを変えると、枠を新しい整数のマス寸法�
 // 統合では作れないので E2E に残すもの: ビルドが焼くシートの PNG とローダーの <style> が描く絵・再読み込み・ko の文言
 describe('画面の大きさ・窓・時計・昼夜', () => {
   const { text } = villageJa
+  const setId = villageJa.worldSet.id
 
   // 画面は既定で PC(E2E の既定と同じ 1280×720)
   beforeEach(async () => {
     await page.viewport(1280, 720)
   })
+
+  // キーを受け取る村の枠。E2E と同じく data-village で指す(枠の読み上げ名はタッチ端末かどうかで替わる)
+  const frame = () => page.elementLocator(villageFrame())
 
   // DOM から 1 つ引く。無ければ前提が崩れているのでその場で落とす
   const queryOne = (selector: string, from: ParentNode = document): HTMLElement => {
@@ -1708,6 +1714,8 @@ describe('画面の大きさ・窓・時計・昼夜', () => {
     if (element === null) throw new Error('村の根(data-phase)が描かれていない')
     return element
   }
+  const phase = () => root().getAttribute('data-phase')
+  const worldId = () => worldLayer().getAttribute('data-world')
 
   // 村を描き、起動の覆いが外れたら枠へ焦点を置き(E2E の openVillage)、useStageScale が舞台の実測を --cell に書くまで待つ。
   // CSS の既定値だけでも近い寸法になるため、インラインの値で見る。実際のコンテンツでは作れない場合だけ、props を変えた版を overrides で渡す
@@ -1719,6 +1727,18 @@ describe('画面の大きさ・窓・時計・昼夜', () => {
       'useStageScale が --cell を書いた'
     )
   }
+
+  // 村は自室の開始マス (4,4) から始まる。下端の 1 マスのマット (4,7) へ下へ 3 マス歩いて乗ると、町の自宅前 (14,12) へ出る
+  const walkOutToTown = async () => {
+    villageFrame().focus()
+    expect(await leaveRoom(setId), '部屋の下端のマットまで歩けた').toBe(3)
+    // 天気・灯りを数える前に「今いるのは屋外」を確定させる。屋内のままだと天気は常に 0 枚で素通りする
+    await expect.poll(worldId, { message: '町(屋外)へ出た' }).toBe('town')
+  }
+
+  // 「段階が変わらない」を見る前に待つフレーム数。段階を変える処理(シートの decode を待ってから setState)は、
+  // 走れば 2 フレーム以内に画面へ届いた(2026-10-15、取消しで時刻を決めてしまう欠陥を入れて実測)ので、余裕を見て 5 フレーム
+  const SETTLE_FRAMES = 5
 
   describe('舞台の寸法(tests/layout.spec.ts)', () => {
     const scrollOverflow = () => (document.scrollingElement?.scrollHeight ?? 0) - window.innerHeight
@@ -1940,6 +1960,263 @@ describe('画面の大きさ・窓・時計・昼夜', () => {
         // 枠の幅 640 に対し片側 192px のガターが空き、ガター配置になる
         expectGutterLayout(stage)
       })
+    })
+  })
+
+  describe('昼夜と天気(tests/day-night.spec.ts)', () => {
+    // 雨・雪の層。Weather が層ごとに data-weather を置き、値に降水の種類を載せる。層は枠の子
+    const WEATHER_LAYERS = '[data-weather]'
+    const RAIN_LAYERS = '[data-weather="rain"]'
+    const SNOW_LAYERS = '[data-weather="snow"]'
+    // 降っている間に並ぶ層の枚数。2 コマを不透明度で交互に見せ消しする作りなので、出ているなら必ず 2 枚
+    const WEATHER_LAYER_COUNT = 2
+    const countOf = (selector: string) => document.querySelectorAll(selector).length
+
+    // 夜の灯り。Lighting が world 層へ敷く光源で、data-village-light に光源の種類が載る
+    const LIGHTS = '[data-village-light]'
+    // 夜の町にともる灯りの内訳(実数。E2E からこの統合テストへ移した表)。「1 つ以上ある」だけを見ると
+    // 主人公のランタン 1 つで通ってしまうので種類ごとの数を打つ。期待値を worldLights から作らない
+    // (検査対象で検査対象を測っても何も証明できない)。
+    // ★ 町の構成(content/world.ts の structures と家の窓の並び)を変えたら、この表も一緒に直す
+    const TOWN_LIGHTS = {
+      lamp: 3, // 街灯 lamp-west / lamp-east / lamp-plaza
+      window: 4, // 家の窓。自宅1・名刺1・研究所2
+      mailbox: 1, // ポスト前面の LED(粒は 5 つでも光源は 1 つ)
+      campfire: 1, // たき火
+      player: 1, // 主人公が提げるランタン
+    } as const
+    const TOWN_LIGHT_TOTAL = Object.values(TOWN_LIGHTS).reduce((sum, count) => sum + count, 0)
+    // 人物と灯りの中心のずれの許容。両者は同じ transform を受けるので本来は 0 で、実測のまるめしか出ない
+    const LIGHT_GAP_TOLERANCE_PX = 1
+
+    const paintedLights = () =>
+      Array.from(document.querySelectorAll(LIGHTS)).filter(isPainted).length
+
+    // 主人公と主人公の灯りの中心のずれを、同じ瞬間に両方の矩形を取って測る。
+    // pose には rAF が人物へ書いた transform がそのまま入る(本当に歩いたかの裏取りに使う)
+    const playerLightGap = () => {
+      const player = villagePlayer()
+      const light = queryOne('[data-village-light="player"]')
+      const center = (element: HTMLElement) => {
+        const rect = element.getBoundingClientRect()
+        return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
+      }
+      const at = center(player)
+      const lit = center(light)
+      return { x: lit.x - at.x, y: lit.y - at.y, pose: player.style.transform }
+    }
+
+    // 天気の層が敷くシート(data URI をカスタムプロパティで渡す)。画像として実際に読めるかまで見る
+    // (読めない URI でも文字列は取れるので、比較だけでは「両方壊れている」を取り逃がす)
+    const weatherSheet = async (layer: Element) => {
+      const image = getComputedStyle(layer).backgroundImage
+      // none・グラデーション・複数指定はここで落とす(url() 1 本だけを認める)
+      const single = /^url\((['"]?)(.+)\1\)$/.exec(image)
+      if (single === null) return { drawable: false, image }
+      const probe = new RealImage()
+      probe.src = single[2]
+      const drawable = await probe.decode().then(
+        () => probe.naturalWidth > 0 && probe.naturalHeight > 0,
+        () => false
+      )
+      return { drawable, image }
+    }
+
+    const ariaHiddenOf = (selector: string) =>
+      Array.from(document.querySelectorAll(selector)).map(layer =>
+        layer.getAttribute('aria-hidden')
+      )
+
+    test('夜で雨でも8か所のコースは最後まで通る', { timeout: 90_000 }, async () => {
+      const { home, meishi, lab, monument, robot, campfire, mailbox, journey } = text.stops
+      const weather = stubWeather('rain')
+      startVillageClock(PHASE_CLOCKS.night, 'date')
+      await renderVillage()
+      expect(phase()).toBe('night')
+      await expect.poll(weather.calls, { message: '天気を問い合わせた' }).toBeGreaterThan(0)
+      // 出発点の自室は屋内。ここではまだ降っていないのが正しい
+      expect(countOf(WEATHER_LAYERS), '出発点の自室は屋内なので降らない').toBe(0)
+
+      const dialog = page.getByRole('dialog')
+      const expectStop = (title: string) =>
+        expect
+          .element(dialog.getByRole('heading', { name: title }), { timeout: 10_000 })
+          .toBeVisible()
+      await userEvent.keyboard('e')
+      await expectStop(home.title)
+      await userEvent.click(dialog.getByRole('button', { name: home.next }))
+      await expectStop(meishi.title)
+      // 自動の移動(飛んで扉を出る)で町(屋外)へ出た最初の地点。ここから完走まで雨が降り続けるはず
+      await expect
+        .poll(() => countOf(RAIN_LAYERS), { message: '町へ出た時点で雨が降っている' })
+        .toBe(WEATHER_LAYER_COUNT)
+      await userEvent.click(dialog.getByRole('button', { name: meishi.next }))
+      await expectStop(lab.title)
+      // 研究所 → 経歴碑 → AIロボ → 焚き火 → ポスト → 次の旅を次へで連ねる。
+      // 最後の次の旅は、北の道の突き当たりへ着いたことで会話窓が自動で開く
+      const chain = [lab, monument, robot, campfire, mailbox]
+      const follow = async (index: number): Promise<void> => {
+        if (index >= chain.length) return
+        await userEvent.click(dialog.getByRole('button', { name: chain[index].next }))
+        await expectStop((chain[index + 1] ?? journey).title)
+        await follow(index + 1)
+      }
+      await follow(0)
+      await userEvent.keyboard('{Escape}')
+      await expect.element(dialog).not.toBeInTheDocument()
+      await expect
+        .element(page.getByRole('status'))
+        .toHaveTextContent(text.allSeen.replace('{list}', text.toList))
+      // 完走すると一覧への出口へ焦点が移り、出口が跳ねて(data-bounce)合図する
+      const exit = page.getByRole('link', { name: text.toList, exact: true })
+      await expect.element(exit).toHaveFocus()
+      await expect.element(exit).toHaveAttribute('data-bounce', '')
+      // 完走しても段階と雨はそのまま(コースの進行が空や天気を壊していない)
+      expect(phase()).toBe('night')
+      expect(countOf(RAIN_LAYERS), '完走後も雨が降り続けている').toBe(WEATHER_LAYER_COUNT)
+    })
+
+    // E2E の同じ検査の段階の属性の部分。焼いたシートそのものが段階ごとに別物かは、ビルドが焼く PNG と
+    // ローダーの <style>(スプライトの背景)が要り、統合では描かれないので E2E に残す
+    test('4 段階のどの瞬間に開いても、その段階で描く', async () => {
+      for (const dayPhase of DAY_PHASES) {
+        startVillageClock(PHASE_CLOCKS[dayPhase], 'date')
+        await renderVillage()
+        expect(phase(), `${PHASE_CLOCKS[dayPhase]} に開くと ${dayPhase}`).toBe(dayPhase)
+        cleanup()
+      }
+    })
+
+    test('夜の町は灯りがともり、主人公の灯りは歩いても離れない', async () => {
+      startVillageClock(PHASE_CLOCKS.night, 'date')
+      await renderVillage()
+      expect(phase()).toBe('night')
+      // 街灯もたき火も町にある。屋内のまま数えると主人公の灯りしか見ないテストになる
+      await walkOutToTown()
+
+      // 種類ごとに数を見る。合計だけだと、街灯が消えたぶん窓が増えたような入れ替わりを通してしまう
+      for (const [kind, count] of Object.entries(TOWN_LIGHTS)) {
+        expect(
+          countOf(`[data-village-light="${kind}"]`),
+          `夜の町に ${kind} の灯りが ${count} つ置かれている`
+        ).toBe(count)
+      }
+      // 置かれているだけでなく本当に描かれている。表に無い種類が増えていればこの合計がずれて落ちる
+      expect(paintedLights(), '夜の町では表どおりの灯りがすべて描かれている').toBe(TOWN_LIGHT_TOTAL)
+
+      const before = playerLightGap()
+      // 自宅前 (14,12) から右へ 1 マス
+      expect(await walk(setId, 'ArrowRight', 1), '右へ 1 マス歩けた').toBe(1)
+      const after = playerLightGap()
+      // 先に「本当に歩いた」を確かめる。動いていなければ、ずれが同じでも何も証明していない
+      expect(after.pose, '人物へ書かれる transform が変わっている(実際に歩いた)').not.toBe(
+        before.pose
+      )
+      // カメラも一緒に動くので画面の絶対座標では判定できない。人物と灯りの中心のずれが
+      // 歩く前後で変わらないことだけが「灯りが人物に固定されている」を意味する
+      expect(Math.abs(after.x - before.x), '灯りが横に置いていかれていない').toBeLessThanOrEqual(
+        LIGHT_GAP_TOLERANCE_PX
+      )
+      expect(Math.abs(after.y - before.y), '灯りが縦に置いていかれていない').toBeLessThanOrEqual(
+        LIGHT_GAP_TOLERANCE_PX
+      )
+    })
+
+    test('昼は灯りの要素が残ったまま一つも描かれない', async () => {
+      startVillageClock(PHASE_CLOCKS.day, 'date')
+      await renderVillage()
+      expect(phase()).toBe('day')
+      // 夜と同じ場所で数える。屋内で数えても町の光源は元から無いので、消えた証明にならない
+      await walkOutToTown()
+
+      // 段階が変わるたびに層を組み直さない作りなので、要素は昼も DOM に残っているのが正しい。
+      // 枚数が 0 なのを合格にすると、そもそも描いていない場合と見分けが付かなくなる
+      expect(countOf('[data-village-light="player"]'), '灯りの要素自体は昼でも DOM にある').toBe(1)
+      expect(paintedLights(), '昼は灯りが一つも描かれない').toBe(0)
+    })
+
+    test('大阪が雨なら雨の層が出て、読み上げからは外れる', async () => {
+      const weather = stubWeather('rain')
+      startVillageClock(PHASE_CLOCKS.day, 'date')
+      await renderVillage()
+
+      // このテストの応答を見て描いたことを先に押さえる
+      await expect.poll(weather.calls, { message: '天気を問い合わせた' }).toBeGreaterThan(0)
+      // 自室には天井があるので、雨だと分かっていても屋内では降らせない
+      expect(countOf(WEATHER_LAYERS), '屋内では降らない').toBe(0)
+
+      await walkOutToTown()
+      // 属性の値まで見るので、雪の層が出ていても「雨が降った」とは数えない
+      await expect
+        .poll(() => countOf(RAIN_LAYERS), { message: '雨は 2 コマぶんの層が並ぶ' })
+        .toBe(WEATHER_LAYER_COUNT)
+      // 2 枚とも読み上げから外れていること。片方だけだと支援技術に粒の層が残る
+      expect(ariaHiddenOf(RAIN_LAYERS), '2 枚とも読み上げから外れる').toEqual(['true', 'true'])
+    })
+
+    test('大阪が雪なら雪の層が出て、雨とは別のシートになる', async () => {
+      const weather = stubWeather('snow')
+      startVillageClock(PHASE_CLOCKS.day, 'date')
+      await renderVillage()
+
+      await expect.poll(weather.calls, { message: '天気を問い合わせた' }).toBeGreaterThan(0)
+      // 雨と同じく、天井のある自室では降らせない
+      expect(countOf(WEATHER_LAYERS), '屋内では降らない').toBe(0)
+
+      await walkOutToTown()
+      await expect
+        .poll(() => countOf(SNOW_LAYERS), { message: '雪は 2 コマぶんの層が並ぶ' })
+        .toBe(WEATHER_LAYER_COUNT)
+      // 差し替えた応答は降水も 0 より大きい。降雪を先に見る判定が落ちればここが雨に化けるので、
+      // 「雨が 0 枚」まで見て初めて雪として降ったと言える
+      expect(countOf(RAIN_LAYERS), '雪の日に雨の層は出ない').toBe(0)
+      expect(ariaHiddenOf(SNOW_LAYERS), '2 枚とも読み上げから外れる').toEqual(['true', 'true'])
+
+      const [snowFirstLayer, snowSecondLayer] = Array.from(document.querySelectorAll(SNOW_LAYERS))
+      const snowFirst = await weatherSheet(snowFirstLayer)
+      const snowSecond = await weatherSheet(snowSecondLayer)
+      expect(snowFirst.drawable, '雪の 1 コマ目が画像として読める').toBe(true)
+      expect(snowSecond.drawable, '雪の 2 コマ目が画像として読める').toBe(true)
+      // 2 枚が同じ絵だと、見せ消ししても粒が動かない(コマ送りになっていない)
+      expect(snowSecond.image, '雪の 2 枚は別のコマである').not.toBe(snowFirst.image)
+
+      // 同じ村を雨へ差し替えて開き直す(E2E から移す前は再読み込みしていた所)。属性の値が違うだけでなく、敷かれるシートそのものが
+      // 雨と雪で別物だと確かめる。読み込み直すと自室から始まる(位置は捨てる)ので、降る場所までもう一度出てから数える
+      stubWeather('rain')
+      cleanup()
+      clearVillageProgress(setId)
+      await renderVillage()
+      await walkOutToTown()
+      await expect
+        .poll(() => countOf(RAIN_LAYERS), { message: '差し替えた後は雨の層に入れ替わる' })
+        .toBe(WEATHER_LAYER_COUNT)
+      expect(countOf(SNOW_LAYERS), '雨に変えたら雪の層は残らない').toBe(0)
+      const rainFirst = await weatherSheet(queryOne(RAIN_LAYERS))
+      expect(rainFirst.drawable, '雨の 1 コマ目が画像として読める').toBe(true)
+      expect(rainFirst.image, '雪のシートは雨のシートと別物').not.toBe(snowFirst.image)
+    })
+
+    test('天気の取得が失敗したら何も降らせず村は動く', async () => {
+      const weather = stubWeather('error')
+      startVillageClock(PHASE_CLOCKS.day, 'date')
+      await renderVillage()
+
+      // 問い合わせが済んでから数える。応答前に数えると「まだ出ていない」を通してしまう
+      await expect.poll(weather.calls, { message: '天気を問い合わせた' }).toBeGreaterThan(0)
+      // 取得に失敗しても村の描画と会話はそのまま動く
+      await expect.element(frame()).toBeVisible()
+      const dialog = page.getByRole('dialog')
+      await userEvent.keyboard('e')
+      await expect
+        .element(dialog.getByRole('heading', { name: text.stops.home.title }))
+        .toBeVisible()
+      await userEvent.keyboard('{Escape}')
+      await expect.element(dialog).not.toBeInTheDocument()
+
+      // 降る場所(屋外)まで出てから数える。種類も問わない — 雨に絞ると、誤って雪として降った時に見逃す
+      await walkOutToTown()
+      await runFor(FRAME_MS * SETTLE_FRAMES)
+      expect(countOf(WEATHER_LAYERS), '失敗したら何も降らない').toBe(0)
     })
   })
 })

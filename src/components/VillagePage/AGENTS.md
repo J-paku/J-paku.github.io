@@ -71,7 +71,7 @@ E2E はビルドした `out/` を配って走る。
 ```bash
 npm run build
 npx playwright test tests/journey.spec.ts   # 導線
-npx playwright test tests/day-night.spec.ts # 昼夜と天気
+npx playwright test tests/day-night.spec.ts # 段階ごとの焼いたシートと ko の完走
 ```
 
 `out/` を配るので、**先に `npm run build`**。古い `out/` を測ると直っていないように見える。

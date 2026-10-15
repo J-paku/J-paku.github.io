@@ -1,16 +1,16 @@
-// 昼夜の空と天気の E2E。時計を4つの帯それぞれへ固定して村の段階と、4段階ぶんの実シートが
-// どれも別物であることを確かめ、夜の灯りがともって主人公に付いて回ること・昼は同じ要素が
-// 描かれないことを確かめ、Open-Meteo の応答を差し替えて雨・雪の層が出る/出ないを確かめ、
-// 段階と天気が載っても8か所のコースが今までどおり完走することを見る。
-// 完走は ja/ko 双方で、ほかは言語では変わらないので ja だけで見る
+// 昼夜の E2E。時計を4つの帯それぞれへ固定して、4段階ぶんの焼いたシートがどれも別物であることを確かめ、
+// 夜で雨でも8か所のコースが ko の文言のまま最後まで通ることを見る。
+// 焼いたシートはビルドが焼く /sprites/ の PNG で、統合テストでは描かれないので E2E に残す。
+// ko の完走は、統合のフィクスチャが ja の props だけを渡すので E2E に残す。
+// 段階の属性・夜の灯り・雨と雪の層・天気の取得失敗・ja の完走は、村の統合テスト
+// (src/components/VillagePage/container.browser.test.tsx)が見る(docs/decisions/0018-move-e2e-and-gate-all-hooks.md)
 import { expect, type Page } from '@playwright/test'
 import type { VillageText } from '@content/types/world'
 import { village as villageJa } from '@content/ja/village'
 import { village as villageKo } from '@content/ko/village'
 import { DAY_PHASES, type DayPhase } from '@/utils/day-phase'
-// 村を開く手順・歩く walk(1 マスごとに到着を待つ)・天気の差し替え(stubWeather)と、
-// 既定で晴れを敷く test は他の村の spec と共用。正本は village.helpers.ts
-import { focusVillage, openVillage, stubWeather, test, walk } from './village.helpers'
+// 村を開く手順・天気の差し替え(stubWeather)と、既定で晴れを敷く test は他の村の spec と共用。正本は village.helpers.ts
+import { openVillage, stubWeather, test } from './village.helpers'
 
 type Journey = { prefix: string; text: VillageText }
 
@@ -43,91 +43,13 @@ const GROUND_SPRITE = '[data-village-terrain] > div'
 // world 層を起点にすると掴めない。クラス名は CSS Modules が毎ビルド変えるので使わない
 const WEATHER_LAYERS = '[data-weather]'
 const RAIN_LAYERS = '[data-weather="rain"]'
-const SNOW_LAYERS = '[data-weather="snow"]'
 // 降っている間に並ぶ層の枚数。2 コマを不透明度で交互に見せ消しする作りなので、出ているなら必ず 2 枚。
 // 1 枚しか無ければコマ送りが片側だけになっている状態で、「降っている」とは認めない
 const WEATHER_LAYER_COUNT = 2
 
-// 夜の灯り。Lighting が world 層へ敷く光源で、data-village-light に光源の種類が載る。
-// 主人公が持つ灯り(player)だけは use-walk-loop が人物と同じ transform を毎フレーム書く。
-// 昼夜の出し分けは CSS([data-phase='night'])なので、昼でも要素自体は DOM に残る。
-// クラス名は CSS Modules が毎ビルド変えるので使わない
-const LIGHTS = '[data-village-light]'
-const lightsOfKind = (kind: string) => `[data-village-light="${kind}"]`
-const PLAYER_LIGHT = lightsOfKind('player')
-// 夜の町にともる灯りの内訳。「1つ以上ある」だけを見ると主人公のランタン1つで通ってしまい、
-// 街灯も窓もたき火も丸ごと消えたことに気付けないので、種類ごとの数をここで打つ。
-// 期待値を worldLights から作らない — 検査対象で検査対象を測っても何も証明できないため、
-// 実ブラウザで数えた値をそのまま書く。
-// ★ 町の構成(content/world.ts の structures と家の窓の並び)を変えたら、この表も一緒に直す
-const TOWN_LIGHTS = {
-  lamp: 3, // 街灯 lamp-west / lamp-east / lamp-plaza
-  window: 4, // 家の窓。自宅1・名刺1・研究所2(どのマスが窓かは facade.ts が決める)
-  mailbox: 1, // ポスト前面の上辺に並ぶ 5 粒の LED(夜だけ点く。粒は 5 つでも光源は 1 つ)
-  campfire: 1, // たき火(ゆらぎが付く唯一の光源)
-  player: 1, // 主人公が提げるランタン。構造物ではなく Lighting が直接置く
-} as const
-// 上の表の合計。ここを別に書くと表と二重の正本になるので、必ず表から足す
-const TOWN_LIGHT_TOTAL = Object.values(TOWN_LIGHTS).reduce((sum, count) => sum + count, 0)
-// 人物と灯りの中心のずれの許容。両者は同じ transform を受けるので本来は 0 で、実測のまるめしか出ない。
-// 追従が切れた灯りは歩き終えた人物から 1 マスぶん離れる。1 マスの px は画面の大きさで決まるが、
-// Village/utils/stage-scale.ts の下限(CELL_MIN = 12px)を下回ることはないので、1px の許容とは取り違えようがない
-const LIGHT_GAP_TOLERANCE_PX = 1
-
 // 天気は helpers の test が context へ既定で晴れを敷くので、段階だけを見たいテストは何も敷かない。
-// 雨と取得失敗を確かめるテストだけが stubWeather(page, ...) で page へ敷いて上書きする
+// 雨の中の完走だけが stubWeather(page, 'rain') で page へ敷いて上書きする
 // (page の route は context の route より先に効く)
-
-// 村は自室(屋内)から始まる。天気は屋外にしか降らないので、雨を数えるテストは必ず町へ出てから測る。
-// 自室の下端 (4,7) のマットへ乗ると町の自宅前 (14,12) へ出る。開始マス (4,4) から下へ 3 マス
-const leaveRoom = async (page: Page) => {
-  await walk(page, 'ArrowDown', 3)
-  // 数える前に「今いるのは屋外」を確定させる。屋内のままだと天気は常に 0 枚で、
-  // 雨が出ていようと出ていまいと素通りするテストになってしまう
-  await expect(page.locator('[data-world]')).toHaveAttribute('data-world', 'town')
-}
-
-// 実際に描かれている灯りの数。昼夜の出し分けは CSS なので要素は昼も DOM に残り、枚数では
-// 「消えている」を判定できない。どの手段で消していても取り逃さないよう、display・visibility・
-// 不透明度・面積を先祖まで遡って見る。夜の合計(TOWN_LIGHT_TOTAL)も同じ物差しで数えるので、
-// この数え方が常に 0 を返す作りなら夜の側が落ちて気付ける
-const paintedLights = (page: Page) =>
-  page.evaluate(selector => {
-    const painted = (element: Element): boolean => {
-      const rect = element.getBoundingClientRect()
-      if (rect.width === 0 || rect.height === 0) return false
-      let node: Element | null = element
-      while (node !== null) {
-        const style = getComputedStyle(node)
-        if (style.display === 'none' || style.visibility === 'hidden') return false
-        if (Number(style.opacity) === 0) return false
-        node = node.parentElement
-      }
-      return true
-    }
-    return Array.from(document.querySelectorAll(selector)).filter(painted).length
-  }, LIGHTS)
-
-// 主人公と主人公の灯りの中心のずれを、同じ評価の中で両方の矩形を取って測る。
-// 2回に分けて測ると移動中の1フレームぶんの差がそのままずれに化ける(カメラも毎フレーム動く)。
-// 中心で見るのは、灯りが明滅で伸び縮みしても中心なら動かないため。
-// pose には rAF が人物へ書いた transform がそのまま入る(本当に歩いたかの裏取りに使う)
-const playerLightGap = (page: Page) =>
-  page.evaluate(
-    ([playerSelector, lightSelector]) => {
-      const player = document.querySelector<HTMLElement>(playerSelector)
-      const light = document.querySelector<HTMLElement>(lightSelector)
-      if (player === null || light === null) return null
-      const center = (element: HTMLElement) => {
-        const rect = element.getBoundingClientRect()
-        return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
-      }
-      const at = center(player)
-      const lit = center(light)
-      return { x: lit.x - at.x, y: lit.y - at.y, pose: player.style.transform }
-    },
-    ['[data-village-player]', PLAYER_LIGHT]
-  )
 
 // 焼いたシートはサイト内の /sprites/<種類>-<段階>.png に置く(実体は public/sprites/、
 // 焼くのは scripts/build-sprites.mjs)。data URI をやめて実ファイルになったので、
@@ -178,32 +100,6 @@ const sheetDigest = (page: Page, selector: string, pseudo: string | null = null)
       [SHEET_PATH.source, pseudo] as const
     )
 
-// 天気の層が敷くシートの指紋。地形・主人公と違って天気のシートは実ファイルではなく
-// data URI をカスタムプロパティ(--weather-sheet)で渡す作りなので、SHEET_PATH による
-// 名前の照合は使えない。URL の文字列を同じ畳み方で指紋にし、画像として実際に読めるかまで見る
-// (読めない URI でも文字列は取れるので、指紋の比較だけでは「両方壊れている」を取り逃がす)
-const weatherSheetDigest = (page: Page, selector: string, index: number) =>
-  page
-    .locator(selector)
-    .nth(index)
-    .evaluate(async element => {
-      const image = getComputedStyle(element).backgroundImage
-      let sum = 0
-      for (let i = 0; i < image.length; i += 1) sum = (sum * 31 + image.charCodeAt(i)) >>> 0
-      const digest = `${image.length}:${sum.toString(16)}`
-
-      // none・グラデーション・複数指定はここで落とす(url() 1本だけを認める)
-      const single = /^url\((['"]?)(.+)\1\)$/.exec(image)
-      if (single === null) return { drawable: false, digest }
-      const drawable = await new Promise<boolean>(resolve => {
-        const probe = new Image()
-        probe.onload = () => resolve(probe.naturalWidth > 0 && probe.naturalHeight > 0)
-        probe.onerror = () => resolve(false)
-        probe.src = single[2]
-      })
-      return { drawable, digest }
-    })
-
 for (const { prefix, text } of JOURNEYS) {
   const label = prefix === '' ? '/' : prefix
   const home = text.stops.home
@@ -215,8 +111,12 @@ for (const { prefix, text } of JOURNEYS) {
   const mailbox = text.stops.mailbox
   const journey = text.stops.journey
 
-  // 完走は 8 か所の会話と次へを、その言語の文言のまま最後までつなぐ。ko の全部の地点の文言で次へを連ねるのは
-  // この検査だけなので ja/ko 双方で見る(docs/decisions/0015-trim-e2e-overlap-and-ko.md)
+  // 完走は 8 か所の会話と次へを、その言語の文言のまま最後までつなぐ。ja の完走は村の統合テスト
+  // (src/components/VillagePage/container.browser.test.tsx)が見る。統合のフィクスチャは ja の props だけを渡すので、
+  // ko の全部の地点の文言で次へを連ねるのはこの検査だけで、ko だけを E2E に残す
+  // (docs/decisions/0015-trim-e2e-overlap-and-ko.md・docs/decisions/0018-move-e2e-and-gate-all-hooks.md)
+  if (prefix === '') continue
+
   test(`夜で雨でも8か所のコースは最後まで通る (${label})`, async ({ page }) => {
     // 10s 待ちを7回連ねるので既定の30sを超える
     test.setTimeout(90_000)
@@ -266,8 +166,12 @@ for (const { prefix, text } of JOURNEYS) {
       WEATHER_LAYER_COUNT
     )
   })
+}
 
-  // ここから下の段階のシート・灯り・天気の層は言語では変わらないので ja だけで見る
+// 段階ごとの焼いたシートは、ビルドが焼く /sprites/ の PNG とローダーが差し込むスプライトの背景が要り、
+// 統合テストでは描かれないので E2E に残す(段階の属性 data-phase は統合テストも見る)。言語では変わらないので ja だけで見る
+for (const { prefix } of JOURNEYS) {
+  const label = prefix === '' ? '/' : prefix
   if (prefix !== '') continue
 
   // 明け方・夕方は data-phase の属性だけを見ていた頃、昼のシートを使い回すよう戻しても
@@ -304,147 +208,5 @@ for (const { prefix, text } of JOURNEYS) {
         )
       }
     }
-  })
-
-  test(`夜の町は灯りがともり、主人公の灯りは歩いても離れない (${label})`, async ({ page }) => {
-    await page.clock.setFixedTime(new Date(PHASE_CLOCKS.night))
-    await openVillage(page, prefix)
-    await expect(page.locator(VILLAGE_ROOT)).toHaveAttribute('data-phase', 'night')
-    // 街灯もたき火も町にある。屋内のまま数えると主人公の灯りしか見ないテストになる
-    await leaveRoom(page)
-
-    // 種類ごとに数を見る。合計だけだと、街灯が消えたぶん窓が増えたような入れ替わりを通してしまう
-    for (const [kind, count] of Object.entries(TOWN_LIGHTS)) {
-      await expect(
-        page.locator(lightsOfKind(kind)),
-        `夜の町に ${kind} の灯りが ${count} つ置かれている`
-      ).toHaveCount(count)
-    }
-    // 置かれているだけでなく本当に描かれている(先祖まで遡って display・visibility・不透明度・面積を見る)。
-    // 表に無い種類が増えていればこの合計がずれて落ちる
-    expect(await paintedLights(page), '夜の町では表どおりの灯りがすべて描かれている').toBe(
-      TOWN_LIGHT_TOTAL
-    )
-
-    const before = await playerLightGap(page)
-    if (before === null) throw new Error('主人公か主人公の灯りが描かれていない')
-
-    // 自宅前 (14,12) から右へ1マス(journey.spec が通れることを押さえている道)。
-    // walk は保存位置が変わる(= 歩き終えた)まで待ってから戻る
-    await walk(page, 'ArrowRight', 1)
-
-    const after = await playerLightGap(page)
-    if (after === null) throw new Error('歩いた後に主人公か主人公の灯りが消えた')
-    // 先に「本当に歩いた」を確かめる。動いていなければ、ずれが同じでも何も証明していない
-    expect(after.pose, '人物へ書かれる transform が変わっている(実際に歩いた)').not.toBe(
-      before.pose
-    )
-    // カメラも一緒に動くので画面の絶対座標では判定できない。人物と灯りの中心のずれが
-    // 歩く前後で変わらないことだけが「灯りが人物に固定されている」を意味する
-    expect(Math.abs(after.x - before.x), '灯りが横に置いていかれていない').toBeLessThanOrEqual(
-      LIGHT_GAP_TOLERANCE_PX
-    )
-    expect(Math.abs(after.y - before.y), '灯りが縦に置いていかれていない').toBeLessThanOrEqual(
-      LIGHT_GAP_TOLERANCE_PX
-    )
-  })
-
-  test(`昼は灯りの要素が残ったまま一つも描かれない (${label})`, async ({ page }) => {
-    await page.clock.setFixedTime(new Date(PHASE_CLOCKS.day))
-    await openVillage(page, prefix)
-    await expect(page.locator(VILLAGE_ROOT)).toHaveAttribute('data-phase', 'day')
-    // 夜と同じ場所で数える。屋内で数えても町の光源は元から無いので、消えた証明にならない
-    await leaveRoom(page)
-
-    // 段階が変わるたびに層を組み直さない作りなので、要素は昼も DOM に残っているのが正しい。
-    // 枚数が 0 なのを合格にすると、そもそも描いていない場合と見分けが付かなくなる
-    await expect(page.locator(PLAYER_LIGHT), '灯りの要素自体は昼でも DOM にある').toBeAttached()
-    expect(await paintedLights(page), '昼は灯りが一つも描かれない').toBe(0)
-  })
-
-  test(`大阪が雨なら雨の層が出て、読み上げからは外れる (${label})`, async ({ page }) => {
-    const weather = await stubWeather(page, 'rain')
-    await page.clock.setFixedTime(new Date(PHASE_CLOCKS.day))
-    await openVillage(page, prefix)
-
-    // 実ネットワークではなくこのテストの応答を見て描いたことを先に押さえる
-    await expect.poll(() => weather.calls(), { timeout: 10_000 }).toBeGreaterThan(0)
-    // 自室には天井があるので、雨だと分かっていても屋内では降らせない
-    await expect(page.locator(WEATHER_LAYERS), '屋内では降らない').toHaveCount(0)
-
-    await leaveRoom(page)
-    // 属性の値まで見るので、雪の層が出ていても「雨が降った」とは数えない
-    const layers = page.locator(RAIN_LAYERS)
-    await expect(layers, '雨は 2 コマぶんの層が並ぶ').toHaveCount(WEATHER_LAYER_COUNT)
-    // 2 枚とも読み上げから外れていること。片方だけだと支援技術に粒の層が残る
-    await expect(layers.nth(0)).toHaveAttribute('aria-hidden', 'true')
-    await expect(layers.nth(1)).toHaveAttribute('aria-hidden', 'true')
-  })
-
-  test(`大阪が雪なら雪の層が出て、雨とは別のシートになる (${label})`, async ({ page }) => {
-    // 雪で1回・雨で1回、自室から町まで歩いて測るので既定の30秒では足りない
-    test.setTimeout(60_000)
-    const weather = await stubWeather(page, 'snow')
-    await page.clock.setFixedTime(new Date(PHASE_CLOCKS.day))
-    await openVillage(page, prefix)
-
-    await expect.poll(() => weather.calls(), { timeout: 10_000 }).toBeGreaterThan(0)
-    // 雨と同じく、天井のある自室では降らせない
-    await expect(page.locator(WEATHER_LAYERS), '屋内では降らない').toHaveCount(0)
-
-    await leaveRoom(page)
-    const snowLayers = page.locator(SNOW_LAYERS)
-    await expect(snowLayers, '雪は 2 コマぶんの層が並ぶ').toHaveCount(WEATHER_LAYER_COUNT)
-    // 差し替えた応答は降水も 0 より大きい。降雪を先に見る判定が落ちればここが雨に化けるので、
-    // 「雨が 0 枚」まで見て初めて雪として降ったと言える
-    await expect(page.locator(RAIN_LAYERS), '雪の日に雨の層は出ない').toHaveCount(0)
-    // 2 枚とも読み上げから外れていること。片方だけだと支援技術に粒の層が残る
-    await expect(snowLayers.nth(0)).toHaveAttribute('aria-hidden', 'true')
-    await expect(snowLayers.nth(1)).toHaveAttribute('aria-hidden', 'true')
-
-    const snowFirst = await weatherSheetDigest(page, SNOW_LAYERS, 0)
-    const snowSecond = await weatherSheetDigest(page, SNOW_LAYERS, 1)
-    expect(snowFirst.drawable, '雪の1コマ目が画像として読める').toBe(true)
-    expect(snowSecond.drawable, '雪の2コマ目が画像として読める').toBe(true)
-    // 2 枚が同じ絵だと、見せ消ししても粒が動かない(コマ送りになっていない)
-    expect(snowSecond.digest, '雪の2枚は別のコマである').not.toBe(snowFirst.digest)
-
-    // 同じ村を雨へ差し替えて測り直す(同じ page に重ねた route は後から敷いた方が勝つ)。
-    // ここで雨を測るのは、属性の値が違うだけでなく敷かれるシートそのものが雨と雪で
-    // 別物だと確かめるため。読み込み直すと自室から始まる(位置は復元されない)ので、
-    // 降る場所までもう一度出てから数える
-    await stubWeather(page, 'rain')
-    await page.reload()
-    await focusVillage(page)
-    await leaveRoom(page)
-    await expect(page.locator(RAIN_LAYERS), '差し替えた後は雨の層に入れ替わる').toHaveCount(
-      WEATHER_LAYER_COUNT
-    )
-    await expect(page.locator(SNOW_LAYERS), '雨に変えたら雪の層は残らない').toHaveCount(0)
-    const rainFirst = await weatherSheetDigest(page, RAIN_LAYERS, 0)
-    expect(rainFirst.drawable, '雨の1コマ目が画像として読める').toBe(true)
-    expect(rainFirst.digest, '雪のシートは雨のシートと別物').not.toBe(snowFirst.digest)
-  })
-
-  test(`天気の取得が失敗したら何も降らせず村は動く (${label})`, async ({ page }) => {
-    const weather = await stubWeather(page, 'error')
-    await page.clock.setFixedTime(new Date(PHASE_CLOCKS.day))
-    await openVillage(page, prefix)
-
-    // 問い合わせが済んでから数える。応答前に数えると「まだ出ていない」を通してしまう
-    await expect.poll(() => weather.calls(), { timeout: 10_000 }).toBeGreaterThan(0)
-    // 取得に失敗しても村の描画と会話はそのまま動く
-    await expect(page.locator('[data-village]')).toBeVisible()
-    const dialog = page.getByRole('dialog')
-    await page.keyboard.press('e')
-    await expect(dialog.getByRole('heading', { name: home.title })).toBeVisible()
-    await page.keyboard.press('Escape')
-    await expect(dialog).toHaveCount(0)
-
-    // 降る場所(屋外)まで出てから数える。屋内で数えても常に 0 枚なので、
-    // 取得が成功していたとしても素通りしてしまい、何も証明できない。
-    // 種類も問わない — 雨に絞ると、誤って雪として降った時に見逃す
-    await leaveRoom(page)
-    await expect(page.locator(WEATHER_LAYERS), '失敗したら何も降らない').toHaveCount(0)
   })
 }
