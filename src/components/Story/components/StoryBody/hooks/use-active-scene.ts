@@ -1,9 +1,10 @@
 // 場面(scene)のうちどれがアクティブかを IntersectionObserver で追う。
 // 画面中央の帯(上下45%を除いた中央10%)を通過した場面をアクティブとみなす。
-// 観察対象が可変本数のため、useFullyVisible/useReveal と違い単一 ref ではなく
+// 観察対象が可変本数のため、要素1つを受け取る useFullyVisible/useReveal と違い
 // index ごとの ref コールバックを Map で束ね、Observer 自体は1個だけ生成して使い回す
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { canObserveIntersection } from '@/utils/observe-fallback'
+import { pickActiveScene } from '../utils/pick-active-scene'
 
 // 中央だけを判定帯にする。上下45%を除外し、中央10%の帯を通過した場面をアクティブにする
 const ROOT_MARGIN = '-45% 0px -45% 0px'
@@ -23,17 +24,15 @@ export function useActiveScene(count: number): {
 
   useEffect(() => {
     // IntersectionObserver が無い環境(テスト環境など)では先頭の場面を出したまま何もしない
+    /* v8 ignore next -- e2e: tests/observer-missing.spec.ts > IntersectionObserver が無いと、場面を下へ送っても今の場面は先頭のままで、CTA は先頭の場面から開く */
     if (!canObserveIntersection()) return
 
     const observer = new IntersectionObserver(
       entries => {
-        for (const entry of entries) {
-          if (!entry.isIntersecting) continue
-          if (!(entry.target instanceof HTMLElement)) continue
-          const index = Number(entry.target.dataset.sceneIndex)
-          if (Number.isNaN(index)) continue
-          setActiveIndex(index)
-        }
+        // 帯に入った場面のうち最後のものを今の場面にする。入った場面が無い通知(帯から出ただけ)では変えない
+        // (選び方は utils/pick-active-scene.ts)
+        const index = pickActiveScene(entries)
+        if (index !== null) setActiveIndex(index)
       },
       { rootMargin: ROOT_MARGIN }
     )

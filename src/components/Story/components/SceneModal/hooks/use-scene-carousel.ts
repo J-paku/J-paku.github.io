@@ -95,19 +95,18 @@ export function useSceneCarousel({
     nextButtonRef,
   ])
 
-  function handlePrev() {
-    const target = prevSceneTarget(activeIndex)
-    if (target === null) return
+  // 前へ・次へで target の場面へ送る。押す前に逃がし先へフォーカスを移してから送る
+  function stepTo(target: number) {
     focusControl(focusAfterStep(target, scenes.length))
     setActiveIndex(target)
   }
 
-  function handleNext() {
-    const target = nextSceneTarget(activeIndex, scenes.length)
-    if (target === null) return
-    focusControl(focusAfterStep(target, scenes.length))
-    setActiveIndex(target)
-  }
+  // 前へ・次へを押した時の処理。移る先の無い端では処理を持たない(undefined)。
+  // 端ではボタンが無効(disabled)で押されないので、押せるボタンの処理は必ず移る先を持つ
+  const prevTarget = prevSceneTarget(activeIndex)
+  const nextTarget = nextSceneTarget(activeIndex, scenes.length)
+  const handlePrev = prevTarget === null ? undefined : () => stepTo(prevTarget)
+  const handleNext = nextTarget === null ? undefined : () => stepTo(nextTarget)
 
   function handleToggleAutoAdvance() {
     setIsAutoAdvancePaused(prev => !prev)

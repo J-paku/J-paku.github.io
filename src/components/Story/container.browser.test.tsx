@@ -516,6 +516,55 @@ describe('読み進めと場面モーダル', () => {
     await expect.element(dialog).not.toBeInTheDocument()
     await expect.element(cta, { message: '余白で閉じると CTA へ戻る' }).toHaveFocus()
   })
+
+  // ここから下の2件は E2E から移したものではない。フックの分岐(場面の数の変化・開発時の二重実行)を、利用者に見える形で確かめる
+
+  it('別の作品の場面の並びへ描き直すと、今読んでいる場面を先頭へ戻し、CTA は新しい並びの先頭から開く', async () => {
+    const { rerender } = render(<StoryContainer {...storyJa} />)
+    const { cta, dialog } = locateStory()
+    // 末尾の場面まで読み進め、CTA がその場面から開くことを確かめてから閉じる。
+    // 今読んでいる場面の印と場面の文の現れ方は同じ描画の回で観察の通知を受けるので、文が現れるのを待ってから押す
+    const last = sceneCount - 1
+    const lastSection = page
+      .getByRole('region', { name: scenes[last].title, exact: true })
+      .element()
+    const lastWrapper = lastSection.querySelector(':scope > div')
+    if (lastWrapper === null) throw new Error('場面の文を包む箱が無い')
+    lastSection.scrollIntoView({ block: 'center', behavior: 'instant' })
+    await expect
+      .poll(() => getComputedStyle(lastWrapper).opacity, { timeout: REVEAL_TIMEOUT_MS })
+      .toBe('1')
+    await cta.click()
+    await expect.element(dialog).toHaveAccessibleName(scenes[last].title)
+    await userEvent.keyboard('{Escape}')
+    await expect.element(dialog).not.toBeInTheDocument()
+
+    // 別の作品へ移った時と同じく、ページの先頭へ戻ってから場面の数の違う並びで描き直す。
+    // 先頭では中央の判定帯にどの場面も掛からない(1280×720 で先頭の場面は帯より下から始まる)ので、観察の通知では今の場面が変わらない
+    window.scrollTo(0, 0)
+    const otherScenes = scenes.slice(0, 2).map(scene => ({ ...scene, id: `${scene.id}-other` }))
+    rerender(<StoryContainer {...storyJa} story={{ ...story, scenes: otherScenes }} />)
+
+    // 前の作品の末尾の添字を引きずると、新しい並びに無い場面を開こうとする
+    await cta.click()
+    await expect.element(dialog).toHaveAccessibleName(otherScenes[0].title)
+    await expect.poll(counterText).toBe(`1 / ${otherScenes.length}`)
+  })
+
+  it('開発時の二重実行(StrictMode)でも、モーダルは開いたまま閉じるへフォーカスが乗り、閉じると背景の固定を解く', async () => {
+    render(<StoryContainer {...storyJa} />, { reactStrictMode: true })
+    const { cta, dialog, close } = locateStory()
+
+    await cta.click()
+    await expect.element(dialog).toBeVisible()
+    await expect.element(close).toHaveFocus()
+    expect(document.body.style.overflow).toBe('hidden')
+
+    await close.click()
+    await expect.element(dialog).not.toBeInTheDocument()
+    await expect.element(cta).toHaveFocus()
+    expect(document.body.style.overflow).toBe('')
+  })
 })
 
 describe('場面の絵の取り直し', () => {

@@ -46,13 +46,13 @@ function SceneModal({
   resumeLabel,
   onClose,
 }: SceneModalProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const prevButtonRef = useRef<HTMLButtonElement>(null)
   const nextButtonRef = useRef<HTMLButtonElement>(null)
 
-  // effectの実行順(showModal・フォーカス→背景固定→自動送り)を保つため、dialog側を先に呼ぶ
-  const handleDialogClick = useModalDialog({ dialogRef, closeButtonRef, onClose })
+  // 実行順(showModal・フォーカス→背景固定→自動送り)を保つため、dialog側を先に呼ぶ
+  // (showModal・フォーカスは dialog の ref のコールバックで、effect より先に走る)
+  const { attachDialog, handleDialogClick } = useModalDialog({ closeButtonRef, onClose })
   const {
     activeIndex,
     scene,
@@ -67,7 +67,7 @@ function SceneModal({
 
   return (
     <dialog
-      ref={dialogRef}
+      ref={attachDialog}
       className={styles.dialog}
       aria-label={scene.title}
       onClick={handleDialogClick}
