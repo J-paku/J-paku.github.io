@@ -4,7 +4,7 @@ read_when:
   - ルーティングやメタデータを変えるとき
   - ビルド・配信の仕組みを前提にした判断をするとき
 source_of_truth: true
-last_reviewed: 2026-10-01
+last_reviewed: 2026-10-15
 ---
 
 # 全体像
@@ -23,8 +23,8 @@ src/hooks/   画面横断のフック
 src/lib/     外の世界(ファイル読み・保存・ネットワーク)に触れる層 + 村エンジン
 src/utils/   副作用の無い純粋関数・定数
 src/styles/  共通スタイルとデザイントークン
-scripts/     ビルド前の生成(build-sprites)+ ソースの検査(check-docs。リポジトリの文書を見る。CI ではビルドの前に走る)+ 配信物に対する検査(verify-export / a11y / 日本語改行)+ 検査の共有部品(expected-disclosures)
-tests/       Playwright E2E
+scripts/     ビルド前の生成(build-sprites)+ ソースの検査(check-docs は文書、check-test-boundary・check-layers はテストの置き場と層。CI ではビルドの前に走る)+ 配信物に対する検査(verify-export / a11y / 日本語改行)+ 検査と設定の共有部品(expected-disclosures・container-dirs・gate-targets・read-imports)
+tests/       Playwright E2E(単体テストと統合テストは src の中で対象の隣に置く)
 ```
 
 ## ルーティング
@@ -76,4 +76,4 @@ App Router のルートグループを2本持ち、同じサーバコンポー�
 
 インストール済みの版の正本は `package.json`。主要なものだけ挙げると
 Next.js(App Router・静的エクスポート)/ React / zustand(村の卓上時計の状態を、離れたクライアントの島どうしで共有する。保存はしない)/ TypeScript / CSS Modules / BudouX(日本語の文節分割)/
-Vitest(単体)/ @playwright/test(E2E)/ ESLint + Prettier / GitHub Actions。
+Vitest(単体。統合テストは Vitest Browser Mode と `@vitest/browser-playwright`)/ Stryker(変異テスト)/ @playwright/test(E2E)/ ESLint + Prettier / GitHub Actions。

@@ -36,4 +36,4 @@ content/
 
 ## 覚えておくこと
 
-`period` / `role` / `scale` は optional。`status: 'wip'` の作品はこの3つを持たず、詳細ページも作らない(現在 wip は 0 件)。
+`period` / `role` / `scale` は optional。`status: 'wip'` の作品はこの3つを持たず、詳細ページも作らない(2026-10-15 の時点で wip は 0 件。`content/ja/works/*.ts` の `status`)。

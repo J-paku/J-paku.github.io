@@ -35,7 +35,7 @@
 ## 確かめ方
 
 ```bash
-npm run test        # art / png / sprites / palette-phase の単体テスト
+npm run test        # art / png / sprites / palette-phase / compose-player などの単体テスト(このフォルダの *.test.ts)
 npm run build       # シートの合成まで通す
 ```
 

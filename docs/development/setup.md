@@ -4,7 +4,7 @@ read_when:
   - 環境を作り直すとき
   - 開発サーバや実機確認で詰まったとき
 source_of_truth: true
-last_reviewed: 2026-10-01
+last_reviewed: 2026-10-15
 ---
 
 # セットアップ
@@ -18,7 +18,7 @@ npm install
 npm run dev     # http://localhost:3000
 ```
 
-E2E を走らせるなら Chromium も要る。
+E2E と統合テスト(`npm run test:integration`。Vitest Browser Mode が Playwright の Chromium を使う)を走らせるなら Chromium も要る。
 
 ```bash
 npx playwright install --with-deps chromium
