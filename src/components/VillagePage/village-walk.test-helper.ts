@@ -86,9 +86,19 @@ export const villageFrame = () =>
   required(document.querySelector<HTMLElement>('[data-village]'), '村の枠')
 export const villagePlayer = () =>
   required(document.querySelector<HTMLElement>('[data-village-player]'), '主人公')
+// ワールドの層。data-world に描画済みのワールドが載る
+export const worldLayer = () =>
+  required(document.querySelector<HTMLElement>('[data-world]'), 'ワールドの層')
 
 // 歩行ループが回っているか(running)眠っているか(idle)。create-animation-loop が枠へ書く
 export const loopState = () => villageFrame().dataset.villageLoop
+
+// 利用者に見えているか(E2E の toBeVisible と同じ見方: 箱が空でなく、計算値の visibility が hidden でない)
+export const isVisible = (element: Element | null) => {
+  if (element === null) return false
+  const box = element.getBoundingClientRect()
+  return box.width > 0 && box.height > 0 && getComputedStyle(element).visibility !== 'hidden'
+}
 
 // 起動の覆いが外れるまで時計を進め、キー操作を受け取る村の枠へ焦点を置く
 export const focusVillage = async () => {
@@ -133,6 +143,10 @@ export const walk = async (setId: string, key: WalkKey, cells: number): Promise<
   }
   return arrived
 }
+
+// 村は自室の開始マス (4,4) から始まる。下端の 1 マスのマット (4,7) へ下へ 3 マス歩いて乗ると、
+// 町の自宅前 (14,12) へ下向きで出る
+export const leaveRoom = (setId: string) => walk(setId, 'ArrowDown', 3)
 
 // 歩行ループが眠るまで時計を進める。歩き終えてカメラが追い付き、時間で替わるコマが無くなれば眠る
 export const expectLoopIdle = () => advanceUntil(() => loopState() === 'idle', '歩行ループが眠る')
@@ -187,6 +201,14 @@ export const stubWeather = (kind: WeatherKind) => {
   })
   return { calls: () => calls }
 }
+
+// ---- ブラウザの環境(CDP)と実際の入力 ----
+
+// 動きを控える設定。村は描いた時に一度だけ読むので、描く前に呼ぶ
+export const emulateReducedMotion = () =>
+  cdp().send('Emulation.setEmulatedMedia', {
+    features: [{ name: 'prefers-reduced-motion', value: 'reduce' }],
+  })
 
 // タッチ端末(pointer: coarse)。E2E の hasTouch に当たる。描く前に呼ぶ
 export const emulateTouch = () =>

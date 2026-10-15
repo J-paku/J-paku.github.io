@@ -41,3 +41,40 @@ export const recordAttribute = (target: Element, attribute: string): AttributeMa
   )
   return marks
 }
+
+// 書かれた値を、初めて出た順に重複なしで並べる(E2E の data-observed-poses と同じ並び)
+export const firstSeen = (marks: readonly AttributeMark[]) =>
+  marks.reduce<string[]>((seen, { value }) => (seen.includes(value) ? seen : [...seen, value]), [])
+
+// 主人公のコマか transform が替わるたびに「コマ:反転の有無」を控える。
+// 両方とも歩行ループが同じフレームで書くので、通知を受けた時点の transform がそのコマを描いた時の向き
+export const recordFacing = (player: HTMLElement): string[] => {
+  const entries: string[] = []
+  observe(
+    player,
+    () => {
+      const pose = player.dataset.sprite ?? ''
+      const flip = player.style.transform.includes('scaleX(-1)') ? 'flip' : 'none'
+      entries.push(`${pose}:${flip}`)
+    },
+    { attributes: true, attributeFilter: ['data-sprite', 'style'] }
+  )
+  return entries
+}
+
+// ワールドの層へ糸が差し込まれた瞬間の見え方(計算値の visibility)を順に控える。
+// 竿を振っている間は隠すので、差し込まれたその場では hidden のはず
+export const recordLineMounts = (world: HTMLElement): string[] => {
+  const mounts: string[] = []
+  observe(
+    world,
+    records => {
+      for (const node of records.flatMap(record => [...record.addedNodes])) {
+        if (!(node instanceof Element) || !node.matches('[data-village-line]')) continue
+        mounts.push(getComputedStyle(node).visibility)
+      }
+    },
+    { childList: true }
+  )
+  return mounts
+}
