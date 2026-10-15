@@ -291,7 +291,8 @@ PASS は調査を止めるので、FAIL より危険である。
 
 ## 走らせる範囲
 
-統合テスト(`npm run test:integration`)はビルド無しで走る(2026-10-13 の手元の実測で、1本だった時に約3.4秒、`-- --coverage` 付きで約4.3秒)ので、反復中も全体を走らせてよい。
+統合テスト(`npm run test:integration`)はビルド無しで走るが、全体は約2分24秒かかる(2026-10-16 の手元の実測、6ファイル・201件、`--coverage` 無し。1本だった当時の 2026-10-13 の実測は約3.4秒、`-- --coverage` 付きで約4.3秒)。
+反復中は触ったコンテナの統合テストのファイルだけを `-t` で狭めて走らせ(`npm run test:integration -- src/components/VillagePage/container.browser.test.tsx -t '<名前>'`)、全体は commit の直前に1回だけ走らせる(`npm run verify` に含まれる)。
 
 E2E の反復中は落ちた spec だけを狭く走らせる(`npx playwright test tests/journey.spec.ts -g '<名前>'`)。
 **E2E の全体は手元では回さず、push で CI が回す**(E2E で commit の直前に走らせるのは、変えた範囲が指す spec だけ)。詳しくは [../agents/verification.md](../agents/verification.md)。
