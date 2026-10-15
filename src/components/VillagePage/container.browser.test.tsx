@@ -31,6 +31,11 @@ import {
   UMBRELLA_OPEN_MS,
 } from '@/lib/village/player-pose'
 import { CELL_MIN, cellMax, computeCell } from './components/Village/utils/stage-scale'
+import {
+  CLOCK_FOCUSABLE_SELECTOR,
+  MAP_FOCUSABLE_SELECTOR,
+  STOP_FOCUSABLE_SELECTOR,
+} from './components/Village/utils/focusables'
 import { useVillageTime } from './hooks/use-village-time'
 import {
   FRAME_MS,
@@ -43,6 +48,7 @@ import {
   emulateReducedMotion,
   emulateTouch,
   expectLoopIdle,
+  focusIndex,
   focusVillage,
   isPainted,
   isVisible,
@@ -62,6 +68,7 @@ import {
   villagePlayer,
   walk,
   worldLayer,
+  type WalkKey,
   type WeatherKind,
 } from './village-walk.test-helper'
 import {
@@ -1966,6 +1973,176 @@ describe('画面の大きさ・窓・時計・昼夜', () => {
         expect(stage.height).toBe(cell * rows)
         // 枠の幅 640 に対し片側 192px のガターが空き、ガター配置になる
         expectGutterLayout(stage)
+      })
+    })
+  })
+
+  describe('窓の焦点と吹き出し', () => {
+    // 窓は role='dialog' の div と手製の Tab の輪(components/Village/hooks/use-dialog-focus.ts)で作るので、ブラウザは輪を保証しない。
+    // 今の焦点から Tab で 1 つずつ末尾まで進め、末尾の次は先頭へ、先頭の前は末尾へ回るのを見る
+    const cycleWithTab = async (dialog: Element, selector: string) => {
+      const items = Array.from(dialog.querySelectorAll<HTMLElement>(selector))
+      // 1 つだけだと先頭と末尾が同じで、回ったのか留まったのかを見分けられない
+      expect(items.length, '窓の中に焦点を移せる要素が 2 つ以上ある').toBeGreaterThanOrEqual(2)
+      const advance = async (index: number): Promise<void> => {
+        if (index >= items.length - 1) return
+        await userEvent.tab()
+        await expect
+          .poll(() => focusIndex(dialog, selector), { message: `Tab で ${index + 1} 番目へ進む` })
+          .toBe(index + 1)
+        await advance(index + 1)
+      }
+      await advance(focusIndex(dialog, selector))
+      await userEvent.tab()
+      await expect
+        .element(page.elementLocator(items[0]), { message: '末尾で Tab を押すと先頭へ回る' })
+        .toHaveFocus()
+      await userEvent.tab({ shift: true })
+      await expect
+        .element(page.elementLocator(items[items.length - 1]), {
+          message: '先頭で Shift+Tab を押すと末尾へ回る',
+        })
+        .toHaveFocus()
+    }
+
+    // 窓を開く前の焦点が村の枠にあるか。閉じた後に枠へ戻ったことが「元からそこにあった」のではなく「戻された」と言えるよう、開く前にも押さえる
+    const expectFrameFocused = (message: string) =>
+      expect.element(frame(), { message }).toHaveFocus()
+
+    test('会話窓は Tab の輪を両端で回し、見出しの Shift+Tab は末尾へ、閉じると村の枠へ焦点を戻す', async () => {
+      await renderVillage()
+      // 出発の机の前で、話しかけられる吹き出しが出るのを待つ
+      await expect
+        .poll(() => document.querySelector('[data-village-bubble]'), {
+          message: '出発の机の前で吹き出しが出る',
+          timeout: 3_000,
+        })
+        .not.toBeNull()
+      villageFrame().focus()
+      await expectFrameFocused('開く前の焦点は村の枠')
+      await userEvent.keyboard('e')
+      const dialog = page.getByRole('dialog')
+      const title = dialog.getByRole('heading', { name: text.stops.home.title })
+      await expect.element(title, { message: '開いた直後の焦点は見出し' }).toHaveFocus()
+
+      // 見出しは並びの外(-1)。そこから Tab で並びの先頭へ入り、末尾まで進んで回る
+      await cycleWithTab(dialog.element(), STOP_FOCUSABLE_SELECTOR)
+
+      // 見出しは並びの外だが先頭と同じに扱い、Shift+Tab で末尾へ回す
+      title.element().focus()
+      await userEvent.tab({ shift: true })
+      const items = dialog.element().querySelectorAll<HTMLElement>(STOP_FOCUSABLE_SELECTOR)
+      await expect
+        .element(page.elementLocator(items[items.length - 1]), {
+          message: '見出しで Shift+Tab を押すと末尾へ回る',
+        })
+        .toHaveFocus()
+
+      await userEvent.keyboard('{Escape}')
+      await expect.element(dialog).not.toBeInTheDocument()
+      await expectFrameFocused('閉じると村の枠へ焦点が戻る')
+    })
+
+    test('拡大地図は Tab の輪を両端で回し、閉じると村の枠へ焦点を戻す', async () => {
+      await renderVillage()
+      // 地図は町でだけ開く。部屋の下端のマットから町の自宅前へ出る
+      await walkOutToTown()
+      await expectFrameFocused('開く前の焦点は村の枠')
+      await userEvent.keyboard('m')
+      const map = page.getByRole('dialog')
+      await expect.element(map.getByRole('heading', { name: text.mapTitle })).toBeVisible()
+      // 開いた直後の焦点は番号 1 の地点で、並びの先頭(閉じるボタン)ではない。そこから末尾まで進めて回す
+      await expect
+        .poll(() => focusIndex(map.element(), MAP_FOCUSABLE_SELECTOR), {
+          message: '開いた直後の焦点は窓の中の、先頭より後ろ',
+        })
+        .toBeGreaterThan(0)
+
+      await cycleWithTab(map.element(), MAP_FOCUSABLE_SELECTOR)
+
+      await userEvent.keyboard('{Escape}')
+      await expect.element(map).not.toBeInTheDocument()
+      await expectFrameFocused('閉じると村の枠へ焦点が戻る')
+    })
+
+    test('卓上時計の窓は 1 段目も 2 段目も Tab の輪を両端で回し、閉じると村の枠へ焦点を戻す', async () => {
+      await renderVillage()
+      // 部屋の開始マス (4,4) から時計の前 (7,3) へ(下の卓上時計の検査と同じ道)
+      expect(await walk(setId, 'ArrowRight', 3), '時計と同じ列まで歩けた').toBe(3)
+      expect(await walk(setId, 'ArrowUp', 1), '時計の前まで歩けた').toBe(1)
+      await expect
+        .poll(() => document.querySelector('[data-village-bubble]')?.textContent, {
+          message: '時計の前に立つと吹き出しが出る',
+          timeout: 3_000,
+        })
+        .toContain(text.clock.arrive)
+      await expectFrameFocused('開く前の焦点は村の枠')
+      await userEvent.keyboard('e')
+      const clockWindow = page.getByRole('dialog', { name: text.clock.place })
+      await expect.element(clockWindow).toHaveAttribute('data-step', 'choose')
+      // 1 段目は開いた直後の焦点が先頭のボタン
+      await expect
+        .element(clockWindow.getByRole('button').first(), { message: '開いた直後は先頭' })
+        .toHaveFocus()
+      await cycleWithTab(clockWindow.element(), CLOCK_FOCUSABLE_SELECTOR)
+
+      // 2 段目はボタンの並びが入れ替わり、焦点は途中の「決定」から始まる。並びが替わっても輪が回るか
+      await userEvent.click(clockWindow.getByRole('button', { name: text.clock.custom }))
+      await expect.element(clockWindow).toHaveAttribute('data-step', 'pick')
+      await expect
+        .element(clockWindow.getByRole('button', { name: text.clock.decide }))
+        .toHaveFocus()
+      await cycleWithTab(clockWindow.element(), CLOCK_FOCUSABLE_SELECTOR)
+
+      await userEvent.keyboard('{Escape}')
+      await expect.element(clockWindow).not.toBeInTheDocument()
+      await expectFrameFocused('閉じると村の枠へ焦点が戻る')
+    })
+
+    // 部屋は 10 列で枠の幅と同じなので、カメラは横に動かず、壁際のマスは枠の左右の端に描かれる。
+    // 開始マス (4,4) の行は家具が無く、左へ 4 マスで左端 (0,4)、右へ 5 マスで右端 (9,4) に着く
+    const EDGES: { side: string; key: WalkKey; cells: number }[] = [
+      { side: '左', key: 'ArrowLeft', cells: 4 },
+      { side: '右', key: 'ArrowRight', cells: 5 },
+    ]
+    // 話せる相手がいない所で話しかけた時に頭上へ出る考え事の吹き出し
+    const THOUGHT = '[data-village-bubble][data-village-bubble-kind="thought"]'
+    // 吹き出しは出た直後(rAF 2 回の後)と、カメラが落ち着く 350ms 後(TalkBubble の SETTLE_DELAY)に測り直す。
+    // 測り直しを終えた後の位置を見るため、それより後で測る。一言は 2.5 秒で消えるので、それより前に測る(E2E と同じ 800ms)
+    const BUBBLE_SETTLED_MS = 800
+
+    // 縦持ちの狭い枠ほど、壁際で出した吹き出しが枠の外へはみ出しやすい。寸法は E2E と同じ 390×664 で、
+    // 入力の種別も E2E と同じタッチ端末にする(この幅ではマス 39px・幅 390 の枠になる)
+    describe.each(EDGES)('吹き出しを枠の左右へ押し戻す', ({ side, key, cells }) => {
+      test(`部屋の${side}の壁際で出した考え事の吹き出しが枠の中に収まる`, async () => {
+        await emulateTouch()
+        await page.viewport(390, 664)
+        await renderVillage()
+        expect(await walk(setId, key, cells), `${side}の壁際まで歩けた`).toBe(cells)
+        await userEvent.keyboard('e')
+        await expect
+          .poll(() => document.querySelector(THOUGHT)?.textContent, {
+            message: '考え事の吹き出しが出る',
+          })
+          .toContain(text.noTarget)
+        await runFor(BUBBLE_SETTLED_MS)
+
+        const bubble = queryOne(THOUGHT).getBoundingClientRect()
+        const stage = villageFrame().getBoundingClientRect()
+        const player = villagePlayer().getBoundingClientRect()
+        const playerCenter = player.left + player.width / 2
+        // 押し戻さなければ、吹き出しは主人公の頭の真上を中心に描かれて枠の外へはみ出す位置にいる。
+        // ここが成り立たないと、押し戻しを外しても下の検査が通ってしまう
+        const natural = {
+          left: playerCenter - bubble.width / 2,
+          right: playerCenter + bubble.width / 2,
+        }
+        const wouldOverflow =
+          side === '左' ? natural.left < stage.left : natural.right > stage.right
+        expect(wouldOverflow, '押し戻さなければ枠の外へはみ出す位置で出している').toBe(true)
+
+        expect(bubble.left, '吹き出しの左端が枠の中').toBeGreaterThanOrEqual(stage.left)
+        expect(bubble.right, '吹き出しの右端が枠の中').toBeLessThanOrEqual(stage.right)
       })
     })
   })

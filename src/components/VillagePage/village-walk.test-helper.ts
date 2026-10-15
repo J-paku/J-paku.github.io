@@ -125,6 +125,12 @@ export const isPainted = (element: Element): boolean => {
   return !hidden(element)
 }
 
+// 窓の中で焦点を移せる要素(DOM 順)のうち、今の焦点が何番目か。並びの外(見出しなど)なら -1
+export const focusIndex = (root: Element, selector: string): number =>
+  Array.from(root.querySelectorAll(selector)).findIndex(
+    element => element === document.activeElement
+  )
+
 // 起動の覆いが外れるまで時計を進め、キー操作を受け取る村の枠へ焦点を置く
 export const focusVillage = async () => {
   await advanceUntil(() => document.getElementById('boot') === null, '起動の覆いが外れる')
