@@ -80,12 +80,11 @@ export function useVillageFishing({
     setAt(null)
   }, [])
 
+  // 投げる。呼ぶのは重ね表示の openTalk だけで、openTalk は釣れる中身が無い時・全部を釣り上げた後には呼ばず、
+  // 釣っている間(mode が fishing で錠が掛かっている)にも呼ばれない。押した入力ごとに描き直してから次の入力を受けるので、
+  // ここへ来る時はいつも、釣り残しがあり、段階は idle で、タイマーも動いていない
   const start = useCallback(
     (cell: Cell) => {
-      // 全部を釣り上げた後は投げない。openTalk が先に止めるので通常は来ない。来ても投げはしない
-      if (exhausted) return
-      // 同じフレームの連打でもタイマーを二重に始めない
-      if (phase !== 'idle' || castTimerRef.current !== null || catches.length === 0) return
       setAt(cell)
       setPhase('casting')
       setSpeech(text.fishing.cast)
@@ -95,14 +94,9 @@ export function useVillageFishing({
         setSpeech(text.fishing.bite)
         biteTimerRef.current = setTimeout(() => {
           biteTimerRef.current = null
-          // まだ釣っていない物から選ぶ。全部を釣り上げた後は start が投げないので、
-          // ここへ来る時は必ず釣り残しがある
-          const picked = pickCatch(catches, caughtNamesRef.current)
-          // 釣れる中身が無い時は窓を出さず、静かに元へ戻す
-          if (picked === null) {
-            reset()
-            return
-          }
+          // まだ釣っていない物から選ぶ。全部を釣り上げた後は start が呼ばれないので、
+          // ここへ来る時は必ず釣り残しがある。pickCatch が null を返すのは中身が空の時だけで、空なら start は呼ばれない
+          const picked = pickCatch(catches, caughtNamesRef.current)!
           setCaught(picked)
           setPhase('landing')
           // 釣った物として数えるのは結果窓に出した物だけ。巻物が浮いている間に閉じた物は釣っていない
@@ -126,7 +120,7 @@ export function useVillageFishing({
         }, FISHING_BITE_MS)
       }, FISHING_CAST_MS)
     },
-    [exhausted, phase, catches, text, setSpeech, reset]
+    [catches, text, setSpeech]
   )
 
   const stop = useMemo<StopText | null>(() => {

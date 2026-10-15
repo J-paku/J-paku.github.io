@@ -92,16 +92,16 @@ export function useVillageInput({ runtime, cam }: VillageInputOptions): UseVilla
       if (key.preventDefault) event.preventDefault()
       switch (key.kind) {
         case 'escape':
-          runtime.actions.current.onEscape()
+          runtime.actions.current?.onEscape()
           return
         case 'map':
-          runtime.actions.current.onMap()
+          runtime.actions.current?.onMap()
           return
         case 'a':
-          runtime.buttons.current.onA()
+          runtime.buttons.current?.onA()
           return
         case 'b':
-          runtime.buttons.current.onB()
+          runtime.buttons.current?.onB()
           return
         case 'scroll':
           runtime.held.current = null
@@ -115,7 +115,7 @@ export function useVillageInput({ runtime, cam }: VillageInputOptions): UseVilla
           runtime.wake.current()
           return
         case 'talk':
-          runtime.actions.current.onTalk()
+          runtime.actions.current?.onTalk()
           return
       }
     },

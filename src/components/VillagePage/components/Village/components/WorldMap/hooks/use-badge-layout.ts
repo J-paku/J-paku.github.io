@@ -22,23 +22,23 @@ export function useBadgeLayout({ entries, world }: UseBadgeLayoutParams) {
 
   // 地図が描かれた直後(描画前)に 1 回、以後は画面の大きさ・向きが変わるたびに 1 フレームへまとめて 1 回測る
   useLayoutEffect(() => {
-    const canvas = canvasRef.current
-    if (canvas === null) return
+    // mapCanvas は地図がいつも描き、ref は layout effect より先に付くので、ここでは必ずある
+    const canvas = canvasRef.current!
 
     arrangeBadges(canvas)
-    let frame: number | null = null
+    // 頼んである次のフレーム。0 はまだ頼んでいない(rAF の番号は 1 から振られ、0 を取り消しても何も起きない)
+    let frame = 0
+    // 同じフレームの中で大きさが何度変わっても、測り直すのは次のフレームの 1 回だけにする。
+    // 頼み直すと前の分は取り消され、走り終えた番号や 0 を取り消しても何も起きない
     const handleResize = () => {
-      if (frame !== null) return
-      frame = requestAnimationFrame(() => {
-        frame = null
-        arrangeBadges(canvas)
-      })
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => arrangeBadges(canvas))
     }
     window.addEventListener('resize', handleResize)
 
     return () => {
       window.removeEventListener('resize', handleResize)
-      if (frame !== null) cancelAnimationFrame(frame)
+      cancelAnimationFrame(frame)
     }
   }, [badgeLayoutKey, world])
 

@@ -12,9 +12,6 @@ import { cameraOffset } from '../components/Village/utils/stage-scale'
 import { EMPTY_VISITED } from './use-village-guide/use-village-restore'
 import type { VillageActions, VillageButtons } from './use-village-input'
 
-const NO_ACTIONS: VillageActions = { onTalk: () => {}, onMap: () => {}, onEscape: () => {} }
-const NO_BUTTONS: VillageButtons = { onA: () => {}, onB: () => {} }
-
 export type VillageRuntime = {
   // rAF ループは再レンダーを待たずに今のワールドを見る必要があるので ref でも持つ
   world: RefObject<World>
@@ -44,10 +41,12 @@ export type VillageRuntime = {
   umbrellaPose: RefObject<UmbrellaPose | null>
   visited: RefObject<ReadonlySet<string>>
   activeSpot: RefObject<Spot | null>
-  // 村側の処理。入力フックは村の状態を知らず、この ref 越しに呼ぶ
-  actions: RefObject<VillageActions>
-  // キーボードの Z/X が呼ぶ A/B。actions は重ね表示が丸ごと差し替えるので別の ref で持つ
-  buttons: RefObject<VillageButtons>
+  // 村側の処理。入力フックは村の状態を知らず、この ref 越しに呼ぶ。
+  // 中身は重ね表示の effect が入れる。null はまだ入れていない間(mount の effect より前)で、呼ぶ側は ?. で何もしない
+  actions: RefObject<VillageActions | null>
+  // キーボードの Z/X が呼ぶ A/B。actions は重ね表示が丸ごと差し替えるので別の ref で持つ。
+  // 中身は use-village-buttons の effect が入れる。null の扱いは actions と同じ
+  buttons: RefObject<VillageButtons | null>
   // 眠っている歩行ループを起こす手の置き場。ループの本体は useWalkLoop が持ち、ここへ今の手を入れる。
   // ワールド・入力・重ね表示はループより先(または外)で呼ぶので、この ref 越しに起こす
   wake: RefObject<() => void>
@@ -91,8 +90,8 @@ export function useVillageRuntime(startWorld: World, startWorldId: string): Vill
   const umbrellaPose = useRef<UmbrellaPose | null>(null)
   const visited = useRef<ReadonlySet<string>>(EMPTY_VISITED)
   const activeSpot = useRef<Spot | null>(null)
-  const actions = useRef<VillageActions>(NO_ACTIONS)
-  const buttons = useRef<VillageButtons>(NO_BUTTONS)
+  const actions = useRef<VillageActions | null>(null)
+  const buttons = useRef<VillageButtons | null>(null)
   const wake = useRef<() => void>(() => {})
   return useMemo(
     () => ({

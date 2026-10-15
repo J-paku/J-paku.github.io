@@ -45,8 +45,8 @@ export function useMapFocus({ entries, returnTo, scrollHeldRef, onClose }: UseMa
 
   // 今の焦点の地点から、その向きで最も近い地点へ焦点を移す。キー以外の入力からも呼べるよう keydown とは分けてある
   const focusSpotToward = (direction: Direction) => {
-    const active = document.activeElement
-    const currentId = active instanceof HTMLElement ? (active.dataset.spotId ?? null) : null
+    // 焦点のある地点の id。地点のボタン以外(閉じる・凡例・body)なら null
+    const currentId = document.activeElement?.getAttribute('data-spot-id') ?? null
     const next = spotToward(entries, currentId, direction)
     if (next === null) return
     panelRef.current?.querySelector<HTMLElement>(`[data-spot-id='${next.id}']`)?.focus()
