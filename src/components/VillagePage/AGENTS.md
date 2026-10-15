@@ -61,12 +61,14 @@ world 層(`.world`)の中の並びは `components/Village/components/WorldLayer/
 ## 確かめ方
 
 コンテナの統合テスト(`container.browser.test.tsx`。props は `container.fixture.ts` が node で組む)はビルド無しで走る。
+舞台の寸法と操作帯・歩く・待つ・釣り・傘・飛ぶ・窓の焦点と吹き出し・卓上時計・昼夜と天気はここで見る。
 
 ```bash
 npm run test:integration
 ```
 
-E2E はビルドした `out/` を配って走る。
+E2E はビルドした `out/` を配って走る。残っているのは導線と、統合テストでは作れないもの(ビルドが焼いた絵・再読み込み・ko の文言)だけ。
+spec ごとの中身は [../../../docs/quality/test-strategy.md](../../../docs/quality/test-strategy.md) の「E2E の10本」。
 
 ```bash
 npm run build

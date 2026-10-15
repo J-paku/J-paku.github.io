@@ -4,7 +4,7 @@ read_when:
   - 村の地形・会話地点・移動・当たり判定を変えるとき
   - 村の UI(操作帯・会話窓・地図)を変えるとき
 source_of_truth: true
-last_reviewed: 2026-10-14
+last_reviewed: 2026-10-15
 ---
 
 # 村(トップ画面)
@@ -192,5 +192,5 @@ Z キー / 画面の A / 吹き出しのボタンで直接投げる(E キーも�
 3. 絵を変える → `src/lib/pixel/`([../../src/lib/pixel/AGENTS.md](../../src/lib/pixel/AGENTS.md))
 4. 画面・操作を変える → `src/components/VillagePage/`([../../src/components/VillagePage/AGENTS.md](../../src/components/VillagePage/AGENTS.md))
 
-検証は `npm run test`(規則と絵)と `npm run test:e2e`(導線・レイアウト・昼夜)。
+検証は `npm run test`(規則と絵)、`npm run test:integration`(村のコンテナを実ブラウザで描く。ビルド不要)と `npm run test:e2e`(導線・レイアウト・昼夜)。
 どこまで走らせるかは [../agents/verification.md](../agents/verification.md)。
