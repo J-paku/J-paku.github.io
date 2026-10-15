@@ -41,11 +41,11 @@ push to main / PR to main
 
 ## キャッシュ
 
-| 対象 | 置き場 | キー | miss のとき |
-|---|---|---|---|
-| npm の取得物 | `setup-node` の `cache: npm` | `package-lock.json` | `npm ci` がそのまま取りに行く |
-| Playwright のブラウザ本体 | `~/.cache/ms-playwright` | `<OS>-playwright-<package-lock.json のハッシュ>` | `playwright install --with-deps chromium`。hit でも OS 側の依存は `playwright install-deps chromium` で入れる |
-| CJK フォント(`fonts-noto-cjk` の `.deb`) | `~/.cache/apt-fonts` | `<OS>-fonts-noto-cjk-v1` | `apt-get download` で落とす。hit でも miss でも最後に `dpkg -i` で入れる |
+| 対象                                     | 置き場                       | キー                                             | miss のとき                                                                                                   |
+| ---------------------------------------- | ---------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| npm の取得物                             | `setup-node` の `cache: npm` | `package-lock.json`                              | `npm ci` がそのまま取りに行く                                                                                 |
+| Playwright のブラウザ本体                | `~/.cache/ms-playwright`     | `<OS>-playwright-<package-lock.json のハッシュ>` | `playwright install --with-deps chromium`。hit でも OS 側の依存は `playwright install-deps chromium` で入れる |
+| CJK フォント(`fonts-noto-cjk` の `.deb`) | `~/.cache/apt-fonts`         | `<OS>-fonts-noto-cjk-v1`                         | `apt-get download` で落とす。hit でも miss でも最後に `dpkg -i` で入れる                                      |
 
 - フォントを apt ごとキャッシュしないのは、apt のアーカイブが root 所有で cache アクションが復元できないから。`.deb` だけを利用者側のディレクトリに持つ
 - **無効化の仕方。** Playwright は `package-lock.json` が変われば自動で作り直される。フォントはキーの `v1` を上げる(版を固定していないので、新しい版を拾いたいときも同じ)

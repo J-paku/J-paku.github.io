@@ -10,8 +10,8 @@ last_reviewed: 2026-09-21
 
 コードエージェント向け。**どの文書を読むかを決めるのは [../../AGENTS.md](../../AGENTS.md)** で、ここではない。
 
-| 知りたいこと | 読む文書 |
-|---|---|
-| 着手から報告までの手順 | [workflow.md](workflow.md) |
-| 変更の種類ごとに何を走らせるか | [verification.md](verification.md) |
+| 知りたいこと                           | 読む文書                                 |
+| -------------------------------------- | ---------------------------------------- |
+| 着手から報告までの手順                 | [workflow.md](workflow.md)               |
+| 変更の種類ごとに何を走らせるか         | [verification.md](verification.md)       |
 | このリポジトリで実際にやらかした間違い | [common-mistakes.md](common-mistakes.md) |

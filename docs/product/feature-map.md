@@ -12,52 +12,52 @@ last_reviewed: 2026-10-14
 
 ## 村 — `/`・`/ko/`
 
-| | |
-|---|---|
-| ルート | `src/app/(ja)/page.tsx` / `src/app/(ko)/ko/page.tsx` |
-| 画面本体 | `src/components/VillagePage/`(`index.tsx` はサーバのローダー。content の読み出し・シート合成・地点リンクをここで1回だけ作る。`container.tsx` はクライアントのコンテナで、画面を組み立てる) |
-| 画面の状態とデータ | `src/components/VillagePage/hooks/`(コンテナだけが呼ぶ。寸法・入力・復元・歩行ループ・重ね表示・天気・昼夜・卓上時計のストア) |
-| 操作・描画 | `src/components/VillagePage/components/Village/`(表示部品。値はコンテナから props で受ける) |
-| 規則 | `src/lib/village/` |
-| 絵 | `src/lib/pixel/` |
-| コンテンツ | `content/world.ts`(地形)・`content/{ja,ko}/village.ts`(文言) |
-| 統合 | `src/components/VillagePage/container.browser.test.tsx`(props は `src/components/VillagePage/container.fixture.ts` が node で組む。組み立て関数 `src/components/VillagePage/utils/village-props.ts` はローダーと共有) |
-| E2E | `tests/journey.spec.ts`(導線)・`tests/layout.spec.ts`(舞台の寸法)・`tests/day-night.spec.ts`(昼夜と天気)・`tests/night-transition.spec.ts`(再読み込みせずに夜へ移る)・`tests/clock.spec.ts`(自室の卓上時計)・`tests/fishing.spec.ts`(池での釣り)・`tests/idle-loop.spec.ts`(歩行ループの眠りと目覚め)・`tests/umbrella.spec.ts`(雨の日の傘)・`tests/storage-blocked.spec.ts`(保存が使えない時のテーマと村の操作)・`tests/flight.spec.ts`(自動移動の直線飛行)・`tests/dialog-focus.spec.ts`(村の窓の Tab の輪と吹き出しの押し戻し) |
+|                    |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ルート             | `src/app/(ja)/page.tsx` / `src/app/(ko)/ko/page.tsx`                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 画面本体           | `src/components/VillagePage/`(`index.tsx` はサーバのローダー。content の読み出し・シート合成・地点リンクをここで1回だけ作る。`container.tsx` はクライアントのコンテナで、画面を組み立てる)                                                                                                                                                                                                                                                                                                                                        |
+| 画面の状態とデータ | `src/components/VillagePage/hooks/`(コンテナだけが呼ぶ。寸法・入力・復元・歩行ループ・重ね表示・天気・昼夜・卓上時計のストア)                                                                                                                                                                                                                                                                                                                                                                                                     |
+| 操作・描画         | `src/components/VillagePage/components/Village/`(表示部品。値はコンテナから props で受ける)                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| 規則               | `src/lib/village/`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| 絵                 | `src/lib/pixel/`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| コンテンツ         | `content/world.ts`(地形)・`content/{ja,ko}/village.ts`(文言)                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| 統合               | `src/components/VillagePage/container.browser.test.tsx`(props は `src/components/VillagePage/container.fixture.ts` が node で組む。組み立て関数 `src/components/VillagePage/utils/village-props.ts` はローダーと共有)                                                                                                                                                                                                                                                                                                             |
+| E2E                | `tests/journey.spec.ts`(導線)・`tests/layout.spec.ts`(舞台の寸法)・`tests/day-night.spec.ts`(昼夜と天気)・`tests/night-transition.spec.ts`(再読み込みせずに夜へ移る)・`tests/clock.spec.ts`(自室の卓上時計)・`tests/fishing.spec.ts`(池での釣り)・`tests/idle-loop.spec.ts`(歩行ループの眠りと目覚め)・`tests/umbrella.spec.ts`(雨の日の傘)・`tests/storage-blocked.spec.ts`(保存が使えない時のテーマと村の操作)・`tests/flight.spec.ts`(自動移動の直線飛行)・`tests/dialog-focus.spec.ts`(村の窓の Tab の輪と吹き出しの押し戻し) |
 
 詳細は [../architecture/village.md](../architecture/village.md)。
 
 ## 一覧 — `/list/`・`/ko/list/`
 
-| | |
-|---|---|
-| ルート | `src/app/(ja)/list/page.tsx` / `src/app/(ko)/ko/list/page.tsx` |
-| 画面本体 | `src/components/Directory/`(`index.tsx` はサーバのローダー、`container.tsx` が組み立てる。どちらもサーバ) |
-| 左列(プロフィール・経歴) | `src/components/Directory/components/ProfileColumn/` |
-| 作品カード | `src/components/Directory/components/WorkCard/`(クライアント。折りたたみ詳細・リンクオーバーレイ・場面リール) |
-| 右列(担当業務の詳細) | `src/components/Directory/components/CareerDetail/`(作品カードの下に、詳細を持つ経歴を全件展開する) |
-| コンテンツ | `content/{ja,ko}/profile.ts`・`works/*.ts`・`ui.ts`・`village.ts`(村へ移るリンクの文言 `toVillage` だけ)。`skills.ts`・`now.ts` は `src/lib/content/read.ts` が読み込むが、現在どの画面も表示しない |
-| 統合 | `src/components/Directory/container.browser.test.tsx`(props は `src/components/Directory/container.fixture.ts` が node で組む。組み立て関数 `src/components/Directory/utils/directory-props.ts` はローダーと共有) |
-| E2E | `tests/directory.spec.ts`(作品カードの内部リンクと、詳細ページを持たない作品の slug 直接アクセス)・`tests/observer-missing.spec.ts`(`IntersectionObserver` が無い時のカードの出現と写真の色) |
+|                          |                                                                                                                                                                                                                   |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ルート                   | `src/app/(ja)/list/page.tsx` / `src/app/(ko)/ko/list/page.tsx`                                                                                                                                                    |
+| 画面本体                 | `src/components/Directory/`(`index.tsx` はサーバのローダー、`container.tsx` が組み立てる。どちらもサーバ)                                                                                                         |
+| 左列(プロフィール・経歴) | `src/components/Directory/components/ProfileColumn/`                                                                                                                                                              |
+| 作品カード               | `src/components/Directory/components/WorkCard/`(クライアント。折りたたみ詳細・リンクオーバーレイ・場面リール)                                                                                                     |
+| 右列(担当業務の詳細)     | `src/components/Directory/components/CareerDetail/`(作品カードの下に、詳細を持つ経歴を全件展開する)                                                                                                               |
+| コンテンツ               | `content/{ja,ko}/profile.ts`・`works/*.ts`・`ui.ts`・`village.ts`(村へ移るリンクの文言 `toVillage` だけ)。`skills.ts`・`now.ts` は `src/lib/content/read.ts` が読み込むが、現在どの画面も表示しない               |
+| 統合                     | `src/components/Directory/container.browser.test.tsx`(props は `src/components/Directory/container.fixture.ts` が node で組む。組み立て関数 `src/components/Directory/utils/directory-props.ts` はローダーと共有) |
+| E2E                      | `tests/directory.spec.ts`(作品カードの内部リンクと、詳細ページを持たない作品の slug 直接アクセス)・`tests/observer-missing.spec.ts`(`IntersectionObserver` が無い時のカードの出現と写真の色)                      |
 
 ## 作品ストーリー — `/works/<slug>/`・`/ko/works/<slug>/`
 
-| | |
-|---|---|
-| ルート | `src/app/(ja)/works/[slug]/page.tsx` / `src/app/(ko)/ko/works/[slug]/page.tsx`(+ 各ルートグループの `src/app/(ja)/works/layout.tsx` と `src/app/(ko)/ko/works/layout.tsx`) |
-| 画面本体 | `src/components/Story/`(`index.tsx` はサーバのローダーで、ストーリーが無ければ `notFound()`。`container.tsx` が組み立てる。どちらもサーバ) |
-| 場面の再生 | `src/components/ui/ScenePlayer/`(`container.tsx` が SVG の原本を隣の `hooks` フォルダのフックで取り、SVG をシャドウルートへ展開する)・`src/lib/fetch-svg-source.ts` |
-| 全画面モーダル | `src/components/Story/components/SceneModal/` |
-| コンテンツ | `content/{ja,ko}/works/<slug>.ts` の `story`・`ui.ts`・`village.ts`(村へ移るリンクの文言 `toVillage` だけ) |
-| 場面 SVG | `public/works/` |
-| 統合 | `src/components/Story/container.browser.test.tsx`(props は `src/components/Story/container.fixture.ts` が node で組む。組み立て関数 `src/components/Story/utils/story-props.ts` はローダーと共有)・`src/components/ui/ScenePlayer/container.browser.test.tsx`(場面の再生) |
-| E2E | `tests/scene-refetch.spec.ts`(取得に失敗した場面の絵を、モーダルを開き直すと取り直すか)・`tests/story.spec.ts`(CTA と場面の現れ方・前へ/次へと端のフォーカス・自動送りと一時停止・閉じた後のフォーカスの戻り先)・`tests/observer-missing.spec.ts`(`IntersectionObserver` が無い時の今の場面) |
+|                |                                                                                                                                                                                                                                                                                              |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ルート         | `src/app/(ja)/works/[slug]/page.tsx` / `src/app/(ko)/ko/works/[slug]/page.tsx`(+ 各ルートグループの `src/app/(ja)/works/layout.tsx` と `src/app/(ko)/ko/works/layout.tsx`)                                                                                                                   |
+| 画面本体       | `src/components/Story/`(`index.tsx` はサーバのローダーで、ストーリーが無ければ `notFound()`。`container.tsx` が組み立てる。どちらもサーバ)                                                                                                                                                   |
+| 場面の再生     | `src/components/ui/ScenePlayer/`(`container.tsx` が SVG の原本を隣の `hooks` フォルダのフックで取り、SVG をシャドウルートへ展開する)・`src/lib/fetch-svg-source.ts`                                                                                                                          |
+| 全画面モーダル | `src/components/Story/components/SceneModal/`                                                                                                                                                                                                                                                |
+| コンテンツ     | `content/{ja,ko}/works/<slug>.ts` の `story`・`ui.ts`・`village.ts`(村へ移るリンクの文言 `toVillage` だけ)                                                                                                                                                                                   |
+| 場面 SVG       | `public/works/`                                                                                                                                                                                                                                                                              |
+| 統合           | `src/components/Story/container.browser.test.tsx`(props は `src/components/Story/container.fixture.ts` が node で組む。組み立て関数 `src/components/Story/utils/story-props.ts` はローダーと共有)・`src/components/ui/ScenePlayer/container.browser.test.tsx`(場面の再生)                    |
+| E2E            | `tests/scene-refetch.spec.ts`(取得に失敗した場面の絵を、モーダルを開き直すと取り直すか)・`tests/story.spec.ts`(CTA と場面の現れ方・前へ/次へと端のフォーカス・自動送りと一時停止・閉じた後のフォーカスの戻り先)・`tests/observer-missing.spec.ts`(`IntersectionObserver` が無い時の今の場面) |
 
 ## 404 — 存在しない経路
 
-| | |
-|---|---|
+|        |                                                                                                                            |
+| ------ | -------------------------------------------------------------------------------------------------------------------------- |
 | 配信物 | `public/404.html`(二言語の案内の素の HTML。`next build` が上書きする `out/404.html` を `scripts/verify-export.mjs` が戻す) |
-| E2E | `tests/not-found.spec.ts`(404 応答と二言語の案内、そこから村と一覧へその言語のまま戻る導線) |
+| E2E    | `tests/not-found.spec.ts`(404 応答と二言語の案内、そこから村と一覧へその言語のまま戻る導線)                                |
 
 `src/utils/scene-durations.ts` は各場面 SVG の `animation-duration` を写した表。**SVG 側の周期を変えたらここも直す。**
 

@@ -51,20 +51,20 @@ DOMを使うutils・歩行ループの部品の単体テスト、`hooks`フォ�
 
 2026-10-10の時点の制約。CIで走る順と段の正本は`.github/workflows/deploy.yml`、数値と対象の正本は各行の設定ファイルで、ここは写しである。
 
-| 制約 | 落とすもの | 正本 | 測る相手 |
-|---|---|---|---|
-| `npm run docs:check` | 文書のリンク・参照パス・`npm run`名の不在、frontmatterの欠け、E2E一覧と実物の食い違い | `scripts/check-docs.mjs` | ソース |
-| `npm run typecheck` | 型の食い違い(ja・koの表示文字列が同じ型を満たさないことを含む。[0003](0003-content-outside-src.md)) | `tsconfig.json` | ソース |
-| `npm run lint` | レイヤー境界(importの向き)とバレルを破るimport([0004](0004-lint-enforced-layer-boundaries.md)) | `eslint.config.mjs` | ソース |
-| `npm run format:check` | 整形の崩れ | `.prettierrc` | ソース |
-| `npm run test:coverage` | 単体・統合テストの失敗と、全体のカバレッジの床割れ | `vitest.config.ts`の`coverage` | ソース |
-| ファイル別カバレッジ100%(`npm run test:coverage`の中) | 対象のファイルに、文・分岐・関数・行のどれかで測られない所が1つでもあること(`FULL_COVERAGE`。4つとも100) | `vitest.config.ts`の`coverage.thresholds` | ソース |
-| `npm run test:mutation` | 単体テストが落とせない変異が残ること(`break` 100)。2026-10-11からpushでは変わった変異体だけを走らせる([0013](0013-incremental-mutation-on-push.md)) | `stryker.config.mjs`の`mutate` | ソース |
-| `npm run test:boundary` | `hooks`フォルダの中の単体テストと、srcのテストで`renderHook`を使うこと | `scripts/check-test-boundary.mjs` | ソース |
-| `npm run test:e2e` | 実際のクリック・キー操作での振る舞いの崩れ | `playwright.config.ts`と[../quality/test-strategy.md](../quality/test-strategy.md)の一覧 | 配信物`out/` |
-| axe | アクセシビリティの違反 | `scripts/check-a11y.mjs` | 配信物`out/` |
-| Lighthouse CI | 性能・アクセシビリティ・ベストプラクティス・SEOの点数の下限割れ | `lighthouserc.json` | 配信物`out/` |
-| 日本語改行の検査 | 文節の途中での改行・禁則の崩れ・`<wbr>`の消失 | `scripts/check-ja-linebreak.mjs` | 配信物`out/` |
+| 制約                                                  | 落とすもの                                                                                                                                          | 正本                                                                                     | 測る相手     |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ------------ |
+| `npm run docs:check`                                  | 文書のリンク・参照パス・`npm run`名の不在、frontmatterの欠け、E2E一覧と実物の食い違い                                                               | `scripts/check-docs.mjs`                                                                 | ソース       |
+| `npm run typecheck`                                   | 型の食い違い(ja・koの表示文字列が同じ型を満たさないことを含む。[0003](0003-content-outside-src.md))                                                 | `tsconfig.json`                                                                          | ソース       |
+| `npm run lint`                                        | レイヤー境界(importの向き)とバレルを破るimport([0004](0004-lint-enforced-layer-boundaries.md))                                                      | `eslint.config.mjs`                                                                      | ソース       |
+| `npm run format:check`                                | 整形の崩れ                                                                                                                                          | `.prettierrc`                                                                            | ソース       |
+| `npm run test:coverage`                               | 単体・統合テストの失敗と、全体のカバレッジの床割れ                                                                                                  | `vitest.config.ts`の`coverage`                                                           | ソース       |
+| ファイル別カバレッジ100%(`npm run test:coverage`の中) | 対象のファイルに、文・分岐・関数・行のどれかで測られない所が1つでもあること(`FULL_COVERAGE`。4つとも100)                                            | `vitest.config.ts`の`coverage.thresholds`                                                | ソース       |
+| `npm run test:mutation`                               | 単体テストが落とせない変異が残ること(`break` 100)。2026-10-11からpushでは変わった変異体だけを走らせる([0013](0013-incremental-mutation-on-push.md)) | `stryker.config.mjs`の`mutate`                                                           | ソース       |
+| `npm run test:boundary`                               | `hooks`フォルダの中の単体テストと、srcのテストで`renderHook`を使うこと                                                                              | `scripts/check-test-boundary.mjs`                                                        | ソース       |
+| `npm run test:e2e`                                    | 実際のクリック・キー操作での振る舞いの崩れ                                                                                                          | `playwright.config.ts`と[../quality/test-strategy.md](../quality/test-strategy.md)の一覧 | 配信物`out/` |
+| axe                                                   | アクセシビリティの違反                                                                                                                              | `scripts/check-a11y.mjs`                                                                 | 配信物`out/` |
+| Lighthouse CI                                         | 性能・アクセシビリティ・ベストプラクティス・SEOの点数の下限割れ                                                                                     | `lighthouserc.json`                                                                      | 配信物`out/` |
+| 日本語改行の検査                                      | 文節の途中での改行・禁則の崩れ・`<wbr>`の消失                                                                                                       | `scripts/check-ja-linebreak.mjs`                                                         | 配信物`out/` |
 
 ### ファイルの境界
 

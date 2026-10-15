@@ -3,14 +3,14 @@
 ここは**データ**。`src/` を import しない。置いてよい処理はデータを組み立てるだけの展開(`world.ts` の `expandBlocks`)まで。判定・検証は `src/lib/` に置く。
 フォルダの読み方は [README.md](README.md)、型の関係は [../docs/product/domain-model.md](../docs/product/domain-model.md)。
 
-| 直したいもの | ファイル |
-|---|---|
-| ボタン名・読み上げ名などの UI 文言 | `content/ja/ui.ts` / `content/ko/ui.ts` |
-| 名前・肩書き・経歴 | `content/ja/profile.ts` / `content/ko/profile.ts` |
-| 作品カードと作品ストーリー | `content/ja/works/<slug>.ts` / `content/ko/works/<slug>.ts` |
-| 村の文言(案内・地点ごとの会話) | `content/ja/village.ts` / `content/ko/village.ts` |
-| 村の地形・構造物・会話地点(言語共通) | `content/world.ts` |
-| 型 | `content/types/content.ts` / `content/types/world.ts` |
+| 直したいもの                         | ファイル                                                    |
+| ------------------------------------ | ----------------------------------------------------------- |
+| ボタン名・読み上げ名などの UI 文言   | `content/ja/ui.ts` / `content/ko/ui.ts`                     |
+| 名前・肩書き・経歴                   | `content/ja/profile.ts` / `content/ko/profile.ts`           |
+| 作品カードと作品ストーリー           | `content/ja/works/<slug>.ts` / `content/ko/works/<slug>.ts` |
+| 村の文言(案内・地点ごとの会話)       | `content/ja/village.ts` / `content/ko/village.ts`           |
+| 村の地形・構造物・会話地点(言語共通) | `content/world.ts`                                          |
+| 型                                   | `content/types/content.ts` / `content/types/world.ts`       |
 
 ## 守ること
 

@@ -41,9 +41,9 @@ content/ja/*.ts  content/ko/*.ts  content/world.ts
 **`src/lib/preferences.ts` が唯一の窓口**(不変ルール3)。他のファイルから `localStorage` / `sessionStorage` を直接触らない。
 窓口を import してよいのはコンテナとその隣の `hooks` フォルダだけ(村は `src/components/VillagePage/hooks/` の位置の保存・復元・訪問の記録、テーマは `src/components/ui/SettingsMenu/hooks/use-theme-choice.ts`)。
 
-| 何を | どこに | キー |
-|---|---|---|
-| テーマ(light / dark) | `localStorage` | `theme` |
+| 何を                                            | どこに           | キー                    |
+| ----------------------------------------------- | ---------------- | ----------------------- |
+| テーマ(light / dark)                            | `localStorage`   | `theme`                 |
 | 村の現在位置(`worldId` / マス / 向き)と訪問記録 | `sessionStorage` | `preferences.ts` を参照 |
 
 - 読み出しは必ず型ガードを通す。壊れた値・古いスキーマは黙って捨てて既定値に戻す

@@ -12,25 +12,25 @@ last_reviewed: 2026-10-14
 **過去の判断の記録。現在の姿の説明には使わない**(それは [../architecture/](../architecture/README.md))。
 通常の機能追加では読まなくてよい。
 
-| # | 決めたこと | 状態 |
-|---|---|---|
-| [0001](0001-png-sprite-sheet.md) | スプライトを SVG の data URI から PNG シートへ切り替える | Accepted |
-| [0002](0002-locale-from-url-only.md) | locale を URL パスだけで決める | Accepted |
-| [0003](0003-content-outside-src.md) | 表示文字列を `content/` に集め、ja/ko を同一の型で縛る | Accepted |
-| [0004](0004-lint-enforced-layer-boundaries.md) | レイヤー境界を ESLint で機械的に守らせる | Accepted |
-| [0005](0005-runtime-weather-fetch.md) | 村の天気だけ実行時に外部 API を呼ぶ | Accepted |
-| [0006](0006-jst-fixed-day-phase.md) | 昼夜の判定を JST 固定にする | Accepted |
-| [0007](0007-component-tests-happy-dom.md) | 環境で分かれるコンポーネントの出し分けを happy-dom の統合テストで見る | Superseded by 0009・0017(コンポーネントを happy-dom で描くテストを無くした部分) |
-| [0008](0008-verbatim-pixel-art-originals.md) | 村のドット絵の原画に外部生成物(LLMの出力)を採り、実装では1ドットも変えない | Superseded by 0010(色の写し方と格子の扱い、読み取り時の除去・移動) |
-| [0009](0009-widen-happy-dom-test-scope.md) | happy-dom で見るテストを、props・操作で分かれる部品、DOM を使う utils、寸法・rAF の実物に頼らない村のフック・部品へ広げる | Superseded by 0011(村のフックを `renderHook` で見る部分)・0016(村のコンポーネントを描く統合テストを作らない部分)・0017(コンポーネントを happy-dom で描くテストの部分) |
-| [0010](0010-read-originals-by-dot-pitch.md) | 原画はドットの間隔を測った格子で読み、色は近い既存の文字へ写して、近似できない色だけ文字を足す | Accepted |
-| [0011](0011-extreme-constraints.md) | コードレビューの代わりに極端な制約で信頼する(extreme constraints) | Accepted(変異テスト・ファイル別100%の対象の決め方は Superseded by 0014、フックの振る舞いの見方とカバレッジは Superseded by 0016、コンポーネントを happy-dom で描くテストは Superseded by 0017) |
-| [0012](0012-new-art-for-flight-frames.md) | 原画の無い飛ぶ姿のコマは新しく描き、原画が届いたら写して置き換える | Accepted |
-| [0013](0013-incremental-mutation-on-push.md) | 変異テストは push ごとに変わった変異体だけを走らせ、全体は週1回手で走らせる | Accepted |
-| [0014](0014-gate-all-pure-modules.md) | 変異テストとファイル別カバレッジ100%の対象を純粋モジュールの全部へ広げ、新しいファイルを自動で入れる | Accepted |
-| [0015](0015-trim-e2e-overlap-and-ko.md) | 他の検査と重なるテストを消し、言語に依らない E2E は ja だけで回す | Accepted |
-| [0016](0016-testing-trophy-browser-integration.md) | 層の基準をテスティングトロフィーにし、画面単位の統合テストを実ブラウザ(Vitest Browser Mode)で一番厚くする | Accepted(単体の層でコンポーネントを描くテストと、統合テストのファイル名は Superseded by 0017) |
-| [0017](0017-screen-containers.md) | ファイルを utils・lib、コンテナ、表示部品の3層に分け、コンポーネントを描くテストをコンテナの統合テストへ集める | Accepted |
+| #                                                  | 決めたこと                                                                                                                | 状態                                                                                                                                                                                           |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [0001](0001-png-sprite-sheet.md)                   | スプライトを SVG の data URI から PNG シートへ切り替える                                                                  | Accepted                                                                                                                                                                                       |
+| [0002](0002-locale-from-url-only.md)               | locale を URL パスだけで決める                                                                                            | Accepted                                                                                                                                                                                       |
+| [0003](0003-content-outside-src.md)                | 表示文字列を `content/` に集め、ja/ko を同一の型で縛る                                                                    | Accepted                                                                                                                                                                                       |
+| [0004](0004-lint-enforced-layer-boundaries.md)     | レイヤー境界を ESLint で機械的に守らせる                                                                                  | Accepted                                                                                                                                                                                       |
+| [0005](0005-runtime-weather-fetch.md)              | 村の天気だけ実行時に外部 API を呼ぶ                                                                                       | Accepted                                                                                                                                                                                       |
+| [0006](0006-jst-fixed-day-phase.md)                | 昼夜の判定を JST 固定にする                                                                                               | Accepted                                                                                                                                                                                       |
+| [0007](0007-component-tests-happy-dom.md)          | 環境で分かれるコンポーネントの出し分けを happy-dom の統合テストで見る                                                     | Superseded by 0009・0017(コンポーネントを happy-dom で描くテストを無くした部分)                                                                                                                |
+| [0008](0008-verbatim-pixel-art-originals.md)       | 村のドット絵の原画に外部生成物(LLMの出力)を採り、実装では1ドットも変えない                                                | Superseded by 0010(色の写し方と格子の扱い、読み取り時の除去・移動)                                                                                                                             |
+| [0009](0009-widen-happy-dom-test-scope.md)         | happy-dom で見るテストを、props・操作で分かれる部品、DOM を使う utils、寸法・rAF の実物に頼らない村のフック・部品へ広げる | Superseded by 0011(村のフックを `renderHook` で見る部分)・0016(村のコンポーネントを描く統合テストを作らない部分)・0017(コンポーネントを happy-dom で描くテストの部分)                          |
+| [0010](0010-read-originals-by-dot-pitch.md)        | 原画はドットの間隔を測った格子で読み、色は近い既存の文字へ写して、近似できない色だけ文字を足す                            | Accepted                                                                                                                                                                                       |
+| [0011](0011-extreme-constraints.md)                | コードレビューの代わりに極端な制約で信頼する(extreme constraints)                                                         | Accepted(変異テスト・ファイル別100%の対象の決め方は Superseded by 0014、フックの振る舞いの見方とカバレッジは Superseded by 0016、コンポーネントを happy-dom で描くテストは Superseded by 0017) |
+| [0012](0012-new-art-for-flight-frames.md)          | 原画の無い飛ぶ姿のコマは新しく描き、原画が届いたら写して置き換える                                                        | Accepted                                                                                                                                                                                       |
+| [0013](0013-incremental-mutation-on-push.md)       | 変異テストは push ごとに変わった変異体だけを走らせ、全体は週1回手で走らせる                                               | Accepted                                                                                                                                                                                       |
+| [0014](0014-gate-all-pure-modules.md)              | 変異テストとファイル別カバレッジ100%の対象を純粋モジュールの全部へ広げ、新しいファイルを自動で入れる                      | Accepted                                                                                                                                                                                       |
+| [0015](0015-trim-e2e-overlap-and-ko.md)            | 他の検査と重なるテストを消し、言語に依らない E2E は ja だけで回す                                                         | Accepted                                                                                                                                                                                       |
+| [0016](0016-testing-trophy-browser-integration.md) | 層の基準をテスティングトロフィーにし、画面単位の統合テストを実ブラウザ(Vitest Browser Mode)で一番厚くする                 | Accepted(単体の層でコンポーネントを描くテストと、統合テストのファイル名は Superseded by 0017)                                                                                                  |
+| [0017](0017-screen-containers.md)                  | ファイルを utils・lib、コンテナ、表示部品の3層に分け、コンポーネントを描くテストをコンテナの統合テストへ集める            | Accepted                                                                                                                                                                                       |
 
 ## 書くときの決まり
 
