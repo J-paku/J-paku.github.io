@@ -6,7 +6,8 @@
 // 差し替えるのはネットワーク(場面 SVG の取得)と時間(リールの自動送り)と、タッチ端末かどうかの問い合わせ1つだけ(理由は viewAsTouch の注釈)。
 // 動きを控える設定は差し替えず、Chromium の模擬(CDP)で本物の media query を切り替える
 import { act, cleanup, render, screen, within } from '@testing-library/react'
-import { inject } from 'vitest'
+import { renderToString } from 'react-dom/server'
+import { inject, onTestFinished } from 'vitest'
 import { cdp, page, userEvent } from 'vitest/browser'
 import type {
   Career,
@@ -385,6 +386,57 @@ describe('作品カード(WorkCard)', () => {
       expect(play).toHaveBeenCalledTimes(1)
       expect(pause).toHaveBeenCalledTimes(1)
     })
+
+    it('流し直しが始まる前にまた止めても、捕まえられない例外を出さず、止まったままになる', async () => {
+      // 画面の外のカードの動画はまだ src を持たないので、流し直し(play)は始まらないまま待つ。そこで止めると play の約束は拒まれる
+      // play を vi.spyOn で数えると、spy が返った約束を見届けるために拒まれた約束を捕まえてしまい、欠陥を隠す。
+      // 呼ばれたことは動画の play・pause の出来事で見る
+      await page.viewport(375, 667)
+      const rejections: PromiseRejectionEvent[] = []
+      const recordRejection = (event: PromiseRejectionEvent) => {
+        rejections.push(event)
+      }
+      window.addEventListener('unhandledrejection', recordRejection)
+      try {
+        renderDirectory()
+        const card = cardOf(videoWork)
+        const video = videoIn(card)
+        expect(card.getBoundingClientRect().top, 'カードは最初の画面の外').toBeGreaterThan(
+          window.innerHeight
+        )
+        await intersectionSettled(card)
+        await settleNotice()
+        expect(video.hasAttribute('src'), '画面の外の動画はまだ読み込まない').toBe(false)
+        const mediaEvents: string[] = []
+        const recordMediaEvent = (event: Event) => {
+          mediaEvents.push(event.type)
+        }
+        video.addEventListener('play', recordMediaEvent)
+        video.addEventListener('pause', recordMediaEvent)
+
+        // 画面に入れないよう、スクロールせずにフォーカスを置いてキーボードで押す(押すたびに止める・流す・止める)
+        const toggle = within(card).getByRole('button', { name: ui.work.pauseMotion })
+        toggle.focus({ preventScroll: true })
+        await userEvent.keyboard('{Enter}')
+        await expect.element(toggle).toHaveAttribute('aria-label', ui.work.resumeMotion)
+        await userEvent.keyboard('{Enter}')
+        await expect.element(toggle).toHaveAttribute('aria-label', ui.work.pauseMotion)
+        await userEvent.keyboard('{Enter}')
+        await expect.element(toggle).toHaveAttribute('aria-label', ui.work.resumeMotion)
+        // 拒まれた約束が捕まえられないまま残れば、ここまでの間に unhandledrejection が届く
+        await settleNotice()
+
+        expect(rejections, '捕まえられない例外が出ていない').toEqual([])
+        expect(video.paused, '止まったまま').toBe(true)
+        // 前提: 中身の無いまま(HAVE_NOTHING)流し直し(play)、その約束が済む前に止めた(pause)。
+        // このとき play の約束は AbortError で拒まれる(HTML の仕様)。そうでなければ上の検査は空回りする
+        expect(mediaEvents, '流し直してから止めた').toEqual(['play', 'pause'])
+        expect(video.readyState, '動画の中身はまだ無い').toBe(HTMLMediaElement.HAVE_NOTHING)
+        expect(video.hasAttribute('src'), 'カードは画面の外のまま').toBe(false)
+      } finally {
+        window.removeEventListener('unhandledrejection', recordRejection)
+      }
+    })
   })
 
   describe('リンクの覆いの開閉(use-links-overlay)', () => {
@@ -449,6 +501,30 @@ describe('作品カード(WorkCard)', () => {
       await expect
         .poll(() => shotOf(videoWork).classList.contains(shotStyles.shotInView), {
           message: '丸ごと収まった枠は色を戻す',
+        })
+        .toBe(true)
+    })
+
+    it('書き出す HTML(サーバの描画)では観察できる前提で写真を灰色に描き、ハイドレーションしても枠を作り直さず、画面に収まると色を戻す', async () => {
+      // 書き出し(next build)と同じくサーバの描画で HTML の文字列にし、その HTML へハイドレーションする
+      const host = document.createElement('div')
+      host.innerHTML = renderToString(<DirectoryContainer {...directoryJa} />)
+      document.body.append(host)
+      // ハイドレーションの前に落ちても、書き出した HTML を次のテストへ残さない(描いた後は cleanup も外す)
+      onTestFinished(() => host.remove())
+      const shot = shotOf(videoWork)
+      expect(shot.classList.contains(shotStyles.shotInView), '書き出す HTML の写真は灰色').toBe(
+        false
+      )
+
+      render(<DirectoryContainer {...directoryJa} />, { container: host, hydrate: true })
+
+      // サーバとクライアントの最初の描画が食い違うと、React は書き出した要素を捨てて作り直す
+      expect(shotOf(videoWork), 'ハイドレーションしても書き出した枠をそのまま使う').toBe(shot)
+      shot.scrollIntoView({ block: 'center' })
+      await expect
+        .poll(() => shot.classList.contains(shotStyles.shotInView), {
+          message: 'ハイドレーションした枠も観察し、丸ごと収まると色を戻す',
         })
         .toBe(true)
     })

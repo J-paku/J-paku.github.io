@@ -1,5 +1,5 @@
 // 作品カードの画面キャプチャ枠。動画・リール・静止画の出し分け、モーション操作、リンクの覆いを描くだけの部品(状態は親が持つ)
-import type { Dispatch, RefObject, SetStateAction } from 'react'
+import type { Dispatch, Ref, RefObject, SetStateAction } from 'react'
 import type { Locale, UiStrings, Work, WorkStoryScene } from '@content/types/content'
 import ShotMedia from './components/ShotMedia'
 import PlaybackPulse from '@/components/ui/PlaybackPulse'
@@ -11,8 +11,8 @@ type ShotProps = {
   work: Work
   locale: Locale
   ui: UiStrings
-  // 枠そのもの。親のuseLinksOverlayが外側クリックの判定にも使う
-  shotRef: RefObject<HTMLDivElement | null>
+  // 枠そのものに付ける ref。親の useFullyVisible が受け取り、外側クリックの判定(親の useLinksOverlay)にも渡す
+  shotRef: Ref<HTMLDivElement>
   // カードのグリッドのどの行に置くかだけを親から受け取る(work-card.module.css の .shotSlot)
   slotClassName: string
   // 画面に丸ごと収まっているか。写真の色を戻す修飾子の出し分けに使う

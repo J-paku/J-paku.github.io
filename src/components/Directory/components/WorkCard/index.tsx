@@ -30,8 +30,13 @@ type WorkCardProps = {
 function WorkCard({ work, index, locale, ui }: WorkCardProps) {
   // isRevealed はカードのフェードインの合図で、動画の src を付けてよい合図も兼ねる
   const { ref, isRevealed } = useReveal()
-  // 画面に丸ごと収まっている間だけ写真の色を戻す。縁に掛かっている間は灰色のまま
-  const { ref: shotRef, isFullyVisible } = useFullyVisible<HTMLDivElement>()
+  // 画面に丸ごと収まっている間だけ写真の色を戻す。縁に掛かっている間は灰色のまま。
+  // shotRef は枠に付ける ref、shotElementRef は付いた枠の要素(リンクの覆いが外側の押下を判定する基準)
+  const {
+    ref: shotRef,
+    elementRef: shotElementRef,
+    isFullyVisible,
+  } = useFullyVisible<HTMLDivElement>()
 
   // 動画・リールの出し分けと一時停止/再開(詳細はhooks/use-card-motion.ts)
   const {
@@ -54,7 +59,7 @@ function WorkCard({ work, index, locale, ui }: WorkCardProps) {
   const { isDetailOpen, setIsDetailOpen } = useDetailOpen(work.slug)
 
   // リンクの覆いの開閉(タップ用)。Escと枠外クリックで閉じる購読もこのフックが張る
-  const { isLinksOpen, setIsLinksOpen } = useLinksOverlay(shotRef)
+  const { isLinksOpen, setIsLinksOpen } = useLinksOverlay(shotElementRef)
 
   // .hasDetail は詳細を持つカードだけに全幅行を足す修飾子。全カード一律に足すと、
   // 詳細を持たないカード(大半)のモバイル1列表示に row-gap 分の空行が余白として残るため分ける
