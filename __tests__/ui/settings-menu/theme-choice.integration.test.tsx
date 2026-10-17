@@ -1,35 +1,16 @@
-// 設定メニュー(SettingsMenu)の統合テスト(Vitest Browser Mode)。コンテナを実際の Chromium で、テーマの選択(useThemeChoice)・
-// 開閉のフックと一緒に描き、開閉・Esc・外側の押下・言語リンク・テーマ選択の結果を、利用者に見える形
-// (role・aria-expanded・aria-current・aria-pressed・フォーカスの行き先)で確かめる。テーマの保存は本物の localStorage へ書かせて読む
+// 設定メニュー(SettingsMenu)の統合テスト(Vitest Browser Mode)のうち、テーマの選択。コンテナを実際の Chromium で、テーマの選択(useThemeChoice)・
+// 表示と開閉の SettingsMenuPanel と一緒に描き、適用中のテーマが選択肢へ届くことと、選んだテーマがルート属性と保存へ届くことを、
+// 利用者に見える形(role・aria-pressed)で確かめる。テーマの保存は本物の localStorage へ書かせて読む。
+// 選んだ後にメニューが閉じて歯車へフォーカスが戻ることは SettingsMenuPanel のテスト(settings-menu-panel/)が見る
 import { cleanup, render } from '@testing-library/react'
 import { renderToString } from 'react-dom/server'
-import { afterEach, beforeEach, describe, expect, inject, it, onTestFinished, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
-import type { Locale } from '@content/types/content'
 import { THEME_STORAGE_KEY, type Theme } from '@/lib/preferences'
 import SettingsMenu from '@/components/ui/SettingsMenu/container'
+import { PATHNAME, preventNavigation, triggerOf, ui } from './settings-menu.test-helper'
 
-// 文言は container.fixture.ts が node で readContent から読んで渡す
-const uiOf = inject('settingsMenuUi')
-const ui = uiOf.ja
-
-// 一覧ページが渡す、locale接頭辞の無いパス(DirectoryのNavigationと同じ値)
-const PATHNAME = '/list'
-
-// next/linkはルーターが無いとリンクの既定動作を止めないので、実ブラウザでは押すとテストの文書ごとページを移ってしまう。
-// 文書まで届いたクリックの既定動作を止め、ページを移らせない
-const preventNavigation = (event: MouseEvent) => {
-  event.preventDefault()
-}
-
-const renderMenu = (locale: Locale = 'ja') =>
-  render(<SettingsMenu locale={locale} pathname={PATHNAME} ui={uiOf[locale]} />)
-
-// 名前は部分一致でなく、単体テスト(Testing Library)の既定と同じく全体の一致で引く
-const triggerOf = () =>
-  page.getByRole('button', { name: ui.settingsMenu.label, exact: true }).element()
-
-const isOpen = (trigger: Element) => trigger.getAttribute('aria-expanded') === 'true'
+const renderMenu = () => render(<SettingsMenu locale='ja' pathname={PATHNAME} ui={ui} />)
 
 beforeEach(() => {
   // 外へ通信させない
@@ -98,7 +79,7 @@ describe('テーマ', () => {
     ['light', 'dark'],
     ['dark', 'light'],
   ] as const satisfies readonly (readonly [Theme, Theme])[])(
-    '%sから%sを選ぶと、ルート属性と保存を書き換え、閉じて歯車へフォーカスを戻し、開き直すと選んだ方が押されている',
+    '%sから%sを選ぶと、ルート属性と保存を書き換え、開き直すと選んだ方が押されている',
     async (from, to) => {
       document.documentElement.dataset.theme = from
       renderMenu()
@@ -109,8 +90,6 @@ describe('テーマ', () => {
 
       expect(document.documentElement.dataset.theme).toBe(to)
       expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe(to)
-      expect(isOpen(trigger)).toBe(false)
-      expect(document.activeElement).toBe(trigger)
 
       await userEvent.click(trigger)
       const chosen = page.getByRole('button', { name: ui.theme[to], exact: true }).element()
