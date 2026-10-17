@@ -6,9 +6,12 @@ import VillagePageContainer from '@/components/VillagePage/container'
 import {
   FRAME_MS,
   advanceUntil,
+  emulateTouch,
   focusVillage,
   isPainted,
+  mouse,
   runFor,
+  tap,
   tapHeld,
   villageFrame,
   walk,
@@ -44,6 +47,9 @@ describe('卓上時計(tests/clock.spec.ts)', () => {
   beforeEach(async () => {
     await page.viewport(1280, 720)
   })
+
+  // キーを受け取る村の枠。E2E と同じく data-village で指す(枠の読み上げ名はタッチ端末かどうかで替わる)
+  const frame = () => page.elementLocator(villageFrame())
 
   // DOM から 1 つ引く。無ければ前提が崩れているのでその場で落とす
   const queryOne = (selector: string, from: ParentNode = document): HTMLElement => {
@@ -91,6 +97,9 @@ describe('卓上時計(tests/clock.spec.ts)', () => {
     await expect.poll(hourOf, { message: `時が ${hour}` }).toBe(hour)
     await expect.poll(minuteOf, { message: `分が ${minute}` }).toBe(minute)
   }
+
+  // 2 段目の時が 18 時から何ステップ進んだか。0 時を跨いでも数えられるよう 24 で丸める
+  const hourSteps = () => (Number(hourOf()) - 18 + 24) % 24
 
   // 焦点が窓の中にあるか。矢印キーの検査は「窓に焦点がある」が前提なので、押す前に確かめておく
   const focusInside = () => clockWindow().element().contains(document.activeElement)
@@ -309,5 +318,232 @@ describe('卓上時計(tests/clock.spec.ts)', () => {
     await expect
       .element(page.getByRole('status'))
       .toHaveTextContent(clock.setCustom.replace('{time}', '20:00'))
+  })
+
+  test('Z/X でも時計の窓を決定・閉じられる', async () => {
+    await startAtClock()
+
+    // Z/X を受け取る onKeyDown は村の枠側にあり、設定窓はその枠の子として描かれる。窓の中のボタンに焦点があっても
+    // 伝播で枠まで届く前提なので、まず焦点が窓の中にあることを押さえてから押す
+    await openClock()
+    await expect.element(clockWindow()).toHaveAttribute('data-step', 'choose')
+    expect(focusInside(), '窓を開いた時点で焦点は窓の中にある').toBe(true)
+
+    // 開いた直後の焦点は先頭の「現在時間」。そこで Z を押すと窓が閉じてしまい「窓の中のボタンが押された」ことを
+    // 段階で確かめられないので、Tab 1 回で「カスタム時間」へ移してから押す
+    await userEvent.tab()
+    await expect
+      .element(button(clock.custom), { message: 'Tab 1 回でカスタム時間へ焦点が移る' })
+      .toHaveFocus()
+
+    // Z は画面の A ボタンと同じ。焦点のあるボタンを押すので 2 段目(時刻を選ぶ)へ進む
+    await userEvent.keyboard('z')
+    await expect
+      .element(clockWindow(), { message: 'Z でカスタム時間が押されて 2 段目へ進む' })
+      .toHaveAttribute('data-step', 'pick')
+    await expectPicked('18', '00')
+
+    // X は画面の B ボタンと同じで、決定ではなく閉じるだけ。既定の 18 時は夕方の帯なので、
+    // 閉じ際に決まっていれば段階が day から変わって落ちる
+    await userEvent.keyboard('x')
+    await expect.element(clockWindow()).not.toBeInTheDocument()
+    await runFor(FRAME_MS * SETTLE_FRAMES)
+    expect(phase(), 'X は閉じるだけなので段階が変わらない').toBe('day')
+  })
+
+  test('Escape で窓を閉じても時間は変わらない', async () => {
+    await startAtClock()
+
+    await openClock()
+    await expect.element(clockWindow()).toHaveAttribute('data-step', 'choose')
+    await userEvent.keyboard('{Escape}')
+    await expect.element(clockWindow()).not.toBeInTheDocument()
+    await runFor(FRAME_MS * SETTLE_FRAMES)
+    expect(phase(), '1 段目を閉じただけでは段階が変わらない').toBe('day')
+
+    // 2 段目で時刻を動かした後でも、Escape は決定ではなく取りやめ。
+    // 19 時は夜の帯なので、閉じ際に決まっていれば段階が変わって落ちる
+    await openClock()
+    await clickButton(clock.custom)
+    await expect.element(clockWindow()).toHaveAttribute('data-step', 'pick')
+    await clickButton(clock.nextHour)
+    await expectPicked('19', '00')
+    await userEvent.keyboard('{Escape}')
+    await expect.element(clockWindow()).not.toBeInTheDocument()
+    await runFor(FRAME_MS * SETTLE_FRAMES)
+    expect(phase(), '2 段目を閉じただけでは段階が変わらない').toBe('day')
+  })
+
+  // 窓の見出し(焦点を持たない所)を押すと、焦点は窓を含む村の枠へ移る。そこから方向・Z を使った時の分岐を見る
+  test('焦点が窓の外(村の枠)にある時、方向は進むなら先頭・戻るなら末尾のボタンから入り、Z は何も押さない', async () => {
+    await startAtClock()
+    const heading = () => clockWindow().getByRole('heading', { name: clock.place })
+
+    await openClock()
+    await expect.element(clockWindow()).toHaveAttribute('data-step', 'choose')
+    await userEvent.click(heading())
+    await expect.element(frame(), { message: '見出しを押すと焦点は村の枠へ移る' }).toHaveFocus()
+    // 焦点がボタンに無い時の Z は押す物が無く、時計の窓には「次へ」も無いので何もしない
+    await userEvent.keyboard('z')
+    await runFor(FRAME_MS * SETTLE_FRAMES)
+    await expect
+      .element(clockWindow(), { message: '窓は 1 段目のまま開いている' })
+      .toHaveAttribute('data-step', 'choose')
+
+    // 戻る向き(上)は並びの末尾から入る
+    await tapHeld('ArrowUp')
+    await expect
+      .element(button(clock.cancel), { message: '窓の外から上で末尾のやめるへ' })
+      .toHaveFocus()
+    // 進む向き(下)は並びの先頭から入る
+    await userEvent.click(heading())
+    await expect.element(frame()).toHaveFocus()
+    await tapHeld('ArrowDown')
+    await expect
+      .element(button(clock.realtime), { message: '窓の外から下で先頭の現在時間へ' })
+      .toHaveFocus()
+  })
+
+  // スティックと同じ押しっぱなしの経路(村の枠が受けた WASD を runtime の scrollHeld へ書き、窓が rAF で読む)を、
+  // キーボードで通して見る。スティックそのものは下の「スティックと A/B」が見る
+  test('2 段目の窓は押しっぱなしの向き(WASD)で時が進み続け、離すと止まる', async () => {
+    await startAtClock()
+
+    await openClock()
+    await clickButton(clock.custom)
+    await expect.element(clockWindow()).toHaveAttribute('data-step', 'pick')
+    await expectPicked('18', '00')
+
+    // 右(D)を押したまま離さない。押した瞬間に 1 つ、少し待ってからは繰り返して進む
+    await userEvent.keyboard('{d>}')
+    // 押した瞬間の 1 つを処理させてから数える。繰り返しはまだ始まらないので、ここではちょうど 1 つ
+    await runFor(FRAME_MS * 2)
+    await expect.poll(hourSteps, { message: '押した瞬間にちょうど 1 つ進む' }).toBe(1)
+    await expect
+      .poll(hourSteps, { message: '押し続けると繰り返して進む', timeout: 3_000 })
+      .toBeGreaterThanOrEqual(2)
+    await userEvent.keyboard('{/d}')
+
+    // 離した後は止まる。止まった値を決定の一言と突き合わせる。押し続けていれば繰り返しの間隔(2 段目は 120ms)ごとに
+    // 進むので、その 2 回ぶんを超える 20 フレーム(約 333ms)の間に進まないことを見る
+    await runFor(FRAME_MS * 2)
+    const hour = hourOf()
+    await runFor(FRAME_MS * 20)
+    expect(hourOf(), '離した後は進まない').toBe(hour)
+
+    await userEvent.keyboard('z')
+    await expect.element(clockWindow()).not.toBeInTheDocument()
+    await expect.poll(phase, { message: 'Z で決定されて昼から変わる' }).not.toBe('day')
+    await expect
+      .element(page.getByRole('status'))
+      .toHaveTextContent(clock.setCustom.replace('{time}', `${hour}:00`))
+  })
+
+  // タッチ端末ではキーボードが無く、窓の操作は操作帯のスティックと A/B だけになる。寸法と入力種別は E2E と同じ縦持ち 390×664。
+  // 時計の前までは村の枠へ焦点を置いてキーで歩く(E2E と同じ)。検査の対象は窓の中だけ
+  describe('スティックと A/B', () => {
+    beforeEach(async () => {
+      await emulateTouch()
+      await page.viewport(390, 664)
+    })
+
+    // 画面の A は aria-label が窓の「決定」と同じ名前になるので、役割と名前ではなく data 属性で掴み、指で叩く(E2E の tap)
+    const tapA = async () => {
+      const a = queryOne('[data-village-action="a"]').getBoundingClientRect()
+      await tap(a.x + a.width / 2, a.y + a.height / 2)
+    }
+
+    // 操作帯のスティックの中心。倒す向きはここからの差で決まる
+    const stickCenter = () => {
+      const stick = page
+        .getByRole('application', { name: text.joystick })
+        .element()
+        .getBoundingClientRect()
+      return { x: stick.x + stick.width / 2, y: stick.y + stick.height / 2 }
+    }
+
+    test('1 段目の窓はスティックでボタンを移り、A で押せる', async () => {
+      await startAtClock()
+
+      await tapA()
+      await expect.element(clockWindow()).toHaveAttribute('data-step', 'choose')
+      await expect.element(button(clock.realtime)).toHaveFocus()
+
+      const { x, y } = stickCenter()
+      await mouse.move(x, y, false)
+      await mouse.down(x, y)
+      // 右へ倒して 2 フレーム処理させてから中央へ戻す。確かめる側の待ちで繰り返しが走り、焦点が 2 つ先まで流れないようにする
+      await mouse.move(x + 30, y, true)
+      await runFor(FRAME_MS * 2)
+      await mouse.move(x, y, true)
+      await expect
+        .element(button(clock.custom), { message: 'スティックの右 1 回でカスタム時間' })
+        .toHaveFocus()
+      // 中央で離したことを 1 フレーム以上読ませてから倒し直す(押し直しとして数えさせる)
+      await runFor(FRAME_MS * 2)
+      await mouse.move(x + 30, y, true)
+      await runFor(FRAME_MS * 2)
+      await mouse.move(x, y, true)
+      await expect.element(button(clock.cancel), { message: 'もう 1 回でやめる' }).toHaveFocus()
+      await mouse.up(x, y)
+
+      // A は焦点のボタンを押す。やめるなので何も変えずに閉じる
+      await tapA()
+      await expect.element(clockWindow()).not.toBeInTheDocument()
+      await runFor(FRAME_MS * SETTLE_FRAMES)
+      expect(phase(), 'やめるでは段階が変わらない').toBe('day')
+    })
+
+    test('2 段目の窓はスティックを倒し続けると時が進み続け、A で決定できる', async () => {
+      await startAtClock()
+
+      await tapA()
+      await expect.element(clockWindow()).toHaveAttribute('data-step', 'choose')
+
+      const { x, y } = stickCenter()
+      await mouse.move(x, y, false)
+      await mouse.down(x, y)
+      await mouse.move(x + 30, y, true)
+      await runFor(FRAME_MS * 2)
+      await mouse.move(x, y, true)
+      await mouse.up(x, y)
+      await expect.element(button(clock.custom)).toHaveFocus()
+
+      // A でカスタム時間を押して 2 段目へ。焦点は決定へ移る
+      await tapA()
+      await expect.element(clockWindow()).toHaveAttribute('data-step', 'pick')
+      await expect.element(button(clock.decide)).toHaveFocus()
+      await expectPicked('18', '00')
+
+      // 右へ倒したまま離さない。押した瞬間に 1 つ、少し待ってからは繰り返して進む。
+      // 何時まで進むかは倒していた時間次第なので、18 時からのステップ数で見る(0 時を跨いでも数えられる)
+      await mouse.move(x, y, false)
+      await mouse.down(x, y)
+      await mouse.move(x + 30, y, true)
+      // 押した瞬間の 1 つを処理させてから数える。繰り返しはまだ始まらないので、ここではちょうど 1 つ。
+      // 1 以上で見ると、押した瞬間に 2 つ進む二重の発火まで通ってしまう
+      await runFor(FRAME_MS * 2)
+      await expect.poll(hourSteps, { message: '押した瞬間にちょうど 1 つ進む' }).toBe(1)
+      // 繰り返しが始まるまでの待ちは、次の poll が 2 以上になるまで待つことで兼ねる
+      await expect
+        .poll(hourSteps, { message: '倒し続けると繰り返して進む', timeout: 3_000 })
+        .toBeGreaterThanOrEqual(2)
+      await mouse.move(x, y, true)
+      await mouse.up(x, y)
+
+      // 離した後は止まる。止まった値を決定の一言と突き合わせる
+      await runFor(FRAME_MS * 2)
+      const hour = hourOf()
+      await runFor(300)
+      expect(hourOf(), '離した後は進まない').toBe(hour)
+
+      await tapA()
+      await expect.element(clockWindow()).not.toBeInTheDocument()
+      // 18 時より後(夜の帯)を決めたので昼から変わる
+      await expect.poll(phase, { message: 'A で決定されて昼から変わる' }).not.toBe('day')
+      await expect
+        .element(page.getByRole('status'))
+        .toHaveTextContent(clock.setCustom.replace('{time}', `${hour}:00`))
+    })
   })
 })
