@@ -6,9 +6,8 @@
 // 差し替えるのはネットワーク(場面 SVG の取得)と時間(リールの自動送り)と、タッチ端末かどうかの問い合わせ1つだけ(理由は viewAsTouch の注釈)。
 // 動きを控える設定は差し替えず、Chromium の模擬(CDP)で本物の media query を切り替える
 import { act, cleanup, render, screen, within } from '@testing-library/react'
-import { renderToString } from 'react-dom/server'
-import { inject, onTestFinished } from 'vitest'
-import { cdp, page, userEvent } from 'vitest/browser'
+import { inject } from 'vitest'
+import { page, userEvent } from 'vitest/browser'
 import type {
   Career,
   CareerDetail as CareerDetailContent,
@@ -34,8 +33,6 @@ const pickWork = (candidates: Work[], label: string, predicate: (work: Work) => 
   return found
 }
 
-// 詳細の開閉トグルを持つ作品
-const detailWork = pickWork(works, '詳細を持つ', work => work.detail !== undefined)
 // 実操作デモ動画を持つ作品
 const videoWork = pickWork(works, '動画を持つ', work => work.video !== undefined)
 // ストーリー場面をサムネイル枠で循環させる作品
@@ -164,16 +161,6 @@ const isOverlayOpen = (overlay: HTMLElement) =>
 const factPanelOf = (work: Work) => queryOrThrow(cardOf(work), `.${cardStyles.panel}`)
 const reelOf = (work: Work) => queryOrThrow(shotOf(work), `.${shotStyles.reel}`)
 
-// トグルが aria-controls で指す詳細の領域
-const detailRegionOf = (toggle: HTMLElement): HTMLElement => {
-  const region = document.getElementById(toggle.getAttribute('aria-controls') ?? '')
-  if (region === null) throw new Error('トグルの aria-controls が指す要素が無い')
-  return region
-}
-
-// inert の祖先に入っていれば、操作からも読み上げからも外れている
-const isInert = (element: HTMLElement) => element.closest('[inert]') !== null
-
 // 日本語はPhraseTextが文節ごとに<wbr>を挟む。flexの箱の中では<wbr>も箱になり、名前を組む
 // dom-accessibility-apiが箱の境に空白を足す(実測: 作品一覧への戻り道が「作品一覧へ 戻る」になった)。
 // 読み上げ名の実際はE2Eの領分とし、ここでは足された空白に左右されないよう空白を除いて比べる
@@ -217,15 +204,6 @@ const viewAsTouch = () => {
   vi.stubGlobal('matchMedia', (query: string) =>
     realMatchMedia(query === FINE_POINTER ? 'not all' : query)
   )
-}
-
-// 動きを控える設定にする。CSS の @media もフックの matchMedia も本物のまま切り替わる。戻すのは afterEach
-let isMediaEmulated = false
-const preferReducedMotion = async () => {
-  isMediaEmulated = true
-  await cdp().send('Emulation.setEmulatedMedia', {
-    features: [{ name: 'prefers-reduced-motion', value: 'reduce' }],
-  })
 }
 
 // 場面 SVG の取得を、テストが手放すまで返さずに留める。手放すと失敗で返す。
@@ -285,10 +263,6 @@ afterEach(async () => {
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
   window.history.replaceState(null, '', originalUrl)
-  if (isMediaEmulated) {
-    isMediaEmulated = false
-    await cdp().send('Emulation.setEmulatedMedia', { features: [] })
-  }
 })
 
 describe('作品カード(WorkCard)', () => {
@@ -306,227 +280,6 @@ describe('作品カード(WorkCard)', () => {
       renderDirectory({ ...directoryJa, works: tenWorks })
 
       expect(within(cardOf(tenWorks[index])).getByText(serial)).toBeDefined()
-    })
-  })
-
-  describe('詳細の開閉(use-detail-open)', () => {
-    it('#slug 付きで到着すると詳細が最初から開いていて、トグルを押すと閉じて操作から外れる', async () => {
-      window.history.replaceState(null, '', `#${detailWork.slug}`)
-      renderDirectory()
-
-      const toggle = within(cardOf(detailWork)).getByRole('button', { name: ui.work.hideDetail })
-      expect(toggle.getAttribute('aria-expanded')).toBe('true')
-      expect(isInert(detailRegionOf(toggle))).toBe(false)
-
-      await userEvent.click(toggle)
-      await expect.element(toggle).toHaveAttribute('aria-expanded', 'false')
-      expect(toggle.textContent).toBe(ui.work.showDetail)
-      expect(isInert(detailRegionOf(toggle))).toBe(true)
-    })
-
-    it('ハッシュが無ければ詳細は閉じたまま始まる', () => {
-      renderDirectory()
-
-      const toggle = within(cardOf(detailWork)).getByRole('button', { name: ui.work.showDetail })
-      expect(toggle.getAttribute('aria-expanded')).toBe('false')
-      expect(isInert(detailRegionOf(toggle))).toBe(true)
-    })
-
-    it('別の作品の #slug で到着したときは、詳細は閉じたまま始まる', () => {
-      const otherWork = pickWork(
-        works,
-        '詳細を持つ作品とは別の',
-        work => work.slug !== detailWork.slug
-      )
-      window.history.replaceState(null, '', `#${otherWork.slug}`)
-      renderDirectory()
-
-      const toggle = within(cardOf(detailWork)).getByRole('button', { name: ui.work.showDetail })
-      expect(toggle.getAttribute('aria-expanded')).toBe('false')
-      expect(isInert(detailRegionOf(toggle))).toBe(true)
-    })
-  })
-
-  describe('動きの出し分け(use-card-motion)', () => {
-    it.each([
-      ['動画', videoWork],
-      ['リール', reelWork],
-    ])('動きを控える設定では%sを流さず、一時停止のボタンも出さない', async (_kind, work) => {
-      await preferReducedMotion()
-      renderDirectory()
-
-      const card = cardOf(work)
-      expect(card.querySelector('video')).toBeNull()
-      expect(card.querySelector(`.${shotStyles.reel}`)).toBeNull()
-      expect(within(card).queryByRole('button', { name: ui.work.pauseMotion })).toBeNull()
-      expect(within(card).queryByRole('button', { name: ui.work.resumeMotion })).toBeNull()
-      // 代わりに静止画を出す
-      expect(queryOrThrow(shotOf(work), 'img').getAttribute('src')).toBe(work.thumbnail)
-    })
-
-    it('動きを許す設定では動画を流し、一時停止のボタンを押すとラベルが再生へ替わる', async () => {
-      // 実際に止める・流す相手は動画要素。中身は本物のまま呼び、呼ばれた回数だけを数える
-      const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause')
-      const play = vi.spyOn(HTMLMediaElement.prototype, 'play')
-      renderDirectory()
-
-      const card = cardOf(videoWork)
-      expect(card.querySelector('video')).not.toBeNull()
-      const toggle = within(card).getByRole('button', { name: ui.work.pauseMotion })
-
-      await userEvent.click(toggle)
-      await expect.element(toggle).toHaveAttribute('aria-label', ui.work.resumeMotion)
-      expect(within(card).queryByRole('button', { name: ui.work.pauseMotion })).toBeNull()
-      expect(pause).toHaveBeenCalledTimes(1)
-      expect(play).not.toHaveBeenCalled()
-
-      // もう一度押すと流し直し、止める呼び出しは増えない
-      await userEvent.click(toggle)
-      await expect.element(toggle).toHaveAttribute('aria-label', ui.work.pauseMotion)
-      expect(play).toHaveBeenCalledTimes(1)
-      expect(pause).toHaveBeenCalledTimes(1)
-    })
-
-    it('流し直しが始まる前にまた止めても、捕まえられない例外を出さず、止まったままになる', async () => {
-      // 画面の外のカードの動画はまだ src を持たないので、流し直し(play)は始まらないまま待つ。そこで止めると play の約束は拒まれる
-      // play を vi.spyOn で数えると、spy が返った約束を見届けるために拒まれた約束を捕まえてしまい、欠陥を隠す。
-      // 呼ばれたことは動画の play・pause の出来事で見る
-      await page.viewport(375, 667)
-      const rejections: PromiseRejectionEvent[] = []
-      const recordRejection = (event: PromiseRejectionEvent) => {
-        rejections.push(event)
-      }
-      window.addEventListener('unhandledrejection', recordRejection)
-      try {
-        renderDirectory()
-        const card = cardOf(videoWork)
-        const video = videoIn(card)
-        expect(card.getBoundingClientRect().top, 'カードは最初の画面の外').toBeGreaterThan(
-          window.innerHeight
-        )
-        await intersectionSettled(card)
-        await settleNotice()
-        expect(video.hasAttribute('src'), '画面の外の動画はまだ読み込まない').toBe(false)
-        const mediaEvents: string[] = []
-        const recordMediaEvent = (event: Event) => {
-          mediaEvents.push(event.type)
-        }
-        video.addEventListener('play', recordMediaEvent)
-        video.addEventListener('pause', recordMediaEvent)
-
-        // 画面に入れないよう、スクロールせずにフォーカスを置いてキーボードで押す(押すたびに止める・流す・止める)
-        const toggle = within(card).getByRole('button', { name: ui.work.pauseMotion })
-        toggle.focus({ preventScroll: true })
-        await userEvent.keyboard('{Enter}')
-        await expect.element(toggle).toHaveAttribute('aria-label', ui.work.resumeMotion)
-        await userEvent.keyboard('{Enter}')
-        await expect.element(toggle).toHaveAttribute('aria-label', ui.work.pauseMotion)
-        await userEvent.keyboard('{Enter}')
-        await expect.element(toggle).toHaveAttribute('aria-label', ui.work.resumeMotion)
-        // 拒まれた約束が捕まえられないまま残れば、ここまでの間に unhandledrejection が届く
-        await settleNotice()
-
-        expect(rejections, '捕まえられない例外が出ていない').toEqual([])
-        expect(video.paused, '止まったまま').toBe(true)
-        // 前提: 中身の無いまま(HAVE_NOTHING)流し直し(play)、その約束が済む前に止めた(pause)。
-        // このとき play の約束は AbortError で拒まれる(HTML の仕様)。そうでなければ上の検査は空回りする
-        expect(mediaEvents, '流し直してから止めた').toEqual(['play', 'pause'])
-        expect(video.readyState, '動画の中身はまだ無い').toBe(HTMLMediaElement.HAVE_NOTHING)
-        expect(video.hasAttribute('src'), 'カードは画面の外のまま').toBe(false)
-      } finally {
-        window.removeEventListener('unhandledrejection', recordRejection)
-      }
-    })
-  })
-
-  describe('リンクの覆いの開閉(use-links-overlay)', () => {
-    // タッチで見て、覆いを開いた状態から始める
-    const renderOpenOverlay = async () => {
-      viewAsTouch()
-      renderDirectory()
-      const trigger = within(shotOf(motionLinkWork)).getByRole('button', {
-        name: ui.work.openLinks,
-      })
-      await userEvent.click(trigger)
-      await expect.element(trigger).toHaveAttribute('aria-expanded', 'true')
-      return trigger
-    }
-
-    it('タップで開いた覆いは Esc で閉じる', async () => {
-      const trigger = await renderOpenOverlay()
-
-      await userEvent.keyboard('{Escape}')
-      await expect.element(trigger).toHaveAttribute('aria-expanded', 'false')
-    })
-
-    it('タップで開いた覆いは、キャプチャ枠の中を押しても閉じず、枠の外を押すと閉じる', async () => {
-      const trigger = await renderOpenOverlay()
-
-      // 押下の始まり(pointerdown)だけを送る。クリックまで送るとトリガー自身の開閉が混ざる
-      act(() => {
-        trigger.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
-      })
-      expect(trigger.getAttribute('aria-expanded')).toBe('true')
-
-      // 枠の外(同じカードの題字)を押す
-      await userEvent.click(within(cardOf(motionLinkWork)).getByRole('heading', { level: 3 }))
-      await expect.element(trigger).toHaveAttribute('aria-expanded', 'false')
-    })
-  })
-
-  describe('交差を観察できるかどうか(use-reveal・use-fully-visible)', () => {
-    it('観察できる環境では、画面に入ったと通知されるまで隠したまま・灰色のまま', async () => {
-      // 狭い画面では左列(プロフィール)が上に積まれ、最初のカードも最初の画面の外に出る
-      await page.viewport(375, 667)
-      renderDirectory()
-
-      const card = cardOf(videoWork)
-      expect(card.getBoundingClientRect().top, 'カードは最初の画面の外').toBeGreaterThan(
-        window.innerHeight
-      )
-      await intersectionSettled(card)
-      await settleNotice()
-
-      expect(card.classList.contains(cardStyles.cardRevealed)).toBe(false)
-      expect(videoIn(card).hasAttribute('src')).toBe(false)
-      expect(shotOf(videoWork).classList.contains(shotStyles.shotInView)).toBe(false)
-
-      // 画面に入れると通知が来て表示し、丸ごと収まれば色を戻す(上の「まま」が観察の故障でないことも見る)
-      shotOf(videoWork).scrollIntoView({ block: 'center' })
-      await expect
-        .poll(() => card.classList.contains(cardStyles.cardRevealed), {
-          message: '画面に入ったカードは表示する',
-        })
-        .toBe(true)
-      await expect
-        .poll(() => shotOf(videoWork).classList.contains(shotStyles.shotInView), {
-          message: '丸ごと収まった枠は色を戻す',
-        })
-        .toBe(true)
-    })
-
-    it('書き出す HTML(サーバの描画)では観察できる前提で写真を灰色に描き、ハイドレーションしても枠を作り直さず、画面に収まると色を戻す', async () => {
-      // 書き出し(next build)と同じくサーバの描画で HTML の文字列にし、その HTML へハイドレーションする
-      const host = document.createElement('div')
-      host.innerHTML = renderToString(<DirectoryContainer {...directoryJa} />)
-      document.body.append(host)
-      // ハイドレーションの前に落ちても、書き出した HTML を次のテストへ残さない(描いた後は cleanup も外す)
-      onTestFinished(() => host.remove())
-      const shot = shotOf(videoWork)
-      expect(shot.classList.contains(shotStyles.shotInView), '書き出す HTML の写真は灰色').toBe(
-        false
-      )
-
-      render(<DirectoryContainer {...directoryJa} />, { container: host, hydrate: true })
-
-      // サーバとクライアントの最初の描画が食い違うと、React は書き出した要素を捨てて作り直す
-      expect(shotOf(videoWork), 'ハイドレーションしても書き出した枠をそのまま使う').toBe(shot)
-      shot.scrollIntoView({ block: 'center' })
-      await expect
-        .poll(() => shot.classList.contains(shotStyles.shotInView), {
-          message: 'ハイドレーションした枠も観察し、丸ごと収まると色を戻す',
-        })
-        .toBe(true)
     })
   })
 })

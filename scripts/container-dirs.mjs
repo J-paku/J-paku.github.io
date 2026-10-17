@@ -45,7 +45,6 @@ export const PENDING_CONTAINER_FILES = [
   'src/components/VillagePage/components/Village/components/StopModal/index.tsx',
   'src/components/VillagePage/components/Village/components/TalkBubble/index.tsx',
   'src/components/VillagePage/components/Village/components/WorldMap/index.tsx',
-  'src/components/Directory/components/WorkCard/index.tsx',
   'src/components/ui/ScenePlayer/components/SceneSvg/index.tsx',
   'src/components/ui/SettingsMenu/components/SettingsMenuView/index.tsx',
 ]
@@ -57,7 +56,6 @@ export const PENDING_HOOK_DIRS = [
   'src/components/VillagePage/components/Village/components/Joystick/hooks',
   'src/components/VillagePage/components/Village/components/StopModal/hooks',
   'src/components/VillagePage/components/Village/components/WorldMap/hooks',
-  'src/components/Directory/components/WorkCard/hooks',
   'src/components/ui/SettingsMenu/components/SettingsMenuView/hooks',
 ]
 
