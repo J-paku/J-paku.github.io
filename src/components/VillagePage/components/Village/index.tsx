@@ -4,7 +4,7 @@ import type { DayPhase } from '@/utils/day-phase'
 // 子の CSS は、子を初めて読み込んだ順に出力される。WorldLayer・FrameOverlays が描く部品も
 // この並びの位置を保つためだけにここで読み込む(値は使わない。消すと CSS の出力順が変わる)
 import ActionButtons from './components/ActionButtons'
-import './components/ClockModal'
+import './components/ClockModal/container'
 import Joystick from './components/Joystick'
 import './components/Lighting'
 import './components/Minimap'

@@ -37,7 +37,6 @@ export const CONTAINER_DIRS = [...SCREEN_CONTAINER_DIRS, ...SHARED_CONTAINER_DIR
 
 // まだフックを呼んでいる表示部品(index.tsx)。2段階目まで ESLint の layer/hook-only-in-container から外す
 export const PENDING_CONTAINER_FILES = [
-  'src/components/VillagePage/components/Village/components/ClockModal/index.tsx',
   'src/components/VillagePage/components/Village/components/Ground/index.tsx',
   'src/components/VillagePage/components/Village/components/Joystick/index.tsx',
   'src/components/VillagePage/components/Village/components/Lighting/index.tsx',
@@ -48,7 +47,6 @@ export const PENDING_CONTAINER_FILES = [
 
 // 隣に container.tsx の無い hooks/ フォルダ。2段階目まで「hooks/ は container.tsx のあるフォルダにだけ置く」の例外にする
 export const PENDING_HOOK_DIRS = [
-  'src/components/VillagePage/components/Village/components/ClockModal/hooks',
   'src/components/VillagePage/components/Village/components/Joystick/hooks',
   'src/components/VillagePage/components/Village/components/StopModal/hooks',
   'src/components/VillagePage/components/Village/components/WorldMap/hooks',
