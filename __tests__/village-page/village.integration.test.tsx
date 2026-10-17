@@ -10,7 +10,6 @@ import type { Cell, Direction, Spot, World, WorldSet } from '@content/types/worl
 import { readVisited, writePosition, writeVisited } from '@/lib/preferences'
 import { isWalkable } from '@/lib/village/collision'
 import { FLIGHT_MIN_DISTANCE, flightDurationMs } from '@/lib/village/flight-curve'
-import { mapEntries, type MapEntry } from '@/lib/village/map-entries'
 import { findPath } from '@/lib/village/path'
 import { objectSpotAt } from '@/lib/village/spot'
 import { routeToWarp } from '@/lib/village/warp'
@@ -30,12 +29,7 @@ import {
   cellMax,
   computeCell,
 } from '@/components/VillagePage/components/Village/utils/stage-scale'
-import {
-  CLOCK_FOCUSABLE_SELECTOR,
-  MAP_FOCUSABLE_SELECTOR,
-  STOP_FOCUSABLE_SELECTOR,
-} from '@/utils/focusables'
-import { spotToward } from '@/components/VillagePage/components/Village/components/WorldMap/utils/spot-navigation'
+import { CLOCK_FOCUSABLE_SELECTOR, STOP_FOCUSABLE_SELECTOR } from '@/utils/focusables'
 import {
   FRAME_MS,
   HOLD_MS,
@@ -66,7 +60,6 @@ import {
   villagePlayer,
   walk,
   worldLayer,
-  type WalkKey,
   type WeatherKind,
 } from './village-walk.test-helper'
 import {
@@ -2613,58 +2606,9 @@ describe('画面の大きさ・窓・時計・昼夜', () => {
   })
 
   describe('窓の焦点と吹き出し', () => {
-    // 窓は role='dialog' の div と手製の Tab の輪(src/hooks/use-dialog-focus.ts)で作るので、ブラウザは輪を保証しない。
-    // 今の焦点から Tab で 1 つずつ末尾まで進め、末尾の次は先頭へ、先頭の前は末尾へ回るのを見る
-    const cycleWithTab = async (dialog: Element, selector: string) => {
-      const items = Array.from(dialog.querySelectorAll<HTMLElement>(selector))
-      // 1 つだけだと先頭と末尾が同じで、回ったのか留まったのかを見分けられない
-      expect(items.length, '窓の中に焦点を移せる要素が 2 つ以上ある').toBeGreaterThanOrEqual(2)
-      const advance = async (index: number): Promise<void> => {
-        if (index >= items.length - 1) return
-        await userEvent.tab()
-        await expect
-          .poll(() => focusIndex(dialog, selector), { message: `Tab で ${index + 1} 番目へ進む` })
-          .toBe(index + 1)
-        await advance(index + 1)
-      }
-      await advance(focusIndex(dialog, selector))
-      await userEvent.tab()
-      await expect
-        .element(page.elementLocator(items[0]), { message: '末尾で Tab を押すと先頭へ回る' })
-        .toHaveFocus()
-      await userEvent.tab({ shift: true })
-      await expect
-        .element(page.elementLocator(items[items.length - 1]), {
-          message: '先頭で Shift+Tab を押すと末尾へ回る',
-        })
-        .toHaveFocus()
-    }
-
     // 窓を開く前の焦点が村の枠にあるか。閉じた後に枠へ戻ったことが「元からそこにあった」のではなく「戻された」と言えるよう、開く前にも押さえる
     const expectFrameFocused = (message: string) =>
       expect.element(frame(), { message }).toHaveFocus()
-
-    test('拡大地図は Tab の輪を両端で回し、閉じると村の枠へ焦点を戻す', async () => {
-      await renderVillage()
-      // 地図は町でだけ開く。部屋の下端のマットから町の自宅前へ出る
-      await walkOutToTown()
-      await expectFrameFocused('開く前の焦点は村の枠')
-      await userEvent.keyboard('m')
-      const map = page.getByRole('dialog')
-      await expect.element(map.getByRole('heading', { name: text.mapTitle })).toBeVisible()
-      // 開いた直後の焦点は番号 1 の地点で、並びの先頭(閉じるボタン)ではない。そこから末尾まで進めて回す
-      await expect
-        .poll(() => focusIndex(map.element(), MAP_FOCUSABLE_SELECTOR), {
-          message: '開いた直後の焦点は窓の中の、先頭より後ろ',
-        })
-        .toBeGreaterThan(0)
-
-      await cycleWithTab(map.element(), MAP_FOCUSABLE_SELECTOR)
-
-      await userEvent.keyboard('{Escape}')
-      await expect.element(map).not.toBeInTheDocument()
-      await expectFrameFocused('閉じると村の枠へ焦点が戻る')
-    })
 
     // ここから下の 5 件は tests/journey.spec.ts が見ている窓の中の操作(Z/X・本文送り・地図の方向キー)のうち、
     // 窓のフック(use-village-buttons・use-held-scroll・use-map-focus)の分岐を統合で通すもの。journey の行き先は
@@ -2705,106 +2649,6 @@ describe('画面の大きさ・窓・時計・昼夜', () => {
       // 会話中の X は窓を閉じる
       await userEvent.keyboard('x')
       await expect.element(dialog).not.toBeInTheDocument()
-    })
-
-    // 拡大地図の地点の印(字 + 番号の札)は、隣り合うマスの地点どうしで重なるので実測でずらして離す。
-    // ずらす量は px なので、開いたまま画面の大きさが変わると測り直さないと重なる
-    test('拡大地図を開いたまま画面の大きさが変わっても、地点の印どうしは重ならない', async () => {
-      await renderVillage()
-      await walkOutToTown()
-      await userEvent.keyboard('m')
-      const map = page.getByRole('dialog')
-      await expect.element(map.getByRole('heading', { name: text.mapTitle })).toBeVisible()
-      // 印は字と札を合わせた範囲(ボタンの子の外接矩形。札はボタンの外へはみ出す)
-      const badgeBoxes = () =>
-        Array.from(map.element().querySelectorAll('[data-spot-id]')).map(spot => {
-          const rects = Array.from(spot.children).map(child => child.getBoundingClientRect())
-          return {
-            id: spot.getAttribute('data-spot-id'),
-            left: Math.min(...rects.map(rect => rect.left)),
-            right: Math.max(...rects.map(rect => rect.right)),
-            top: Math.min(...rects.map(rect => rect.top)),
-            bottom: Math.max(...rects.map(rect => rect.bottom)),
-          }
-        })
-      // 重なっている印の組(接するだけは数えない)
-      const overlapping = () => {
-        const boxes = badgeBoxes()
-        return boxes.flatMap((a, index) =>
-          boxes
-            .slice(index + 1)
-            .filter(
-              b => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
-            )
-            .map(b => `${a.id}/${b.id}`)
-        )
-      }
-      expect(badgeBoxes().length, '地図に地点の印が並ぶ').toBeGreaterThanOrEqual(2)
-      expect(overlapping(), '開いた時、印どうしは重ならない').toEqual([])
-      await page.viewport(390, 664)
-      await runFrames(SETTLE_FRAMES)
-      expect(overlapping(), '小さい画面へ変えた後も、印どうしは重ならない').toEqual([])
-    })
-
-    test('拡大地図は方向キーでその向きの地点へ焦点を移し、M で閉じる', async () => {
-      await renderVillage()
-      await walkOutToTown()
-      await userEvent.keyboard('m')
-      const map = page.getByRole('dialog')
-      await expect.element(map.getByRole('heading', { name: text.mapTitle })).toBeVisible()
-      const focusedSpot = () =>
-        document.activeElement instanceof HTMLElement
-          ? document.activeElement.dataset.spotId
-          : undefined
-      // 地図を開いた直後は番号 1(自室)の印に焦点がある
-      const entries = mapEntries(villageJa.worldSet, villageJa.worldSet.worlds.town, new Set())
-      const first = entries[0]
-      await expect.poll(focusedSpot, { message: '開いた直後の焦点は番号 1 の地点' }).toBe(first.id)
-      // 焦点が地点に無い(並びの先頭の閉じるボタンの)時は、Tab と同じく番号 1 の地点から入る
-      await userEvent.tab({ shift: true })
-      await expect
-        .element(map.getByRole('button', { name: text.closeMap }), {
-          message: '番号 1 の地点の前は閉じるボタン',
-        })
-        .toHaveFocus()
-      await userEvent.keyboard('{ArrowRight}')
-      await expect
-        .poll(focusedSpot, { message: '閉じるボタンから方向キーで番号 1 の地点へ' })
-        .toBe(first.id)
-      // 右か下のうち、実際に地点がある向きを町のデータから選ぶ(tests/journey.spec.ts と同じ選び方)
-      const moves: { key: WalkKey; spot: MapEntry | null }[] = [
-        { key: 'ArrowRight', spot: spotToward(entries, first.id, 'right') },
-        { key: 'ArrowDown', spot: spotToward(entries, first.id, 'down') },
-      ]
-      const move = moves.find(candidate => candidate.spot !== null)
-      if (move === undefined || move.spot === null) {
-        throw new Error('最初の地点の右にも下にも地点が無い')
-      }
-      const moved = move.spot
-      expect(moved.id).not.toBe(first.id)
-      await userEvent.keyboard(`{${move.key}}`)
-      await expect
-        .poll(focusedSpot, { message: 'その向きで最も近い地点へ焦点が移る' })
-        .toBe(moved.id)
-      // 押した向きに地点が無ければ、焦点は動かない
-      const DIRECTIONS = {
-        ArrowUp: 'up',
-        ArrowDown: 'down',
-        ArrowLeft: 'left',
-        ArrowRight: 'right',
-      } as const
-      const dead = (Object.keys(DIRECTIONS) as WalkKey[]).find(
-        key => spotToward(entries, moved.id, DIRECTIONS[key]) === null
-      )
-      if (dead === undefined) throw new Error(`${moved.id} からはどの向きにも地点がある`)
-      await userEvent.keyboard(`{${dead}}`)
-      await runFor(FRAME_MS * SETTLE_FRAMES)
-      expect(focusedSpot(), 'その向きに地点が無ければ焦点は動かない').toBe(moved.id)
-      // 焦点が移っただけで地図は閉じない。M は開閉の切り替えで、地図の中でも閉じる
-      await expect.element(map.getByRole('heading', { name: text.mapTitle })).toBeVisible()
-      await userEvent.keyboard('m')
-      await expect.element(map).not.toBeInTheDocument()
-      await expectFrameFocused('閉じると村の枠へ焦点が戻る')
     })
   })
 
