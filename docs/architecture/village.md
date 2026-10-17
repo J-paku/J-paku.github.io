@@ -4,7 +4,7 @@ read_when:
   - 村の地形・会話地点・移動・当たり判定を変えるとき
   - 村の UI(操作帯・会話窓・地図)を変えるとき
 source_of_truth: true
-last_reviewed: 2026-10-15
+last_reviewed: 2026-10-17
 ---
 
 # 村(トップ画面)

@@ -5,7 +5,7 @@ read_when:
   - フックのファイル別100%の対象と、カバレッジから行を外してよい条件を問われたとき
   - カバレッジから外す注釈(`v8 ignore` など)を書きたくなったとき
 source_of_truth: false
-last_reviewed: 2026-10-15
+last_reviewed: 2026-10-17
 ---
 
 # 0018. 統合へ移す E2E の11本を1つの PR で移し、フックの全部をファイル別100%にして、統合テストで届かない行だけを E2E を名指しする注釈で外す
@@ -21,6 +21,12 @@ Accepted(2026-10-15、利用者の決定)。次の部分を置き換える。
 
 0016 の「E2E を消す条件」(統合テストが同じ欠陥を一度落とすのを見てから消す)、`hooks`フォルダに単体テストを置かない・どのテストでも`renderHook`を使わない([0011](0011-extreme-constraints.md))、
 変異テストは単体だけ(0016)、コンテナの統合テストの決まり([0017](0017-screen-containers.md)の D5・D6)は変えない
+
+一部を [0019](0019-hooks-make-containers.md) が置き換えた(2026-10-17。上の「0017 の D5・D6 は変えない」のうち D5 は 0019 で替わった。
+Decision の「移す先は、その振る舞いを描くコンテナの隣の `container.browser.test.tsx`(0017 の D5)」と、同じフォルダの `*.test-helper.ts` は、
+リポジトリ直下の `__tests__` の下の動作ごとの `<動作>.integration.test.tsx`(コンテナごとに1本以上)と、それを使う unit のフォルダの `*.test-helper.ts` に替わった。
+「コンポーネント(`.tsx`)のファイル別100%は、このADRでは決めない」に対しては、0019 が全部の `container.tsx` をファイル別100%にした(表示部品は全体の床のまま)。
+0017 の D6・フックのファイル別100%・統合テストで届かない行を E2E を名指しする注釈で外す決まり・E2E を消す手順は、この記録のまま)
 
 ## Context
 
@@ -109,7 +115,7 @@ Accepted(2026-10-15、利用者の決定)。次の部分を置き換える。
   (ja/ko のループは言語ごとに1件と数えるので、Context の63件(spec の中の test() の数)とは数え方が違う)。
   spec ごとの消した件数/元の件数は、layout 6/7・day-night 6/8・night-transition 0/3・clock 9/10・dialog-focus 5/5・fishing 9/10・idle-loop 4/4・flight 12/12・umbrella 5/5・story 5/5・scene-refetch 1/1。
   dialog-focus・idle-loop・flight・umbrella・story・scene-refetch の6ファイルは spec ごと消した。
-  移した先は、村は `src/components/VillagePage/` の、作品ストーリーは `src/components/Story/` の `container.browser.test.tsx`(どちらも当時の置き場。`__tests__` の下へ移した)
+  移した先は、村は `src/components/VillagePage/` の、作品ストーリーは `src/components/Story/` の `container.browser.test.tsx`(どちらも当時の置き場。[0019](0019-hooks-make-containers.md) で `__tests__` の下へ移した)
 - **欠陥の入れ方。** 消した E2E のテストの1件ごとに、製品のコードへ欠陥を入れ、ビルドした配信物でその E2E が落ち、対応する統合テストも落ちるのを確かめてから消した。
   欠陥を入れたパッチはコミットしていない
 - **E2E に残したテスト(8件)と理由。**

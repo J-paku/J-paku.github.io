@@ -4,7 +4,7 @@ read_when:
   - happy-dom で見るテストの対象を広げる・狭めるとき
   - 村のフックや部品を happy-dom のテストで見てよいか迷ったとき
 source_of_truth: false
-last_reviewed: 2026-10-14
+last_reviewed: 2026-10-17
 ---
 
 # 0009. happy-dom で見るテストを、props・操作で分かれる部品、DOM を使う utils、寸法・rAF の実物に頼らない村のフック・部品へ広げる
