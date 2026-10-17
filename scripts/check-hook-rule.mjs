@@ -9,15 +9,10 @@
 //                     「useState as s」の形で拾い、同じ名前で受けるもの(import { useState })は拾わない
 //   2. 設定の掛け方 — 実際の eslint.config.mjs で、偽のパスに置いた断片を lint し、拾う数が期待とぴったり同じか。
 //                     表示部品の index.tsx・utils などには掛かり、container.tsx・hooks/ の use-*.ts(x)・テストの側
-//                     (*.test.ts(x)・*.fixture.ts・*.test-helper.ts)・待ちの一覧(PENDING_CONTAINER_FILES)では外れる
+//                     (*.test.ts(x)・*.fixture.ts・*.test-helper.ts)では外れる
 //                     (別の名前で受ける所の報告も同じ所で外れる)。統合テストを置く __tests__/ が lint の対象の外になっていないかも見る
-//   3. 待ちの一覧の判定 — 偽の一覧と偽の中身を下の 5 と同じ関数で判定し、古くなった項目と理由が期待とぴったり同じか
-//   4. 実際の src   — src の *.ts・*.tsx をすべて eslint.config.mjs で lint し、この規則の違反を数える。1件でもあれば落とす。
+//   3. 実際の src   — src の *.ts・*.tsx をすべて eslint.config.mjs で lint し、この規則の違反を数える。1件でもあれば落とす。
 //                     eslint-disable の注釈で黙らせた呼び出しも違反に数える(注釈は外す所に入っていない)
-//   5. 待ちの一覧   — PENDING_CONTAINER_FILES のファイルが実在し、一覧が無くても規則が外れる名前(container.tsx・hooks/ の use-*.ts(x)・
-//                     テストの側)でなく、まだ規則に違反しているか(フックを呼ぶか、別の名前で受けるか)。どれかに外れた項目は
-//                     一覧から外す(一覧は減るだけ。残すと、外れたままの所にフックの呼び出しを足せてしまう)。
-//                     この判定は、ここだけが持つ(check-test-boundary.mjs は PENDING_HOOK_DIRS だけを見る)
 //
 // ESLint の ignores(.claude/** など)は、設定の基準のフォルダ(cwd か、探し当てた設定ファイルのフォルダ)からのパスで当たる。
 // 基準が親のリポジトリになると(作業ツリーは親の .claude/worktrees/ の下にある)、作業ツリーのファイルは全部 .claude/** に当たって
@@ -26,12 +21,10 @@
 // lint はこの規則だけを走らせる(ruleFilter)。ほかの規則は npm run lint が見る。
 //
 // 使い方: node scripts/check-hook-rule.mjs(npm run test:boundary)
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { ESLint, Linter } from 'eslint'
-import eslintConfig from '../eslint.config.mjs'
-import { PENDING_CONTAINER_FILES } from './container-dirs.mjs'
 import hookOnlyInContainer from './eslint-rules/hook-only-in-container.mjs'
 
 // cwd に依存しない。どこから呼んでもリポジトリ直下を見る
@@ -240,7 +233,7 @@ const RULED_PATHS = [
   'src/lib/fake.ts',
   'src/app/page.tsx',
 ]
-// 規則が外れるパス。コンテナ・hooks/ の use-*.ts(x)(フォルダにしたフックと src/hooks/ も)・テストの側・待ちの一覧
+// 規則が外れるパス。コンテナ・hooks/ の use-*.ts(x)(フォルダにしたフックと src/hooks/ も)・テストの側
 const EXEMPT_PATHS = [
   'src/components/Fake/container.tsx',
   'src/components/Fake/components/Part/container.tsx',
@@ -252,7 +245,6 @@ const EXEMPT_PATHS = [
   'src/utils/fake.test.ts',
   'src/components/Fake/container.fixture.ts',
   'src/components/Fake/fake.test-helper.ts',
-  ...PENDING_CONTAINER_FILES,
 ]
 // [パス, コード, 拾う数]
 const CONFIG_CASES = [
@@ -297,101 +289,6 @@ if (configFailures.length > 0) {
 
 // 設定を読んだ後のファイルの組みに、この規則が error で掛かるか(lint の対象の外のファイルは undefined)
 const isRuled = config => config?.rules?.[RULE_ID]?.[0] === ERROR
-
-// ---- 自己検査 3: 待ちの一覧の判定 ----
-// 待ちの一覧の項目が、一覧が無くても規則が外れる名前(container.tsx など)になったかを見るため、実際の設定から、
-// 規則を掛ける組みの ignores に並べた待ちの一覧だけを抜いた設定を作る。規則を掛ける組みはただ1つのはずで、
-// 0 か 2 以上なら eslint.config.mjs の形が変わっていて、抜く所を決められない
-const ruleBlocks = eslintConfig.filter(block => block.rules?.[RULE_ID] !== undefined)
-if (ruleBlocks.length !== 1) {
-  throw new Error(
-    `check-hook-rule: eslint.config.mjs で規則 ${RULE_ID} を書いた組みが ${ruleBlocks.length} 個(期待 1)。待ちの一覧を抜いた設定を作れない`
-  )
-}
-const withoutPending = eslintConfig.map(block =>
-  ruleBlocks.includes(block) && block.ignores !== undefined
-    ? { ...block, ignores: block.ignores.filter(item => !PENDING_CONTAINER_FILES.includes(item)) }
-    : block
-)
-const bareEslint = new ESLint({
-  cwd: ROOT,
-  overrideConfigFile: true,
-  overrideConfig: withoutPending,
-  ruleFilter: ESLINT_OPTIONS.ruleFilter,
-})
-
-// 待ちの一覧の項目のうち古くなったものを { file, reason } で返す(並びは一覧の順)。readCode は中身を返す(無いファイルは undefined)。
-//   gone       — ファイルが無い
-//   exempt     — 一覧が無くても規則が外れる名前(container.tsx・hooks/ の use-*.ts(x)・テストの側)
-//   settled    — 規則を掛け直して lint しても、もう違反しない(フックを呼ばず、別の名前で受けもしない)
-//   unreadable — 構文の誤りで読めない(読めないと、違反しないのか分からない)
-// 外したままの設定では数えられないので、一覧のファイルにだけ規則を掛け直して lint する。
-// files に空の配列は書けないので、一覧が空なら見ない
-const pendingStalesOf = async (list, readCode) => {
-  if (list.length === 0) return []
-  const forced = new ESLint({
-    ...ESLINT_OPTIONS,
-    overrideConfig: [{ files: list, rules: { [RULE_ID]: 'error' } }],
-  })
-  const stales = []
-  for (const file of list) {
-    const code = readCode(file)
-    if (code === undefined) {
-      stales.push({ file, reason: 'gone' })
-    } else if (!isRuled(await bareEslint.calculateConfigForFile(file))) {
-      stales.push({ file, reason: 'exempt' })
-    } else {
-      const [result] = await forced.lintText(code, { filePath: file })
-      if (fatalsOf(result).length > 0) stales.push({ file, reason: 'unreadable' })
-      else if (hookCallsOf(result).length === 0) stales.push({ file, reason: 'settled' })
-    }
-  }
-  return stales
-}
-
-// 一覧の判定が壊れると、古い項目が残ったまま(外れたままの所にフックを足せるまま)通るか、生きている項目を誤って落とす。
-// そこで偽の一覧と中身(パス → 中身。無いファイルは undefined)を判定し、古い項目と理由が期待とぴったり同じでなければ落とす。
-// 本物の一覧の先頭の項目も1つ入れる(待ちの一覧を抜いた設定が壊れて、本物の項目を「外れる名前」と見ないか)
-const FAKE_PENDING = new Map([
-  // 古くない(まだフックを呼ぶ・別の名前で受ける・注釈で黙らせても呼ぶ・本物の一覧の項目)
-  ['src/components/Fake/components/Wait/index.tsx', 'const a = useWait()'],
-  ['src/components/Fake/components/Ref/index.tsx', 'const r = React.useRef(null)'],
-  [
-    'src/components/Fake/components/Alias/index.tsx',
-    `import { useState as state } from 'react'\nexport const s = state`,
-  ],
-  [
-    'src/components/Fake/components/Quiet/index.tsx',
-    `// eslint-disable-next-line ${RULE_ID}\nuseFake()`,
-  ],
-  ...PENDING_CONTAINER_FILES.slice(0, 1).map(file => [file, 'const a = useWait()']),
-  // 古い(もうフックを呼ばない・無い・一覧が無くても外れる名前・読めない)
-  [
-    'src/components/Fake/components/Pure/index.tsx',
-    `// useWait()\nconst label = 'useWait()'\nconst a = user()`,
-  ],
-  ['src/components/Fake/components/Missing/index.tsx', undefined],
-  ['src/components/Fake/components/Done/container.tsx', 'const a = useDone()'],
-  ['src/hooks/use-fake.ts', 'export const useFake = () => useState(0)'],
-  ['src/components/Fake/fake.test-helper.ts', 'const a = useFake()'],
-  ['src/components/Fake/components/Broken/index.tsx', 'const a = useBroken('],
-])
-const EXPECTED_STALES = [
-  'src/components/Fake/components/Pure/index.tsx settled',
-  'src/components/Fake/components/Missing/index.tsx gone',
-  'src/components/Fake/components/Done/container.tsx exempt',
-  'src/hooks/use-fake.ts exempt',
-  'src/components/Fake/fake.test-helper.ts exempt',
-  'src/components/Fake/components/Broken/index.tsx unreadable',
-]
-const fakeStales = (
-  await pendingStalesOf([...FAKE_PENDING.keys()], file => FAKE_PENDING.get(file))
-).map(({ file, reason }) => `${file} ${reason}`)
-if (JSON.stringify(fakeStales) !== JSON.stringify(EXPECTED_STALES)) {
-  throw new Error(
-    `check-hook-rule: 自己検査(待ちの一覧の判定)に失敗(期待と違う判定): 古いと見た ${JSON.stringify(fakeStales)}(期待 ${JSON.stringify(EXPECTED_STALES)})`
-  )
-}
 
 // ---- 実際の src ----
 const files = (existsSync(SRC_DIR) ? walk(SRC_DIR) : [])
@@ -448,33 +345,6 @@ if (violations.length > 0) {
   process.exit(1)
 }
 
-// ---- 待ちの一覧 ----
-// 理由ごとの文面。落ちた人がこのファイルを開かなくても直し方が分かるように書く
-const STALE_REASONS = new Map([
-  ['gone', 'ファイルが無い。一覧から外す'],
-  [
-    'exempt',
-    '一覧が無くても規則が外れる名前(container.tsx・hooks/ の use-*.ts(x)・テストの側)になった。一覧から外す(一覧は減るだけ)',
-  ],
-  [
-    'settled',
-    'もう規則に違反しない(フックを呼ばず、フックを別の名前で受けもしない)。一覧から外す(一覧は減るだけ)',
-  ],
-  ['unreadable', '構文の誤りで読めない(読めないと、まだ違反しているのか分からない)'],
-])
-const readReal = file => {
-  const p = path.join(ROOT, file)
-  return existsSync(p) ? readFileSync(p, 'utf8') : undefined
-}
-const stales = await pendingStalesOf(PENDING_CONTAINER_FILES, readReal)
-if (stales.length > 0) {
-  console.error(
-    `check-hook-rule: 待ちの一覧(scripts/container-dirs.mjs の PENDING_CONTAINER_FILES)の古い項目 ${stales.length} 件`
-  )
-  for (const { file, reason } of stales) console.error(`  - ${file}: ${STALE_REASONS.get(reason)}`)
-  process.exit(1)
-}
-
 console.log(
-  `check-hook-rule: 自己検査(規則の判定 ${RULE_CASES.length} 件・設定の掛け方 ${CONFIG_CASES.length + LINTED_PATHS.length} 件・待ちの一覧の判定 ${FAKE_PENDING.size} 件)を通り、src の *.ts・*.tsx ${files.length} 件(規則が error で掛かるもの ${ruledCount} 件)と待ちの一覧 ${PENDING_CONTAINER_FILES.length} 件を検査 — フックの呼び出しの違反 0 件`
+  `check-hook-rule: 自己検査(規則の判定 ${RULE_CASES.length} 件・設定の掛け方 ${CONFIG_CASES.length + LINTED_PATHS.length} 件)を通り、src の *.ts・*.tsx ${files.length} 件(規則が error で掛かるもの ${ruledCount} 件)を検査 — フックの呼び出しの違反 0 件`
 )
