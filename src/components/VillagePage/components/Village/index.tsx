@@ -12,7 +12,7 @@ import './components/SpeechBox'
 import './components/StopModal/container'
 import './components/TalkBubble/container'
 import './components/Weather'
-import WorldMap, { type WorldMapProps } from './components/WorldMap'
+import WorldMap, { type WorldMapProps } from './components/WorldMap/container'
 import FrameOverlays, { type FrameOverlaysProps } from './components/FrameOverlays'
 // WorldLayer は scene.module.css を読む Ground・FishingFloat・LampVeil を抱えるので、
 // CSS の出力順を変えないよう他の子より後に読み込む

@@ -36,14 +36,10 @@ export const CONTAINER_DIRS = [...SCREEN_CONTAINER_DIRS, ...SHARED_CONTAINER_DIR
 // 直したらその項目をここから消す。2段階目で村を移し終えたら、一覧ごと消す(ADR 0019)
 
 // まだフックを呼んでいる表示部品(index.tsx)。2段階目まで ESLint の layer/hook-only-in-container から外す
-export const PENDING_CONTAINER_FILES = [
-  'src/components/VillagePage/components/Village/components/WorldMap/index.tsx',
-]
+export const PENDING_CONTAINER_FILES = []
 
 // 隣に container.tsx の無い hooks/ フォルダ。2段階目まで「hooks/ は container.tsx のあるフォルダにだけ置く」の例外にする
-export const PENDING_HOOK_DIRS = [
-  'src/components/VillagePage/components/Village/components/WorldMap/hooks',
-]
+export const PENDING_HOOK_DIRS = []
 
 // 統合テストを置くリポジトリ直下のフォルダ(E2E の tests/ とは別)
 export const TEST_ROOT = '__tests__'
