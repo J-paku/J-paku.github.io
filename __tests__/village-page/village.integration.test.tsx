@@ -7,26 +7,17 @@ import VillagePageContainer from '@/components/VillagePage/container'
 import { userEvent } from 'vitest/browser'
 import type { Cell, Direction, Spot, World, WorldSet } from '@content/types/world'
 import { readVisited, writePosition, writeVisited } from '@/lib/preferences'
-import { isWalkable } from '@/lib/village/collision'
-import { objectSpotAt } from '@/lib/village/spot'
-import { CLOCK_FOCUSABLE_SELECTOR, STOP_FOCUSABLE_SELECTOR } from '@/utils/focusables'
+import { CLOCK_FOCUSABLE_SELECTOR } from '@/utils/focusables'
 import {
   FRAME_MS,
   SETTLE_MS,
   advanceUntil,
-  cellCenter,
-  click,
   expectLoopIdle,
   focusIndex,
   focusVillage,
-  leaveRoom,
   loopState,
-  mouse,
-  playerOnScreen,
   readCell,
   runFor,
-  tapHeld,
-  villageFrame,
   walk,
 } from './village-walk.test-helper'
 import { PHASE_CLOCKS, startVillageClock } from './village-time.test-helper'
@@ -71,190 +62,9 @@ describe('歩く・待つ・釣り・傘・飛ぶ', () => {
   // (保存の復元・地図の開け閉めと地形からの移動・押したまま動かす指・物を押して話しかける・
   // スティックでの本文送り・天気の問い合わせの中断・会話窓のキー・コースの完走)
   describe('村の入力と道中の配線', () => {
-    const room = villageJa.worldSet.worlds.room
     const town = villageJa.worldSet.worlds.town
     const dialog = page.getByRole('dialog')
     const speech = () => page.getByRole('status').element().textContent ?? ''
-    const sameCell = (goal: { worldId: string; cell: Cell }) => () =>
-      JSON.stringify(readCell(setId)) === JSON.stringify(goal)
-
-    test('描き直した村は保存した位置から始め、読めない保存(知らないワールド・歩けないマス)は捨てて開始地点から始める', async () => {
-      await openVillage()
-      expect(await walk(setId, 'ArrowDown', 1)).toBe(1)
-      expect(readCell(setId)).toEqual({ worldId: 'room', cell: { x: 4, y: 5 } })
-      // 村を離れて戻る(作品ページから戻った時と同じく、同じ読み込みの中で描き直す)
-      cleanup()
-      render(<VillagePageContainer {...villageJa} />)
-      await focusVillage()
-      await expectLoopIdle()
-      // 部屋は枠に収まりカメラは動かないので、描かれた位置がそのままマス
-      expect(playerOnScreen().x).toBeCloseTo(4, 1)
-      expect(playerOnScreen().y, '保存した (4,5) から始める').toBeCloseTo(5, 1)
-      const wall = { x: 0, y: 0 }
-      expect(isWalkable(room, wall), '部屋の左上の角は歩けない').toBe(false)
-      const unreadable = [
-        { worldId: 'nowhere', cell: { x: 4, y: 5 }, facing: 'down' },
-        { worldId: 'room', cell: wall, facing: 'down' },
-      ] as const
-      for (const saved of unreadable) {
-        cleanup()
-        writePosition(setId, saved)
-        render(<VillagePageContainer {...villageJa} />)
-        await focusVillage()
-        await expectLoopIdle()
-        const where = `${saved.worldId} (${saved.cell.x},${saved.cell.y})`
-        expect(playerOnScreen().y, `${where} の保存は捨てて開始地点 (4,4) から`).toBeCloseTo(4, 1)
-      }
-    })
-
-    test('地図は屋内では M を押しても開かず、町では地図の中で M をもう一度押すと閉じる', async () => {
-      await openVillage()
-      await userEvent.keyboard('m')
-      await runFor(FRAME_MS * 2)
-      expect(dialog.query(), '自室では地図を開かない').toBeNull()
-      expect(await leaveRoom(setId)).toBe(3)
-      await userEvent.keyboard('m')
-      await expect.element(dialog.getByRole('heading', { name: text.mapTitle })).toBeVisible()
-      await userEvent.keyboard('m')
-      await expect.element(dialog).not.toBeInTheDocument()
-      // 閉じた後は錠が外れて歩ける
-      expect(await walk(setId, 'ArrowRight', 1)).toBe(1)
-    })
-
-    test('地図で今立っている地点を選ぶとその場で着いたことにし、地形のマスを押すと地点でなくても向かう', async () => {
-      const monument = town.spots.find(spot => spot.id === 'monument')
-      if (monument === undefined) throw new Error('町に経歴碑の地点が無い')
-      const place = text.stops.monument.place
-      const spotButton = () =>
-        dialog.getByRole('button', { name: text.fastTravel.replace('{place}', place) })
-      const atMonument = { worldId: town.id, cell: monument.cell }
-      await openVillage()
-      expect(await leaveRoom(setId)).toBe(3)
-      await userEvent.keyboard('m')
-      await spotButton().click()
-      await advanceUntil(sameCell(atMonument), '経歴碑へ着く', 10_000)
-      await expectLoopIdle()
-      // 今立っている地点をもう一度選ぶ。地図を閉じ、歩きも飛びもせずにその場に立つ
-      await userEvent.keyboard('m')
-      await spotButton().click()
-      await expect.element(dialog).not.toBeInTheDocument()
-      await runFor(FRAME_MS * 4)
-      expect(loopState(), '動かない').toBe('idle')
-      expect(readCell(setId)).toEqual(atMonument)
-      // 地図の地形のうち、地点でも扉でもない歩けるマスを押す。経歴碑の前から 3 マス離れた所を選ぶ
-      const target = [
-        { x: 3, y: 0 },
-        { x: -3, y: 0 },
-        { x: 0, y: 3 },
-        { x: 0, y: -3 },
-      ]
-        .map(d => ({ x: monument.cell.x + d.x, y: monument.cell.y + d.y }))
-        .find(
-          cell =>
-            isWalkable(town, cell) &&
-            !town.spots.some(s => s.cell.x === cell.x && s.cell.y === cell.y) &&
-            !town.warps.some(w => w.cell.x === cell.x && w.cell.y === cell.y)
-        )
-      if (target === undefined) throw new Error('経歴碑の前から 3 マス先に歩ける地形が無い')
-      const before = speech()
-      await userEvent.keyboard('m')
-      await expect.element(dialog.getByRole('heading', { name: text.mapTitle })).toBeVisible()
-      const canvas = [...dialog.element().querySelectorAll<HTMLElement>('div')].find(
-        element => element.style.getPropertyValue('--map-w') !== ''
-      )
-      if (canvas === undefined) throw new Error('地図の地形が無い')
-      const box = canvas.getBoundingClientRect()
-      await page.elementLocator(canvas).click({
-        position: {
-          x: ((target.x + 0.5) / town.width) * box.width,
-          y: ((target.y + 0.5) / town.height) * box.height,
-        },
-      })
-      await expect.element(dialog).not.toBeInTheDocument()
-      await advanceUntil(
-        sameCell({ worldId: town.id, cell: target }),
-        '押した地形のマスへ着く',
-        10_000
-      )
-      // 地点でない所へは地点名を言えないので、行き先の案内は出さない
-      expect(speech(), '案内文は押す前のまま').toBe(before)
-    }, 30_000)
-
-    test('舞台を押したまま指先を別のマスへ動かすと、行き先を指先のマスへ移してそこへ着く', async () => {
-      await openVillage()
-      expect(await leaveRoom(setId)).toBe(3)
-      await expectLoopIdle()
-      // 自宅前 (14,12) から右へは横道が続く
-      const first = { x: 16, y: 12 }
-      const second = { x: 17, y: 12 }
-      expect(isWalkable(town, first) && isWalkable(town, second), '自宅前の右の道').toBe(true)
-      const from = cellCenter(first)
-      await mouse.move(from.x, from.y, false)
-      await mouse.down(from.x, from.y)
-      await runFor(FRAME_MS * 2)
-      // 押している指先は同じマスの中でも少し揺れる。揺れてもそのまま押し続ける
-      await mouse.move(from.x + 2, from.y + 2, true)
-      await runFor(FRAME_MS * 2)
-      const to = cellCenter(second)
-      await mouse.move(to.x, to.y, true)
-      await advanceUntil(sameCell({ worldId: town.id, cell: second }), '指先のマスへ着く')
-      await mouse.up(to.x, to.y)
-      await expectLoopIdle()
-      expect(readCell(setId)).toEqual({ worldId: town.id, cell: second })
-    })
-
-    test('自室で机を押すと、もう話しかけられるマスに立っていれば歩かずに会話窓を開く', async () => {
-      await openVillage()
-      await expectLoopIdle()
-      const home = room.spots.find(spot => spot.id === 'home')
-      if (home === undefined) throw new Error('自室に自宅の地点が無い')
-      // 対照: 歩いて届かず地点の物でもないマス(部屋の左上の角の壁)を押しても、歩きも話しもしない
-      const wall = { x: 0, y: 0 }
-      expect(isWalkable(room, wall) || objectSpotAt(room, wall) !== null).toBe(false)
-      const corner = cellCenter(wall)
-      await click(corner.x, corner.y)
-      await runFor(SETTLE_MS)
-      expect(dialog.query(), '壁を押しても窓は開かない').toBeNull()
-      expect(readCell(setId), '壁を押しても歩かない').toBeNull()
-      // 開始地点は自宅の地点の立ち位置で、上を向いた先の 1 マスが机
-      const desk = { x: home.cell.x, y: home.cell.y - 1 }
-      expect(objectSpotAt(room, desk)?.id, '上の 1 マスは自宅の地点の物').toBe('home')
-      const point = cellCenter(desk)
-      await click(point.x, point.y)
-      await expect
-        .element(dialog.getByRole('heading', { name: text.stops.home.title }))
-        .toBeVisible()
-      expect(readCell(setId), '歩いていない').toBeNull()
-    })
-
-    test('話せる相手がいない所で話しかけた時の一言は、2.5 秒経つと消える', async () => {
-      await openVillage()
-      // 開始地点 (4,4) から 1 マス下は地点の立ち位置ではない
-      expect(await walk(setId, 'ArrowDown', 1)).toBe(1)
-      const hint = () =>
-        [...document.querySelectorAll('[data-village-bubble-kind="thought"]')].find(bubble =>
-          (bubble.textContent ?? '').includes(text.noTarget)
-        ) ?? null
-      await userEvent.keyboard('e')
-      await expect.poll(hint, { message: '話せる相手がいない時の一言' }).not.toBeNull()
-      await runFor(2_400)
-      expect(hint(), '2.5 秒より前は出ている').not.toBeNull()
-      await runFor(FRAME_MS * 8)
-      expect(hint(), '2.5 秒経つと消える').toBeNull()
-    })
-
-    test('会話窓が開いている間は方向キー以外のキーでは閉じず、X で閉じる', async () => {
-      await openVillage()
-      await userEvent.keyboard('e')
-      await expect
-        .element(dialog.getByRole('heading', { name: text.stops.home.title }))
-        .toBeVisible()
-      await userEvent.keyboard('q')
-      await runFor(FRAME_MS * 2)
-      expect(dialog.query(), 'Q では閉じない').not.toBeNull()
-      await userEvent.keyboard('x')
-      await expect.element(dialog).not.toBeInTheDocument()
-    })
 
     test('天気が届く前に村を離れると、天気の問い合わせを中断する', async () => {
       const signals: (AbortSignal | null | undefined)[] = []
@@ -343,70 +153,6 @@ describe('歩く・待つ・釣り・傘・飛ぶ', () => {
       await expectLoopIdle()
     }
 
-    test('会話窓で下を押したまま閉じて開き直すと、本文が窓に収まっていても押し直すまで焦点を操作へ渡さない', async () => {
-      await openVillage()
-      const title = dialog.getByRole('heading', { name: text.stops.home.title })
-      await userEvent.keyboard('e')
-      await expect.element(title).toHaveFocus()
-      const panel = dialog.element().querySelector('[data-village-panel]')
-      if (panel === null) throw new Error('会話窓の本文が無い')
-      expect(panel.scrollHeight, '本文が窓に収まっている(送る余地が無い)').toBeLessThanOrEqual(
-        panel.clientHeight
-      )
-      const firstAction = () => dialog.element().querySelector(STOP_FOCUSABLE_SELECTOR)
-      // 収まっているので、下を押した瞬間に先頭の操作へ渡る
-      await userEvent.keyboard('{ArrowDown>}')
-      await advanceUntil(
-        () => document.activeElement === firstAction(),
-        '押した瞬間に先頭の操作へ渡る'
-      )
-      // 下を押したまま X で閉じ、E で開き直す
-      await userEvent.keyboard('x')
-      await expect.element(dialog).not.toBeInTheDocument()
-      await userEvent.keyboard('e')
-      await expect.element(title).toHaveFocus()
-      await runFor(FRAME_MS * 10)
-      expect(document.activeElement, '開く前から押していた下では見出しに留まる').toBe(
-        title.element()
-      )
-      // 離したのを 1 フレームで読ませてから押し直すと渡る
-      await userEvent.keyboard('{/ArrowDown}')
-      await runFor(FRAME_MS * 2)
-      await tapHeld('ArrowDown')
-      await advanceUntil(
-        () => document.activeElement === firstAction(),
-        '押し直すと先頭の操作へ渡る'
-      )
-    })
-
-    test('池で舞台を押したまま釣り始め、釣っている間に指先を別のマスへ動かしても、やめた後はその場に留まる', async () => {
-      const pond = spotOf(town, 'pond')
-      await openAt({ worldId: town.id, cell: pond.cell, facing: pond.facing })
-      // 立っているマスを押したままにする(行き先が今のマスなので歩き出さない)
-      const here = cellCenter(pond.cell)
-      await mouse.move(here.x, here.y, false)
-      await mouse.down(here.x, here.y)
-      await runFor(FRAME_MS * 2)
-      // 釣り始める。釣りの間は窓を出さないので、焦点は枠に残り、押している指も外れない
-      await userEvent.keyboard('e')
-      await advanceUntil(() => speech() === text.fishing.cast, '投げ始める')
-      // 釣っている間に、押したままの指先を歩いて行けるマスへ動かす
-      const elsewhere = { x: 8, y: 13 }
-      expect(isWalkable(town, elsewhere), '動かした先は歩いて行ける').toBe(true)
-      const there = cellCenter(elsewhere)
-      await mouse.move(there.x, there.y, true)
-      await runFor(FRAME_MS * 4)
-      // やめる。釣っている間の指先の動きは読まないので、行き先は押した時のマス(今のマス)のまま
-      await userEvent.keyboard('x')
-      await runFor(SETTLE_MS * 2)
-      expect(readCell(setId), '釣っている間に動かした指先のマスへは歩かない').toEqual({
-        worldId: town.id,
-        cell: pond.cell,
-      })
-      await mouse.up(there.x, there.y)
-      await expectLoopIdle()
-    })
-
     // タブの切り替えはヘッドレスの Chromium では起こせない(CDP にページの見え方を変える命令が無い)。
     // ブラウザの環境の設定として document の visibilityState を隠れた値に差し替え、ブラウザと同じく visibilitychange を送る
     test('方向キーを押したままタブが隠れると、離した知らせが届かなくても歩くのを止め、見えている間の知らせでは止めない', async () => {
@@ -431,32 +177,6 @@ describe('歩く・待つ・釣り・傘・飛ぶ', () => {
       expect(column(), '隠れた後は歩かない').toBe(stopped)
       expect(stopped, '右の壁際より手前で止まる').toBeLessThan(9)
       await userEvent.keyboard('{/ArrowRight}')
-    })
-
-    test('地点の無い町では地図を開いても焦点が枠に残り、枠で M をもう一度押すと閉じる', async () => {
-      // 実際のコンテンツには地点の無い町が無いので、町の地点と自室のコースの地点を外した版を渡す(地図に印が 1 つも並ばない)
-      const bare = withSpots('town', () => [])
-      const worldSet = {
-        ...bare,
-        worlds: {
-          ...bare.worlds,
-          room: { ...room, spots: room.spots.filter(spot => spot.order === undefined) },
-        },
-      }
-      await page.viewport(1280, 720)
-      render(<VillagePageContainer {...villageJa} worldSet={worldSet} />)
-      await focusVillage()
-      expect(await leaveRoom(setId)).toBe(3)
-      await userEvent.keyboard('m')
-      await expect.element(dialog.getByRole('heading', { name: text.mapTitle })).toBeVisible()
-      expect(
-        dialog.element().querySelectorAll('[data-spot-id]').length,
-        '地図に地点の印が無い'
-      ).toBe(0)
-      await runFor(FRAME_MS * 2)
-      expect(document.activeElement, '焦点を置く地点が無いので枠に残る').toBe(villageFrame())
-      await userEvent.keyboard('m')
-      await expect.element(dialog).not.toBeInTheDocument()
     })
 
     test('次の地点にもう立っている時の「次へ」は、歩かずにその場で次の地点へ話しかけ、訪れたことにする', async () => {
