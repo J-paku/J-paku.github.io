@@ -1,4 +1,5 @@
 import { defineConfig, configDefaults } from 'vitest/config'
+import type { BrowserCommand } from 'vitest/node'
 import { playwright } from '@vitest/browser-playwright'
 import { globSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
@@ -112,6 +113,42 @@ const TOUCH_TESTS = globSync(INTEGRATION_TESTS, { cwd: ROOT, exclude: TEST_EXCLU
 const touchProjectName = (file: string) =>
   TOUCH_PROJECT_PREFIX + file.replace(/^__tests__\//, '').replace(/\.integration\.test\.tsx$/, '')
 
+// キーを押したまま待って離す手。村の統合テストが rAF の本物の時に使う(__tests__/village-page/village-walk.test-helper.ts の press・tapHeld)。
+// 押す・待つ・離すを node の側でまとめて行い、E2E(tests/village.helpers.ts の press)と同じく node の時計で待つ。
+// テストの iframe の中で待ってから離すと、離す指示が iframe から Vitest(node)・Playwright を回って Chromium へ届くまでの遅れが
+// 押す長さに足される。負荷が高いと 1 マス分(150ms)のつもりの押下が 1 マスの歩行(256ms)より長く続き、次のマスまで歩いた
+// (2026-10-17 の実測。2 コアに 8 ページで全体を回し、keydown から keyup までをテストの iframe で測ると、
+// iframe の中で待つ形は中央 233ms・最長 915ms で、卓上時計の前へ歩く 16 回のうち 6 回が 1〜2 マス行き過ぎた。
+// node の側で待つ形は中央 185ms・最長 451ms で、13 回とも行き過ぎなかった)。
+// 待ち方は ms(node の時計で待つ)か frames(テストの iframe の rAF を数える。rAF を偽の時計に載せていない時だけ使える)
+type Hold = { ms: number } | { frames: number }
+// 待つ間に落ちても(テストの iframe が外れたなど)押したままにせず、必ず離す。
+// Vitest が userEvent で押したままのキーを離すのは各テストの前とファイルの終わりだけで(node_modules/@vitest/browser の tester の
+// onBeforeTryTask・cleanup が呼ぶ userEvent.cleanup)、ここで押したキーはその数に入らない
+const holdKey: BrowserCommand<[key: string, hold: Hold]> = async ({ page, frame }, key, hold) => {
+  await page.keyboard.down(key)
+  try {
+    if ('ms' in hold) {
+      await new Promise(resolve => setTimeout(resolve, hold.ms))
+    } else {
+      const tester = await frame()
+      await tester.evaluate(
+        count =>
+          new Promise<void>(resolve => {
+            const next = (left: number) => {
+              if (left === 0) resolve()
+              else requestAnimationFrame(() => next(left - 1))
+            }
+            next(count)
+          }),
+        hold.frames
+      )
+    }
+  } finally {
+    await page.keyboard.up(key)
+  }
+}
+
 // 統合テスト(Vitest Browser Mode)の設定。画面単位のコンポーネントを実際の Chromium で、ビルド無しで描く
 // (docs/decisions/0016-testing-trophy-browser-integration.md)。
 // 単体の vitest.config.ts と別のファイルにするのは、変異テスト(stryker.config.mjs)が vitest.config.ts を読むため。
@@ -166,6 +203,8 @@ export default defineConfig({
         })),
       ],
       screenshotDirectory: 'test-results/vitest-screenshots',
+      // テストから commands.holdKey で呼ぶ(上の holdKey の注)
+      commands: { holdKey },
     },
     // 測るのは --coverage を付けたときだけ。フックとコンポーネントもここで測る(単体の設定はフックと components の .tsx を外す)。
     // フックとコンテナは全部をファイル別100%で固める(上の HOOK_FILES・CONTAINER_FILES。ADR 0018・0019)。統合テストで構造上届かない行(E2E だけが作れる場合)だけを、

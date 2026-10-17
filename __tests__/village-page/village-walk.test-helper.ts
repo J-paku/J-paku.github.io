@@ -7,8 +7,9 @@
 //   - rAF が本物の時(Date だけ止めた時・偽の時計を入れない時): 本物の次のフレームを待つ
 // どちらでも、時間を進める手(stepFrame・runFor・advanceUntil)とそれを使う手(walk・press など)は同じ物を使い、
 // 経った時間は performance.now() で測る(rAF まで偽物の時は performance.now も偽の時計の上で進む)。
-// 押す・叩くは実際の入力(vitest/browser の userEvent と CDP の Input)で行い、DOM へ作り物のイベントを投げない
-import { cdp, server, userEvent } from 'vitest/browser'
+// 押す・叩くは実際の入力(vitest/browser の userEvent と CDP の Input、rAF が本物の時の press・tapHeld は node の側の
+// Playwright の keyboard)で行い、DOM へ作り物のイベントを投げない
+import { cdp, commands, server, userEvent } from 'vitest/browser'
 import type { Cell } from '@content/types/world'
 import { readPosition } from '@/lib/preferences'
 
@@ -72,6 +73,14 @@ export const stepFrame = async () => {
 export const runFor = async (ms: number) => {
   const until = performance.now() + ms
   while (performance.now() < until) await stepFrame()
+}
+
+// count フレーム進める。画面へ届くまでを「何フレーム」で測った待ちに使う。
+// runFor は時間で数えるので、rAF が本物の時に負荷で 1 フレームが延びると、決めた数のフレームが経つ前に終わる
+// (2026-10-18 の実測: 2 コアに 8 ページの負荷で 1 フレームが 83ms まで延び、runFor(FRAME_MS * 5) が 1 フレームで終わって、
+// 次のフレームで測り直す拡大地図の印の重なりを、測り直す前に見て落ちた)
+export const runFrames = async (count: number) => {
+  for (let frame = 0; frame < count; frame++) await stepFrame()
 }
 
 // condition が真になるまで 1 フレームずつ進める。maxMs を越えても偽なら message で落とす
@@ -146,8 +155,23 @@ export const readCell = (setId: string): { worldId: string; cell: Cell } | null 
 
 const savedText = (setId: string) => JSON.stringify(readPosition(setId))
 
-// 方向キーを 1 マス分だけ押して離す。到着も描画も待たない
+// rAF が本物の時に、キーを押したまま待って離す手(vitest.integration.config.ts の holdKey)。押す・待つ・離すを node の側でまとめて行う。
+// ここで待ってから離すと、離す指示がこの iframe から Vitest(node)・Playwright を回って Chromium へ届くまでの遅れが
+// 押す長さに足され、負荷の高い時は 1 マス分のつもりの押下が次のマスまで続く(数字は holdKey の注)
+declare module 'vitest/browser' {
+  interface BrowserCommands {
+    holdKey: (key: string, hold: { ms: number } | { frames: number }) => Promise<void>
+  }
+}
+
+// 方向キーを 1 マス分だけ押して離す。到着も描画も待たない。
+// rAF まで偽物の時は、押す長さを偽の時計で数える(離す指示の遅れは偽の時計を進めないので、押す長さに入らない)。
+// rAF が本物の時は、E2E と同じく node の側で HOLD_MS 待ってから離す
 export const press = async (key: WalkKey) => {
+  if (!framesFaked()) {
+    await commands.holdKey(key, { ms: HOLD_MS })
+    return
+  }
   await userEvent.keyboard(`{${key}>}`)
   await runFor(HOLD_MS)
   await userEvent.keyboard(`{/${key}}`)
@@ -155,8 +179,13 @@ export const press = async (key: WalkKey) => {
 
 // 押しっぱなしの向きを rAF で読む経路(会話窓の本文送り・窓の外から焦点を入れる方向)へ、押した瞬間の 1 回として読ませる。
 // 押してすぐ離すと、同じフレームの間に離されて rAF が向きを 1 度も読まないことがあるので、2 フレーム置いてから離す
-// (押し続けた時の繰り返しは 300ms 先からなので、2 フレームでは始まらない)。歩くための 1 マス分の押し方は press
+// (押し続けた時の繰り返しは 300ms 先からなので、2 フレームでは始まらない)。歩くための 1 マス分の押し方は press。
+// rAF が本物の時は、2 フレームをこの iframe の rAF で数えるのも離すのも node の側で行う(press と同じ理由)
 export const tapHeld = async (key: WalkKey) => {
+  if (!framesFaked()) {
+    await commands.holdKey(key, { frames: 2 })
+    return
+  }
   await userEvent.keyboard(`{${key}>}`)
   await runFor(FRAME_MS * 2)
   await userEvent.keyboard(`{/${key}}`)
