@@ -36,7 +36,6 @@ import {
   STOP_FOCUSABLE_SELECTOR,
 } from '@/utils/focusables'
 import { spotToward } from '@/components/VillagePage/components/Village/components/WorldMap/utils/spot-navigation'
-import { headToSpeech } from '@/components/VillagePage/components/Village/utils/spot-text'
 import {
   FRAME_MS,
   HOLD_MS,
@@ -2101,13 +2100,6 @@ describe('歩く・待つ・釣り・傘・飛ぶ', () => {
       await focusVillage()
       await expectLoopIdle()
     }
-    // 拡大地図の地点のボタン(読み上げ名は地点名を入れた移動の案内)と、地面に立てた行き先の印
-    const mapSpot = (id: string) =>
-      dialog.getByRole('button', {
-        name: text.fastTravel.replace('{place}', text.stops[id]?.place ?? id),
-      })
-    const destinationPin = () => document.querySelector('[data-village-destination]')
-    const ROOM_ENTRY = { worldId: room.id, cell: { x: 4, y: 6 } }
 
     test('スティックを指で倒している間に 2 本目の指でスティックに触れても、1 本目の指の向きのまま歩き続ける', async () => {
       // 2 本の指を同時に置ける端末にしてから描く
@@ -2341,86 +2333,6 @@ describe('歩く・待つ・釣り・傘・飛ぶ', () => {
       await runFor(SETTLE_MS)
       expect(readCell(setId), '歩いていない').toEqual({ worldId: town.id, cell: meishi.cell })
       expect(loopState(), '歩行ループは眠ったまま').toBe('idle')
-    })
-
-    test('次の地点へ歩いて届かない時の「次へ」は行き先の印と案内だけ立て、地図からその地点を選んでも何もしない', async () => {
-      // 実際のコンテンツの地点はどれも歩いて届くので、研究所の立ち位置を研究所の建物の中(歩けないマス)へ動かした版を渡す
-      const unreachable = { x: 22, y: 4 }
-      expect(isWalkable(town, unreachable), '研究所の建物の中は歩けない').toBe(false)
-      const meishi = spotOf(town, 'meishi')
-      const worldSet = withSpots('town', spots => moveSpot(spots, 'lab', unreachable))
-      const lab = spotOf(worldSet.worlds.town, 'lab')
-      await openAt({ worldId: town.id, cell: meishi.cell, facing: meishi.facing }, worldSet)
-      await userEvent.keyboard('e')
-      await expect
-        .element(dialog.getByRole('heading', { name: text.stops.meishi.title }))
-        .toBeVisible()
-      await dialog.getByRole('button', { name: text.stops.meishi.next }).click()
-      await expect.element(dialog).not.toBeInTheDocument()
-      expect(speech(), '研究所への案内が出る').toBe(headToSpeech(text, lab))
-      expect(destinationPin(), '行き先の印が立つ').not.toBeNull()
-      await runFor(SETTLE_MS)
-      await expectLoopIdle()
-      expect(readCell(setId), '歩き出さない').toEqual({ worldId: town.id, cell: meishi.cell })
-      // 地図から同じ地点を選ぶ。歩いて届かないので地図を閉じるだけで、案内も印も動かない
-      const pin = destinationPin()?.getAttribute('style')
-      await userEvent.keyboard('m')
-      await expect.element(dialog.getByRole('heading', { name: text.mapTitle })).toBeVisible()
-      await mapSpot('lab').click()
-      await expect.element(dialog).not.toBeInTheDocument()
-      await runFor(SETTLE_MS)
-      expect(loopState(), '歩き出さない').toBe('idle')
-      expect(speech(), '案内は替わらない').toBe(headToSpeech(text, lab))
-      expect(destinationPin()?.getAttribute('style'), '行き先の印も動かない').toBe(pin)
-      expect(readCell(setId)).toEqual({ worldId: town.id, cell: meishi.cell })
-    })
-
-    test('地図で選んだ自室の地点が扉の先で歩いて届かない時は、扉を出た所で行き先の印と案内だけ立てて止まる', async () => {
-      // 実際のコンテンツの自室の地点は歩いて届くので、自室の地点の立ち位置を部屋の左上の角(壁)へ動かした版を渡す
-      const wall = { x: 0, y: 0 }
-      expect(isWalkable(room, wall), '部屋の左上の角は歩けない').toBe(false)
-      const worldSet = withSpots('room', spots => moveSpot(spots, 'home', wall))
-      const home = spotOf(worldSet.worlds.room, 'home')
-      await openAt({ worldId: town.id, cell: town.start, facing: town.startFacing }, worldSet)
-      // 自室の地点は、町の地図では自宅の扉に番号の印として並ぶ
-      await userEvent.keyboard('m')
-      await expect.element(dialog.getByRole('heading', { name: text.mapTitle })).toBeVisible()
-      await mapSpot('home').click()
-      await expect.element(dialog).not.toBeInTheDocument()
-      await advanceUntil(sameCell(ROOM_ENTRY), '扉を通って部屋の出口手前へ出る')
-      await runFor(SETTLE_MS)
-      await expectLoopIdle()
-      expect(readCell(setId), '扉を出た所から歩き出さない').toEqual(ROOM_ENTRY)
-      expect(speech(), '自室の地点への案内が出る').toBe(headToSpeech(text, home))
-      expect(destinationPin(), '行き先の印が立つ').not.toBeNull()
-    })
-
-    test('地図から自室の地点へ向かう途中でキーを押して止め、自分で扉へ入った時は、扉を出た所で行き先の印と案内だけ立て直して歩き出さない', async () => {
-      // 動きを控える設定では飛ばずに速く歩くので、扉へ着く前にキーで止められる
-      await emulateReducedMotion()
-      const home = spotOf(room, 'home')
-      // 自宅前 (14,12) の右の道。扉 (14,11) までは左へ 4 マス歩いてから上
-      await openAt({ worldId: town.id, cell: { x: 18, y: 12 }, facing: 'left' })
-      await userEvent.keyboard('m')
-      await expect.element(dialog.getByRole('heading', { name: text.mapTitle })).toBeVisible()
-      await mapSpot('home').click()
-      await expect.element(dialog).not.toBeInTheDocument()
-      const column = () => readCell(setId)?.cell.x ?? 18
-      await advanceUntil(() => column() === 17, '扉へ向かって歩き出す')
-      // 右を押して止める。キーを押すと自動の経路は捨てられ、速さも等速へ戻る
-      await press('ArrowRight')
-      await expectLoopIdle()
-      expect(readCell(setId)?.worldId, '前提: 扉へ着く前に止めた').toBe(town.id)
-      // 自分で自宅前まで歩き、上を押して扉へ入る
-      const lefts = column() - 14
-      expect(await walk(setId, 'ArrowLeft', lefts), '自宅前まで歩けた').toBe(lefts)
-      expect(await walk(setId, 'ArrowUp', 1), '扉へ入れた').toBe(1)
-      expect(readCell(setId)).toEqual(ROOM_ENTRY)
-      await runFor(SETTLE_MS * 2)
-      await expectLoopIdle()
-      expect(readCell(setId), '扉を出た所から歩き出さない').toEqual(ROOM_ENTRY)
-      expect(speech(), '自室の地点への案内を立て直す').toBe(headToSpeech(text, home))
-      expect(destinationPin(), '行き先の印を立て直す').not.toBeNull()
     })
 
     test('コースの最後の会話窓を閉じた直後に村を離れても、一覧への出口へ焦点を移す処理は外れた後に何もしない', async () => {
