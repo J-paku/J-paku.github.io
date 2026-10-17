@@ -36,15 +36,15 @@ export function TalkBubble({
   const bubbleRef = useRef<HTMLDivElement>(null)
 
   useLayoutEffect(() => {
-    const bubble = bubbleRef.current
-    if (bubble === null) return
+    // 吹き出しの箱はいつも描き、ref は layout effect より先に付くので、ここでは必ずある
+    const bubble = bubbleRef.current!
 
     // 枠からはみ出した分を --shift に入れて吹き出し本体を押し戻す。尾は逆向きに戻し、元の位置を指し続ける。
     // 押し戻す量は utils/shift-bubble.ts が決め、ここは測って書き込むだけ。測った箱には今書いてある --shift が
     // 乗っているので、その量も渡して押し戻す前の位置で測らせる(測り直しで 0 へ戻さないため)
     const clamp = () => {
-      const frame = bubble.closest('[data-village]')
-      if (frame === null) return
+      // 吹き出しは村の枠(data-village)の中の world 層にだけ置かれ、外した後の測り直しは片付けが先に取り消すので、枠は必ずある
+      const frame = bubble.closest('[data-village]')!
       const shift = shiftBubble(
         frame.getBoundingClientRect(),
         bubble.getBoundingClientRect(),

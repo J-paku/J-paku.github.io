@@ -73,8 +73,8 @@ export function WorldMap({
   // 地点のボタン以外の所を押したら、押した位置のマスへ歩く
   const handleCanvasClick = (event: MouseEvent<HTMLDivElement>) => {
     if (event.target instanceof Element && event.target.closest('button') !== null) return
-    const cell = cellFromClick(event, event.currentTarget.getBoundingClientRect(), world)
-    if (cell !== null) onTravelTo(cell)
+    // 押せるのは大きさのある枠だけ(大きさ 0 の枠からはみ出して押せる子は地点のボタンだけ)なので、マスは必ず決まる
+    onTravelTo(cellFromClick(event, event.currentTarget.getBoundingClientRect(), world)!)
   }
 
   const mapCanvasStyle: MapCanvasStyle = {
