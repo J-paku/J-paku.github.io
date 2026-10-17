@@ -5,11 +5,13 @@
 - `index.tsx` — **サーバのローダー**。content を読み出し、スプライトシートの合成・地点リンクを含む props をここで1回だけ組み
   (組み立ては純粋関数の `utils/village-props.ts`。中身は `utils/sprite-css.ts`・`utils/stop-links.ts`)、直列化できる props で `container.tsx` を描く。
   初回の HTML に必ず要るインラインの `<style>`(スプライトの背景)と `<script>`(初回ペイント前に段階を直す `utils/phase-init.ts` の `PHASE_INIT`)もここで作り、
-  コンテナへ ReactNode の差し込み口の props で渡す。統合テストのフィクスチャ(`container.fixture.ts`)も同じ `utils/village-props.ts` で組む
-- `container.tsx` — **クライアントのコンテナ**(`'use client'`)。画面のフック(`hooks/` の `useDayPhase`・`useWeather`・`useVillage`)と卓上時計のストア(`hooks/use-village-time.ts`)を呼ぶ。
+  コンテナへ ReactNode の差し込み口の props で渡す。統合テストのフィクスチャ(`__tests__/village-page/container.fixture.ts`)も同じ `utils/village-props.ts` で組む
+- `container.tsx` — **クライアントの I/O コンテナ**(`'use client'`)。画面のフック(`hooks/` の `useDayPhase`・`useWeather`・`useVillage`)と卓上時計のストア(`hooks/use-village-time.ts`)を呼ぶ。
   起動の覆い(`Boot`)・見出しのロゴ(`Logo`)・近道・一覧への出口(`ExitLink`)・設定メニュー(`Navigation`)と表示部品の `Village` を並べて値と手を props で渡し、
   ローダーから受けた `<style>`・`<script>` を元の位置(`Village` の前と直後)に置く
-- `components/` の下 — **表示部品**。保存・天気・時計のストア・画面のフック(`hooks/`)を import せず、受け取った props を描く。窓のフォーカスなど部品の中で閉じる UI のフックは使ってよい
+- `components/` の下 — **表示部品**。保存・天気・時計のストア・画面のフック(`hooks/`)を import せず、受け取った props を描く
+- **フックを呼ぶ部品をコンテナ(`container.tsx`)にする決まり([../../../docs/decisions/0019-hooks-make-containers.md](../../../docs/decisions/0019-hooks-make-containers.md))は、村では2つめの段階で入れる。**
+  それまでは `scripts/container-dirs.mjs` の待ちの一覧(フックを呼ぶ表示部品の `PENDING_CONTAINER_FILES`・隣にコンテナの無い `hooks` フォルダの `PENDING_HOOK_DIRS`)にあるものだけが例外で、一覧は減るだけ
 
 ## 守ること
 
@@ -60,7 +62,8 @@ world 層(`.world`)の中の並びは `components/Village/components/WorldLayer/
 
 ## 確かめ方
 
-コンテナの統合テスト(`container.browser.test.tsx`。props は `container.fixture.ts` が node で組む)はビルド無しで走る。
+村の統合テスト(`__tests__/village-page/village.integration.test.tsx`。props は同じフォルダの `container.fixture.ts` が node で組む)はビルド無しで走る。
+1つめの段階では元の1本を中身を変えずに移しただけで、動作ごと・状態コンテナごとに分けるのは2つめの段階。
 舞台の寸法と操作帯・歩く・待つ・釣り・傘・飛ぶ・窓の焦点と吹き出し・卓上時計・昼夜と天気はここで見る。
 
 ```bash

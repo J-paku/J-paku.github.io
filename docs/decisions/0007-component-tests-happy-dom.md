@@ -4,7 +4,7 @@ read_when:
   - コンポーネントのテストの置き場や DOM 環境を変えようとするとき
   - 統合テストの対象を広げようとするとき
 source_of_truth: false
-last_reviewed: 2026-10-14
+last_reviewed: 2026-10-17
 ---
 
 # 0007. 環境で分かれるコンポーネントの出し分けを、happy-dom の統合テストで見る
