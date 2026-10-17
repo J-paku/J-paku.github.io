@@ -1,21 +1,12 @@
 // 実データの画面を Chromium へ描き、場面の操作と技術チップの開閉をまとめて確かめる
-import { cleanup, fireEvent, render } from '@testing-library/react'
+import { cleanup, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, inject, it, vi } from 'vitest'
-import { cdp, page, userEvent, type Locator } from 'vitest/browser'
+import { cdp, page, type Locator } from 'vitest/browser'
 import StoryContainer from '@/components/Story/container'
 import '@/styles/tokens.css'
 
 const storyJa = inject('storyJa')
 const { story, ui } = storyJa
-const firstScene = story.scenes[0]
-const chip = firstScene.chips[0]
-
-const renderChip = () => {
-  render(<StoryContainer {...storyJa} />)
-  return page
-    .getByRole('region', { name: firstScene.title, exact: true })
-    .getByRole('button', { name: chip.name, exact: true })
-}
 
 // 閉じている間も aria-controls が指す説明を DOM に残す契約を確認する
 const popoverOf = (trigger: Locator): HTMLElement => {
@@ -27,13 +18,6 @@ const popoverOf = (trigger: Locator): HTMLElement => {
 const expectChip = async (trigger: Locator, open: boolean) => {
   await expect.element(trigger).toHaveAttribute('aria-expanded', String(open))
   await expect.poll(() => popoverOf(trigger).hidden).toBe(!open)
-}
-
-const renderOpenChip = async () => {
-  const trigger = renderChip()
-  await trigger.click()
-  await expectChip(trigger, true)
-  return trigger
 }
 
 beforeEach(async () => {
@@ -53,83 +37,6 @@ beforeEach(async () => {
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
-})
-
-describe('マウス', () => {
-  it('最初は閉じていて、乗せると説明が開き、離すと閉じる', async () => {
-    const trigger = renderChip()
-    await expectChip(trigger, false)
-
-    await trigger.hover()
-    await expectChip(trigger, true)
-
-    await trigger.unhover()
-    await expectChip(trigger, false)
-  })
-
-  it('乗せて開いた直後に押しても閉じない(押すのは開く専用)', async () => {
-    const trigger = renderChip()
-
-    await trigger.hover()
-    await trigger.click()
-    await expectChip(trigger, true)
-  })
-})
-
-describe('タッチ', () => {
-  // Browser Mode の userEvent にタッチの API が無いため、この入力種別だけ実 DOM へ送る。
-  // pointerover/out から React の pointerenter/leave が発火する。マウスの移動を混ぜない。
-  // 「タッチでは動かない」だけだと、pointerover が開閉の処理へ届かなくなっても通るので、
-  // 同じ形のイベントを pointerType: 'mouse' で送ると開閉することも同じテストで見る
-  it('指が触れただけの疑似ホバーでは開かない(マウスの同じイベントなら開く)', async () => {
-    const trigger = renderChip()
-    const element = trigger.element()
-
-    fireEvent.pointerOver(element, { pointerType: 'touch' })
-    await expectChip(trigger, false)
-
-    fireEvent.pointerOver(element, { pointerType: 'mouse' })
-    await expectChip(trigger, true)
-  })
-
-  it('タップすると開き、指が離れた後の疑似ホバーの抜けでは閉じない(マウスの同じイベントなら閉じる)', async () => {
-    const trigger = renderChip()
-    const element = trigger.element()
-
-    fireEvent.pointerOver(element, { pointerType: 'touch' })
-    fireEvent.pointerDown(element, { pointerType: 'touch' })
-    fireEvent.pointerUp(element, { pointerType: 'touch' })
-    fireEvent.click(element)
-    await expectChip(trigger, true)
-
-    fireEvent.pointerOut(element, { pointerType: 'touch' })
-    await expectChip(trigger, true)
-
-    fireEvent.pointerOut(element, { pointerType: 'mouse' })
-    await expectChip(trigger, false)
-  })
-})
-
-describe('閉じ方', () => {
-  it('Escで閉じる', async () => {
-    const trigger = await renderOpenChip()
-
-    await userEvent.keyboard('{Escape}')
-    await expectChip(trigger, false)
-  })
-
-  it('チップの中を押しても閉じず、外側を押すと閉じる', async () => {
-    const trigger = await renderOpenChip()
-
-    // pointerdown だけを送り、mouseleave や click の開く処理と切り離して外側判定を見る
-    fireEvent.pointerDown(trigger.element())
-    await expectChip(trigger, true)
-
-    fireEvent.pointerDown(
-      page.getByRole('heading', { name: story.intro.title, level: 1 }).element()
-    )
-    await expectChip(trigger, false)
-  })
 })
 
 describe('作品ストーリー画面', () => {

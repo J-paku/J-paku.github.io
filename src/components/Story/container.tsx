@@ -5,7 +5,7 @@ import { toHref } from '@/utils/locale-path'
 import PhraseText from '@/components/ui/PhraseText'
 import Navigation from '@/components/ui/Navigation'
 import StoryBody from './components/StoryBody/container'
-import TechChipPopover from './components/TechChipPopover'
+import TechChipPopover from './components/TechChipPopover/container'
 import styles from './story.module.css'
 
 type StoryContainerProps = {
