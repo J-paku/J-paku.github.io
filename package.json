@@ -11,7 +11,7 @@
     "test": "TZ=UTC vitest run",
     "test:coverage": "TZ=UTC vitest run --coverage",
     "test:watch": "TZ=UTC vitest",
-    "test:mutation": "TZ=UTC stryker run",
+    "test:mutation": "TZ=UTC node scripts/run-mutation.mjs",
     "test:boundary": "node scripts/check-test-boundary.mjs && node scripts/check-layers.mjs && node scripts/check-coverage-ignores.mjs && node scripts/check-hook-rule.mjs",
     "test:integration": "TZ=UTC vitest run --config vitest.integration.config.ts",
     "test:e2e": "playwright test",
