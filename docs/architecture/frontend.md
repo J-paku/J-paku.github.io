@@ -37,8 +37,7 @@ last_reviewed: 2026-10-17
 | 表示部品(`index.tsx`)         | フックを1つも呼ばず、受け取った props を描く。同じ props なら同じ画面                                                                                                                                                                        | それ以外の全部                                                                                                                                                               |
 
 - **フックを呼んでよいのは `container.tsx` と、`hooks` フォルダの中の `use-` 始まりのファイルだけ。** `useState`・`useMemo`・`useId` など React の組み込みのフックも数え、例外は無い。`memo()`・`forwardRef()` はフックではない。
-  ESLint の `layer/hook-only-in-container`(`scripts/eslint-rules/hook-only-in-container.mjs`)が落とす。
-  村だけは2つめの段階まで、`scripts/container-dirs.mjs` の待ちの一覧(`PENDING_CONTAINER_FILES`・`PENDING_HOOK_DIRS`)にある部品と `hooks` フォルダが例外として残る(一覧は減るだけ)
+  ESLint の `layer/hook-only-in-container`(`scripts/eslint-rules/hook-only-in-container.mjs`)が落とす
 - I/O コンテナは上の6つだけ。一覧の外の `container.tsx` は状態コンテナで、外の世界に触れない。「状態を持つ」ことと「外の世界に触れる」ことは別の軸
 - 状態コンテナと表示部品は、外の世界に触れるモジュール・村の時計のストア・`next/navigation`・画面のフック(画面のフォルダの直下の `hooks` フォルダ)を import しない。
   一覧と正本は [boundaries.md](boundaries.md) の「コンテナと表示部品」

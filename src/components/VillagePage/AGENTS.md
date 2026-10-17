@@ -9,9 +9,10 @@
 - `container.tsx` — **クライアントの I/O コンテナ**(`'use client'`)。画面のフック(`hooks/` の `useDayPhase`・`useWeather`・`useVillage`)と卓上時計のストア(`hooks/use-village-time.ts`)を呼ぶ。
   起動の覆い(`Boot`)・見出しのロゴ(`Logo`)・近道・一覧への出口(`ExitLink`)・設定メニュー(`Navigation`)と表示部品の `Village` を並べて値と手を props で渡し、
   ローダーから受けた `<style>`・`<script>` を元の位置(`Village` の前と直後)に置く
-- `components/` の下 — **表示部品**。保存・天気・時計のストア・画面のフック(`hooks/`)を import せず、受け取った props を描く
-- **フックを呼ぶ部品をコンテナ(`container.tsx`)にする決まり([../../../docs/decisions/0019-hooks-make-containers.md](../../../docs/decisions/0019-hooks-make-containers.md))は、村では2つめの段階で入れる。**
-  それまでは `scripts/container-dirs.mjs` の待ちの一覧(フックを呼ぶ表示部品の `PENDING_CONTAINER_FILES`・隣にコンテナの無い `hooks` フォルダの `PENDING_HOOK_DIRS`)にあるものだけが例外で、一覧は減るだけ
+- `components/` の下 — **表示部品と状態コンテナ**。どちらも保存・天気・時計のストア・画面のフック(`hooks/`)を import せず、受け取った props を描く。
+  フックを呼ぶ部品は状態コンテナ(`container.tsx`。[../../../docs/decisions/0019-hooks-make-containers.md](../../../docs/decisions/0019-hooks-make-containers.md))で、
+  起動の覆いの `Boot` と、`Village` の下の `ClockModal`・`Ground`・`Joystick`・`Lighting`・`StopModal`・`TalkBubble`・`WorldMap` の8つ。使う側は `.../<Name>/container` を指す。
+  `Village` 自身はフックを呼ばない表示部品(`index.tsx`)なので、その直下に `hooks` フォルダは置かない(窓の3つが使うフックは `src/hooks/`)
 
 ## 守ること
 
@@ -21,7 +22,7 @@
    (`Village` にフックがあった頃は後だった)。マウントの時にそちらで走るのは `useLightDismiss`(閉じているので何もしない)とテーマの購読だけで、今は互いに見えない。
    `Navigation` の側に村のフックと状態を分け合う effect を入れるときは、この順を前提にする
 3. **移動・衝突・経路・地点判定のロジックをここに書かない。** `src/lib/village/` の純粋関数に置く(React・DOM なしで網羅的にテストできるため)
-4. **保存は `src/lib/preferences.ts` 経由。** `sessionStorage` を直接触らない。窓口を import するのはコンテナの隣の `hooks/` だけ(表示部品からは呼ばない)
+4. **保存は `src/lib/preferences.ts` 経由。** `sessionStorage` を直接触らない。窓口を import するのは I/O コンテナの隣の `hooks/` だけ(表示部品と状態コンテナからは呼ばない)
 5. 歩行ループ(`hooks/use-walk-loop/use-walk-loop.ts`。フレームの中身は `components/Village/utils/walk-loop/` に分けてある)は rAF の中で **DOM へ直接書く**。React state を経由させない(再レンダーで駒が飛ぶ)
 6. `hooks/use-stage-scale.ts` は `--cell` と `--band` を実測で書く(寸法の計算式は `components/Village/utils/stage-scale.ts`)。重ね表示(会話窓・地図)は `--band` を超えて操作帯を覆わない
 7. 村の枠の中に出す窓(会話窓 `StopModal`・卓上時計の窓 `ClockModal`・拡大地図 `WorldMap`)は `role='dialog'` + `aria-modal='true'` の `div` と手製のフォーカストラップ(`src/hooks/use-dialog-focus.ts`)で作る。

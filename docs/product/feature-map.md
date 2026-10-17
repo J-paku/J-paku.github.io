@@ -84,6 +84,14 @@ last_reviewed: 2026-10-17
 入れ子の行は、その上の I/O コンテナの下にある状態コンテナ。
 
 - `src/components/VillagePage/container.tsx`(村。I/O コンテナ)→ `__tests__/village-page/`
+  - `src/components/VillagePage/components/Boot/container.tsx` → `__tests__/village-page/boot/`
+  - `src/components/VillagePage/components/Village/components/ClockModal/container.tsx` → `__tests__/village-page/clock-modal/`
+  - `src/components/VillagePage/components/Village/components/Ground/container.tsx` → `__tests__/village-page/ground/`
+  - `src/components/VillagePage/components/Village/components/Joystick/container.tsx` → `__tests__/village-page/joystick/`
+  - `src/components/VillagePage/components/Village/components/Lighting/container.tsx` → `__tests__/village-page/lighting/`
+  - `src/components/VillagePage/components/Village/components/StopModal/container.tsx` → `__tests__/village-page/stop-modal/`
+  - `src/components/VillagePage/components/Village/components/TalkBubble/container.tsx` → `__tests__/village-page/talk-bubble/`
+  - `src/components/VillagePage/components/Village/components/WorldMap/container.tsx` → `__tests__/village-page/world-map/`
 - `src/components/Directory/container.tsx`(一覧。I/O コンテナ)→ `__tests__/directory/`
   - `src/components/Directory/components/WorkCard/container.tsx` → `__tests__/directory/work-card/`
 - `src/components/Story/container.tsx`(作品ストーリー。I/O コンテナ)→ `__tests__/story/`
@@ -98,12 +106,16 @@ last_reviewed: 2026-10-17
 - `src/components/ui/ScenePlayer/container.tsx`(場面の再生。I/O コンテナ)→ `__tests__/ui/scene-player/`
   - `src/components/ui/ScenePlayer/components/SceneSvg/container.tsx` → `__tests__/ui/scene-player/scene-svg/`
 
-状態コンテナの8つは、ADR 0019 の1段階(2026-10-17)まで同じフォルダの `index.tsx` だった(`SettingsMenuPanel` は名前も `SettingsMenuView` だった)。状態コンテナのフォルダに `index.tsx` は無く、
+村でない状態コンテナの8つは ADR 0019 の1段階(2026-10-17)まで、村の8つは2段階まで、同じフォルダの `index.tsx` だった(`SettingsMenuPanel` は名前も `SettingsMenuView` だった)。状態コンテナのフォルダに `index.tsx` は無く、
 使う側は `.../<Name>/container` を指す(例: `import StoryBody from './components/StoryBody/container'`)。
 
 node でしか組めない props は、unit のフォルダの直下のフィクスチャが組む。`__tests__/village-page/container.fixture.ts`・`__tests__/directory/container.fixture.ts`・
 `__tests__/story/container.fixture.ts`・`__tests__/ui/settings-menu/container.fixture.ts` の4つ。
-村の統合テストだけが使う部品(`village-walk.test-helper.ts`・`village-walk-record.test-helper.ts`・`village-walk-flight.test-helper.ts`・`village-time.test-helper.ts`)は `__tests__/village-page/` にある。
+村の統合テストだけが使う部品は `__tests__/village-page/` にある。どのファイルも使う準備と後始末は `village.test-helper.ts`、
+歩く・押す・待つ・時間・記録・飛行・地点・窓の焦点の手は `village-walk.test-helper.ts`・`village-time.test-helper.ts`・`village-walk-record.test-helper.ts`・
+`village-walk-flight.test-helper.ts`・`flight.test-helper.ts`・`village-spots.test-helper.ts`・`village-dialog.test-helper.ts`。
+状態コンテナを直接描くテストが共有する props は、会話窓・吹き出し・拡大地図のフォルダの `<フォルダの名前>.test-helper.ts` が組む
+(`__tests__/village-page/stop-modal/stop-modal.test-helper.ts`・`__tests__/village-page/talk-bubble/talk-bubble.test-helper.ts`・`__tests__/village-page/world-map/world-map.test-helper.ts`。ほかのフォルダはテストの中で組む)。
 単体テストも使う `src/components/VillagePage/components/Village/utils/walk-loop/walk-loop.test-helper.ts` は src に残る。
 
 村は1段階では、統合テストを中身を変えずに1本のまま `village.integration.test.tsx` へ移しただけだった。

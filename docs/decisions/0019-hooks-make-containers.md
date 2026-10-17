@@ -12,7 +12,7 @@ last_reviewed: 2026-10-17
 
 ## Status
 
-Accepted(2026-10-17、利用者の決定)。2つの段階で入れる([2つの段階](#2つの段階))。次の部分を置き換える。
+Accepted(2026-10-17、利用者の決定)。2つの段階で入れ、2つとも済んだ([2つの段階](#2つの段階))。次の部分を置き換える。
 
 - [0017](0017-screen-containers.md)の D1 のうち、コンテナを役割で決め、画面の3つと横断部品の3つの6つのフォルダだけに置く部分(「フックを持つからコンテナなのではなく、役割で決める」)。
   フックを1つでも呼ぶコンポーネントがコンテナになり、どのフォルダにも置ける。0017 の6つは、外の世界に触れてよい「I/O コンテナ」として残る
@@ -52,7 +52,7 @@ Accepted(2026-10-17、利用者の決定)。2つの段階で入れる([2つの�
 - 0017 は、一覧で並ぶ部品(作品カード3枚・場面の節4つ・技術チップ16個・場面 SVG 最大8枚)のフックを、項目ごとの Map として上へ書き直すことになる、とした。
   この決定ではコンテナをどの深さにも置けるので、並ぶ部品はそれぞれが状態コンテナになり、フックを上へ集めない
 - 0017 は、モーダルの「マウントしている = 開いている」という前提と、村の「フックを呼ぶ順 = effect の順」を崩す、とした。
-  モーダル(SceneModal)はそれ自身が状態コンテナになるので、マウントの前提は変わらない。村は2つめの段階で移す([../../src/components/VillagePage/AGENTS.md](../../src/components/VillagePage/AGENTS.md) の守ること2 はそのまま)
+  モーダル(SceneModal)はそれ自身が状態コンテナになるので、マウントの前提は変わらない。村は2つめの段階で移した。ファイルの名前を変えただけでフックを呼ぶ順は動かさないので、[../../src/components/VillagePage/AGENTS.md](../../src/components/VillagePage/AGENTS.md) の守ること2 はそのまま
 
 ## Decision
 
@@ -119,14 +119,13 @@ E2E の `tests/` はそのまま。単体テスト(utils・lib の隣の `*.test
   外すのは `**/container.tsx`、`hooks` フォルダの中の `use-*.ts(x)`(`src/hooks/` を含む)、テストの部品(`*.test.ts(x)`・`*.fixture.ts`・`*.test-helper.ts`)
 - **`scripts/check-hook-rule.mjs`(`npm run test:boundary`)が、その規則を確かめてから src を検査する。**
   規則の判定と `eslint.config.mjs` の掛け方を偽の断片で自己検査し、src と `__tests__` のファイルが lint の対象の外になっていないことも見る。
+  src の `*.ts`・`*.tsx` のファイルごとに、規則が掛かるかを名前の決まり(外れるのは上の `container.tsx`・`hooks` フォルダの中の `use-*.ts(x)`・テストの部品だけ)と突き合わせ、1つでも違えば落とす。
+  規則の組みの `ignores` に実在のパスを足すと、そのファイルは lint も偽の断片の自己検査も通り、規則が掛かるファイルの数が1つ減るだけになるため。
+  この抜け道(と、フォルダを足す・後ろの組みで `off` や `warn` にする・`ignores` から外す)を実際の設定に入れて、突き合わせが拾うことも自己検査する。
   そのうえで src の `*.ts`・`*.tsx` を全部 lint して違反を数える(`eslint-disable` の注釈で黙らせた呼び出しも数える)
-- **`scripts/container-dirs.mjs` は I/O コンテナの6つの一覧(唯一の正本)を持ち続け、2つめの段階(村)までの、減るだけの待ちの一覧を2つ持つ。**
-  - `PENDING_CONTAINER_FILES` — まだフックを呼ぶ表示部品。2つめの段階まで ESLint の規則から外す。
-    村の起動の覆い(`src/components/VillagePage/components/Boot/` の `index.tsx`)と、`src/components/VillagePage/components/Village/components/` の下の ClockModal・Ground・Joystick・Lighting・StopModal・TalkBubble・WorldMap の `index.tsx`
-  - `PENDING_HOOK_DIRS` — 隣に `container.tsx` が無い `hooks` フォルダ。2つめの段階まで例外にする。
-    村の `Village`(`src/components/VillagePage/components/Village/`)の直下の `hooks` フォルダと、`src/components/VillagePage/components/Village/components/` の下の ClockModal・Joystick・StopModal・WorldMap の `hooks` フォルダ
-  - 一覧の項目がもう無いか、もう違反していないと `npm run test:boundary` が落ちる(だから一覧は減るだけ)。
-    `PENDING_CONTAINER_FILES` は `scripts/check-hook-rule.mjs` だけが見る(ESLint の規則をそのまま使い、項目のファイルがあってまだフックを呼んでいるか)。`PENDING_HOOK_DIRS` は `scripts/check-test-boundary.mjs` が見る
+- **`scripts/container-dirs.mjs` は I/O コンテナの6つの一覧(唯一の正本)を持ち続ける。** 例外を許す一覧は持たない。
+  1つめの段階から2つめの段階までの間だけ、村を移し終えるまでの減るだけの待ちの一覧を2つ持っていた(まだフックを呼ぶ表示部品の `PENDING_CONTAINER_FILES` と、隣に `container.tsx` が無い `hooks` フォルダの `PENDING_HOOK_DIRS`)。
+  2つめの段階で村を移し終えたので、2つとも、それを使う検査と自己検査の事例ごと消した
 - **`npm run test:boundary`(`scripts/check-test-boundary.mjs`・`scripts/check-layers.mjs`・`scripts/check-coverage-ignores.mjs`・`scripts/check-hook-rule.mjs` の4つ)は次のときも落ちる。**
   - `container.tsx` に対応する `__tests__` のフォルダに `*.integration.test.tsx` が無い
   - 対応するフォルダの中の統合テストが、そのフォルダのコンテナを import していない
@@ -134,7 +133,9 @@ E2E の `tests/` はそのまま。単体テスト(utils・lib の隣の `*.test
   - `__tests__` の下に、`*.integration.test.tsx`・`*.test-helper.ts`・`container.fixture.ts`・`*.md` のほかの名前のファイルがある(`*.test.ts` も)
   - どのコンテナにも対応しない `__tests__` のフォルダがある
   - 1つの unit の中で、状態コンテナの kebab-case の名前が重なる
-  - 隣に `container.tsx` が無い `hooks` フォルダがある(`src/hooks/` と `PENDING_HOOK_DIRS` を除く)
+  - 隣に `container.tsx` が無い `hooks` フォルダがある(`src/hooks/` を除く)
+  - 状態コンテナのフォルダに `index.tsx` がある(フォルダの名前で import できてしまう `index.ts`・`index.d.ts`・`index.js`・`index.jsx` も。`scripts/check-test-boundary.mjs`)。
+    I/O コンテナの6つのフォルダは今の形のまま許す(画面の3つの `index.tsx` はローダー、`src/components/ui/ScenePlayer/index.tsx` はコンテナが描く表示部品)
   - 状態コンテナが外の世界の入口を import する
   - `container.fixture.ts` が unit のフォルダの直下でない所にある
   - 統合テストの外のテストの側(`src` と `__tests__` の `*.test.ts`・`*.test-helper.ts`・`*.fixture.ts`)が、コンポーネントを描く道具(`@testing-library/react`・`react-dom` とその下)を import する
@@ -162,14 +163,40 @@ E2E の `tests/` はそのまま。単体テスト(utils・lib の隣の `*.test
 | SettingsMenuPanel(もとの名前は SettingsMenuView) | `src/components/ui/SettingsMenu/components/SettingsMenuPanel/` | `__tests__/ui/settings-menu/settings-menu-panel/` |
 
 村でない5本の `container.browser.test.tsx` は、動作ごとに分けて `__tests__/<unit>/` の下へ移す。
-村の1本(4066行)は中身を変えず(import だけ直して)、`__tests__/village-page/` の `village.integration.test.tsx` 1本へ移す。
+村の1本(4066行)は中身を変えず(import だけ直して)、`__tests__/village-page/` の `village.integration.test.tsx` 1本へ移す(この1本は2つめの段階で分けて消した)。
 
-**2つめの段階(次のセッション)。** 村の8つのファイル(上の `PENDING_CONTAINER_FILES`)を変え、2か所以上が使う `Village` の直下の `hooks` フォルダのフックを `src/hooks/` へ引き上げ、
-村のテストを動作ごと・状態コンテナごとに分け、待ちの一覧の2つを消す。
+**2つめの段階(1つめの次のセッション)。** 村の8つの部品のフォルダの `index.tsx` を `container.tsx` へ変え(import を直して)、状態コンテナにした。
+どれも I/O コンテナの `src/components/VillagePage/` の下なので unit は `village-page` で、統合テストのフォルダは `__tests__/village-page/` の下の、自分のフォルダの名前の kebab-case(入れ子でも自分の名前だけ)。
+
+| 部品       | フォルダ                                                               | 統合テストのフォルダの名前 |
+| ---------- | ---------------------------------------------------------------------- | -------------------------- |
+| Boot       | `src/components/VillagePage/components/Boot/`                          | `boot`                     |
+| ClockModal | `src/components/VillagePage/components/Village/components/ClockModal/` | `clock-modal`              |
+| Ground     | `src/components/VillagePage/components/Village/components/Ground/`     | `ground`                   |
+| Joystick   | `src/components/VillagePage/components/Village/components/Joystick/`   | `joystick`                 |
+| Lighting   | `src/components/VillagePage/components/Village/components/Lighting/`   | `lighting`                 |
+| StopModal  | `src/components/VillagePage/components/Village/components/StopModal/`  | `stop-modal`               |
+| TalkBubble | `src/components/VillagePage/components/Village/components/TalkBubble/` | `talk-bubble`              |
+| WorldMap   | `src/components/VillagePage/components/Village/components/WorldMap/`   | `world-map`                |
+
+`Village`(`src/components/VillagePage/components/Village/`)は表示部品のままなので、その直下の `hooks` フォルダは置けない。
+そこにあった2つのフックは、どちらも3か所(ClockModal・StopModal・WorldMap の `hooks`)が使うので、`src/hooks/` へ中身を変えずに(import だけ直して)引き上げた
+(`src/hooks/use-dialog-focus.ts`・`src/hooks/use-held-direction.ts`)。
+`src/hooks/` は `components` を import しない層なので([../architecture/boundaries.md](../architecture/boundaries.md))、窓の焦点の輪が読む純粋関数とその単体テストも、
+`Village` の `utils` から `src/utils/` へ中身を変えずに移した(`src/utils/focusables.ts`・`src/utils/wrap-focus-index.ts`)。
+待ちの一覧の2つは、それを使う検査と自己検査の事例ごと消した。
+
+村の統合テストの1本(1つめの段階で移した `village.integration.test.tsx`)は、動作ごとのファイルに分けて消した。`test(…)` の名前は変えずに移した。
+村の画面全体(`VillagePageContainer`)を描くテストは `__tests__/village-page/` の直下に置く。
+8つの状態コンテナのテストは上の表のフォルダに置き、そのコンテナを props で直接描く(1つのファイルに、画面全体を描くテストと混ぜない)。
+直接描いて届くようになった分岐はテストで覆った。どのテストも通れない防御の分岐(TalkBubble の、いつも付く吹き出しの ref と、いつも囲む村の枠の null の確かめ、
+WorldMap の、押した位置のマスが決まらない場合)は、コミット `f10f530` の前例のとおり、動きを変えずにその場合のコードが無い形に直し、理由を1行の注に書いた。
+起動の覆いの Boot には、開発の StrictMode でクライアントへ描くと覆いが外れない不具合があった(片付けで手順を止めても印の `data-run` が残り、走らせ直した effect が印を見て何もしない)。
+片付けで印を下ろすように直し、`__tests__/village-page/boot/logo-flight.integration.test.tsx` に StrictMode で描く再現のテストを置いた
 
 ### 0011 が新しいADRを求める変更
 
-統合テストの置き場と名前(テストの境界)を変えることと、`container.browser.test.tsx` を分けて消すこと(断定は全部、新しいファイルへ移す)は、このADRが決めたこととする
+統合テストの置き場と名前(テストの境界)を変えることと、`container.browser.test.tsx` と、村の1本を移した `village.integration.test.tsx` を分けて消すこと(断定は全部、新しいファイルへ移す)は、このADRが決めたこととする
 (0011 は「テストを消す」「テストの境界を変える」に新しいADRを求める)。`hooks`フォルダに単体テストを置かない・どのテストでも`renderHook`を使わないは変えない
 
 ## Consequences
@@ -179,7 +206,7 @@ E2E の `tests/` はそのまま。単体テスト(utils・lib の隣の `*.test
 - **フックを呼ばない表示部品の分岐には、この決定でもファイル別の門が無い。** 表示部品は全体の床にだけ入る([Alternatives Considered](#alternatives-considered))
 - **コンテナは、外から `container` を直接指す。** 0017 では横断部品のコンテナだけの例外だったものが、状態コンテナの全部に広がる。表示部品の入口は今までどおり `index.tsx`
 - **統合テストが `src/` の外へ出るので、テストを見る道具の設定を全部 `__tests__` へ向ける**([機械が守らせる所](#機械が守らせる所))
-- **2つめの段階が終わるまで、村には待ちの一覧の分だけ例外が残る。** フックを呼ぶ表示部品が8つと、隣にコンテナの無い `hooks` フォルダが5つ。村の統合テストは4066行の1本のまま
+- **フックを呼ぶ所と `hooks` フォルダの置き場に、例外を許す一覧は無い。** 1つめの段階から2つめの段階までの間だけ村に残した例外(フックを呼ぶ表示部品が8つと、隣にコンテナの無い `hooks` フォルダが5つ)は、2つめの段階で無くなった
 
 ## Alternatives Considered
 
