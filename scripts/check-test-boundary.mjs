@@ -33,6 +33,9 @@
 //   - container.fixture.ts は単位フォルダ(__tests__/<unit>/)の直下にだけ置ける。統合の設定が __tests__ の下の
 //     container.fixture.ts を全部 globalSetup に入れるので、ほかの所に置くと黙って走るか、走らないまま残る
 //   - hooks/ フォルダは container.tsx のあるフォルダにだけ置ける(例外は src/hooks/ だけ)
+//   - 状態コンテナ(I/O コンテナの一覧の外の container.tsx)のフォルダには index.tsx を置かない(フォルダの名前で import できてしまう
+//     index.ts・index.d.ts・index.js・index.jsx も)。import する側は …/<名前>/container を直接指す。
+//     I/O コンテナの6つのフォルダは今の形のまま(画面の3つの index.tsx はローダー、横断部品の index.tsx はコンテナが描く表示部品)
 // 状態コンテナが外の世界の入口を import しないことは check-layers.mjs が見る。
 // import は scripts/read-imports.mjs で構文木から読む(注釈・文字列の中は数えない)。
 //
@@ -83,6 +86,8 @@ const TEST_ROOT_NAMES = [
 const CODE_FILE = /\.[cm]?[jt]sx?$/
 // 隣に container.tsx が無くても置ける、ただ1つの hooks/ フォルダ(ルートの共用のフック)
 const ROOT_HOOKS_DIR = 'src/hooks'
+// 状態コンテナのフォルダに置けない入口の名前(フォルダの名前の指定子 …/<名前> が解決する先。tsconfig.json の解決と同じ)
+const STATE_CONTAINER_INDEX = /^index\.(?:d\.ts|[jt]sx?)$/
 // コンポーネントを描く道具。前方一致で見る(react-dom/client・react-dom/server・@testing-library/react/pure も)
 const RENDER_PACKAGES = ['@testing-library/react', 'react-dom']
 // 親フォルダのどれかが hooks であるパス(use-hooks/ のような名前は含めない)
@@ -146,6 +151,10 @@ const REASON_NO_UNIT =
 const REASON_LONELY_HOOKS =
   'hooks/ フォルダは container.tsx のあるフォルダにだけ置ける(例外は src/hooks/ だけ)。フックを呼ぶ部品を container.tsx にするか、' +
   'フックを、それを呼ぶコンテナの hooks/ か src/hooks/ へ移す(ADR 0019)'
+const REASON_STATE_INDEX =
+  '状態コンテナ(I/O コンテナの一覧 scripts/container-dirs.mjs の外の container.tsx)のフォルダには index.tsx を置かない' +
+  '(フォルダの名前で import できてしまう index.ts・index.d.ts・index.js・index.jsx も)。import する側は …/<名前>/container を直接指し、描くのは container.tsx 自身。' +
+  'フックを呼ばない部分を分けるなら、components/ の下の表示部品(components/<名前>/index.tsx)にする。フックを呼ばない部品なら、container.tsx をやめて index.tsx の表示部品にする(ADR 0019)'
 
 // 壊れたシンボリックリンクで statSync が例外を投げないよう、実体の無い入口は集める前に落とす
 const walk = dir =>
@@ -292,6 +301,23 @@ const hooksViolationsOf = files => {
     .map(dir => ({ file: `${dir}/`, reason: REASON_LONELY_HOOKS }))
 }
 
+// 状態コンテナのフォルダの index.tsx などの違反。ioDirs は I/O コンテナのフォルダの一覧(このフォルダは今の形のまま許す)
+const stateIndexViolationsOf = (files, ioDirs) => {
+  const stateDirs = new Set(
+    files
+      .filter(isSrcContainer)
+      .map(file => path.posix.dirname(file))
+      .filter(dir => !ioDirs.includes(dir))
+  )
+  return files
+    .filter(
+      file =>
+        stateDirs.has(path.posix.dirname(file)) &&
+        STATE_CONTAINER_INDEX.test(path.posix.basename(file))
+    )
+    .map(file => ({ file, reason: REASON_STATE_INDEX }))
+}
+
 // 1 ファイルずつ見るファイルか。src のテスト・部品・フィクスチャ・もとの名前と、__tests__ の文書でないファイルの全部
 const isPerFileTarget = file =>
   TEST_FILE.test(file) || TEST_SUPPORT.test(file) || BROWSER_TEST.test(file) || isTestRootFile(file)
@@ -317,7 +343,13 @@ const checkTree = (files, nameOnlyFiles, ioDirs, readCode) => {
     const reason = placementViolationOf(file, layout.containers, layout.unitDirs)
     return reason === undefined ? [] : [{ file, reason }]
   })
-  return [...perFile, ...nameOnly, ...layout.violations, ...hooksViolationsOf(files)]
+  return [
+    ...perFile,
+    ...nameOnly,
+    ...layout.violations,
+    ...hooksViolationsOf(files),
+    ...stateIndexViolationsOf(files, ioDirs),
+  ]
 }
 
 // ---- 自己検査 ----
@@ -497,6 +529,13 @@ const FAKE_TREE = new Map(
     'src/components/Screen/components/View/index.tsx': '',
     'src/components/Screen/components/View/hooks/use-view.ts': '',
     'src/lib/hooks/use-lib.ts': '',
+    // 状態コンテナのフォルダの index.tsx: I/O コンテナのフォルダ(上の Screen/index.tsx と、横断部品の Player/index.tsx)・
+    // 状態コンテナの下の表示部品・入口でない index.* は通り、状態コンテナのフォルダの index.tsx・index.ts は落ちる
+    'src/components/ui/Player/index.tsx': '',
+    'src/components/Screen/components/StoryBody/components/Inner/index.tsx': '',
+    'src/components/ui/Badge/index.module.css': '',
+    'src/components/Screen/components/StoryBody/index.tsx': '',
+    'src/components/ui/Badge/index.ts': '',
   })
 )
 const FAKE_NAME_ONLY = ['tests/a.integration.test.tsx', 'tests/b.browser.test.ts']
@@ -534,6 +573,8 @@ const EXPECTED_TREE = [
   at('__tests__/ui/player/scene-svg/deep/', REASON_ORPHAN_DIR),
   at('src/components/Screen/components/View/hooks/', REASON_LONELY_HOOKS),
   at('src/lib/hooks/', REASON_LONELY_HOOKS),
+  at('src/components/Screen/components/StoryBody/index.tsx', REASON_STATE_INDEX),
+  at('src/components/ui/Badge/index.ts', REASON_STATE_INDEX),
 ].sort()
 const FAKE_LAYOUT = layoutOf([...FAKE_TREE.keys()], FAKE_IO_DIRS)
 // [パス, 期待する理由]。フォルダの対応は上の偽の作業ツリーのもの
