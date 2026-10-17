@@ -47,7 +47,6 @@ export const PENDING_CONTAINER_FILES = [
   'src/components/VillagePage/components/Village/components/WorldMap/index.tsx',
   'src/components/Directory/components/WorkCard/index.tsx',
   'src/components/Story/components/IntroPreview/index.tsx',
-  'src/components/Story/components/SceneSection/index.tsx',
   'src/components/Story/components/TechChipPopover/index.tsx',
   'src/components/ui/ScenePlayer/components/SceneSvg/index.tsx',
   'src/components/ui/SettingsMenu/components/SettingsMenuView/index.tsx',
