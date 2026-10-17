@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest'
 import { DOT_MARKER_SCALE_LIMIT } from './marker-scale'
 
-// Minimap/index.tsxのscale={4}とWorldMap/index.tsxのSCALE = 16。どちらもコンポーネント内の値でexportされていない
+// Minimap/index.tsxのscale={4}とWorldMap/container.tsxのSCALE = 16。どちらもコンポーネント内の値でexportされていない
 const MINIMAP_SCALE = 4
 const WORLD_MAP_SCALE = 16
 
