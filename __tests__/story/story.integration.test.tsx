@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, inject, it, vi } from 'vitest'
 import { cdp, page, userEvent, type Locator } from 'vitest/browser'
 import { sceneCycleMs } from '@/utils/cycle-scenes'
-import StoryContainer from './container'
+import StoryContainer from '@/components/Story/container'
 import '@/styles/tokens.css'
 
 const storyJa = inject('storyJa')

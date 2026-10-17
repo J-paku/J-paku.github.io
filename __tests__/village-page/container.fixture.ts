@@ -5,8 +5,8 @@ import type { ComponentProps } from 'react'
 import type { TestProject } from 'vitest/node'
 import type { Locale } from '@content/types/content'
 import { readContent, readVillageText, readWorldSet, listStorySlugs } from '@/lib/content/read'
-import type VillagePageContainer from './container'
-import { villageProps } from './utils/village-props'
+import type VillagePageContainer from '@/components/VillagePage/container'
+import { villageProps } from '@/components/VillagePage/utils/village-props'
 
 export type VillageData = Omit<
   ComponentProps<typeof VillagePageContainer>,

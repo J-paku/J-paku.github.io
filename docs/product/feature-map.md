@@ -21,7 +21,7 @@ last_reviewed: 2026-10-15
 | 規則               | `src/lib/village/`                                                                                                                                                                                                                                                                                                                                                                                                     |
 | 絵                 | `src/lib/pixel/`                                                                                                                                                                                                                                                                                                                                                                                                       |
 | コンテンツ         | `content/world.ts`(地形)・`content/{ja,ko}/village.ts`(文言)                                                                                                                                                                                                                                                                                                                                                           |
-| 統合               | `src/components/VillagePage/container.browser.test.tsx`(舞台の寸法・歩行ループの眠りと目覚め・池での釣り・雨の日の傘・自動移動の直線飛行・村の窓の Tab の輪と吹き出しの押し戻し・卓上時計・昼夜と天気。props は `src/components/VillagePage/container.fixture.ts` が node で組む。組み立て関数 `src/components/VillagePage/utils/village-props.ts` はローダーと共有)                                                   |
+| 統合               | `__tests__/village-page/village.integration.test.tsx`(舞台の寸法・歩行ループの眠りと目覚め・池での釣り・雨の日の傘・自動移動の直線飛行・村の窓の Tab の輪と吹き出しの押し戻し・卓上時計・昼夜と天気。props は `__tests__/village-page/container.fixture.ts` が node で組む。組み立て関数 `src/components/VillagePage/utils/village-props.ts` はローダーと共有)                                                         |
 | E2E                | `tests/journey.spec.ts`(導線)・`tests/layout.spec.ts`(ko の一覧への出口)・`tests/day-night.spec.ts`(段階ごとの焼いたシートと ko の完走)・`tests/night-transition.spec.ts`(再読み込みせずに夜へ移る時の絵)・`tests/clock.spec.ts`(卓上時計で決めた時刻と再読み込み)・`tests/fishing.spec.ts`(釣りのコマの画素)・`tests/storage-blocked.spec.ts`(保存が使えない時のテーマと村の操作)。統合テストで作れないものだけが残る |
 
 詳細は [../architecture/village.md](../architecture/village.md)。
@@ -36,7 +36,7 @@ last_reviewed: 2026-10-15
 | 作品カード               | `src/components/Directory/components/WorkCard/`(クライアント。折りたたみ詳細・リンクオーバーレイ・場面リール)                                                                                                     |
 | 右列(担当業務の詳細)     | `src/components/Directory/components/CareerDetail/`(作品カードの下に、詳細を持つ経歴を全件展開する)                                                                                                               |
 | コンテンツ               | `content/{ja,ko}/profile.ts`・`works/*.ts`・`ui.ts`・`village.ts`(村へ移るリンクの文言 `toVillage` だけ)。`skills.ts`・`now.ts` は `src/lib/content/read.ts` が読み込むが、現在どの画面も表示しない               |
-| 統合                     | `src/components/Directory/container.browser.test.tsx`(props は `src/components/Directory/container.fixture.ts` が node で組む。組み立て関数 `src/components/Directory/utils/directory-props.ts` はローダーと共有) |
+| 統合                     | `__tests__/directory/`(作品カードは子フォルダ `work-card`。props は `__tests__/directory/container.fixture.ts` が node で組む。組み立て関数 `src/components/Directory/utils/directory-props.ts` はローダーと共有) |
 | E2E                      | `tests/directory.spec.ts`(作品カードの内部リンクと、詳細ページを持たない作品の slug 直接アクセス)・`tests/observer-missing.spec.ts`(`IntersectionObserver` が無い時のカードの出現と写真の色)                      |
 
 ## 作品ストーリー — `/works/<slug>/`・`/ko/works/<slug>/`
@@ -49,7 +49,7 @@ last_reviewed: 2026-10-15
 | 全画面モーダル | `src/components/Story/components/SceneModal/`                                                                                                                                                                                                                                                                                                                                                                |
 | コンテンツ     | `content/{ja,ko}/works/<slug>.ts` の `story`・`ui.ts`・`village.ts`(村へ移るリンクの文言 `toVillage` だけ)                                                                                                                                                                                                                                                                                                   |
 | 場面 SVG       | `public/works/`                                                                                                                                                                                                                                                                                                                                                                                              |
-| 統合           | `src/components/Story/container.browser.test.tsx`(CTA と場面の現れ方・前へ/次へと端のフォーカス・自動送りと一時停止・閉じた後のフォーカスの戻り先・取得に失敗した場面の絵の取り直し。props は `src/components/Story/container.fixture.ts` が node で組む。組み立て関数 `src/components/Story/utils/story-props.ts` はローダーと共有)・`src/components/ui/ScenePlayer/container.browser.test.tsx`(場面の再生) |
+| 統合           | `__tests__/story/`(CTA と場面の現れ方・前へ/次へと端のフォーカス・自動送りと一時停止・閉じた後のフォーカスの戻り先・取得に失敗した場面の絵の取り直し。子の状態コンテナ5つはその下のフォルダ。props は `__tests__/story/container.fixture.ts` が node で組む。組み立て関数 `src/components/Story/utils/story-props.ts` はローダーと共有)・`__tests__/ui/scene-player/`(場面の再生。子の `scene-svg` はその下) |
 | E2E            | `tests/observer-missing.spec.ts`(`IntersectionObserver` が無い時の今の場面)                                                                                                                                                                                                                                                                                                                                  |
 
 ## 404 — 存在しない経路
@@ -73,5 +73,4 @@ last_reviewed: 2026-10-15
 1つの画面の中の1箇所でしか使わない部品は画面側のフォルダに置く。
 
 外の I/O に触れる `PageviewCounter`(計測)・`SettingsMenu`(テーマの保存)・`ScenePlayer`(SVG の原本の取得)はコンテナ(`container.tsx`)を持ち、外からはそれを指す。
-統合テストは各コンテナの隣の `container.browser.test.tsx`(`src/components/ui/PageviewCounter/container.browser.test.tsx`・`src/components/ui/SettingsMenu/container.browser.test.tsx`・
-`src/components/ui/ScenePlayer/container.browser.test.tsx`)。設定メニューの ui の文言は `src/components/ui/SettingsMenu/container.fixture.ts` が node で組む。
+統合テストは `__tests__/ui/pageview-counter/`・`__tests__/ui/settings-menu/`・`__tests__/ui/scene-player/`。設定メニューの ui の文言は `__tests__/ui/settings-menu/container.fixture.ts` が node で組む。

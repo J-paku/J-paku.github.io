@@ -1,10 +1,10 @@
-// 作品ストーリーのコンテナの props を、サーバローダーと同じ純粋関数(utils/story-props.ts)で node 側で組み、
+// 作品ストーリーのコンテナの props を、サーバローダーと同じ純粋関数(src/components/Story/utils/story-props.ts)で node 側で組み、
 // ブラウザへ直列化可能な props だけを渡す
 import type { ComponentProps } from 'react'
 import type { TestProject } from 'vitest/node'
 import { readContent, readVillageText } from '@/lib/content/read'
-import type StoryContainer from './container'
-import { storyProps } from './utils/story-props'
+import type StoryContainer from '@/components/Story/container'
+import { storyProps } from '@/components/Story/utils/story-props'
 
 type StoryData = ComponentProps<typeof StoryContainer>
 

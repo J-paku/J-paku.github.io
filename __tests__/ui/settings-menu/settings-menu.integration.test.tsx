@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, inject, it, onTestFinished, vi
 import { page, userEvent } from 'vitest/browser'
 import type { Locale } from '@content/types/content'
 import { THEME_STORAGE_KEY, type Theme } from '@/lib/preferences'
-import SettingsMenu from './container'
+import SettingsMenu from '@/components/ui/SettingsMenu/container'
 
 // 文言は container.fixture.ts が node で readContent から読んで渡す
 const uiOf = inject('settingsMenuUi')

@@ -17,12 +17,12 @@ import type {
 } from '@content/types/content'
 import { sceneCycleMs } from '@/utils/cycle-scenes'
 // 部品と同じ CSS Modules を import すれば、部品と同じクラス名が引ける
-import cardStyles from './components/WorkCard/work-card.module.css'
-import shotStyles from './components/WorkCard/components/Shot/shot.module.css'
-import workLinksStyles from './components/WorkCard/components/WorkLinks/work-links.module.css'
+import cardStyles from '@/components/Directory/components/WorkCard/work-card.module.css'
+import shotStyles from '@/components/Directory/components/WorkCard/components/Shot/shot.module.css'
+import workLinksStyles from '@/components/Directory/components/WorkCard/components/WorkLinks/work-links.module.css'
 import playerStyles from '@/components/ui/ScenePlayer/scene-player.module.css'
 import type { DirectoryData } from './container.fixture'
-import DirectoryContainer from './container'
+import DirectoryContainer from '@/components/Directory/container'
 
 const directoryJa = inject('directoryJa')
 const directoryKo = inject('directoryKo')
