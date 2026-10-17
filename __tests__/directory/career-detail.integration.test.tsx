@@ -1,23 +1,18 @@
-// 一覧の画面(コンテナ)の統合テスト(Vitest Browser Mode)。一覧を実際の Chromium で、フック・子と一緒に描き(ADR 0016)、
-// 作品カード・キャプチャ枠の中身・リンクの覆い・下部パネルのリンク・担当業務の詳細の出し分けを、利用者に見える形
-// (role・名前・aria-*・inert・行き先・要素の有無)で確かめる。CSS も Vite が実際に当てるので、押せるかどうかは本物の重なりで決まる。
+// 一覧の画面(コンテナ)の、担当業務の詳細(CareerDetail)の統合テスト(Vitest Browser Mode)。一覧を実際の Chromium で、子と一緒に描き(ADR 0016)、
+// 経歴ごとのパネルの有無・骨組み・任意項目の出し分けを、利用者に見える形(role・名前・要素の有無)で確かめる。
 // props は入口(index.tsx)と同じ組み方で container.fixture.ts が node で組み、inject で受け取る。
-// 実データに無い形(リンクを持たない作品・節を欠いた経歴など)は、作品・経歴を差し替えた props の写しをテストが直接渡す。
-// 差し替えるのはネットワーク(場面 SVG の取得)と時間(リールの自動送り)と、タッチ端末かどうかの問い合わせ1つだけ(理由は viewAsTouch の注釈)。
-// 動きを控える設定は差し替えず、Chromium の模擬(CDP)で本物の media query を切り替える
+// 実データに無い形(節を欠いた経歴など)は、経歴を差し替えた props の写しをテストが直接渡す
 import { cleanup, render, screen, within } from '@testing-library/react'
-import { inject } from 'vitest'
-import { page } from 'vitest/browser'
 import type {
   Career,
   CareerDetail as CareerDetailContent,
   CareerFact,
 } from '@content/types/content'
-import type { DirectoryData } from './container.fixture'
 import DirectoryContainer from '@/components/Directory/container'
+import type { DirectoryData } from './container.fixture'
+import { directoryJa, prepareEachTest, restoreEachTest, ui } from './directory.test-helper'
 
-const directoryJa = inject('directoryJa')
-const { ui, profile } = directoryJa
+const { profile } = directoryJa
 
 // detailを持つ経歴だけを、detailを非undefinedの型で受け取る
 type DetailedCareer = Career & { detail: CareerDetailContent }
@@ -98,32 +93,11 @@ const factPairsIn = (root: HTMLElement) =>
 
 const pairsOf = (rows: CareerFact[]) => rows.map(row => [row.label, row.value])
 
-const NO_NETWORK = 'テストでは通信しない'
-
-// 場面 SVG の取得を、テストが手放すまで返さずに留める。手放すと失敗で返す。
-// 失敗した取得は取得の覚え(src/lib/fetch-svg-source.ts)から消えるので、次のテストは空の覚えから始まる
-const heldFetches: Array<(reason: Error) => void> = []
-const releaseSceneFetches = () => {
-  for (const reject of heldFetches.splice(0)) reject(new Error(NO_NETWORK))
-}
-
-const originalUrl = window.location.href
-
-beforeEach(async () => {
-  // 既定は PC の画面・マウス・動きを許す設定。各テストが必要な条件だけ替える
-  await page.viewport(1280, 720)
-  // 外へ通信させない。リールは場面 SVG を取りに行き、取れない場面は準備中の文言に替わる
-  vi.stubGlobal('fetch', () => Promise.reject(new Error(NO_NETWORK)))
-})
-
+beforeEach(prepareEachTest)
 afterEach(async () => {
   // 先に外してから環境を戻す(effect の後始末が差し替えた環境のまま走るように)
   cleanup()
-  releaseSceneFetches()
-  vi.useRealTimers()
-  vi.unstubAllGlobals()
-  vi.restoreAllMocks()
-  window.history.replaceState(null, '', originalUrl)
+  await restoreEachTest()
 })
 
 describe('担当業務の詳細(CareerDetail)', () => {
