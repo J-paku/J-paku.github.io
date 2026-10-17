@@ -143,7 +143,7 @@ Z キー / 画面の A / 吹き出しのボタンで直接投げる(E キーも�
   `src/lib/village/flight.ts`、入力の錠と着地は `src/lib/village/movement.ts`、動いているかの判定(`isMoving`)は `src/lib/village/is-moving.ts`、
   コマは `src/lib/village/player-pose.ts`。
   画面での振る舞い(どの移動で飛ぶか・影と主人公の描き方・降りた所での到着)は村の統合テスト
-  (`__tests__/village-page/village.integration.test.tsx` の「自動移動の直線飛行」)が見る
+  (`__tests__/village-page/flight-route.integration.test.tsx`・`__tests__/village-page/flight-shape.integration.test.tsx`・`__tests__/village-page/flight-input.integration.test.tsx`)が見る
 
 ## 昼夜と天気
 
