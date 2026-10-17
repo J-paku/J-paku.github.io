@@ -32,9 +32,7 @@
 //     happy-dom でコンポーネントを描くと、名前を *.test.ts にするだけで上の置き場の決まりをすり抜けるため
 //   - container.fixture.ts は単位フォルダ(__tests__/<unit>/)の直下にだけ置ける。統合の設定が __tests__ の下の
 //     container.fixture.ts を全部 globalSetup に入れるので、ほかの所に置くと黙って走るか、走らないまま残る
-//   - hooks/ フォルダは container.tsx のあるフォルダにだけ置ける(例外は src/hooks/ と、待ちの一覧 PENDING_HOOK_DIRS)
-//   - 待ちの一覧 PENDING_HOOK_DIRS の項目が無くなった・もう違反しないときも落とす(一覧は減るだけ)
-// 待ちの一覧 PENDING_CONTAINER_FILES の項目がまだフックを呼んでいるかは check-hook-rule.mjs が ESLint の規則そのもので見る(ここでは見ない)。
+//   - hooks/ フォルダは container.tsx のあるフォルダにだけ置ける(例外は src/hooks/ だけ)
 // 状態コンテナが外の世界の入口を import しないことは check-layers.mjs が見る。
 // import は scripts/read-imports.mjs で構文木から読む(注釈・文字列の中は数えない)。
 //
@@ -47,7 +45,6 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   CONTAINER_DIRS,
-  PENDING_HOOK_DIRS,
   TEST_ROOT,
   kebabOf,
   testDirOf,
@@ -149,9 +146,6 @@ const REASON_NO_UNIT =
 const REASON_LONELY_HOOKS =
   'hooks/ フォルダは container.tsx のあるフォルダにだけ置ける(例外は src/hooks/ だけ)。フックを呼ぶ部品を container.tsx にするか、' +
   'フックを、それを呼ぶコンテナの hooks/ か src/hooks/ へ移す(ADR 0019)'
-const REASON_PENDING_HOOKS_STALE =
-  'scripts/container-dirs.mjs の PENDING_HOOK_DIRS のこの項目は、もう無いか、もう違反しない(隣に container.tsx がある・hooks/ フォルダでない・src/hooks/)。' +
-  '待ちの一覧は減るだけなので、この項目を一覧から消す(ADR 0019)'
 
 // 壊れたシンボリックリンクで statSync が例外を投げないよう、実体の無い入口は集める前に落とす
 const walk = dir =>
@@ -287,34 +281,28 @@ const layoutOf = (files, ioDirs) => {
   return { violations, containers, unitDirs }
 }
 
-// hooks/ フォルダの置き場と、待ちの一覧 PENDING_HOOK_DIRS の違反
-const hooksViolationsOf = (files, { pendingHookDirs }) => {
+// hooks/ フォルダの置き場の違反
+const hooksViolationsOf = files => {
   const fileSet = new Set(files)
-  const hooksDirs = hooksDirsOf(files)
   // 隣に container.tsx の無い hooks/ フォルダ(src/hooks/ は除く)
   const isLonely = dir =>
-    hooksDirs.has(dir) &&
-    dir !== ROOT_HOOKS_DIR &&
-    !fileSet.has(`${path.posix.dirname(dir)}/${CONTAINER}`)
-  const lonely = [...hooksDirs].filter(dir => isLonely(dir) && !pendingHookDirs.includes(dir))
-  return [
-    ...lonely.map(dir => ({ file: `${dir}/`, reason: REASON_LONELY_HOOKS })),
-    ...pendingHookDirs
-      .filter(dir => !isLonely(dir))
-      .map(dir => ({ file: dir, reason: REASON_PENDING_HOOKS_STALE })),
-  ]
+    dir !== ROOT_HOOKS_DIR && !fileSet.has(`${path.posix.dirname(dir)}/${CONTAINER}`)
+  return [...hooksDirsOf(files)]
+    .filter(isLonely)
+    .map(dir => ({ file: `${dir}/`, reason: REASON_LONELY_HOOKS }))
 }
 
 // 1 ファイルずつ見るファイルか。src のテスト・部品・フィクスチャ・もとの名前と、__tests__ の文書でないファイルの全部
 const isPerFileTarget = file =>
   TEST_FILE.test(file) || TEST_SUPPORT.test(file) || BROWSER_TEST.test(file) || isTestRootFile(file)
 
-// 全体の検査。files は src と __tests__ のファイル、nameOnlyFiles は名前だけを見るファイル(tests/ の統合テストに見える名前)。
+// 全体の検査。files は src と __tests__ のファイル、nameOnlyFiles は名前だけを見るファイル(tests/ の統合テストに見える名前)、
+// ioDirs は I/O コンテナのフォルダの一覧。
 // 1 ファイル 1 件で数える。hooks/ と renderHook の理由を先に出し、無ければ置き場、その次に中身の import(コードのときだけ)、
 // 最後に __tests__ の中の名前を見る。名前より import を先に見るのは、__tests__ の部品の名前を直しただけで
 // 描く道具の import が残るのを、最初の報告で分かるようにするため。返すのは { file, reason } の一覧
-const checkTree = (files, nameOnlyFiles, lists, readCode) => {
-  const layout = layoutOf(files, lists.ioDirs)
+const checkTree = (files, nameOnlyFiles, ioDirs, readCode) => {
+  const layout = layoutOf(files, ioDirs)
   const perFile = files.filter(isPerFileTarget).flatMap(file => {
     const reason =
       (TEST_FILE.test(file) ? violationOf(file, () => readCode(file)) : supportViolationOf(file)) ??
@@ -329,7 +317,7 @@ const checkTree = (files, nameOnlyFiles, lists, readCode) => {
     const reason = placementViolationOf(file, layout.containers, layout.unitDirs)
     return reason === undefined ? [] : [{ file, reason }]
   })
-  return [...perFile, ...nameOnly, ...layout.violations, ...hooksViolationsOf(files, lists)]
+  return [...perFile, ...nameOnly, ...layout.violations, ...hooksViolationsOf(files)]
 }
 
 // ---- 自己検査 ----
@@ -441,19 +429,8 @@ const NAME_CASES = [
   ['tests/a.ts', undefined],
 ]
 
-// 偽の作業ツリー(パス → 中身)と I/O コンテナ・待ちの一覧 PENDING_HOOK_DIRS。Lonely は一覧にあるのに container.tsx もテストも無い
+// 偽の作業ツリー(パス → 中身)と I/O コンテナの一覧。Lonely は一覧にあるのに container.tsx もテストも無い
 const FAKE_IO_DIRS = ['src/components/Screen', 'src/components/ui/Player', 'src/components/Lonely']
-const FAKE_LISTS = {
-  ioDirs: FAKE_IO_DIRS,
-  pendingHookDirs: [
-    'src/components/Screen/components/Wait/hooks',
-    // 隣に container.tsx がある・無い・hooks/ フォルダでない・src/hooks/
-    'src/components/Screen/components/Done/hooks',
-    'src/components/Screen/components/Gone/hooks',
-    'src/components/Screen/components/Wait',
-    'src/hooks',
-  ],
-}
 const SCREEN_IMPORT = `import Screen from '@/components/Screen/container'`
 const FAKE_TREE = new Map(
   Object.entries({
@@ -520,12 +497,6 @@ const FAKE_TREE = new Map(
     'src/components/Screen/components/View/index.tsx': '',
     'src/components/Screen/components/View/hooks/use-view.ts': '',
     'src/lib/hooks/use-lib.ts': '',
-    // 待ちの一覧で通るもの(隣に container.tsx の無い hooks/)
-    'src/components/Screen/components/Wait/hooks/use-wait.ts': '',
-    // 待ちの一覧で落ちるもの(隣に container.tsx がある)
-    'src/components/Screen/components/Done/container.tsx': '',
-    'src/components/Screen/components/Done/hooks/use-done.ts': '',
-    '__tests__/screen/done/finish.integration.test.tsx': `import Done from '@/components/Screen/components/Done/container'`,
   })
 )
 const FAKE_NAME_ONLY = ['tests/a.integration.test.tsx', 'tests/b.browser.test.ts']
@@ -563,10 +534,6 @@ const EXPECTED_TREE = [
   at('__tests__/ui/player/scene-svg/deep/', REASON_ORPHAN_DIR),
   at('src/components/Screen/components/View/hooks/', REASON_LONELY_HOOKS),
   at('src/lib/hooks/', REASON_LONELY_HOOKS),
-  at('src/components/Screen/components/Done/hooks', REASON_PENDING_HOOKS_STALE),
-  at('src/components/Screen/components/Gone/hooks', REASON_PENDING_HOOKS_STALE),
-  at('src/components/Screen/components/Wait', REASON_PENDING_HOOKS_STALE),
-  at('src/hooks', REASON_PENDING_HOOKS_STALE),
 ].sort()
 const FAKE_LAYOUT = layoutOf([...FAKE_TREE.keys()], FAKE_IO_DIRS)
 // [パス, 期待する理由]。フォルダの対応は上の偽の作業ツリーのもの
@@ -699,7 +666,7 @@ const IMPORT_CASES = [
   ],
 ]
 const readFake = file => FAKE_TREE.get(file) ?? ''
-const fakeFound = checkTree([...FAKE_TREE.keys()].sort(), FAKE_NAME_ONLY, FAKE_LISTS, readFake)
+const fakeFound = checkTree([...FAKE_TREE.keys()].sort(), FAKE_NAME_ONLY, FAKE_IO_DIRS, readFake)
 const fakeTree = fakeFound.map(({ file, reason }) => at(file, reason)).sort()
 const unitDirs = CONTAINER_DIRS.map(unitDirOf)
 const selfCheckFailures = [
@@ -765,8 +732,7 @@ if (srcTestFiles.length === 0) {
 }
 
 const read = file => readFileSync(path.join(ROOT, file), 'utf8')
-const LISTS = { ioDirs: CONTAINER_DIRS, pendingHookDirs: PENDING_HOOK_DIRS }
-const found = checkTree(files, nameOnlyFiles, LISTS, read)
+const found = checkTree(files, nameOnlyFiles, CONTAINER_DIRS, read)
 const failures = found.map(({ file, reason }) => at(file, reason))
 
 if (failures.length > 0) {
@@ -780,5 +746,5 @@ const supportCount = files.filter(file => TEST_SUPPORT.test(file)).length
 const containerCount = files.filter(isSrcContainer).length
 console.log(
   `check-test-boundary: src のテスト ${srcTestFiles.length} 件・__tests__ の統合テスト ${integrationCount} 件・フィクスチャとテストの部品 ${supportCount} 件・` +
-    `コンテナ ${containerCount} 個(I/O コンテナの一覧 ${CONTAINER_DIRS.length} か所)・待ちの一覧 PENDING_HOOK_DIRS ${PENDING_HOOK_DIRS.length} 件を検査 — 違反なし`
+    `コンテナ ${containerCount} 個(I/O コンテナの一覧 ${CONTAINER_DIRS.length} か所)を検査 — 違反なし`
 )

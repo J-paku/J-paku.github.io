@@ -1,6 +1,5 @@
 import nextCoreWebVitals from 'eslint-config-next/core-web-vitals'
 import nextTypescript from 'eslint-config-next/typescript'
-import { PENDING_CONTAINER_FILES } from './scripts/container-dirs.mjs'
 import hookOnlyInContainer from './scripts/eslint-rules/hook-only-in-container.mjs'
 
 // バレル禁止(全ファイル共通)。レイヤー override でも rule 全体が置き換わるため毎回同梱する
@@ -143,10 +142,6 @@ const eslintConfig = [
   // コンテナ・hooks/ の中の use-*.ts(x)(src/hooks/ も)・テストの側だけ。
   // 掛け方の自己検査と、注釈で黙らせた呼び出しの数え上げは scripts/check-hook-rule.mjs(npm run test:boundary)
   {
-    // 規則を外した所にも規則を掛け直せるよう(check-hook-rule.mjs が待ちの一覧に掛け直して確かめる)、プラグインは全ファイルに登録する
-    plugins: { layer: layerPlugin },
-  },
-  {
     files: ['src/**/*.{ts,tsx}'],
     ignores: [
       '**/container.tsx',
@@ -154,9 +149,8 @@ const eslintConfig = [
       '**/*.test.{ts,tsx}',
       '**/*.fixture.ts',
       '**/*.test-helper.ts',
-      // 2段階目(村)まで待つ、まだフックを呼ぶ表示部品。減るだけの一覧(scripts/container-dirs.mjs)
-      ...PENDING_CONTAINER_FILES,
     ],
+    plugins: { layer: layerPlugin },
     rules: {
       'layer/hook-only-in-container': 'error',
     },

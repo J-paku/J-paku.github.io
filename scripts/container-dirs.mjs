@@ -8,7 +8,6 @@
 // パスはリポジトリ直下からの '/' 区切りで、末尾に '/' を付けない。
 //
 // 使い方: import { SCREEN_CONTAINER_DIRS, SHARED_CONTAINER_DIRS, CONTAINER_DIRS } from './container-dirs.mjs'
-//   待ちの一覧: PENDING_CONTAINER_FILES・PENDING_HOOK_DIRS
 //   統合テストのフォルダ: TEST_ROOT・kebabOf・unitDirOf(単位の元のフォルダ → 単位フォルダ)・
 //   unitRootOf(コンテナのフォルダ → 単位の元のフォルダ)・testDirOf(コンテナのフォルダ → 対応する __tests__ のフォルダ)
 
@@ -29,17 +28,6 @@ export const SHARED_CONTAINER_DIRS = [
 
 // I/O コンテナの6つ(外の世界に触れてよいコンテナ)
 export const CONTAINER_DIRS = [...SCREEN_CONTAINER_DIRS, ...SHARED_CONTAINER_DIRS]
-
-// 2段階目(村)で消す待ちの一覧の2つ。どちらも減るだけで、足さない。
-// 項目が無くなった・もう違反しなくなったときは npm run test:boundary(PENDING_CONTAINER_FILES は scripts/check-hook-rule.mjs、
-// PENDING_HOOK_DIRS は scripts/check-test-boundary.mjs)が落とすので、
-// 直したらその項目をここから消す。2段階目で村を移し終えたら、一覧ごと消す(ADR 0019)
-
-// まだフックを呼んでいる表示部品(index.tsx)。2段階目まで ESLint の layer/hook-only-in-container から外す
-export const PENDING_CONTAINER_FILES = []
-
-// 隣に container.tsx の無い hooks/ フォルダ。2段階目まで「hooks/ は container.tsx のあるフォルダにだけ置く」の例外にする
-export const PENDING_HOOK_DIRS = []
 
 // 統合テストを置くリポジトリ直下のフォルダ(E2E の tests/ とは別)
 export const TEST_ROOT = '__tests__'

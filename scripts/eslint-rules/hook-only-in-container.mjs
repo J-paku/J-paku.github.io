@@ -18,7 +18,7 @@
 // 同じ名前で受けるもの(import { useState } from 'react'・const { useState } = React)は、その後の呼び出しが上で数えられるので報告しない。
 // 型だけの import(import type { … }・import { type … })は値にならず呼べないので見ない。
 // 受ける形だけを見るので、値として渡す形(f(useState)・[useState]・{ s: useState }・export { useState as s })は見ない。
-// どこに掛け、どこで外すか(コンテナ・hooks/ の use-*.ts(x)・テストの側・2段階目までの待ちの一覧)は eslint.config.mjs が決める。
+// どこに掛け、どこで外すか(コンテナ・hooks/ の use-*.ts(x)・テストの側)は eslint.config.mjs が決める。
 // 判定と掛け方が壊れていないか、注釈で黙らせた呼び出しが無いかは scripts/check-hook-rule.mjs(npm run test:boundary)が確かめる。
 
 // フックの名前。呼ぶ相手の名前がこの形ならフック
