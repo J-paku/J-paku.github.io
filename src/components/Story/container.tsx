@@ -4,7 +4,7 @@ import type { Locale, UiStrings, WorkStory } from '@content/types/content'
 import { toHref } from '@/utils/locale-path'
 import PhraseText from '@/components/ui/PhraseText'
 import Navigation from '@/components/ui/Navigation'
-import StoryBody from './components/StoryBody'
+import StoryBody from './components/StoryBody/container'
 import TechChipPopover from './components/TechChipPopover'
 import styles from './story.module.css'
 

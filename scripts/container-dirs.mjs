@@ -48,7 +48,6 @@ export const PENDING_CONTAINER_FILES = [
   'src/components/Directory/components/WorkCard/index.tsx',
   'src/components/Story/components/IntroPreview/index.tsx',
   'src/components/Story/components/SceneSection/index.tsx',
-  'src/components/Story/components/StoryBody/index.tsx',
   'src/components/Story/components/TechChipPopover/index.tsx',
   'src/components/ui/ScenePlayer/components/SceneSvg/index.tsx',
   'src/components/ui/SettingsMenu/components/SettingsMenuView/index.tsx',
@@ -62,7 +61,6 @@ export const PENDING_HOOK_DIRS = [
   'src/components/VillagePage/components/Village/components/StopModal/hooks',
   'src/components/VillagePage/components/Village/components/WorldMap/hooks',
   'src/components/Directory/components/WorkCard/hooks',
-  'src/components/Story/components/StoryBody/hooks',
   'src/components/Story/components/TechChipPopover/hooks',
   'src/components/ui/SettingsMenu/components/SettingsMenuView/hooks',
 ]
