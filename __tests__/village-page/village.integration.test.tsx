@@ -1,17 +1,7 @@
 // 村の統合テスト(Vitest Browser Mode)。村の画面を実際の Chromium で、フック・子と一緒に描く(ADR 0016)。
-// happy-dom は配置を計算せず ResizeObserver.observe() も実装が無いので、寸法に頼る振る舞いはここで見る。
-// 差し替えるのはネットワーク(天気の通信・段階のシートの絵の取得)と時間だけ。レイアウト・ResizeObserver・入力は本物を使う。
-// 時間の差し替え方は describe ごとに違う(掛け方は village-time.test-helper.ts の startVillageClock):
-//   - 「歩く・待つ・釣り・傘・飛ぶ」は rAF・performance.now・タイマー・Date を偽の時計に載せ、テストが 1 フレーム(16ms)ずつ進める
-//     (傘の 1 件だけは setTimeout を本物のまま残し、フレームをタイマーより先に進める)
-//   - 「画面の大きさ・窓・時計・昼夜」は rAF・タイマー・performance.now を本物のまま使い、段階を決めるテストだけ Date を止める
-//     (開いたまま時間帯が替わるテストは Date と setInterval を止め、テストが進める)
-//   - その間にある画面の大きさのテストは時間を差し替えない
-// 偽の時計・差し替えた通信と Image・CDP で替えたブラウザの環境・卓上時計のストア・保存した位置は、下の afterEach が毎回戻す
-// (タッチの模擬を切った後の pointer・hover だけは戻り切らない。village-walk.test-helper.ts の resetEmulation の注)
+// 差し替える物・時間の差し替え方・毎回戻す物は village.test-helper.ts の冒頭の注
 import { cleanup, render } from '@testing-library/react'
 import { useLayoutEffect } from 'react'
-import { inject } from 'vitest'
 import { page } from 'vitest/browser'
 import { clearVillageProgress } from '@/lib/preferences'
 import VillagePageContainer from '@/components/VillagePage/container'
@@ -47,7 +37,6 @@ import {
 } from '@/utils/focusables'
 import { spotToward } from '@/components/VillagePage/components/Village/components/WorldMap/utils/spot-navigation'
 import { headToSpeech } from '@/components/VillagePage/components/Village/utils/spot-text'
-import { useVillageTime } from '@/components/VillagePage/hooks/use-village-time'
 import {
   FRAME_MS,
   HOLD_MS,
@@ -70,7 +59,6 @@ import {
   playerOnScreen,
   press,
   readCell,
-  resetEmulation,
   runFor,
   stepFrame,
   stubWeather,
@@ -120,45 +108,16 @@ import {
   type Saved,
 } from './village-walk-flight.test-helper'
 import { PHASE_CLOCKS, RealImage, routeSheets, startVillageClock } from './village-time.test-helper'
+import { frameSize, prepareVillage, resetVillage, villageJa } from './village.test-helper'
 
-const villageJa = inject('villageJa')
+// 晴れの天気を敷き、タッチの模擬を持ち越していないことを確かめる(village.test-helper.ts の prepareVillage)
+beforeEach(prepareVillage)
 
-// 利用者に見える枠の大きさ(px)。操作帯のスティックも role=application なので、枠の読み上げ名
-// (use-village.ts の hintLabel。ポインタが細かい端末では text.hint)で枠だけを指す
-const frameSize = () => {
-  const { width, height } = page
-    .getByRole('application', { name: villageJa.text.hint })
-    .element()
-    .getBoundingClientRect()
-  return { width, height }
-}
-
-// 天気(Open-Meteo)にだけ晴れを返し、ほかの問い合わせは断る。テストが外へ出ていく道を残さない。
-// 雨・雪・取得失敗を見るテストは、テストの中で stubWeather を敷き直して上書きする
-beforeEach(() => {
-  // 前提: どのテストもタッチ端末(pointer: coarse)ではない所から始まる。タッチのテストは、この後にテストの中か describe の
-  // beforeEach で模擬を入れる。模擬を切った後は pointer: fine・hover: hover へ戻らない(resetEmulation の注)ので、
-  // タッチのテストより後の PC のテストが頼れるのは coarse でないことだけで、それをここで確かめる
-  expect(
-    window.matchMedia('(pointer: coarse)').matches,
-    '前提: 前のテストのタッチの模擬を持ち越していない'
-  ).toBe(false)
-  stubWeather('clear')
-})
-
-// どの describe が何を差し替えても、次のテストへ持ち越さないようここで毎回戻す
+// どの describe が何を差し替えても、次のテストへ持ち越さないよう毎回戻す(戻す物は village.test-helper.ts の resetVillage)
 afterEach(async () => {
   // 先に外してから環境を戻す(effect の後始末が差し替えた環境と偽の時計のまま走り、積まれたタイマーを本物の時計へ持ち越さないように)
   cleanup()
-  vi.useRealTimers()
-  vi.unstubAllGlobals()
-  // CDP で替えたブラウザの環境(動きを控える設定・タッチ)
-  await resetEmulation()
-  // 卓上時計で決めた時刻はストア(メモリ)に残り、同じページで後に描く村がその時刻から始まる。何も決めていない状態へ戻す
-  useVillageTime.getState().resetTimeState()
-  // 村が本物の sessionStorage へ書いた位置と訪問を消し、何も保存していない状態へ戻す(消し方の正本は preferences.ts)。
-  // 歩いた・話した後に残すと、同じページで後に描く村がその位置・訪問から始まる
-  clearVillageProgress(villageJa.worldSet.id)
+  await resetVillage()
 })
 
 // ---- 歩く・待つ・釣り・傘・飛ぶ ----
