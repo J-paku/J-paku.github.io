@@ -38,7 +38,7 @@ DOM を使う utils と歩行ループの部品を happy-dom で見る部分(000
   - `@/lib/preferences` — 村の3つのフック(`use-village-arrive`・`use-village-restore`・`use-course-progress`)と、設定メニューの `use-theme-choice`
   - `@/lib/weather` — 村の `use-weather`
   - `@/lib/analytics` と `next/navigation` — ページ移動の計測(`PageviewCounter`)の入口の `index.tsx`
-  - `@/lib/fetch-svg-source` — 場面の再生の下位部品 `src/components/ui/ScenePlayer/components/SceneSvg/index.tsx`
+  - `@/lib/fetch-svg-source` — 場面の再生の下位部品 SceneSvg(当時の `src/components/ui/ScenePlayer/components/SceneSvg/` の `index.tsx`)
   - 卓上時計のストア(`use-village-time`、zustand)— 村の `use-day-phase` と、卓上時計の窓の `use-clock-modal`
 - **コンポーネントを描くテストは2種類あった。** happy-dom でコンポーネント1つを描く単体の8本(`index.test.tsx`。作品カードとその部品の LinksOverlay・WorkLinks・ShotMedia、経歴の CareerDetail、
   設定メニュー、ページ移動の計測、作品ストーリーの技術チップの TechChipPopover)と、実ブラウザで村の `Village` を描く統合の1本。
