@@ -6,7 +6,7 @@ import PhraseText from '@/components/ui/PhraseText'
 import { useActiveScene } from './hooks/use-active-scene'
 import IntroPreview from '../IntroPreview'
 import SceneModal from '../SceneModal/container'
-import SceneSection from '../SceneSection'
+import SceneSection from '../SceneSection/container'
 import styles from '../../story.module.css'
 
 type StoryBodyProps = {
