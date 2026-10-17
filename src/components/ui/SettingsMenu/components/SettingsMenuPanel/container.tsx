@@ -3,8 +3,9 @@
 // 独自にキーボード(Escape)・外側クリック・フォーカス復帰を実装する。
 // フォーカス復帰は Escape と項目選択(自分で閉じる操作)にのみ適用し、外側クリックでは行わない
 // — 外側クリックはユーザーが別の要素を狙った操作なので、そのフォーカス先を奪わない。
-// 適用中のテーマと切り替え(保存を伴う)は親フォルダの container.tsx から props で受け取り、ここは表示と開閉だけを持つ。
-// 開閉の UI のフックをコンテナの隣の hooks(外の世界に触れるフックの置き場)と分けるため、表示部品はこの下位部品のフォルダに置く
+// 適用中のテーマと切り替え(保存を伴う)は親フォルダの container.tsx(I/O コンテナ)から props で受け取り、ここは表示と開閉だけを持つ。
+// 開閉のフックを呼ぶので状態コンテナで、外の世界には触れない。開閉の UI のフックを I/O コンテナの隣の hooks
+// (外の世界に触れるフックの置き場)と分けるため、この状態コンテナは下位部品のフォルダに置く
 'use client'
 import { useId } from 'react'
 import Link from 'next/link'
@@ -15,7 +16,7 @@ import { useMenuOpen } from './hooks/use-menu-open'
 import GearIcon from '../GearIcon'
 import styles from '../../settings-menu.module.css'
 
-type SettingsMenuProps = {
+type SettingsMenuPanelProps = {
   locale: Locale
   pathname: string
   ui: UiStrings
@@ -28,7 +29,7 @@ type SettingsMenuProps = {
 const LOCALES: Locale[] = ['ja', 'ko']
 const THEMES: Theme[] = ['light', 'dark']
 
-function SettingsMenu({ locale, pathname, ui, theme, onThemeChange }: SettingsMenuProps) {
+function SettingsMenuPanel({ locale, pathname, ui, theme, onThemeChange }: SettingsMenuPanelProps) {
   // ラベルの原点は視覚テキスト<p>ひとつ。aria-label と二重に持たせるとスクリーンリーダーが
   // 同じ文字列を2回読み上げるため、aria-labelledby で<p>を指し直す
   const localeLabelId = useId()
@@ -94,4 +95,4 @@ function SettingsMenu({ locale, pathname, ui, theme, onThemeChange }: SettingsMe
   )
 }
 
-export default SettingsMenu
+export default SettingsMenuPanel

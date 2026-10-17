@@ -45,7 +45,6 @@ export const PENDING_CONTAINER_FILES = [
   'src/components/VillagePage/components/Village/components/StopModal/index.tsx',
   'src/components/VillagePage/components/Village/components/TalkBubble/index.tsx',
   'src/components/VillagePage/components/Village/components/WorldMap/index.tsx',
-  'src/components/ui/SettingsMenu/components/SettingsMenuView/index.tsx',
 ]
 
 // 隣に container.tsx の無い hooks/ フォルダ。2段階目まで「hooks/ は container.tsx のあるフォルダにだけ置く」の例外にする
@@ -55,7 +54,6 @@ export const PENDING_HOOK_DIRS = [
   'src/components/VillagePage/components/Village/components/Joystick/hooks',
   'src/components/VillagePage/components/Village/components/StopModal/hooks',
   'src/components/VillagePage/components/Village/components/WorldMap/hooks',
-  'src/components/ui/SettingsMenu/components/SettingsMenuView/hooks',
 ]
 
 // 統合テストを置くリポジトリ直下のフォルダ(E2E の tests/ とは別)

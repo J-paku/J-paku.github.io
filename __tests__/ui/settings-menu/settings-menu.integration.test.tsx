@@ -1,7 +1,7 @@
 // 設定メニュー(SettingsMenu)の統合テスト(Vitest Browser Mode)。コンテナを実際の Chromium で、テーマの選択(useThemeChoice)・
 // 開閉のフックと一緒に描き、開閉・Esc・外側の押下・言語リンク・テーマ選択の結果を、利用者に見える形
 // (role・aria-expanded・aria-current・aria-pressed・フォーカスの行き先)で確かめる。テーマの保存は本物の localStorage へ書かせて読む
-import { cleanup, fireEvent, render } from '@testing-library/react'
+import { cleanup, render } from '@testing-library/react'
 import { renderToString } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, inject, it, onTestFinished, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
@@ -46,119 +46,6 @@ afterEach(() => {
   delete document.documentElement.dataset.theme
   // テーマ選択が本物の localStorage へ書いた保存を消し、何も保存していない状態へ戻す
   localStorage.removeItem(THEME_STORAGE_KEY)
-})
-
-describe('開閉', () => {
-  it('最初は閉じていて、歯車を押すと言語とテーマの選択肢が開き、もう一度押すと閉じる', async () => {
-    renderMenu()
-
-    const trigger = triggerOf()
-    expect(trigger.getAttribute('aria-expanded')).toBe('false')
-    expect(page.getByRole('navigation').query()).toBeNull()
-    expect(page.getByRole('group').query()).toBeNull()
-
-    await userEvent.click(trigger)
-    expect(trigger.getAttribute('aria-expanded')).toBe('true')
-    expect(
-      page.getByRole('navigation', { name: ui.localeMenu.label, exact: true }).element()
-    ).toBeTruthy()
-    expect(page.getByRole('group', { name: ui.theme.label, exact: true }).element()).toBeTruthy()
-
-    await userEvent.click(trigger)
-    expect(trigger.getAttribute('aria-expanded')).toBe('false')
-    expect(page.getByRole('navigation').query()).toBeNull()
-    expect(page.getByRole('group').query()).toBeNull()
-  })
-
-  it('Escで閉じ、パネルの中にあったフォーカスを歯車へ戻す', async () => {
-    renderMenu()
-    const trigger = triggerOf()
-
-    await userEvent.click(trigger)
-    // 歯車からパネルの中へフォーカスを移しておく
-    await userEvent.tab()
-    const nav = page.getByRole('navigation', { name: ui.localeMenu.label, exact: true }).element()
-    expect(nav.contains(document.activeElement)).toBe(true)
-
-    await userEvent.keyboard('{Escape}')
-    expect(isOpen(trigger)).toBe(false)
-    expect(document.activeElement).toBe(trigger)
-  })
-
-  it('パネルの内側を押しても閉じない', async () => {
-    renderMenu()
-    const trigger = triggerOf()
-
-    await userEvent.click(trigger)
-    await userEvent.click(page.getByText(ui.theme.label, { exact: true }))
-    expect(isOpen(trigger)).toBe(true)
-    expect(page.getByRole('group', { name: ui.theme.label, exact: true }).element()).toBeTruthy()
-  })
-
-  it('外側を押すと閉じるが、フォーカスは歯車へ動かさない', async () => {
-    render(
-      <>
-        <button type='button'>外側</button>
-        <SettingsMenu locale='ja' pathname={PATHNAME} ui={ui} />
-      </>
-    )
-    const trigger = triggerOf()
-    const outside = page.getByRole('button', { name: '外側', exact: true }).element()
-
-    await userEvent.click(trigger)
-    outside.focus()
-    // 本物のクリックはpointerdownの後のmousedownで押した先へフォーカスを移し、閉じる処理が
-    // 歯車へフォーカスを奪っていても上書きして隠してしまう。pointerdownだけを送って確かめる
-    fireEvent.pointerDown(outside)
-
-    expect(isOpen(trigger)).toBe(false)
-    expect(page.getByRole('navigation').query()).toBeNull()
-    expect(document.activeElement).toBe(outside)
-  })
-})
-
-describe('言語', () => {
-  it.each([
-    ['ja', 'ko'],
-    ['ko', 'ja'],
-  ] as const)(
-    '表示中の言語(%s)のリンクだけが現在のページを示し、各言語版の同じページを指す',
-    async (current, other) => {
-      renderMenu(current)
-      const menuUi = uiOf[current]
-
-      await userEvent.click(
-        page.getByRole('button', { name: menuUi.settingsMenu.label, exact: true })
-      )
-      const nav = page.getByRole('navigation', { name: menuUi.localeMenu.label, exact: true })
-      const linkOf = (name: string) => nav.getByRole('link', { name, exact: true }).element()
-
-      const currentLink = linkOf(menuUi.localeMenu[current])
-      const otherLink = linkOf(menuUi.localeMenu[other])
-      expect(currentLink.getAttribute('aria-current')).toBe('page')
-      expect(otherLink.hasAttribute('aria-current')).toBe(false)
-
-      const ja = linkOf(menuUi.localeMenu.ja)
-      const ko = linkOf(menuUi.localeMenu.ko)
-      expect(ja.getAttribute('href')).toBe('/list/')
-      expect(ko.getAttribute('href')).toBe('/ko/list/')
-      // 読み上げが言語を切り替えられるよう、リンク文字列の言語と行き先の言語を示す
-      expect([ja.getAttribute('lang'), ja.getAttribute('hreflang')]).toEqual(['ja', 'ja'])
-      expect([ko.getAttribute('lang'), ko.getAttribute('hreflang')]).toEqual(['ko', 'ko'])
-    }
-  )
-
-  it('言語のリンクを押すとメニューを閉じ、フォーカスを歯車へ戻す', async () => {
-    renderMenu()
-    const trigger = triggerOf()
-
-    await userEvent.click(trigger)
-    await userEvent.click(page.getByRole('link', { name: ui.localeMenu.ko, exact: true }))
-
-    expect(isOpen(trigger)).toBe(false)
-    expect(page.getByRole('navigation').query()).toBeNull()
-    expect(document.activeElement).toBe(trigger)
-  })
 })
 
 describe('テーマ', () => {

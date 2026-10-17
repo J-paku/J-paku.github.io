@@ -46,8 +46,8 @@ last_reviewed: 2026-10-15
 例外はコンテナを持つ横断部品で、外から `container.tsx` を直接指す(`@/components/ui/SettingsMenu/container` など)。フォルダの形は3つで違う。
 
 - `ScenePlayer` — `container.tsx` と、コンテナが描く表示部品の `index.tsx` を持つ。場面 SVG の原本を取るフックはコンテナの隣の `src/components/ui/ScenePlayer/hooks/` に置く
-- `SettingsMenu` — 表示部品が自分の UI のフック(`use-menu-open`)を持つので、表示部品を `src/components/ui/SettingsMenu/components/SettingsMenuView/` へ下ろし、
-  そのフックはその隣の `src/components/ui/SettingsMenu/components/SettingsMenuView/hooks/` に置く。フォルダの直下に `index.tsx` は無い。
+- `SettingsMenu` — 開閉のフック(`use-menu-open`)を呼ぶ部品を、状態コンテナ `src/components/ui/SettingsMenu/components/SettingsMenuPanel/` の `container.tsx` にし、
+  そのフックはその隣の `src/components/ui/SettingsMenu/components/SettingsMenuPanel/hooks/` に置く。フォルダの直下に `index.tsx` は無い。
   直下の `src/components/ui/SettingsMenu/hooks/` はコンテナの隣で、コンテナのフック(テーマの保存の `use-theme-choice`)の置き場だから
 - `PageviewCounter` — 何も描かないので表示部品が無く、`container.tsx` だけを持つ
 
