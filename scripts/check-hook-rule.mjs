@@ -2,7 +2,7 @@
 // (scripts/eslint-rules/hook-only-in-container.mjs)が正しく判定し、eslint.config.mjs が正しい所に掛けていることを確かめてから、
 // 実際の src を lint して違反を数える。
 //
-// 確かめること(1・2 は自己検査。期待と違えば検査そのものが壊れているので、理由を出して落とす):
+// 確かめること(1〜3 は自己検査。期待と違えば検査そのものが壊れているので、理由を出して落とす):
 //   1. 規則の判定   — 偽のコードの断片を ESLint の Linter で規則だけに掛け、拾ったフックの名前(出る順)が期待とぴったり同じか。
 //                     useState()・React.useMemo() は拾い、memo()・forwardRef()・use()・user()・呼ばない useless は拾わない。
 //                     フックを別の名前で受ける所(import { useState as state }・const s = useState・const { useState: s } = React など)も
@@ -11,7 +11,13 @@
 //                     表示部品の index.tsx・utils などには掛かり、container.tsx・hooks/ の use-*.ts(x)・テストの側
 //                     (*.test.ts(x)・*.fixture.ts・*.test-helper.ts)では外れる
 //                     (別の名前で受ける所の報告も同じ所で外れる)。統合テストを置く __tests__/ が lint の対象の外になっていないかも見る
-//   3. 実際の src   — src の *.ts・*.tsx をすべて eslint.config.mjs で lint し、この規則の違反を数える。1件でもあれば落とす。
+//   3. 名前の決まり — 規則が外れてよいファイルを、eslint.config.mjs とは別に名前で決める(container.tsx・hooks/ の中の use-*.ts(x)・
+//                     *.test.ts(x)・*.fixture.ts・*.test-helper.ts だけ)。その決まりが 2 の掛かるパス・外れるパスと合うかと、
+//                     実際の設定に偽の抜け道(規則の組みの ignores に表示部品のパスやフォルダを足す・後ろの組みで off や warn にする・
+//                     ignores から *.fixture.ts を外す)を入れた設定で、4 の突き合わせがその抜け道のファイルだけを拾うかを見る
+//   4. 実際の src   — src の *.ts・*.tsx のすべてで、規則が error で掛かるかを 3 の名前の決まりと突き合わせ、1件でも違えば落とす。
+//                     ignores に実在のパスを足すとそのファイルは lint も 2 も通り、掛かるファイルの数が1つ減るだけになるため。
+//                     そのうえで eslint.config.mjs で lint し、この規則の違反を数える。1件でもあれば落とす。
 //                     eslint-disable の注釈で黙らせた呼び出しも違反に数える(注釈は外す所に入っていない)
 //
 // ESLint の ignores(.claude/** など)は、設定の基準のフォルダ(cwd か、探し当てた設定ファイルのフォルダ)からのパスで当たる。
@@ -23,7 +29,7 @@
 // 使い方: node scripts/check-hook-rule.mjs(npm run test:boundary)
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { ESLint, Linter } from 'eslint'
 import hookOnlyInContainer from './eslint-rules/hook-only-in-container.mjs'
 
@@ -290,6 +296,103 @@ if (configFailures.length > 0) {
 // 設定を読んだ後のファイルの組みに、この規則が error で掛かるか(lint の対象の外のファイルは undefined)
 const isRuled = config => config?.rules?.[RULE_ID]?.[0] === ERROR
 
+// パス → 設定を読んだ後のファイルの組み
+const configsOf = async (engine, files) =>
+  new Map(
+    await Promise.all(files.map(async file => [file, await engine.calculateConfigForFile(file)]))
+  )
+
+// ---- 名前の決まり ----
+// 規則が外れてよいのは、名前でこれと決まるファイルだけ(ADR 0019)。eslint.config.mjs の ignores とは別にここで書き、実際の設定と突き合わせる。
+// 設定の ignores に実在のパス(表示部品の index.tsx など)を足すと、そのファイルは lint も自己検査 2 も通り、掛かるファイルの数が1つ減るだけになるため
+const EXEMPT_NAMES = [/^container\.tsx$/, /\.test\.tsx?$/, /\.fixture\.ts$/, /\.test-helper\.ts$/]
+// hooks/ の中(フォルダにしたフックの入れ子も)の use-*.ts(x)。use-hooks/ のような名前のフォルダは hooks/ に数えない
+const HOOK_FILE = /(^|\/)hooks\/(?:[^/]+\/)*use-[^/]*\.tsx?$/
+const isExemptByName = file =>
+  HOOK_FILE.test(file) || EXEMPT_NAMES.some(pattern => pattern.test(path.posix.basename(file)))
+// 突き合わせの報告(掛かるはずのファイルに掛からない・外れるはずのファイルに掛かる)
+const missedAt = file => `${file}(掛かるはずなのに掛からない)`
+const extraAt = file => `${file}(外れるはずなのに掛かる)`
+
+// 規則の掛かり方が名前の決まりと合わないファイル。configOf はパス → 設定を読んだ後のファイルの組み
+const mismatchesOf = (files, configOf) =>
+  files.flatMap(file => {
+    const expected = !isExemptByName(file)
+    if (isRuled(configOf.get(file)) === expected) return []
+    return [expected ? missedAt(file) : extraAt(file)]
+  })
+
+// ---- 自己検査 3: 名前の決まり ----
+// 名前の決まりが壊れると(外れる名前を足しすぎる・書き違える)、下の突き合わせは抜け道を見逃す。
+// そこで決まりを自己検査 2 の掛かるパス・外れるパスで確かめ、さらに実際の eslint.config.mjs に偽の抜け道を入れた設定で、
+// 同じパスの突き合わせがその抜け道のファイルだけをぴったり拾うかを見る(抜け道の無い設定では何も拾わない)
+const actualConfig = (await import(pathToFileURL(path.join(ROOT, 'eslint.config.mjs')).href))
+  .default
+const ruleBlocks = actualConfig.filter(block => block.rules?.[RULE_ID] !== undefined)
+// 規則を掛ける組みの ignores を書き換えた設定
+const withIgnores = edit =>
+  actualConfig.map(block =>
+    block === ruleBlocks[0] ? { ...block, ignores: edit(block.ignores ?? []) } : block
+  )
+// 後ろに組みを1つ足した設定
+const withBlock = block => [...actualConfig, block]
+const CHECKED_PATHS = [...RULED_PATHS, ...EXEMPT_PATHS]
+// [抜け道, 設定, 突き合わせが拾うもの]
+const BYPASS_CASES = [
+  ['抜け道なし', actualConfig, []],
+  // 検証で見つかった抜け道。規則の組みの ignores に実在のパスを足すと、lint も自己検査 2 も通った
+  [
+    'ignores に表示部品のパスを足す',
+    withIgnores(ignores => [...ignores, 'src/components/Fake/index.tsx']),
+    [missedAt('src/components/Fake/index.tsx')],
+  ],
+  [
+    'ignores にフォルダを足す',
+    withIgnores(ignores => [...ignores, 'src/utils/**']),
+    [missedAt('src/utils/fake.ts')],
+  ],
+  [
+    '後ろの組みで off にする',
+    withBlock({ files: ['src/lib/fake.ts'], rules: { [RULE_ID]: 'off' } }),
+    [missedAt('src/lib/fake.ts')],
+  ],
+  [
+    '後ろの組みで warn にする',
+    withBlock({ files: ['src/app/page.tsx'], rules: { [RULE_ID]: 'warn' } }),
+    [missedAt('src/app/page.tsx')],
+  ],
+  [
+    'ignores から *.fixture.ts を外す',
+    withIgnores(ignores => ignores.filter(pattern => pattern !== '**/*.fixture.ts')),
+    [extraAt('src/components/Fake/container.fixture.ts')],
+  ],
+]
+const nameFailures = [
+  ...(ruleBlocks.length !== 1
+    ? [
+        `規則 ${RULE_ID} を掛ける組みが ${ruleBlocks.length} 個(偽の抜け道を入れる先が1つに決まらない)`,
+      ]
+    : []),
+  ...RULED_PATHS.filter(isExemptByName).map(file => `名前の決まり ${file}: 外れる(期待は掛かる)`),
+  ...EXEMPT_PATHS.filter(file => !isExemptByName(file)).map(
+    file => `名前の決まり ${file}: 掛かる(期待は外れる)`
+  ),
+]
+for (const [bypass, config, expected] of BYPASS_CASES) {
+  const engine = new ESLint({ cwd: ROOT, overrideConfigFile: true, overrideConfig: config })
+  const found = mismatchesOf(CHECKED_PATHS, await configsOf(engine, CHECKED_PATHS))
+  if (JSON.stringify(found) !== JSON.stringify(expected)) {
+    nameFailures.push(
+      `抜け道「${bypass}」: 拾った ${JSON.stringify(found)}(期待 ${JSON.stringify(expected)})`
+    )
+  }
+}
+if (nameFailures.length > 0) {
+  throw new Error(
+    `check-hook-rule: 自己検査(名前の決まり)に失敗(期待と違う判定): ${nameFailures.join(', ')}`
+  )
+}
+
 // ---- 実際の src ----
 const files = (existsSync(SRC_DIR) ? walk(SRC_DIR) : [])
   .map(file => toPosix(path.relative(ROOT, file)))
@@ -303,14 +406,23 @@ if (files.length === 0) {
 }
 
 // 無視されたファイルは lint されず、違反を数えられない。規則が error で掛かるファイルが無ければ、掛け方を間違えている
-const configOf = new Map(
-  await Promise.all(files.map(async file => [file, await eslint.calculateConfigForFile(file)]))
-)
+const configOf = await configsOf(eslint, files)
 const ignored = files.filter(file => configOf.get(file) === undefined)
 if (ignored.length > 0) {
   console.error(
     `check-hook-rule: src のファイルが lint の対象の外になっている(eslint.config.mjs の ignores か、基準のフォルダを疑う): ${ignored.join(', ')}`
   )
+  process.exit(1)
+}
+// 規則が掛かるかは、ファイルごとに名前の決まりと合わなければならない(ignores に実在のパスを足す抜け道を塞ぐ)
+const mismatches = mismatchesOf(files, configOf)
+if (mismatches.length > 0) {
+  console.error(
+    `check-hook-rule: 規則 ${RULE_ID} の掛かり方が名前の決まりと合わない src のファイル ${mismatches.length} 件。` +
+      '規則が外れてよいのは container.tsx・hooks/ の中の use-*.ts(x)・*.test.ts(x)・*.fixture.ts・*.test-helper.ts だけ。' +
+      'eslint.config.mjs の規則の組みの files・ignores と、後ろの組みでの上書きを直す。フックを呼ぶ部品なら、外すのではなく container.tsx にする(ADR 0019)'
+  )
+  for (const line of mismatches) console.error(`  - ${line}`)
   process.exit(1)
 }
 const ruledCount = files.filter(file => isRuled(configOf.get(file))).length
@@ -346,5 +458,5 @@ if (violations.length > 0) {
 }
 
 console.log(
-  `check-hook-rule: 自己検査(規則の判定 ${RULE_CASES.length} 件・設定の掛け方 ${CONFIG_CASES.length + LINTED_PATHS.length} 件)を通り、src の *.ts・*.tsx ${files.length} 件(規則が error で掛かるもの ${ruledCount} 件)を検査 — フックの呼び出しの違反 0 件`
+  `check-hook-rule: 自己検査(規則の判定 ${RULE_CASES.length} 件・設定の掛け方 ${CONFIG_CASES.length + LINTED_PATHS.length} 件・名前の決まり ${CHECKED_PATHS.length + BYPASS_CASES.length} 件)を通り、src の *.ts・*.tsx ${files.length} 件(規則が error で掛かるもの ${ruledCount} 件。掛かり方は全件が名前の決まりどおり)を検査 — フックの呼び出しの違反 0 件`
 )
