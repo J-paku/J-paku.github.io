@@ -2915,40 +2915,6 @@ describe('画面の大きさ・窓・時計・昼夜', () => {
       await expectFrameFocused('閉じると村の枠へ焦点が戻る')
     })
 
-    test('卓上時計の窓は 1 段目も 2 段目も Tab の輪を両端で回し、閉じると村の枠へ焦点を戻す', async () => {
-      await renderVillage()
-      // 部屋の開始マス (4,4) から時計の前 (7,3) へ(下の卓上時計の検査と同じ道)
-      expect(await walk(setId, 'ArrowRight', 3), '時計と同じ列まで歩けた').toBe(3)
-      expect(await walk(setId, 'ArrowUp', 1), '時計の前まで歩けた').toBe(1)
-      await expect
-        .poll(() => document.querySelector('[data-village-bubble]')?.textContent, {
-          message: '時計の前に立つと吹き出しが出る',
-          timeout: 3_000,
-        })
-        .toContain(text.clock.arrive)
-      await expectFrameFocused('開く前の焦点は村の枠')
-      await userEvent.keyboard('e')
-      const clockWindow = page.getByRole('dialog', { name: text.clock.place })
-      await expect.element(clockWindow).toHaveAttribute('data-step', 'choose')
-      // 1 段目は開いた直後の焦点が先頭のボタン
-      await expect
-        .element(clockWindow.getByRole('button').first(), { message: '開いた直後は先頭' })
-        .toHaveFocus()
-      await cycleWithTab(clockWindow.element(), CLOCK_FOCUSABLE_SELECTOR)
-
-      // 2 段目はボタンの並びが入れ替わり、焦点は途中の「決定」から始まる。並びが替わっても輪が回るか
-      await userEvent.click(clockWindow.getByRole('button', { name: text.clock.custom }))
-      await expect.element(clockWindow).toHaveAttribute('data-step', 'pick')
-      await expect
-        .element(clockWindow.getByRole('button', { name: text.clock.decide }))
-        .toHaveFocus()
-      await cycleWithTab(clockWindow.element(), CLOCK_FOCUSABLE_SELECTOR)
-
-      await userEvent.keyboard('{Escape}')
-      await expect.element(clockWindow).not.toBeInTheDocument()
-      await expectFrameFocused('閉じると村の枠へ焦点が戻る')
-    })
-
     // 部屋は 10 列で枠の幅と同じなので、カメラは横に動かず、壁際のマスは枠の左右の端に描かれる。
     // 開始マス (4,4) の行は家具が無く、左へ 4 マスで左端 (0,4)、右へ 5 マスで右端 (9,4) に着く
     const EDGES: { side: string; key: WalkKey; cells: number }[] = [

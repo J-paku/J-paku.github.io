@@ -546,4 +546,34 @@ describe('卓上時計(tests/clock.spec.ts)', () => {
         .toHaveTextContent(clock.setCustom.replace('{time}', `${hour}:00`))
     })
   })
+
+  // 2 段目の ◀ ▶ のボタンを押して時と分を動かす経路。上の検査は時の ▶ と矢印キー・スティックしか通らないので、
+  // 残りの 3 つ(時の ◀・分の ◀ ▶)を押して、決定がその値で段階と案内文を決めるかまで見る
+  test('2 段目の窓は時と分の前後のボタンで 1 つずつ動き、決定にその値が使われる', async () => {
+    await startAtClock()
+
+    await openClock()
+    await clickButton(clock.custom)
+    await expect.element(clockWindow()).toHaveAttribute('data-step', 'pick')
+    await expectPicked('18', '00')
+
+    // 時の ◀ は 1 時間戻す。18 時の前は 17 時
+    await clickButton(clock.prevHour)
+    await expectPicked('17', '00')
+    // 分の ▶ は 10 分進める。2 回で 20 分
+    await clickButton(clock.nextMinute)
+    await clickButton(clock.nextMinute)
+    await expectPicked('17', '20')
+    // 分の ◀ は 10 分戻す。1 回で 10 分。押し違えて ▶ と同じ向きなら 30 分になって落ちる
+    await clickButton(clock.prevMinute)
+    await expectPicked('17', '10')
+
+    await clickButton(clock.decide)
+    await expect.element(clockWindow()).not.toBeInTheDocument()
+    // 17 時は夕方の帯。決定が既定の 18 時や押す前の値を使っていても夕方になるので、段階だけでなく案内文の時刻まで見る
+    await expect.poll(phase, { message: '17 時は夕方' }).toBe('dusk')
+    await expect
+      .element(page.getByRole('status'))
+      .toHaveTextContent(clock.setCustom.replace('{time}', '17:10'))
+  })
 })
