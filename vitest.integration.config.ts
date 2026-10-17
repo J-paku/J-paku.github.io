@@ -23,8 +23,10 @@ if (CONTAINER_FIXTURES.length === 0) {
   )
 }
 
-// フックはファイルごとに、文・分岐・関数・行のすべてを100%にする(docs/decisions/0018-move-e2e-and-gate-all-hooks.md)。
-// 対象は src の下の hooks フォルダの全部(src/hooks/ を含む)。一覧を手で並べず設定を読むたびに拾うので、新しいフックは置いた時点で対象になる。
+// フックとコンテナはファイルごとに、文・分岐・関数・行のすべてを100%にする
+// (フックは docs/decisions/0018-move-e2e-and-gate-all-hooks.md、コンテナは docs/decisions/0019-hooks-make-containers.md)。
+// 対象は src の下の hooks フォルダの全部(src/hooks/ を含む)と、src の下の container.tsx の全部(I/O コンテナも状態コンテナも)。
+// 一覧を手で並べず設定を読むたびに拾うので、新しいフック・コンテナは置いた時点で対象になる。表示部品は下の全体の床にだけ入る。
 // Vitest の thresholds の perFile は glob ごとには分けられず、上の全体の床までファイル別にしてしまう
 // (node_modules/vitest の coverage の checkThresholds が thresholds.perFile だけを見る。4.1.10 で確認)。
 // そこでファイルのパスを1つずつ glob として並べてファイル別にする(単体の vitest.config.ts の COVERAGE_TARGETS と同じ形)。
@@ -36,6 +38,13 @@ const HOOK_FILES = globSync('src/**/hooks/**/*.{ts,tsx}', { cwd: ROOT })
 if (HOOK_FILES.length === 0) {
   throw new Error(`src の下の hooks フォルダにフックが 1 つも見つからない(探した起点: ${ROOT})`)
 }
+const CONTAINER_FILES = globSync('src/**/container.tsx', { cwd: ROOT })
+  .map(file => file.split(path.sep).join('/'))
+  .sort()
+if (CONTAINER_FILES.length === 0) {
+  throw new Error(`src の下に container.tsx が 1 つも見つからない(探した起点: ${ROOT})`)
+}
+const PER_FILE_TARGETS = [...HOOK_FILES, ...CONTAINER_FILES]
 // 1ファイルを文・分岐・関数・行のすべてで100%に固定するしきい値(単体の vitest.config.ts の FULL_COVERAGE と同じ)
 const FULL_COVERAGE = { statements: 100, branches: 100, functions: 100, lines: 100 }
 
@@ -47,7 +56,7 @@ const COVERAGE_EXCLUDE = [
   'src/**/*.fixture.ts',
   'src/**/*.test-helper.ts',
 ]
-// フックが1つ残らずカバレッジで測られることを、設定を読む時点で確かめる。thresholds の glob に当たるファイルがカバレッジの表に無いと、
+// フックとコンテナが1つ残らずカバレッジで測られることを、設定を読む時点で確かめる。thresholds の glob に当たるファイルがカバレッジの表に無いと、
 // Vitest は空の表を100%と数えて黙って通す。exclude に掛かる名前のフック(hooks/ の下の *.fixture.ts など)は、ファイル別100%の門を素通りする。
 // 当て方は Vitest と同じにする: coverage の include に当たり、exclude と test.include(Vitest が exclude へ足す)に当たらない物だけを測る。
 // Vitest は picomatch を contains・dot 付きで絶対パスへ当てる(node_modules/vitest の coverage の isIncluded。4.1.10 で確認)。
@@ -63,13 +72,19 @@ const isCovered = picomatch(COVERAGE_INCLUDE, {
   dot: true,
   ignore: [...COVERAGE_EXCLUDE, ...INTEGRATION_TESTS],
 })
-const UNCOVERED_HOOKS = HOOK_FILES.filter(
-  file => !isCovered(path.join(ROOT, file).split(path.sep).join('/'))
-)
+const isUncovered = (file: string) => !isCovered(path.join(ROOT, file).split(path.sep).join('/'))
+const UNCOVERED_HOOKS = HOOK_FILES.filter(isUncovered)
 if (UNCOVERED_HOOKS.length > 0) {
   throw new Error(
     `カバレッジの include から外れるか exclude に掛かるフックがある(ファイル別100%の門を黙って素通りする): ${UNCOVERED_HOOKS.join(', ')}。` +
       'フックの名前を exclude に掛からない名前にするか、テストの部品なら hooks フォルダの外へ移す(ADR 0018)'
+  )
+}
+const UNCOVERED_CONTAINERS = CONTAINER_FILES.filter(isUncovered)
+if (UNCOVERED_CONTAINERS.length > 0) {
+  throw new Error(
+    `カバレッジの include から外れるか exclude に掛かるコンテナがある(ファイル別100%の門を黙って素通りする): ${UNCOVERED_CONTAINERS.join(', ')}。` +
+      'コンテナ(container.tsx)を exclude に掛からない場所へ置く(ADR 0019)'
   )
 }
 
@@ -118,8 +133,8 @@ export default defineConfig({
       instances: [{ browser: 'chromium' }],
       screenshotDirectory: 'test-results/vitest-screenshots',
     },
-    // 測るのは --coverage を付けたときだけ。フックもここで測る(単体の設定はフックを外す)。
-    // フックは全部をファイル別100%で固める(上の HOOK_FILES。ADR 0018)。統合テストで構造上届かない行(E2E だけが作れる場合)だけを、
+    // 測るのは --coverage を付けたときだけ。フックとコンポーネントもここで測る(単体の設定はフックと components の .tsx を外す)。
+    // フックとコンテナは全部をファイル別100%で固める(上の HOOK_FILES・CONTAINER_FILES。ADR 0018・0019)。統合テストで構造上届かない行(E2E だけが作れる場合)だけを、
     // その行を見ている E2E を名指しする注釈 `/* v8 ignore next -- e2e: tests/<file>.spec.ts > <E2E のテスト名> */` で外し、
     // 名指しした E2E が実在するかを npm run test:boundary(scripts/check-coverage-ignores.mjs)が確かめる
     coverage: {
@@ -137,8 +152,8 @@ export default defineConfig({
         branches: 77,
         functions: 75,
         lines: 75,
-        // フックのファイル別100%(一覧は上の HOOK_FILES)
-        ...Object.fromEntries(HOOK_FILES.map(file => [file, FULL_COVERAGE])),
+        // フックとコンテナのファイル別100%(一覧は上の HOOK_FILES・CONTAINER_FILES)
+        ...Object.fromEntries(PER_FILE_TARGETS.map(file => [file, FULL_COVERAGE])),
       },
     },
   },
