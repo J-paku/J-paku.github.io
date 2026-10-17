@@ -35,6 +35,7 @@
 //   - hooks/ フォルダは container.tsx のあるフォルダにだけ置ける(例外は src/hooks/ と、待ちの一覧 PENDING_HOOK_DIRS)
 //   - 待ちの一覧 PENDING_HOOK_DIRS の項目が無くなった・もう違反しないときも落とす(一覧は減るだけ)
 // 待ちの一覧 PENDING_CONTAINER_FILES の項目がまだフックを呼んでいるかは check-hook-rule.mjs が ESLint の規則そのもので見る(ここでは見ない)。
+// 状態コンテナが外の世界の入口を import しないことは check-layers.mjs が見る。
 // import は scripts/read-imports.mjs で構文木から読む(注釈・文字列の中は数えない)。
 //
 // 見るのは git の追跡ではなく作業ツリー。書いたばかりの未追跡のテストも Vitest は拾って走らせるため。

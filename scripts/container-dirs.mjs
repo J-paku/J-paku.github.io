@@ -1,7 +1,10 @@
-// コンテナ(container.tsx)を置くフォルダの一覧の正本(ADR 0017 の D1)。check-layers.mjs と check-test-boundary.mjs が同じものを使う。
-// 名前が container.tsx でも、この一覧の外に置いたものはコンテナに数えない。数えると、どこにでも外の世界の import を許す場所を作れてしまうため
-// (check-layers.mjs が一覧の外の container.tsx と、一覧のフォルダに container.tsx が無いことを落とす)。
-// コンテナを足す・移すときは、この一覧と ADR 0017 の D1 を合わせて直す(利用者の決定が要る)。
+// 外の世界に触れてよいコンテナ(I/O コンテナ)を置くフォルダの一覧の正本(ADR 0019。もとは ADR 0017 の D1)。
+// check-layers.mjs と check-test-boundary.mjs が同じものを使う。
+// コンテナはフックを1つでも呼ぶ部品(container.tsx)で、この一覧のフォルダの container.tsx だけが I/O コンテナ。
+// 一覧の外の container.tsx は状態コンテナで、import の制限は表示部品と同じ(外の世界の入口を import しない)。
+// 「状態がある」と「外に触れる」は別の軸なので、状態コンテナを足すのにこの一覧は直さない。
+// I/O コンテナの外の状態コンテナは、自分で統合テストの単位になる(下の unitRootOf。I/O の許しは受けない)。
+// 外の世界に触れる場所を足す・移すときだけ、この一覧と ADR 0019 を合わせて直す(利用者の決定が要る)。
 // パスはリポジトリ直下からの '/' 区切りで、末尾に '/' を付けない。
 //
 // 使い方: import { SCREEN_CONTAINER_DIRS, SHARED_CONTAINER_DIRS, CONTAINER_DIRS } from './container-dirs.mjs'
@@ -24,6 +27,7 @@ export const SHARED_CONTAINER_DIRS = [
   'src/components/ui/ScenePlayer',
 ]
 
+// I/O コンテナの6つ(外の世界に触れてよいコンテナ)
 export const CONTAINER_DIRS = [...SCREEN_CONTAINER_DIRS, ...SHARED_CONTAINER_DIRS]
 
 // 2段階目(村)で消す待ちの一覧の2つ。どちらも減るだけで、足さない。
@@ -43,7 +47,6 @@ export const PENDING_CONTAINER_FILES = [
   'src/components/VillagePage/components/Village/components/WorldMap/index.tsx',
   'src/components/Directory/components/WorkCard/index.tsx',
   'src/components/Story/components/IntroPreview/index.tsx',
-  'src/components/Story/components/SceneModal/index.tsx',
   'src/components/Story/components/SceneSection/index.tsx',
   'src/components/Story/components/StoryBody/index.tsx',
   'src/components/Story/components/TechChipPopover/index.tsx',
@@ -59,7 +62,6 @@ export const PENDING_HOOK_DIRS = [
   'src/components/VillagePage/components/Village/components/StopModal/hooks',
   'src/components/VillagePage/components/Village/components/WorldMap/hooks',
   'src/components/Directory/components/WorkCard/hooks',
-  'src/components/Story/components/SceneModal/hooks',
   'src/components/Story/components/StoryBody/hooks',
   'src/components/Story/components/TechChipPopover/hooks',
   'src/components/ui/SettingsMenu/components/SettingsMenuView/hooks',
