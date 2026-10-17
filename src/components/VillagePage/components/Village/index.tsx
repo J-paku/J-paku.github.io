@@ -5,7 +5,7 @@ import type { DayPhase } from '@/utils/day-phase'
 // この並びの位置を保つためだけにここで読み込む(値は使わない。消すと CSS の出力順が変わる)
 import ActionButtons from './components/ActionButtons'
 import './components/ClockModal/container'
-import Joystick from './components/Joystick'
+import Joystick from './components/Joystick/container'
 import './components/Lighting'
 import './components/Minimap'
 import './components/SpeechBox'
