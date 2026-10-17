@@ -1,8 +1,7 @@
 // 実データの画面を Chromium へ描き、場面の操作と技術チップの開閉をまとめて確かめる
-import { act, cleanup, fireEvent, render } from '@testing-library/react'
+import { cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, inject, it, vi } from 'vitest'
 import { cdp, page, userEvent, type Locator } from 'vitest/browser'
-import { sceneCycleMs } from '@/utils/cycle-scenes'
 import StoryContainer from '@/components/Story/container'
 import '@/styles/tokens.css'
 
@@ -221,11 +220,6 @@ const sceneCount = scenes.length
 // 先頭・末尾の他に、途中の場面が2つ要る(途中から途中へ送る・途中の場面から CTA で開く、を端と見分けるため)
 if (sceneCount < 4) throw new Error(`${storyJa.slug} の場面が4つ未満(${sceneCount}つ)`)
 
-// 一時停止の間に進める時間。どの場面の周期(数秒)よりも十分に長く取る
-const LONG_MS = 60_000
-// 場面の文の現れ方は opacity の 1 秒の遷移(scene-section.module.css)なので、遷移を待てる長さで待つ
-const REVEAL_TIMEOUT_MS = 5_000
-
 const locateStory = () => {
   const main = page.getByRole('main')
   const dialog = page.getByRole('dialog')
@@ -247,13 +241,6 @@ const locateStory = () => {
 
 // モーダルの「今の場面 / 場面の数」。読み上げのため aria-live を持つ。モーダルが無ければ null
 const counterOf = () => document.querySelector('dialog [aria-live=polite]')
-const counterText = () => counterOf()?.textContent ?? null
-
-// 場面の番号(0始まり)を、モーダルの「今の場面 / 場面の数」の表示に直す
-const shown = (index: number) => `${index + 1} / ${sceneCount}`
-
-const expectCounter = (index: number, message?: string) =>
-  expect.poll(counterText, { message }).toBe(shown(index))
 
 // root の中で、シャドウルートに <svg> が展開された場面の数。SceneSvg は取った原文をシャドウルートへ流し込み、
 // 取れなかった場面は ScenePlayer がプレースホルダの文字に差し替える
@@ -263,30 +250,6 @@ const scenesWithSvg = (root: Element | null) =>
     : Array.from(root.querySelectorAll('*')).filter(element =>
         Boolean(element.shadowRoot?.querySelector('svg'))
       ).length
-
-// 押す前に要素へフォーカスを置いてからキーを押す(Playwright の locator.press と同じ押し方)
-const press = async (target: Locator, key: string) => {
-  target.element().focus()
-  await userEvent.keyboard(key)
-}
-
-// 偽の時計で ms だけ進める。発火した自動送りの描き直しと、それが掛け直す次のタイマーまでを act の中で済ませる
-const runFor = (ms: number) => {
-  act(() => {
-    vi.advanceTimersByTime(ms)
-  })
-}
-
-// 偽の時計は setTimeout・clearTimeout だけを差し替え、React が描き直しと effect の予約に使う MessageChannel は止めない。
-// 同じ経路で1通流して戻りを待つと、それより前に予約された描き直しと effect が済んでいる。
-// 「送られていない」を見る前と、次の runFor の前(effect が次のタイマーを掛け終える前に進めると、
-// 進めた時間がそのタイマーに数えられない)に呼ぶ
-const flushRender = () =>
-  new Promise<void>(resolve => {
-    const channel = new MessageChannel()
-    channel.port1.onmessage = () => resolve()
-    channel.port2.postMessage(null)
-  })
 
 // 画面を描き、CTA とプレビューを取り違えていないこと・プレビューに場面の絵が出たことを確かめる。
 // CTA(画面の下に固定・aria-label 無し)をプレビュー(常に先頭の場面で開く)と取り違えると CTA の検査が空回りする
@@ -322,162 +285,6 @@ describe('読み進めと場面モーダル', () => {
     cleanup()
     vi.useRealTimers()
     await cdp().send('Emulation.setEmulatedMedia', { features: [] })
-  })
-
-  it('CTA は今読んでいる場面からモーダルを開き、場面の文は画面に入ると現れる', async () => {
-    await openStory()
-    const { cta, dialog } = locateStory()
-    // 先頭でも末尾でもない場面を選ぶ。先頭だと「いつも先頭から開く」誤りと見分けられない
-    const target = sceneCount - 2
-    const section = page.getByRole('region', { name: scenes[target].title, exact: true }).element()
-    // 場面の文を包む箱。現れる前は透明で、use-reveal が表示の印を付けると不透明になる
-    const wrapper = section.querySelector(':scope > div')
-    if (wrapper === null) throw new Error('場面の文を包む箱が無い')
-    const opacity = () => getComputedStyle(wrapper).opacity
-
-    expect(
-      section.getBoundingClientRect().top,
-      '選んだ場面は最初は画面の下の外にある'
-    ).toBeGreaterThan(window.innerHeight)
-    expect(opacity(), '画面の外の場面の文はまだ現れていない').toBe('0')
-
-    // 画面の中央まで送ると現れ、今読んでいる場面になる
-    section.scrollIntoView({ block: 'center', behavior: 'instant' })
-    await expect
-      .poll(opacity, { message: '画面に入った場面の文が現れる', timeout: REVEAL_TIMEOUT_MS })
-      .toBe('1')
-
-    await cta.click()
-    await expect.element(dialog).toHaveAccessibleName(scenes[target].title)
-    await expectCounter(target)
-  })
-
-  it('前へ・次へで1つずつ送り、端ではそのボタンが無効になってフォーカスが隣のボタンへ移る', async () => {
-    // 自動送りが割り込まないよう、時計を止めてから開く(進めない限りタイマーは発火しない)
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
-    await openStory()
-    const { cta, dialog, close, prev, next } = locateStory()
-
-    await cta.click()
-    await expect.element(dialog).toHaveAccessibleName(scenes[0].title)
-    await expectCounter(0)
-    await expect.element(close, { message: '開いたら閉じるへフォーカスが乗る' }).toHaveFocus()
-    await expect.element(prev).toBeDisabled()
-    await expect.element(next).toBeEnabled()
-
-    // 末尾の1つ手前までは、押した次へにフォーカスが残る
-    for (let index = 1; index < sceneCount - 1; index += 1) {
-      await press(next, '{Enter}')
-      await expectCounter(index)
-      await expect.element(dialog).toHaveAccessibleName(scenes[index].title)
-      await expect.element(next).toHaveFocus()
-      await expect.element(prev).toBeEnabled()
-    }
-    // 末尾へ着くと次へが無効になり、フォーカスは body へ落ちずに前へへ移る
-    await press(next, '{Enter}')
-    await expectCounter(sceneCount - 1)
-    await expect.element(dialog).toHaveAccessibleName(scenes[sceneCount - 1].title)
-    await expect.element(next).toBeDisabled()
-    await expect.element(prev, { message: '末尾へ着くと次へから前へ移る' }).toHaveFocus()
-
-    // 戻りも同じ。先頭の1つ手前までは、押した前へにフォーカスが残る
-    for (let index = sceneCount - 2; index > 0; index -= 1) {
-      await press(prev, '{Enter}')
-      await expectCounter(index)
-      await expect.element(dialog).toHaveAccessibleName(scenes[index].title)
-      await expect.element(prev).toHaveFocus()
-      await expect.element(next).toBeEnabled()
-    }
-    // 先頭へ着くと前へが無効になり、フォーカスは次へへ移る
-    await press(prev, '{Enter}')
-    await expectCounter(0)
-    await expect.element(dialog).toHaveAccessibleName(scenes[0].title)
-    await expect.element(prev).toBeDisabled()
-    await expect.element(next, { message: '先頭へ着くと前へから次へ移る' }).toHaveFocus()
-  })
-
-  it('自動送りは場面の周期ちょうどで次へ進み、一時停止の間はどれだけ時間が経っても送らない', async () => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
-    await openStory()
-    const { cta, pause, resume, next } = locateStory()
-
-    await cta.click()
-    await expectCounter(0)
-    await flushRender()
-    // 周期の 1ms 手前ではまだ送らず、周期ちょうどで送る
-    runFor(sceneCycleMs(scenes[0].id) - 1)
-    await flushRender()
-    expect(counterText(), '周期の 1ms 手前ではまだ送らない').toBe(shown(0))
-    runFor(1)
-    await expectCounter(1, '周期ちょうどで次へ送る')
-    await flushRender()
-
-    // 画面そのものを押すと一時停止し、ボタンの名前が再開へ入れ替わる
-    await pause.click()
-    await expect.element(resume).toBeVisible()
-    await flushRender()
-    runFor(LONG_MS)
-    await flushRender()
-    expect(counterText(), '一時停止の間は送らない').toBe(shown(1))
-
-    // 手で送っても一時停止は解けない
-    await next.click()
-    await expectCounter(2)
-    await expect.element(resume).toBeVisible()
-    await flushRender()
-    runFor(LONG_MS)
-    await flushRender()
-    expect(counterText(), '手で送った後も一時停止のまま').toBe(shown(2))
-
-    // 再開すると、今の場面の周期で次へ送る
-    await resume.click()
-    await expect.element(pause).toBeVisible()
-    await flushRender()
-    runFor(sceneCycleMs(scenes[2].id))
-    await expectCounter(3, '再開すると今の場面の周期で送る')
-  })
-
-  it('自動送りで端へ着く時は、無効になるボタンに乗っていたフォーカスだけを逃がし、他のフォーカスは奪わない', async () => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
-    await openStory()
-    const { cta, close, pause, prev, next } = locateStory()
-    // index の場面の周期だけ進め、expected の場面へ送られて次のタイマーが掛かるまで待つ
-    const advance = async (index: number, expected: number) => {
-      runFor(sceneCycleMs(scenes[index].id))
-      await expectCounter(expected)
-      await flushRender()
-    }
-
-    await cta.click()
-    await expectCounter(0)
-    await flushRender()
-
-    // 1周目: 画面そのもの(一時停止のボタン)にフォーカスを置いたまま送る。末尾へ着いても先頭へ巡っても動かさない
-    pause.element().focus()
-    for (let index = 1; index < sceneCount; index += 1) {
-      await advance(index - 1, index)
-      await expect.element(pause).toHaveFocus()
-    }
-    await expect.element(next).toBeDisabled()
-    await advance(sceneCount - 1, 0)
-    await expect
-      .element(pause, { message: '先頭へ巡っても、前へ以外に乗ったフォーカスは奪わない' })
-      .toHaveFocus()
-
-    // 2周目: 次へにフォーカスを置く。途中では動かさず、末尾へ着くと無効になる次へから前へ逃がす
-    next.element().focus()
-    for (let index = 1; index < sceneCount - 1; index += 1) {
-      await advance(index - 1, index)
-      await expect.element(next).toHaveFocus()
-    }
-    await advance(sceneCount - 2, sceneCount - 1)
-    await expect.element(next).toBeDisabled()
-    await expect.element(prev, { message: '末尾へ着くと次へから前へ逃がす' }).toHaveFocus()
-
-    // 前へに乗ったまま末尾から先頭へ巡ると、無効になる前へから閉じるへ逃がす
-    await advance(sceneCount - 1, 0)
-    await expect.element(prev).toBeDisabled()
-    await expect.element(close, { message: '先頭へ巡ると前へから閉じるへ逃がす' }).toHaveFocus()
   })
 
   it('Esc・閉じる・余白のどれで閉じても開いたボタンへフォーカスが戻り、背景は開いている間だけ止まる', async () => {
@@ -518,38 +325,6 @@ describe('読み進めと場面モーダル', () => {
   })
 
   // ここから下の2件は E2E から移したものではない。フックの分岐(場面の数の変化・開発時の二重実行)を、利用者に見える形で確かめる
-
-  it('別の作品の場面の並びへ描き直すと、今読んでいる場面を先頭へ戻し、CTA は新しい並びの先頭から開く', async () => {
-    const { rerender } = render(<StoryContainer {...storyJa} />)
-    const { cta, dialog } = locateStory()
-    // 末尾の場面まで読み進め、CTA がその場面から開くことを確かめてから閉じる。
-    // 今読んでいる場面の印と場面の文の現れ方は同じ描画の回で観察の通知を受けるので、文が現れるのを待ってから押す
-    const last = sceneCount - 1
-    const lastSection = page
-      .getByRole('region', { name: scenes[last].title, exact: true })
-      .element()
-    const lastWrapper = lastSection.querySelector(':scope > div')
-    if (lastWrapper === null) throw new Error('場面の文を包む箱が無い')
-    lastSection.scrollIntoView({ block: 'center', behavior: 'instant' })
-    await expect
-      .poll(() => getComputedStyle(lastWrapper).opacity, { timeout: REVEAL_TIMEOUT_MS })
-      .toBe('1')
-    await cta.click()
-    await expect.element(dialog).toHaveAccessibleName(scenes[last].title)
-    await userEvent.keyboard('{Escape}')
-    await expect.element(dialog).not.toBeInTheDocument()
-
-    // 別の作品へ移った時と同じく、ページの先頭へ戻ってから場面の数の違う並びで描き直す。
-    // 先頭では中央の判定帯にどの場面も掛からない(1280×720 で先頭の場面は帯より下から始まる)ので、観察の通知では今の場面が変わらない
-    window.scrollTo(0, 0)
-    const otherScenes = scenes.slice(0, 2).map(scene => ({ ...scene, id: `${scene.id}-other` }))
-    rerender(<StoryContainer {...storyJa} story={{ ...story, scenes: otherScenes }} />)
-
-    // 前の作品の末尾の添字を引きずると、新しい並びに無い場面を開こうとする
-    await cta.click()
-    await expect.element(dialog).toHaveAccessibleName(otherScenes[0].title)
-    await expect.poll(counterText).toBe(`1 / ${otherScenes.length}`)
-  })
 
   it('開発時の二重実行(StrictMode)でも、モーダルは開いたまま閉じるへフォーカスが乗り、閉じると背景の固定を解く', async () => {
     render(<StoryContainer {...storyJa} />, { reactStrictMode: true })
