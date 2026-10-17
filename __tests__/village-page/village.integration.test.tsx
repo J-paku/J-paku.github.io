@@ -14,7 +14,7 @@ import { useLayoutEffect } from 'react'
 import { inject } from 'vitest'
 import { page } from 'vitest/browser'
 import { clearVillageProgress } from '@/lib/preferences'
-import VillagePageContainer from './container'
+import VillagePageContainer from '@/components/VillagePage/container'
 import { userEvent } from 'vitest/browser'
 import type { Cell, Direction, Spot, World, WorldSet } from '@content/types/world'
 import { readVisited, writePosition, writeVisited } from '@/lib/preferences'
@@ -35,15 +35,19 @@ import {
   UMBRELLA_CLOSE_MS,
   UMBRELLA_OPEN_MS,
 } from '@/lib/village/player-pose'
-import { CELL_MIN, cellMax, computeCell } from './components/Village/utils/stage-scale'
+import {
+  CELL_MIN,
+  cellMax,
+  computeCell,
+} from '@/components/VillagePage/components/Village/utils/stage-scale'
 import {
   CLOCK_FOCUSABLE_SELECTOR,
   MAP_FOCUSABLE_SELECTOR,
   STOP_FOCUSABLE_SELECTOR,
-} from './components/Village/utils/focusables'
-import { spotToward } from './components/Village/components/WorldMap/utils/spot-navigation'
-import { headToSpeech } from './components/Village/utils/spot-text'
-import { useVillageTime } from './hooks/use-village-time'
+} from '@/components/VillagePage/components/Village/utils/focusables'
+import { spotToward } from '@/components/VillagePage/components/Village/components/WorldMap/utils/spot-navigation'
+import { headToSpeech } from '@/components/VillagePage/components/Village/utils/spot-text'
+import { useVillageTime } from '@/components/VillagePage/hooks/use-village-time'
 import {
   FRAME_MS,
   HOLD_MS,

@@ -7,7 +7,7 @@ import { onTestFinished } from 'vitest'
 import type { Cell, World } from '@content/types/world'
 import { readPosition } from '@/lib/preferences'
 import { isWalkable } from '@/lib/village/collision'
-import { VIEW_COLS } from './components/Village/utils/stage-scale'
+import { VIEW_COLS } from '@/components/VillagePage/components/Village/utils/stage-scale'
 import { onEachFrame, stepFrame, villageFrame } from './village-walk.test-helper'
 
 // 飛ぶコマの頭。続きは向き(down / up / right。左は right の反転)と、雲の縁だけが変わる 0 / 1

@@ -25,7 +25,7 @@ happy-dom でコンポーネントを描くテストは、ここでは「統合�
 
 [0007](0007-component-tests-happy-dom.md) は happy-dom の統合テストを足したとき、対象を**環境で分かれる出し分け**だけに絞り、
 寸法・rAF に依存する村(`src/components/VillagePage/`)は対象にしないとした。そのときの対象は作品カード
-(当時の `WorkCard` の隣の `index.test.tsx`。今は [0017](0017-screen-containers.md) で断定を `src/components/Directory/container.browser.test.tsx` へ移して消した)1つだった。
+(当時の `WorkCard` の隣の `index.test.tsx`。今は [0017](0017-screen-containers.md) で断定を、当時の `src/components/Directory/` の `container.browser.test.tsx` へ移して消した)1つだった。
 
 2026-09-29 に、happy-dom で走るテストを5つのコミットで足した。
 

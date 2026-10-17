@@ -1,4 +1,4 @@
-// 村の統合テスト(container.browser.test.tsx)で歩く・押す・待つ・保存された現在地と見え方を読む共通の手順。
+// 村の統合テスト(village.integration.test.tsx)で歩く・押す・待つ・保存された現在地と見え方を読む共通の手順。
 // E2E の tests/village.helpers.ts と同じ押し方(1 マス分押して離し、到着を保存位置の変化で知る)で歩く。
 // 時間はテストの describe ごとに 2 通りで進む(偽の時計の掛け方は village-time.test-helper.ts の startVillageClock)。
 //   - rAF まで偽の時計に載せた時(frames): 1 フレーム(16ms)ずつ偽の時計を進める。歩行ループ・釣り・傘・飛行の時間割は
@@ -236,7 +236,7 @@ const CURRENT: Record<
 // 天気にだけ決めた応答を返し、ほかの問い合わせは断る。ファイル先頭の beforeEach が敷く晴れを上書きする
 // (後から stubGlobal した方が効く)。戻り値の calls() は天気へ実際に問い合わせが届いた回数で、
 // 応答の前に数えて「まだ出ていない」を通してしまうのを防ぐ。
-// 戻すのは container.browser.test.tsx の afterEach の vi.unstubAllGlobals
+// 戻すのは village.integration.test.tsx の afterEach の vi.unstubAllGlobals
 export const stubWeather = (kind: WeatherKind) => {
   let calls = 0
   vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
@@ -273,7 +273,7 @@ export const emulateTouch = (maxTouchPoints = 1) =>
 // setTouchEmulationEnabled の maxTouchPoints: 0 は 1〜16 の外として CDP が断る)。
 // 村の CSS とフックは pointer: coarse かどうかで分けるので、none でもマウスの端末と同じに描く
 // (hover: hover and pointer: fine で隠すスティックは、帯ごと隠れている)。coarse へ戻っていないことは
-// container.browser.test.tsx の先頭の beforeEach が、どのテストの始めにも前提として確かめる
+// village.integration.test.tsx の先頭の beforeEach が、どのテストの始めにも前提として確かめる
 export const resetEmulation = async () => {
   await cdp().send('Emulation.setEmulatedMedia', { features: [] })
   await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false })

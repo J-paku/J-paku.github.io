@@ -5,7 +5,7 @@
 import { render } from '@testing-library/react'
 import { page } from 'vitest/browser'
 import type { WorkStoryScene } from '@content/types/content'
-import ScenePlayer from './container'
+import ScenePlayer from '@/components/ui/ScenePlayer/container'
 
 // 取れなかった場面に出す文言。この部品は渡された文字列をそのまま出すだけなので、テストの値を渡す
 const PLACEHOLDER = 'scene unavailable'

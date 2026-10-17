@@ -2,7 +2,7 @@
 // 村の段階(data-phase)と夜の灯りに効き、町へ出ても続くのに、再読み込みでは実時刻へ戻ることを見る。
 // 再読み込みは統合テストの中では作れない(読み込み直すとテストごと消える)ので、この 1 本を E2E に残す。
 // 窓の操作(1次と2次・取消し・Escape・Z/X・矢印キー・スティックと A/B)と、再読み込みの前までの同じ流れは、
-// 村の統合テスト(src/components/VillagePage/container.browser.test.tsx)が見る(docs/decisions/0018-move-e2e-and-gate-all-hooks.md)。
+// 村の統合テスト(__tests__/village-page/village.integration.test.tsx)が見る(docs/decisions/0018-move-e2e-and-gate-all-hooks.md)。
 // 窓の操作も段階も灯りも言語では変わらないので ja だけで見る(docs/decisions/0015-trim-e2e-overlap-and-ko.md)
 import { expect, type Locator, type Page } from '@playwright/test'
 import type { ClockText, VillageText } from '@content/types/world'
@@ -52,7 +52,7 @@ const openClock = async (page: Page) => {
 
 // 主人公のランタンが本当に描かれているか。昼夜の出し分けは CSS なので要素は昼も DOM に残り、
 // 「ある・ない」では判定できない。どの手段で消していても取り逃さないよう、display・visibility・
-// 不透明度・面積を先祖まで遡って見る(村の統合テストの src/components/VillagePage/village-walk.test-helper.ts の isPainted と同じ物差し)
+// 不透明度・面積を先祖まで遡って見る(村の統合テストの __tests__/village-page/village-walk.test-helper.ts の isPainted と同じ物差し)
 const playerLightPainted = (page: Page) =>
   page.evaluate(selector => {
     const element = document.querySelector(selector)

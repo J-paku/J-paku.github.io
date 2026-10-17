@@ -29,7 +29,7 @@ const ENTRY_FILES = [
   'content/AGENTS.md',
   'content/README.md',
 ]
-const SCAN_DIRS = ['docs', 'src', 'scripts', 'tests', 'content']
+const SCAN_DIRS = ['docs', 'src', 'scripts', 'tests', '__tests__', 'content']
 const SKIP_DIRS = new Set([
   'node_modules',
   '.git',

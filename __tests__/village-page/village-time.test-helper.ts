@@ -1,7 +1,7 @@
-// 村の統合テスト(container.browser.test.tsx)が時間を差し替える手順。段階ごとの瞬間・偽の時計の掛け方と、
+// 村の統合テスト(village.integration.test.tsx)が時間を差し替える手順。段階ごとの瞬間・偽の時計の掛け方と、
 // 段階が替わる時に読むシートの絵の取得(ネットワーク)の差し替えをここに置く。
 // 描く道具(@testing-library/react・react-dom)はここから import しない(npm run test:boundary)。
-// 偽の時計を外す(vi.useRealTimers)のと差し替えた Image を戻す(vi.unstubAllGlobals)のは、container.browser.test.tsx の
+// 偽の時計を外す(vi.useRealTimers)のと差し替えた Image を戻す(vi.unstubAllGlobals)のは、village.integration.test.tsx の
 // ファイル先頭の afterEach が毎回行う。どの describe で掛けた時計も、次のテストへ持ち越さない
 import { vi } from 'vitest'
 import type { DayPhase } from '@/utils/day-phase'

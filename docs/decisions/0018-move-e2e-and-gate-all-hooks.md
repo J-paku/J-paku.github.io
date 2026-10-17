@@ -109,7 +109,7 @@ Accepted(2026-10-15、利用者の決定)。次の部分を置き換える。
   (ja/ko のループは言語ごとに1件と数えるので、Context の63件(spec の中の test() の数)とは数え方が違う)。
   spec ごとの消した件数/元の件数は、layout 6/7・day-night 6/8・night-transition 0/3・clock 9/10・dialog-focus 5/5・fishing 9/10・idle-loop 4/4・flight 12/12・umbrella 5/5・story 5/5・scene-refetch 1/1。
   dialog-focus・idle-loop・flight・umbrella・story・scene-refetch の6ファイルは spec ごと消した。
-  移した先は、村は `src/components/VillagePage/container.browser.test.tsx`、作品ストーリーは `src/components/Story/container.browser.test.tsx`
+  移した先は、村は `src/components/VillagePage/` の、作品ストーリーは `src/components/Story/` の `container.browser.test.tsx`(どちらも当時の置き場。`__tests__` の下へ移した)
 - **欠陥の入れ方。** 消した E2E のテストの1件ごとに、製品のコードへ欠陥を入れ、ビルドした配信物でその E2E が落ち、対応する統合テストも落ちるのを確かめてから消した。
   欠陥を入れたパッチはコミットしていない
 - **E2E に残したテスト(8件)と理由。**
