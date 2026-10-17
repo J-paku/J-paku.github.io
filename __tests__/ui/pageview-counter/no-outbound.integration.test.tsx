@@ -1,8 +1,8 @@
-// ページ移動の計測(PageviewCounter)の統合テスト(Vitest Browser Mode)。実際の Chromium で描く。
+// ページ移動の計測(PageviewCounter)の統合テスト(Vitest Browser Mode)のうち、外への送信。実際の Chromium で描く。
 // ルーターの外で描くので、App Router が usePathname へ経路を渡すのと同じ文脈(Next の PathnameContext)で経路を与え、
 // 別の経路で描き直して移動を再現する。next/navigation は差し替えず、本物の usePathname がその文脈を読む。
-// GoatCounter の送信関数(window.goatcounter.count)を偽物に替えて、何回・どのパスで数えさせるかを確かめる。
-// 計測タグ(count.js)を読み込むのはこの部品ではないので描かず、偽物の送信関数の外へは何も出さない
+// GoatCounter の送信関数(window.goatcounter.count)を偽物に替えて、偽物の外へは何も出さないことを確かめる。
+// 計測タグ(count.js)を読み込むのはこの部品ではないので描かない
 import { cleanup, render } from '@testing-library/react'
 import { StrictMode } from 'react'
 import type { ReactNode } from 'react'
@@ -15,7 +15,7 @@ import PageviewCounter from '@/components/ui/PageviewCounter/container'
 // 読み込み時の経路
 const INITIAL_PATHNAME = '/list/'
 
-// 外へ通信させない。呼ばれたら「外への送信」の検査で落ちる
+// 外へ通信させない。呼ばれたら下の検査で落ちる
 const rejectFetch = (): Promise<Response> => Promise.reject(new Error('テストでは通信しない'))
 
 let count = vi.fn<(vars: { path: string }) => void>()
@@ -48,30 +48,6 @@ afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
   delete window.goatcounter
-})
-
-describe('数える回数', () => {
-  it('読み込み時のパスは数えない(読み込みの1件は計測タグ自身が送る)', () => {
-    renderCounter()
-
-    expect(count).not.toHaveBeenCalled()
-  })
-
-  it('経路が変わるたびに、移った先のパスを1件ずつ数え、同じ経路のままの描き直しでは数えない', () => {
-    const { rerender } = renderCounter()
-
-    navigate(rerender, '/works/sample/')
-    expect(count).toHaveBeenCalledTimes(1)
-    expect(count).toHaveBeenLastCalledWith({ path: '/works/sample/' })
-
-    navigate(rerender, '/works/sample/')
-    expect(count).toHaveBeenCalledTimes(1)
-
-    // 読み込み時のパスへ戻る移動も1件として数える
-    navigate(rerender, INITIAL_PATHNAME)
-    expect(count).toHaveBeenCalledTimes(2)
-    expect(count).toHaveBeenLastCalledWith({ path: INITIAL_PATHNAME })
-  })
 })
 
 describe('外への送信', () => {
