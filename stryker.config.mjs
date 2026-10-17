@@ -34,9 +34,13 @@ const config = {
   // 前回の結果をファイルに残し、次の実行では変わった変異体だけを走らせる。CI はこのファイルを
   // キャッシュで持ち回るので、push ごとに全部を走らせずに済む。
   // 穴: 比べるのは mutate のファイルとテストファイルだけで、依存パッケージ・設定・mutate のファイルが
-  // import する別のファイルが変わっても気付かず、前回の結果を使い回す。
+  // import する別のファイル・テストが import する別のファイル(*.test-helper.ts・*.fixture.ts など)が変わっても
+  // 気付かず、前回の結果を使い回す。前回落とした変異体は、今は生き残るとしても落としたままと数える(2026-10-18 に実測)。
   // 埋め方: 週1回、手で npm run test:mutation -- --force を走らせて全部を測り直す。CI のキャッシュの鍵には
-  // package-lock.json・この設定・vitest.config.ts の指紋を入れ、どれかが変わると結果を引き継がずに全部を走らせる
+  // package-lock.json・この設定・vitest.config.ts の指紋を入れ、どれかが変わると結果を引き継がずに全部を走らせる。
+  // 逆向きの穴(前回の生き残りを使い回し、テストを直しても落ち続ける)は、npm run test:mutation の入口の
+  // scripts/run-mutation.mjs が埋める。走らせる前に結果ファイルから落とせなかった変異体を取り除き、毎回測り直させる
+  // (npx stryker run を直接叩くと通らない。理由と実測は scripts/run-mutation.mjs の注釈)
   incremental: true,
   incrementalFile: 'reports/stryker-incremental.json',
   tempDirName: '.stryker-tmp',

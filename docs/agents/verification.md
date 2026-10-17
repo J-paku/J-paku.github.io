@@ -45,6 +45,7 @@ last_reviewed: 2026-10-17
 - E2E は表が指す spec だけ(`npx playwright test tests/journey.spec.ts` のように)
 - `npm run test:mutation` は、純粋モジュール(変異テストの対象。`scripts/gate-targets.mjs` の `MUTATION_TARGETS`)かそのテストを変えたときだけ。
   既定は前回の結果を引き継ぎ、変わった変異体だけを走らせる。git のフックで毎回走らせることはしない。
+  テストが import する補助のファイル(`*.test-helper.ts`・`*.fixture.ts`)だけを変えたときも `-- --force` を付ける(既定の実行はそのファイルを比べず、前回落とした変異体を落としたままと数える)。
   変異体を全部走らせるのは週1回、手で `npm run test:mutation -- --force`([../decisions/0013-incremental-mutation-on-push.md](../decisions/0013-incremental-mutation-on-push.md))
 
 `npm run typecheck` を入れないのは、`npm run build` の `next build` が同じ `tsconfig.json` で型を検査するから。
