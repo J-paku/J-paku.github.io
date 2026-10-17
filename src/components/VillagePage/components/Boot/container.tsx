@@ -74,6 +74,9 @@ function Boot({ name }: BootProps) {
     const timers = runBoot(boot)
     return () => {
       timers.forEach(id => window.clearTimeout(id))
+      // 手順を止めたら、この effect が立てた印も下ろす(script が立てた印の時は上で返すので、ここへは来ない)。
+      // 開発の StrictMode は effect を片付けてすぐ走らせ直すので、印を残すと走らせ直した effect が印を見て何もせず、覆いが外れない
+      boot.removeAttribute('data-run')
     }
   }, [])
 
