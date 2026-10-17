@@ -2,7 +2,7 @@
 // 村の段階(data-phase)と夜の灯りに効き、町へ出ても続くのに、再読み込みでは実時刻へ戻ることを見る。
 // 再読み込みは統合テストの中では作れない(読み込み直すとテストごと消える)ので、この 1 本を E2E に残す。
 // 窓の操作(1次と2次・取消し・Escape・Z/X・矢印キー・スティックと A/B)と、再読み込みの前までの同じ流れは、
-// 村の統合テスト(__tests__/village-page/village.integration.test.tsx)が見る(docs/decisions/0018-move-e2e-and-gate-all-hooks.md)。
+// 村の統合テスト(__tests__/village-page/desk-clock.integration.test.tsx)が見る(docs/decisions/0018-move-e2e-and-gate-all-hooks.md)。
 // 窓の操作も段階も灯りも言語では変わらないので ja だけで見る(docs/decisions/0015-trim-e2e-overlap-and-ko.md)
 import { expect, type Locator, type Page } from '@playwright/test'
 import type { ClockText, VillageText } from '@content/types/world'
