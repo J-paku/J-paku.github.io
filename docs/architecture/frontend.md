@@ -83,7 +83,7 @@ src/components/Directory/components/WorkCard/
   横断部品の外の世界に触れるフック(テーマの保存・場面 SVG の原本の取得)も、その I/O コンテナの隣の `hooks` フォルダに置く
 - その部品の DOM の中で閉じる UI のフックは、それを呼ぶ状態コンテナのフォルダの `hooks` フォルダに置く(`src/components/Directory/components/WorkCard/hooks/`・
   `src/components/Story/components/StoryBody/hooks/use-active-scene.ts`(今読んでいる場面を `IntersectionObserver` で追う)など)。
-  村の `src/components/VillagePage/components/Village/hooks/`(窓のフォーカスの輪と押しっぱなしの向き)などは隣にコンテナが無く、2つめの段階まで待ちの一覧の例外。
+  村の窓のフォーカスの輪と押しっぱなしの向き(`src/hooks/use-dialog-focus.ts`・`src/hooks/use-held-direction.ts`)は、窓の3つ(ClockModal・StopModal・WorldMap)の `hooks` が使うので `src/hooks/` に置く。
   画面のフォルダの直下の `hooks` フォルダは I/O コンテナの隣のフォルダなので、UI のフックを置かない。横断するものだけ `src/hooks/` に置く(`src/hooks/` は外の世界に触れず、import の制限は表示部品と同じ)
 - 命名は `use-` 始まりの kebab-case
 - `hooks` フォルダには `use-` 始まりのフック以外を置かない。テストも置かない(フックは配線だけを持ち、ロジックは純粋関数へ移して測る。

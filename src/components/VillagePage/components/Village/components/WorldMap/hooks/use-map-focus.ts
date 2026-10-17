@@ -4,9 +4,9 @@ import { useRef, type KeyboardEvent, type RefObject } from 'react'
 import type { Direction } from '@content/types/world'
 import type { MapEntry } from '@/lib/village/map-entries'
 
-import { useDialogFocus } from '../../../hooks/use-dialog-focus'
-import { useHeldDirection } from '../../../hooks/use-held-direction'
-import { MAP_FOCUSABLE_SELECTOR } from '../../../utils/focusables'
+import { useDialogFocus } from '@/hooks/use-dialog-focus'
+import { useHeldDirection } from '@/hooks/use-held-direction'
+import { MAP_FOCUSABLE_SELECTOR } from '@/utils/focusables'
 import { spotToward } from '../utils/spot-navigation'
 
 type UseMapFocusParams = {

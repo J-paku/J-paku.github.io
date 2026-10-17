@@ -24,7 +24,7 @@
 4. **保存は `src/lib/preferences.ts` 経由。** `sessionStorage` を直接触らない。窓口を import するのはコンテナの隣の `hooks/` だけ(表示部品からは呼ばない)
 5. 歩行ループ(`hooks/use-walk-loop/use-walk-loop.ts`。フレームの中身は `components/Village/utils/walk-loop/` に分けてある)は rAF の中で **DOM へ直接書く**。React state を経由させない(再レンダーで駒が飛ぶ)
 6. `hooks/use-stage-scale.ts` は `--cell` と `--band` を実測で書く(寸法の計算式は `components/Village/utils/stage-scale.ts`)。重ね表示(会話窓・地図)は `--band` を超えて操作帯を覆わない
-7. 村の枠の中に出す窓(会話窓 `StopModal`・卓上時計の窓 `ClockModal`・拡大地図 `WorldMap`)は `role='dialog'` + `aria-modal='true'` の `div` と手製のフォーカストラップ(`components/Village/hooks/use-dialog-focus.ts`)で作る。
+7. 村の枠の中に出す窓(会話窓 `StopModal`・卓上時計の窓 `ClockModal`・拡大地図 `WorldMap`)は `role='dialog'` + `aria-modal='true'` の `div` と手製のフォーカストラップ(`src/hooks/use-dialog-focus.ts`)で作る。
    ネイティブ `<dialog>` の `showModal()` は top layer へ出て操作帯(`--band`)を覆うので使わない(守ること 6)。
    `showModal()` を使うのは村の外の全画面モーダル(作品ストーリーの場面モーダル `src/components/Story/components/SceneModal/`)だけ → [../../../docs/quality/accessibility.md](../../../docs/quality/accessibility.md)
 8. **街灯だけは主人公の上にも描く層がある** — `components/Village/components/LampVeil/`(`.world` の中・`.terrain` の外・z 3)。

@@ -37,7 +37,7 @@ DOMを使うutils・歩行ループの部品の単体テスト、`hooks`フォ�
   配信物に対してE2E・axe・Lighthouse CI・日本語改行の検査(`.github/workflows/deploy.yml`)
 - カバレッジの床は全体で1つの値で、「目標値ではなく、テストを消したり測られないコードを増やしたりしたときに落とすためのもの」([../quality/test-strategy.md](../quality/test-strategy.md))。ファイルごとの下限は無かった
 - テストが欠陥を本当に落とせるかは、「新しい検査は必ず一度落とす」([../quality/test-strategy.md](../quality/test-strategy.md))として人が手で壊して確かめる約束で、機械では確かめていなかった
-- 0009が対象にした形の、フックを`renderHook`で呼ぶ単体テストは、`src/components/VillagePage/components/Village/hooks/`の中に4つある
+- 0009が対象にした形の、フックを`renderHook`で呼ぶ単体テストは、当時の`Village`の`hooks`フォルダの中に4つある
   (`use-map-data`・`use-village-time`・`use-village-world`と、`use-village-overlay`の中の`use-village-travel`)
 
 ## Decision

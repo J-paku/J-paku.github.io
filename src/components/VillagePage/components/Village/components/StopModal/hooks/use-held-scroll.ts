@@ -8,8 +8,8 @@ import type { RefObject } from 'react'
 
 import type { Direction } from '@content/types/world'
 
-import { useHeldDirection } from '../../../hooks/use-held-direction'
-import { focusablesIn, STOP_FOCUSABLE_SELECTOR } from '../../../utils/focusables'
+import { useHeldDirection } from '@/hooks/use-held-direction'
+import { focusablesIn, STOP_FOCUSABLE_SELECTOR } from '@/utils/focusables'
 
 // 押しっぱなしの間、1フレームで動かす本文スクロール量(px)
 const SCROLL_STEP = 6
