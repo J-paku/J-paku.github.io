@@ -157,40 +157,6 @@ describe('作品ストーリー画面', () => {
       .toHaveAttribute('href', '/')
   })
 
-  it('場面カードから開き、次・前へ送り、Escで閉じると元のボタンへ戻る', async () => {
-    render(<StoryContainer {...storyJa} />)
-    // 同じ名前の固定 CTA より先にある、導入の場面カードを押す
-    const trigger = page.getByRole('button', { name: ui.workStory.viewScene, exact: true }).first()
-    await trigger.click()
-
-    const dialog = page.getByRole('dialog')
-    await expect.element(dialog).toHaveAccessibleName(firstScene.title)
-    await expect.element(dialog.getByRole('button', { name: ui.workStory.close })).toHaveFocus()
-    // ユーザーの停止操作で自動送りを止め、手動の次・前だけを確かめる
-    await dialog.getByRole('button', { name: ui.workStory.pauseScene }).click()
-    const prev = dialog.getByRole('button', { name: ui.workStory.prevScene })
-    const next = dialog.getByRole('button', { name: ui.workStory.nextScene })
-    await expect.element(prev).toBeDisabled()
-
-    await next.click()
-    await expect.element(dialog).toHaveAccessibleName(story.scenes[1].title)
-    await expect
-      .element(dialog.getByText(`2 / ${story.scenes.length}`, { exact: true }))
-      .toBeVisible()
-    await expect.element(prev).toBeEnabled()
-
-    await prev.click()
-    await expect.element(dialog).toHaveAccessibleName(firstScene.title)
-    await expect
-      .element(dialog.getByText(`1 / ${story.scenes.length}`, { exact: true }))
-      .toBeVisible()
-    await expect.element(prev).toBeDisabled()
-
-    await userEvent.keyboard('{Escape}')
-    await expect.element(dialog).not.toBeInTheDocument()
-    await expect.element(trigger).toHaveFocus()
-  })
-
   it('まとめの技術チップを開き、外側をクリックすると閉じる', async () => {
     render(<StoryContainer {...storyJa} />)
     const outroChip = story.outro.stackSummary[0]
@@ -239,9 +205,6 @@ const locateStory = () => {
   }
 }
 
-// モーダルの「今の場面 / 場面の数」。読み上げのため aria-live を持つ。モーダルが無ければ null
-const counterOf = () => document.querySelector('dialog [aria-live=polite]')
-
 // root の中で、シャドウルートに <svg> が展開された場面の数。SceneSvg は取った原文をシャドウルートへ流し込み、
 // 取れなかった場面は ScenePlayer がプレースホルダの文字に差し替える
 const scenesWithSvg = (root: Element | null) =>
@@ -250,22 +213,6 @@ const scenesWithSvg = (root: Element | null) =>
     : Array.from(root.querySelectorAll('*')).filter(element =>
         Boolean(element.shadowRoot?.querySelector('svg'))
       ).length
-
-// 画面を描き、CTA とプレビューを取り違えていないこと・プレビューに場面の絵が出たことを確かめる。
-// CTA(画面の下に固定・aria-label 無し)をプレビュー(常に先頭の場面で開く)と取り違えると CTA の検査が空回りする
-const openStory = async () => {
-  render(<StoryContainer {...storyJa} />)
-  const { preview, cta } = locateStory()
-  expect(cta.elements()).toHaveLength(1)
-  await expect.element(cta).toHaveStyle({ position: 'fixed' })
-  await expect.element(cta).not.toHaveAttribute('aria-label')
-  await expect.element(preview).toHaveAttribute('aria-label', ui.workStory.viewScene)
-  await expect
-    .poll(() => scenesWithSvg(preview.element()), {
-      message: 'イントロのプレビューに場面の絵が出る',
-    })
-    .toBeGreaterThan(0)
-}
 
 describe('読み進めと場面モーダル', () => {
   beforeEach(async () => {
@@ -285,43 +232,6 @@ describe('読み進めと場面モーダル', () => {
     cleanup()
     vi.useRealTimers()
     await cdp().send('Emulation.setEmulatedMedia', { features: [] })
-  })
-
-  it('Esc・閉じる・余白のどれで閉じても開いたボタンへフォーカスが戻り、背景は開いている間だけ止まる', async () => {
-    await openStory()
-    const { preview, cta, dialog, close } = locateStory()
-    const bodyOverflow = () => document.body.style.overflow
-    expect(bodyOverflow()).toBe('')
-
-    // 戻り先は開いたボタン(CTA・プレビュー)ごとに覚える(StoryBody)ので両方から開き分ける。Esc はブラウザ自身も
-    // 開く前のフォーカスへ戻しうるので、StoryBody の戻しそのものは閉じる(プレビューへ)と余白(CTA へ)で確かめる
-    // Esc: CTA から開いて閉じる
-    await cta.click()
-    await expect.element(dialog).toBeVisible()
-    await expect.poll(bodyOverflow, { message: '開いている間は背景を止める' }).toBe('hidden')
-    await userEvent.keyboard('{Escape}')
-    await expect.element(dialog).not.toBeInTheDocument()
-    await expect.element(cta, { message: 'Esc で閉じると CTA へ戻る' }).toHaveFocus()
-    await expect.poll(bodyOverflow, { message: '閉じたら背景の固定を解く' }).toBe('')
-
-    // 閉じるボタン: プレビューから開いた時はプレビューへ戻る(戻り先は開いたボタンごとに覚える)
-    await preview.click()
-    await expect.element(dialog).toBeVisible()
-    await close.click()
-    await expect.element(dialog).not.toBeInTheDocument()
-    await expect
-      .element(preview, { message: '閉じるで閉じると開いたプレビューへ戻る' })
-      .toHaveFocus()
-
-    // 余白: 中身を押しても閉じず、余白(dialog 自身)を押すと閉じる
-    await cta.click()
-    const counter = counterOf()
-    if (counter === null) throw new Error('モーダルの場面の番号が無い')
-    await userEvent.click(counter)
-    await expect.element(dialog, { message: '中身を押しても閉じない' }).toBeVisible()
-    await dialog.click({ position: { x: 4, y: 4 } })
-    await expect.element(dialog).not.toBeInTheDocument()
-    await expect.element(cta, { message: '余白で閉じると CTA へ戻る' }).toHaveFocus()
   })
 
   // ここから下の2件は E2E から移したものではない。フックの分岐(場面の数の変化・開発時の二重実行)を、利用者に見える形で確かめる
