@@ -76,7 +76,7 @@ last_reviewed: 2026-10-17
 
 ### 統合テストの約束
 
-実ブラウザでコンテナを描くテスト(`__tests__/` の `*.integration.test.tsx`)の約束。例は村の `__tests__/village-page/village.integration.test.tsx`。
+実ブラウザでコンテナを描くテスト(`__tests__/` の `*.integration.test.tsx`)の約束。例は村の `__tests__/village-page/`(画面全体を描く `__tests__/village-page/fishing.integration.test.tsx` と、状態コンテナを直接描く `__tests__/village-page/stop-modal/stop-actions.integration.test.tsx` など)。
 コンテナの定義と、テストの置き場・名前・分け方は [../decisions/0019-hooks-make-containers.md](../decisions/0019-hooks-make-containers.md) で決めた。
 
 - **コンテナ。** フックを1つでも呼ぶコンポーネントはコンテナで、ファイルの名前は `container.tsx`。フックを1つも呼ばないコンポーネントは表示部品で、入口は `index.tsx`。
@@ -108,9 +108,9 @@ last_reviewed: 2026-10-17
 - **フィクスチャとテストの部品。** node でしか組めない props の `container.fixture.ts`(globalSetup。下の node の API の項)は `__tests__/<unit>/container.fixture.ts` に置く。
   統合テストだけが使う `*.test-helper.ts` は、それを使う unit のフォルダに置く。`src` の単体テストや E2E も使う部品はその場に残す。
   統合テストの外のテストの側(`src` と `__tests__/` の両方の `*.test.ts`・`*.test-helper.ts`・`*.fixture.ts`)は、コンポーネントを描く道具を import しない([テストの境界](#テストの境界))
-- **村(1段階)。** 村の統合テストは中身を変えずに(import だけ直して)1本のまま `__tests__/village-page/village.integration.test.tsx` へ移した。
-  動作ごとに分け、村の状態コンテナごとに分けるのは2段階。
-  それまでは、フックを呼ぶ村の8つの部品と、隣に `container.tsx` の無い村の `hooks` フォルダを `scripts/container-dirs.mjs` の待ちの一覧が持つ([テストの境界](#テストの境界))
+- **村。** 1段階では、村の統合テストを中身を変えずに(import だけ直して)1本のまま `village.integration.test.tsx` へ移した。
+  2段階で、村の画面全体(`VillagePageContainer`)を描くテストは `__tests__/village-page/` の直下の動作ごとのファイルへ、8つの状態コンテナのテストはそれぞれのフォルダ(`__tests__/village-page/boot/` など)へ分け、その1本は消した。
+  状態コンテナのフォルダのテストは、そのコンテナを props で直接描く(画面全体を描くテストと1つのファイルに混ぜない)。`test(…)` の名前は変えずに移した
 - 以前の名前 `container.browser.test.tsx` と、「コンテナごとに隣にちょうど1本」の決まりは無くなった
 - 設定は `vitest.integration.config.ts` で、`@vitest/browser-playwright` は 4.1.10 に版を固定する(peer が同じ版の vitest で、5.x は vitest 5 を求めて衝突する)
 - コンテナを、フック・子と一緒に本物のまま描く。レイアウト・`ResizeObserver`・入力は差し替えない。rAF と `performance.now` は時間として扱い、下の時間の差し替えの中でだけ偽物にする
@@ -160,7 +160,7 @@ last_reviewed: 2026-10-17
   ビルドした配信物で E2E も同じ欠陥で落ちることを確かめてから消した([新しい検査は必ず一度落とす](#新しい検査は必ず一度落とす))。
   どの欠陥でどの統合テストと E2E が落ちたかは、消したコミットの本文にある
 - **移した先。** 村の振る舞いは村の統合テスト、作品ストーリーは作品ストーリーの統合テスト。
-  どちらも 2026-10-17 に `__tests__/` へ移し([../decisions/0019-hooks-make-containers.md](../decisions/0019-hooks-make-containers.md))、今は `__tests__/village-page/village.integration.test.tsx` と `__tests__/story/` の下にある。
+  どちらも 2026-10-17 に `__tests__/` へ移し([../decisions/0019-hooks-make-containers.md](../decisions/0019-hooks-make-containers.md))、今は `__tests__/village-page/` と `__tests__/story/` の下にある。
   統合テストが同じ欠陥を落とせなかったもの、統合テストの中では作れないものは消さずに E2E に残した([E2E に残したテスト](#e2e-に残したテスト))
 - **フックのファイル別100%** は、フォルダの一覧を作らず全フックへ掛けた([カバレッジの床](#カバレッジの床))
 - 6つのコンテナの統合テストを入れた段階([../decisions/0017-screen-containers.md](../decisions/0017-screen-containers.md))と、この11本を移した段階は、どちらも利用者の決定で1回のセッション・1つの PR で行った

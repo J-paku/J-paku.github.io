@@ -1,6 +1,6 @@
-// 村の統合テスト(village.integration.test.tsx)で歩く・押す・待つ・保存された現在地と見え方を読む共通の手順。
+// 村の統合テスト(__tests__/village-page の下の *.integration.test.tsx)で歩く・押す・待つ・保存された現在地と見え方を読む共通の手順。
 // E2E の tests/village.helpers.ts と同じ押し方(1 マス分押して離し、到着を保存位置の変化で知る)で歩く。
-// 時間はテストの describe ごとに 2 通りで進む(偽の時計の掛け方は village-time.test-helper.ts の startVillageClock)。
+// 時間はテストのファイルごとに 2 通りで進む(偽の時計の掛け方は village-time.test-helper.ts の startVillageClock)。
 //   - rAF まで偽の時計に載せた時(frames): 1 フレーム(16ms)ずつ偽の時計を進める。歩行ループ・釣り・傘・飛行の時間割は
 //     テストが進めた分だけ進み、実時間の揺れを受けない。React の確定は偽にしない MessageChannel で回るので、
 //     フレームを進めるたびに本物のタスクで手番を渡す

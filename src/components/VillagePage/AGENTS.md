@@ -62,9 +62,12 @@ world 層(`.world`)の中の並びは `components/Village/components/WorldLayer/
 
 ## 確かめ方
 
-村の統合テスト(`__tests__/village-page/village.integration.test.tsx`。props は同じフォルダの `container.fixture.ts` が node で組む)はビルド無しで走る。
-1つめの段階では元の1本を中身を変えずに移しただけで、動作ごと・状態コンテナごとに分けるのは2つめの段階。
-舞台の寸法と操作帯・歩く・待つ・釣り・傘・飛ぶ・窓の焦点と吹き出し・卓上時計・昼夜と天気はここで見る。
+村の統合テスト(`__tests__/village-page/` の下。props は `__tests__/village-page/container.fixture.ts` が node で組む)はビルド無しで走る。
+村の画面全体(`container.tsx`)を描くテストは `__tests__/village-page/` の直下に動作ごとのファイルで置き、舞台の寸法と操作帯・歩く・待つ・釣り・傘・飛ぶ・村の入力と道中の配線・
+窓の焦点と吹き出しの位置・卓上時計・昼夜と天気をここで見る(例: `__tests__/village-page/fishing.integration.test.tsx`・`__tests__/village-page/day-night.integration.test.tsx`)。
+`components/` の下の状態コンテナ8つは、それぞれ `__tests__/village-page/<フォルダの名前の kebab-case>/` のテストがそのコンテナを props で直接描いて見る
+(例: `__tests__/village-page/stop-modal/`。どのフォルダがどのコンテナかは [../../../docs/product/feature-map.md](../../../docs/product/feature-map.md) の「コンテナと統合テスト」)。
+1つめの段階では元の1本(`village.integration.test.tsx`)を中身を変えずに移しただけで、2つめの段階でこの形に分けてその1本は消した。
 
 ```bash
 npm run test:integration
