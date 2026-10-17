@@ -37,7 +37,6 @@ export const CONTAINER_DIRS = [...SCREEN_CONTAINER_DIRS, ...SHARED_CONTAINER_DIR
 
 // まだフックを呼んでいる表示部品(index.tsx)。2段階目まで ESLint の layer/hook-only-in-container から外す
 export const PENDING_CONTAINER_FILES = [
-  'src/components/VillagePage/components/Village/components/TalkBubble/index.tsx',
   'src/components/VillagePage/components/Village/components/WorldMap/index.tsx',
 ]
 

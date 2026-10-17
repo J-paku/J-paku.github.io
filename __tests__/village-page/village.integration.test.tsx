@@ -2666,53 +2666,6 @@ describe('画面の大きさ・窓・時計・昼夜', () => {
       await expectFrameFocused('閉じると村の枠へ焦点が戻る')
     })
 
-    // 部屋は 10 列で枠の幅と同じなので、カメラは横に動かず、壁際のマスは枠の左右の端に描かれる。
-    // 開始マス (4,4) の行は家具が無く、左へ 4 マスで左端 (0,4)、右へ 5 マスで右端 (9,4) に着く
-    const EDGES: { side: string; key: WalkKey; cells: number }[] = [
-      { side: '左', key: 'ArrowLeft', cells: 4 },
-      { side: '右', key: 'ArrowRight', cells: 5 },
-    ]
-    // 話せる相手がいない所で話しかけた時に頭上へ出る考え事の吹き出し
-    const THOUGHT = '[data-village-bubble][data-village-bubble-kind="thought"]'
-    // 吹き出しは出た直後(rAF 2 回の後)と、カメラが落ち着く 350ms 後(TalkBubble の SETTLE_DELAY)に測り直す。
-    // 測り直しを終えた後の位置を見るため、それより後で測る。一言は 2.5 秒で消えるので、それより前に測る(E2E と同じ 800ms)
-    const BUBBLE_SETTLED_MS = 800
-
-    // 縦持ちの狭い枠ほど、壁際で出した吹き出しが枠の外へはみ出しやすい。寸法は E2E と同じ 390×664 で、
-    // 入力の種別も E2E と同じタッチ端末にする(この幅ではマス 39px・幅 390 の枠になる)
-    describe.each(EDGES)('吹き出しを枠の左右へ押し戻す', ({ side, key, cells }) => {
-      test(`部屋の${side}の壁際で出した考え事の吹き出しが枠の中に収まる`, async () => {
-        await emulateTouch()
-        await page.viewport(390, 664)
-        await renderVillage()
-        expect(await walk(setId, key, cells), `${side}の壁際まで歩けた`).toBe(cells)
-        await userEvent.keyboard('e')
-        await expect
-          .poll(() => document.querySelector(THOUGHT)?.textContent, {
-            message: '考え事の吹き出しが出る',
-          })
-          .toContain(text.noTarget)
-        await runFor(BUBBLE_SETTLED_MS)
-
-        const bubble = queryOne(THOUGHT).getBoundingClientRect()
-        const stage = villageFrame().getBoundingClientRect()
-        const player = villagePlayer().getBoundingClientRect()
-        const playerCenter = player.left + player.width / 2
-        // 押し戻さなければ、吹き出しは主人公の頭の真上を中心に描かれて枠の外へはみ出す位置にいる。
-        // ここが成り立たないと、押し戻しを外しても下の検査が通ってしまう
-        const natural = {
-          left: playerCenter - bubble.width / 2,
-          right: playerCenter + bubble.width / 2,
-        }
-        const wouldOverflow =
-          side === '左' ? natural.left < stage.left : natural.right > stage.right
-        expect(wouldOverflow, '押し戻さなければ枠の外へはみ出す位置で出している').toBe(true)
-
-        expect(bubble.left, '吹き出しの左端が枠の中').toBeGreaterThanOrEqual(stage.left)
-        expect(bubble.right, '吹き出しの右端が枠の中').toBeLessThanOrEqual(stage.right)
-      })
-    })
-
     // ここから下の 5 件は tests/journey.spec.ts が見ている窓の中の操作(Z/X・本文送り・地図の方向キー)のうち、
     // 窓のフック(use-village-buttons・use-held-scroll・use-map-focus)の分岐を統合で通すもの。journey の行き先は
     // この段では決めていないので、journey はそのまま残す(ADR 0018)
