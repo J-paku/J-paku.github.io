@@ -1,7 +1,7 @@
 // 場面 SVG の原文取得の覚え方を検証する。成功は URL ごとに覚えて取り直さず、取得中の重なりは
 // 同じ Promise で待ち合わせ、失敗だけは覚えを捨てて次の呼び出しで取り直す。
 // 覚えを捨てたあと画面が本当に取り直して絵を出すか(部品が失敗を抱え込まないか)は、E2E から移した
-// 作品ストーリーの統合テスト(src/components/Story/container.browser.test.tsx の「場面の絵の取り直し」)がモーダルを開き直して見る
+// 作品ストーリーの統合テスト(__tests__/story/scene-refetch.integration.test.tsx の「場面の絵の取り直し」)がモーダルを開き直して見る
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // テスト用の最小 Response。fetchSvgSource が読む ok / status / text() だけを持たせる

@@ -9,7 +9,7 @@
 // ここではページのどのスクリプトより先に消すので、next/link も読み込みの時点で「無い」と覚えて観察を使わない。
 // 消した画面だけを見ると「観察が働いて現れた」のと見分けられないので、消さない普通のページでは画面の外のカードが
 // まだ現れず写真も灰色のまま、という対照を同じ spec で見る。作品ストーリーの対照(観察できれば、同じ場面を画面の中央まで
-// 送ると CTA がその場面から開く)は、作品ストーリーの統合テスト(src/components/Story/container.browser.test.tsx)の
+// 送ると CTA がその場面から開く)は、作品ストーリーの統合テスト(__tests__/story/reading.integration.test.tsx)の
 // 「CTA は今読んでいる場面からモーダルを開き…」が見ている。
 // どれも言語に依らないので ja だけで見る
 import { expect, type Locator, type Page } from '@playwright/test'
