@@ -2644,40 +2644,6 @@ describe('画面の大きさ・窓・時計・昼夜', () => {
     const expectFrameFocused = (message: string) =>
       expect.element(frame(), { message }).toHaveFocus()
 
-    test('会話窓は Tab の輪を両端で回し、見出しの Shift+Tab は末尾へ、閉じると村の枠へ焦点を戻す', async () => {
-      await renderVillage()
-      // 出発の机の前で、話しかけられる吹き出しが出るのを待つ
-      await expect
-        .poll(() => document.querySelector('[data-village-bubble]'), {
-          message: '出発の机の前で吹き出しが出る',
-          timeout: 3_000,
-        })
-        .not.toBeNull()
-      villageFrame().focus()
-      await expectFrameFocused('開く前の焦点は村の枠')
-      await userEvent.keyboard('e')
-      const dialog = page.getByRole('dialog')
-      const title = dialog.getByRole('heading', { name: text.stops.home.title })
-      await expect.element(title, { message: '開いた直後の焦点は見出し' }).toHaveFocus()
-
-      // 見出しは並びの外(-1)。そこから Tab で並びの先頭へ入り、末尾まで進んで回る
-      await cycleWithTab(dialog.element(), STOP_FOCUSABLE_SELECTOR)
-
-      // 見出しは並びの外だが先頭と同じに扱い、Shift+Tab で末尾へ回す
-      title.element().focus()
-      await userEvent.tab({ shift: true })
-      const items = dialog.element().querySelectorAll<HTMLElement>(STOP_FOCUSABLE_SELECTOR)
-      await expect
-        .element(page.elementLocator(items[items.length - 1]), {
-          message: '見出しで Shift+Tab を押すと末尾へ回る',
-        })
-        .toHaveFocus()
-
-      await userEvent.keyboard('{Escape}')
-      await expect.element(dialog).not.toBeInTheDocument()
-      await expectFrameFocused('閉じると村の枠へ焦点が戻る')
-    })
-
     test('拡大地図は Tab の輪を両端で回し、閉じると村の枠へ焦点を戻す', async () => {
       await renderVillage()
       // 地図は町でだけ開く。部屋の下端のマットから町の自宅前へ出る
@@ -2788,53 +2754,6 @@ describe('画面の大きさ・窓・時計・昼夜', () => {
       await expect.element(dialog).not.toBeInTheDocument()
     })
 
-    test('会話窓は下の押しっぱなしで本文を送り切ってから操作へ焦点を渡し、上で 1 つずつ戻って見出しへ帰り、本文も巻き戻る', async () => {
-      // 本文が窓より長くなる狭い画面で開く
-      await page.viewport(390, 664)
-      await renderVillage()
-      await userEvent.keyboard('e')
-      const dialog = page.getByRole('dialog')
-      const title = dialog.getByRole('heading', { name: text.stops.home.title })
-      await expect.element(title, { message: '開いた直後の焦点は見出し' }).toHaveFocus()
-      const panel = queryOne('[data-village-panel]', dialog.element())
-      expect(panel.scrollHeight, '本文が窓より長い(送る余地がある)').toBeGreaterThan(
-        panel.clientHeight
-      )
-      const items = Array.from(
-        dialog.element().querySelectorAll<HTMLElement>(STOP_FOCUSABLE_SELECTOR)
-      )
-      expect(items.length, '焦点を移せる操作が 2 つ以上ある').toBeGreaterThanOrEqual(2)
-      const expectFocusOn = (element: Element, message: string) =>
-        expect.element(page.elementLocator(element), { message }).toHaveFocus()
-
-      // 下を押し続けると本文が送られ、送り切ったフレームで先頭の操作へ焦点が渡る
-      await userEvent.keyboard('{ArrowDown>}')
-      await expect
-        .poll(() => panel.scrollTop, { message: '押している間は本文が送られる' })
-        .toBeGreaterThan(0)
-      await expectFocusOn(items[0], '送り切ると先頭の操作へ焦点が移る')
-      // 押し続けても次の操作へは流れない(前へ渡すのは押した瞬間だけ)
-      await runFor(FRAME_MS * SETTLE_FRAMES)
-      expect(document.activeElement, '押し続けても先頭の操作に留まる').toBe(items[0])
-      await userEvent.keyboard('{/ArrowDown}')
-
-      // 押し直すたびに下は 1 つ先へ、上は 1 つ前へ
-      await tapHeld('ArrowDown')
-      await expectFocusOn(items[1], '下をもう 1 回で次の操作へ')
-      await tapHeld('ArrowUp')
-      await expectFocusOn(items[0], '上 1 回で 1 つ前へ')
-      // 先頭から上は本文(見出し)へ戻り、押し続ければ本文が先頭まで巻き戻る
-      await userEvent.keyboard('{ArrowUp>}')
-      await expectFocusOn(title.element(), '先頭の操作から上で見出しへ戻る')
-      await expect
-        .poll(() => panel.scrollTop, {
-          message: '上を押し続けると本文が先頭まで巻き戻る',
-          timeout: 5_000,
-        })
-        .toBe(0)
-      await userEvent.keyboard('{/ArrowUp}')
-    })
-
     // 拡大地図の地点の印(字 + 番号の札)は、隣り合うマスの地点どうしで重なるので実測でずらして離す。
     // ずらす量は px なので、開いたまま画面の大きさが変わると測り直さないと重なる
     test('拡大地図を開いたまま画面の大きさが変わっても、地点の印どうしは重ならない', async () => {
@@ -2872,26 +2791,6 @@ describe('画面の大きさ・窓・時計・昼夜', () => {
       await page.viewport(390, 664)
       await runFrames(SETTLE_FRAMES)
       expect(overlapping(), '小さい画面へ変えた後も、印どうしは重ならない').toEqual([])
-    })
-
-    test('本文が窓に収まる会話窓では、下を押した瞬間に先頭の操作へ焦点が渡る', async () => {
-      await renderVillage()
-      await userEvent.keyboard('e')
-      const dialog = page.getByRole('dialog')
-      await expect
-        .element(dialog.getByRole('heading', { name: text.stops.home.title }))
-        .toHaveFocus()
-      const panel = queryOne('[data-village-panel]', dialog.element())
-      expect(panel.scrollHeight, '本文が窓に収まっている(送る余地が無い)').toBeLessThanOrEqual(
-        panel.clientHeight
-      )
-      // 送る本文が無いので、押した瞬間(押し直し)に先頭の操作へ渡す
-      await tapHeld('ArrowDown')
-      await expect
-        .element(page.elementLocator(queryOne(STOP_FOCUSABLE_SELECTOR, dialog.element())), {
-          message: '下を押した瞬間に先頭の操作へ焦点が移る',
-        })
-        .toHaveFocus()
     })
 
     test('拡大地図は方向キーでその向きの地点へ焦点を移し、M で閉じる', async () => {

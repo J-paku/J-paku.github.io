@@ -9,7 +9,7 @@ import type { DoorMarker } from '@/lib/village/door-marker'
 import ClockModal, { type ClockModalProps } from '../ClockModal/container'
 import Minimap from '../Minimap'
 import SpeechBox from '../SpeechBox'
-import StopModal from '../StopModal'
+import StopModal from '../StopModal/container'
 import Weather, { type WeatherProps, type WeatherSheets } from '../Weather'
 import type { Dialog } from '../../utils/pick-dialog'
 
