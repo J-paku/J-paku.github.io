@@ -60,6 +60,7 @@ import {
   press,
   readCell,
   runFor,
+  runFrames,
   stepFrame,
   stubWeather,
   tap,
@@ -3013,7 +3014,7 @@ describe('画面の大きさ・窓・時計・昼夜', () => {
       const dialog = page.getByRole('dialog')
       // 歩いている時の X は閉じる窓が無いので何もしない
       await userEvent.keyboard('x')
-      await runFor(FRAME_MS * SETTLE_FRAMES)
+      await runFrames(SETTLE_FRAMES)
       expect(
         document.querySelector('[role="dialog"]'),
         '歩いている時の X では窓が開かない'
@@ -3121,7 +3122,7 @@ describe('画面の大きさ・窓・時計・昼夜', () => {
       expect(badgeBoxes().length, '地図に地点の印が並ぶ').toBeGreaterThanOrEqual(2)
       expect(overlapping(), '開いた時、印どうしは重ならない').toEqual([])
       await page.viewport(390, 664)
-      await runFor(FRAME_MS * SETTLE_FRAMES)
+      await runFrames(SETTLE_FRAMES)
       expect(overlapping(), '小さい画面へ変えた後も、印どうしは重ならない').toEqual([])
     })
 
@@ -3923,7 +3924,7 @@ describe('画面の大きさ・窓・時計・昼夜', () => {
 
       // 降る場所(屋外)まで出てから数える。種類も問わない — 雨に絞ると、誤って雪として降った時に見逃す
       await walkOutToTown()
-      await runFor(FRAME_MS * SETTLE_FRAMES)
+      await runFrames(SETTLE_FRAMES)
       expect(countOf(WEATHER_LAYERS), '失敗したら何も降らない').toBe(0)
     })
   })
@@ -3975,7 +3976,7 @@ describe('画面の大きさ・窓・時計・昼夜', () => {
       await expect
         .poll(() => failures, { message: '夜へ入って夜の絵を取り直し、また失敗した' })
         .toBeGreaterThan(preloadFailures)
-      await runFor(FRAME_MS * SETTLE_FRAMES)
+      await runFrames(SETTLE_FRAMES)
       expect(phase(), '夜の絵が届かない間は昼のまま').toBe('day')
 
       unavailable = false
@@ -3992,7 +3993,7 @@ describe('画面の大きさ・窓・時計・昼夜', () => {
       })
       expect(phase(), '開いた時は昼').toBe('day')
       vi.advanceTimersByTime(TWO_HOURS_LATER)
-      await runFor(FRAME_MS * SETTLE_FRAMES)
+      await runFrames(SETTLE_FRAMES)
       expect(phase(), '描くシートの無い夜へは移らない').toBe('day')
       // 同じ表でも、シートのある段階へは移る(表を絞ったせいで段階が全く動かないのではない)
       vi.advanceTimersByTime(10 * 60 * 60 * 1000)
@@ -4017,7 +4018,7 @@ describe('画面の大きさ・窓・時計・昼夜', () => {
         await expect
           .poll(() => requests, { message: '夜の主人公の絵を取りに行った' })
           .toBeGreaterThan(0)
-        await runFor(FRAME_MS * SETTLE_FRAMES)
+        await runFrames(SETTLE_FRAMES)
         expect(phase(), '主人公の夜の絵が届くまで昼のまま').toBe('day')
         release()
         await expect.poll(phase, { message: '両方揃えば夜へ移る' }).toBe('night')
