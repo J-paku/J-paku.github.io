@@ -233,10 +233,10 @@ const CURRENT: Record<
   snow: { precipitation: 1.2, snowfall: 0.8 },
 }
 
-// 天気にだけ決めた応答を返し、ほかの問い合わせは断る。ファイル先頭の beforeEach が敷く晴れを上書きする
+// 天気にだけ決めた応答を返し、ほかの問い合わせは断る。village.test-helper.ts の prepareVillage が敷く晴れを上書きする
 // (後から stubGlobal した方が効く)。戻り値の calls() は天気へ実際に問い合わせが届いた回数で、
 // 応答の前に数えて「まだ出ていない」を通してしまうのを防ぐ。
-// 戻すのは village.integration.test.tsx の afterEach の vi.unstubAllGlobals
+// 戻すのは village.test-helper.ts の resetVillage の vi.unstubAllGlobals
 export const stubWeather = (kind: WeatherKind) => {
   let calls = 0
   vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
@@ -273,7 +273,7 @@ export const emulateTouch = (maxTouchPoints = 1) =>
 // setTouchEmulationEnabled の maxTouchPoints: 0 は 1〜16 の外として CDP が断る)。
 // 村の CSS とフックは pointer: coarse かどうかで分けるので、none でもマウスの端末と同じに描く
 // (hover: hover and pointer: fine で隠すスティックは、帯ごと隠れている)。coarse へ戻っていないことは
-// village.integration.test.tsx の先頭の beforeEach が、どのテストの始めにも前提として確かめる
+// village.test-helper.ts の prepareVillage(各ファイルの beforeEach が呼ぶ)が、どのテストの始めにも前提として確かめる
 export const resetEmulation = async () => {
   await cdp().send('Emulation.setEmulatedMedia', { features: [] })
   await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false })
