@@ -107,5 +107,5 @@ node でしか組めない props は、unit のフォルダの直下のフィク
 単体テストも使う `src/components/VillagePage/components/Village/utils/walk-loop/walk-loop.test-helper.ts` は src に残る。
 
 村は1段階では、統合テストを中身を変えずに1本のまま `__tests__/village-page/village.integration.test.tsx` へ移しただけ。
-フックを呼ぶ村の8つの部品(`src/components/VillagePage/components/Boot/index.tsx` と、`Village` の下の `ClockModal`・`Ground`・`Joystick`・`Lighting`・`StopModal`・`TalkBubble`・`WorldMap`)はまだ `index.tsx` のままで、
+フックを呼ぶ村の8つの部品(`src/components/VillagePage/components/Boot/` と、`Village` の下の `ClockModal`・`Ground`・`Joystick`・`Lighting`・`StopModal`・`TalkBubble`・`WorldMap`)はまだ `index.tsx` のままで、
 `container.tsx` へ移してテストを動作ごと・状態コンテナごとに分けるのは2段階。それまでは `scripts/container-dirs.mjs` の待ちの一覧が持つ。

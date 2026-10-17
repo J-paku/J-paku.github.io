@@ -2,7 +2,7 @@
 'use client'
 import type { ReactNode } from 'react'
 import Logo from '@/components/ui/Logo'
-import Boot from './components/Boot'
+import Boot from './components/Boot/container'
 import Navigation from '@/components/ui/Navigation'
 import ExitLink from './components/ExitLink'
 import Village from './components/Village'
