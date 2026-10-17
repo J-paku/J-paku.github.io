@@ -3,9 +3,10 @@
 // 着地先は、村の見出しと同じ Logo(bootTarget)をテストが覆いの後ろに置く。覆いは手順の中で自分を文書から外すので、
 // 村と同じく箱(main)の中に描く(描いた根の直下に置くと、外す時に React が外れた覆いを外し直して投げる)。
 // 初回の読み込みは、書き出す HTML(サーバの描画)の中で script を走らせてからハイドレーションして作る。
+// 開発の StrictMode(effect を片付けてすぐ走らせ直す)の中で描いても、同じ手順で覆いが外れることも見る。
 // 村の画面の中で覆いの間だけ見出しのロゴを隠す見え方は、村を描く boot-landing が見る
 import { cleanup, render } from '@testing-library/react'
-import { useLayoutEffect, type ReactElement } from 'react'
+import { StrictMode, useLayoutEffect, type ReactElement } from 'react'
 import { renderToString } from 'react-dom/server'
 import { onTestFinished } from 'vitest'
 import { page } from 'vitest/browser'
@@ -54,6 +55,9 @@ const withTarget = (
     </div>
   </main>
 )
+
+// 同じ物を開発の StrictMode の中に置いた所。StrictMode は DOM を作らず、描いた直後に effect を片付けて走らせ直す
+const strictWithTarget = <StrictMode>{withTarget}</StrictMode>
 
 // 起動の覆いと、その中のロゴ。外れた後も確かめられるよう、描いた直後に控えて使う
 const bootOverlay = () => {
@@ -143,6 +147,15 @@ describe('ロゴの着地', () => {
   const RUNNERS = [
     { name: 'クライアント遷移の effect', open: () => openByEffect() },
     { name: '初回の読み込みの script', open: () => openByScript() },
+    // 開発の StrictMode は effect を片付けてすぐ走らせ直す。片付けで止めた手順は、走らせ直した effect が始め直す
+    {
+      name: '開発の StrictMode で描いたクライアント遷移の effect',
+      open: () => openByEffect(strictWithTarget),
+    },
+    {
+      name: '開発の StrictMode でハイドレーションした初回の読み込みの script',
+      open: () => openByScript(runInlineBootScript, strictWithTarget),
+    },
   ] as const
 
   for (const { name: runner, open } of RUNNERS) {
@@ -249,6 +262,20 @@ describe('script と effect の受け渡し', () => {
     // script の手順は走らせず、印だけを立てる。effect が印を見ずに手順を走らせれば、上限までに覆いを外す
     const { startedAt } = await openByScript(() => bootOverlay().setAttribute('data-run', ''))
     const boot = bootOverlay()
+    runPast(startedAt, CAP_MS)
+    expect(document.getElementById('boot'), 'effect が外さなかった覆い').toBe(boot)
+    expect(boot.hasAttribute('data-moving'), 'effect が飛ばし始めた印').toBe(false)
+    expect(bootLogo(boot).style.transform, 'effect が飛ばしたロゴ').toBe('')
+  })
+
+  test('開発の StrictMode でハイドレーションしても、script が先に立てた印があれば、走らせ直した effect も手順を走らせず、覆いを外すのを script に任せる', async () => {
+    // script の手順は走らせず、印だけを立てる。StrictMode が片付けて走らせ直した effect が印を見ずに手順を走らせれば、上限までに覆いを外す
+    const { startedAt } = await openByScript(
+      () => bootOverlay().setAttribute('data-run', ''),
+      strictWithTarget
+    )
+    const boot = bootOverlay()
+    expect(boot.hasAttribute('data-run'), 'script が立てた印は下ろさない').toBe(true)
     runPast(startedAt, CAP_MS)
     expect(document.getElementById('boot'), 'effect が外さなかった覆い').toBe(boot)
     expect(boot.hasAttribute('data-moving'), 'effect が飛ばし始めた印').toBe(false)
