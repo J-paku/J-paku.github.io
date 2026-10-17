@@ -49,7 +49,6 @@ export const PENDING_CONTAINER_FILES = [
 
 // 隣に container.tsx の無い hooks/ フォルダ。2段階目まで「hooks/ は container.tsx のあるフォルダにだけ置く」の例外にする
 export const PENDING_HOOK_DIRS = [
-  'src/components/VillagePage/components/Village/hooks',
   'src/components/VillagePage/components/Village/components/ClockModal/hooks',
   'src/components/VillagePage/components/Village/components/Joystick/hooks',
   'src/components/VillagePage/components/Village/components/StopModal/hooks',

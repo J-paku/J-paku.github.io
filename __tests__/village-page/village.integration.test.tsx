@@ -44,7 +44,7 @@ import {
   CLOCK_FOCUSABLE_SELECTOR,
   MAP_FOCUSABLE_SELECTOR,
   STOP_FOCUSABLE_SELECTOR,
-} from '@/components/VillagePage/components/Village/utils/focusables'
+} from '@/utils/focusables'
 import { spotToward } from '@/components/VillagePage/components/Village/components/WorldMap/utils/spot-navigation'
 import { headToSpeech } from '@/components/VillagePage/components/Village/utils/spot-text'
 import { useVillageTime } from '@/components/VillagePage/hooks/use-village-time'
@@ -2871,7 +2871,7 @@ describe('画面の大きさ・窓・時計・昼夜', () => {
   })
 
   describe('窓の焦点と吹き出し', () => {
-    // 窓は role='dialog' の div と手製の Tab の輪(components/Village/hooks/use-dialog-focus.ts)で作るので、ブラウザは輪を保証しない。
+    // 窓は role='dialog' の div と手製の Tab の輪(src/hooks/use-dialog-focus.ts)で作るので、ブラウザは輪を保証しない。
     // 今の焦点から Tab で 1 つずつ末尾まで進め、末尾の次は先頭へ、先頭の前は末尾へ回るのを見る
     const cycleWithTab = async (dialog: Element, selector: string) => {
       const items = Array.from(dialog.querySelectorAll<HTMLElement>(selector))

@@ -2,8 +2,8 @@
 import { useEffect } from 'react'
 import type { KeyboardEvent, RefObject } from 'react'
 
-import { focusablesIn } from '../utils/focusables'
-import { wrapFocusIndex } from '../utils/wrap-focus-index'
+import { focusablesIn } from '@/utils/focusables'
+import { wrapFocusIndex } from '@/utils/wrap-focus-index'
 
 type UseDialogFocusParams = {
   // 開いているか。窓は開いている間だけ描かれる(描かれている間が開いている間)ので常に true で、型でそう固める。

@@ -116,7 +116,7 @@ ESLint の `no-restricted-imports` はファイル1つずつの指定子しか�
 - `PENDING_CONTAINER_FILES` — まだフックを呼ぶ表示部品。ESLint の `layer/hook-only-in-container` から外す。
   村の起動の覆い(`src/components/VillagePage/components/Boot/` の `index.tsx`)と、`src/components/VillagePage/components/Village/components/` の下の ClockModal・Ground・Joystick・Lighting・StopModal・TalkBubble・WorldMap の `index.tsx`
 - `PENDING_HOOK_DIRS` — 隣に `container.tsx` が無い `hooks` フォルダ。上の置き場の検査から外す。
-  `src/components/VillagePage/components/Village/hooks/` と、`src/components/VillagePage/components/Village/components/` の下の ClockModal・Joystick・StopModal・WorldMap の `hooks` フォルダ
+  `src/components/VillagePage/components/Village/components/` の下の ClockModal・Joystick・StopModal・WorldMap の `hooks` フォルダ
 - 一覧の項目がもう無いか、もう違反していないと `npm run test:boundary` が落ちる。だから一覧は減るだけで、項目を足さない。
   `PENDING_CONTAINER_FILES` は `scripts/check-hook-rule.mjs` が ESLint の規則をそのまま使って見て、`PENDING_HOOK_DIRS` は `scripts/check-test-boundary.mjs` が見る
 

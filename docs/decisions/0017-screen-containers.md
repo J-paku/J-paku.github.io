@@ -151,7 +151,7 @@ happy-dom の8本を消すこと、コンポーネントを描くテストの置
     村は `src/components/VillagePage/utils/village-props.ts`、一覧は `src/components/Directory/utils/directory-props.ts`、
     作品ストーリーは `src/components/Story/utils/story-props.ts`(ストーリーが無ければ null を返し、`notFound()` はローダーに残る)。フィクスチャはローダーを写さない
   - 村の画面のフックは `src/components/VillagePage/hooks/` へ移した(下のフォルダ `use-village-guide`・`use-village-overlay`・`use-walk-loop` はそのまま)。
-    窓の UI のフックが使う `use-dialog-focus.ts`・`use-held-direction.ts` は表示部品の側(`src/components/VillagePage/components/Village/hooks/`)に残る
+    窓の UI のフックが使う `use-dialog-focus.ts`・`use-held-direction.ts` は表示部品の側(当時の `Village` の `hooks` フォルダ)に残る(今は [0019](0019-hooks-make-containers.md) で `src/hooks/` へ移した)
   - `src/components/Directory/container.tsx`・`src/components/Story/container.tsx` はフックが無く、`'use client'` も無い。中のクライアントの島(作品カード・場面モーダルなど)は今までどおり
   - 作品ストーリーの `use-active-scene`(`IntersectionObserver` で今読んでいる場面を追う UI のフック)は、画面のフォルダの直下の `hooks` フォルダから、それを使う表示部品の
     `src/components/Story/components/StoryBody/hooks/use-active-scene.ts` へ移した。画面のフォルダの直下の `hooks` フォルダはコンテナの隣の(I/O を許す)フォルダ、という D4 に合わせるため
