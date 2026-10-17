@@ -32,7 +32,7 @@ last_reviewed: 2026-10-17
 | [0016](0016-testing-trophy-browser-integration.md) | 層の基準をテスティングトロフィーにし、画面単位の統合テストを実ブラウザ(Vitest Browser Mode)で一番厚くする                           | Accepted(単体の層でコンポーネントを描くテストと、統合テストのファイル名は Superseded by 0017、フックのファイル別100%をフォルダごとに掛ける段階は Superseded by 0018、統合テストの名前と置き場は Superseded by 0019) |
 | [0017](0017-screen-containers.md)                  | ファイルを utils・lib、コンテナ、表示部品の3層に分け、コンポーネントを描くテストをコンテナの統合テストへ集める                      | Accepted(コンテナを6つのフォルダに限る部分・表示部品の UI のフック・統合テストの名前と置き場は Superseded by 0019)                                                                                                  |
 | [0018](0018-move-e2e-and-gate-all-hooks.md)        | 統合へ移す E2E の11本を1つの PR で移し、フックの全部をファイル別100%にして、統合テストで届かない行だけを E2E を名指しする注釈で外す | Accepted(統合テストの名前と置き場は Superseded by 0019)                                                                                                                                                             |
-| [0019](0019-hooks-make-containers.md)              | フックを1つでも呼ぶコンポーネントをコンテナ(`container.tsx`)にし、統合テストをリポジトリ直下の `__tests__` に動作ごとに分けて置く   | Accepted(村は2つめの段階で移す)                                                                                                                                                                                     |
+| [0019](0019-hooks-make-containers.md)              | フックを1つでも呼ぶコンポーネントをコンテナ(`container.tsx`)にし、統合テストをリポジトリ直下の `__tests__` に動作ごとに分けて置く   | Accepted                                                                                                                                                                                                            |
 
 ## 書くときの決まり
 

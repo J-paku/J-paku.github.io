@@ -66,7 +66,7 @@ utils ← lib ← hooks ← components ← app
 ただし `node:` のモジュールを使う `src/lib/pixel/sheet-file.ts`・`src/lib/pixel/png.ts` はローダーだけが使う(ブラウザでは読み込めない。この2つは下の検査の入口に入っておらず、機械では見ていない)。
 型だけの import(`import type`・`import { type X }`・`export type`)は上の禁止に掛からない(実行時に読み込まれないため)。表示部品は `@/lib/weather` の `Precipitation`・`@/lib/preferences` の `Theme` などの型を props に使ってよい。
 
-機械が守らせる所は次の3つ。村には2つめの段階まで、その例外の待ちの一覧が残る(最後の項)。
+機械が守らせる所は次の3つ。どれも例外を許す一覧を持たない。
 
 **フックを呼んでよい所** — ESLint のローカルのプラグイン `layer` の規則 `layer/hook-only-in-container`(`scripts/eslint-rules/hook-only-in-container.mjs`。`npm run lint`)と、
 その規則を使う `scripts/check-hook-rule.mjs`(`npm run test:boundary`)。
@@ -76,6 +76,9 @@ utils ← lib ← hooks ← components ← app
 - 外すのは `**/container.tsx`、`hooks` フォルダの中の `use-*.ts(x)`(`src/hooks/` を含む)、テストの部品(`*.test.ts(x)`・`*.fixture.ts`・`*.test-helper.ts`)
 - `scripts/check-hook-rule.mjs` は、規則の判定と `eslint.config.mjs` の掛け方を偽の断片で自己検査し、src と `__tests__` のファイルが lint の対象の外になっていないことを確かめてから、
   src の `*.ts`・`*.tsx` を全部 lint して違反を数える。`eslint-disable` の注釈で黙らせた呼び出しも違反に数える
+- 同じ `scripts/check-hook-rule.mjs` は、src のファイルごとに規則が掛かるかを名前の決まり(外れるのは上の `container.tsx`・`hooks` フォルダの中の `use-*.ts(x)`・テストの部品だけ)と突き合わせ、
+  1つでも違えば落とす。規則の組みの `ignores` に実在のパスを足す・後ろの組みで `off` や `warn` にすると、そのファイルは lint も通ってしまうため。
+  この抜け道を実際の設定に入れて突き合わせが拾うことも、走るたびに自己検査する
 - 落ちたら、その部品を状態コンテナ(`container.tsx`)にし、フックをその隣の `hooks` フォルダへ置く([frontend.md](frontend.md) の「コンポーネントのフォルダ」)
 
 **外の世界に触れてよい所** — `scripts/check-layers.mjs`(`npm run test:boundary`)。src の import を全部読んでつながりをたどり、式の中の大域の名前も見る。
@@ -93,7 +96,7 @@ ESLint の `no-restricted-imports` はファイル1つずつの指定子しか�
   型だけの import は数えない
 - **一覧のフォルダに `container.tsx` が無いと落ちる。** 改名・移動で一覧が空振りして、そのフォルダの `hooks` の許しだけが黙って残らないように。
   一覧の外の `container.tsx` は状態コンテナで、外の世界の import を許さない。I/O コンテナを足すなら、一覧と ADR を直す
-- 入口の一覧と許す側の正本は `scripts/check-layers.mjs`、I/O コンテナの一覧と待ちの一覧の正本は `scripts/container-dirs.mjs`。
+- 入口の一覧と許す側の正本は `scripts/check-layers.mjs`、I/O コンテナの一覧の正本は `scripts/container-dirs.mjs`。
   落ちたら、その import を I/O コンテナ(またはその隣の `hooks` フォルダ)へ移し、値を props で下へ渡す
 
 **テストと `hooks` フォルダの置き場** — `npm run test:boundary`(`scripts/check-test-boundary.mjs`・`scripts/check-layers.mjs`)。テストの置き場の決まりは [../quality/test-strategy.md](../quality/test-strategy.md)。次のときに落ちる。
@@ -106,19 +109,12 @@ ESLint の `no-restricted-imports` はファイル1つずつの指定子しか�
 - `__tests__` の下に、`*.integration.test.tsx`・`*.test-helper.ts`・`container.fixture.ts`・`*.md` のほかの名前のファイルがある(単体テストの `*.test.ts` も置かない)
 - どのコンテナにも対応しない `__tests__` のフォルダがある
 - 1つの unit の中で、状態コンテナの kebab-case の名前が重なる
-- 隣に `container.tsx` が無い `hooks` フォルダがある(`src/hooks/` と、下の `PENDING_HOOK_DIRS` を除く)
+- 隣に `container.tsx` が無い `hooks` フォルダがある(`src/hooks/` を除く)
+- 状態コンテナのフォルダに `index.tsx` がある(フォルダの名前で import できてしまう `index.ts`・`index.d.ts`・`index.js`・`index.jsx` も)。import する側は `.../<Name>/container` を直接指す。
+  I/O コンテナの6つのフォルダは今の形のまま許す(画面の3つの `index.tsx` はローダー、`src/components/ui/ScenePlayer/index.tsx` はコンテナが描く表示部品)
 - 状態コンテナが外の世界の入口を import する(上の「外の世界に触れてよい所」)
 - `container.fixture.ts` が unit のフォルダの直下でない所にある
 - 統合テストの外のテストの側(`src` と `__tests__` の `*.test.ts`・`*.test-helper.ts`・`*.fixture.ts`)が、コンポーネントを描く道具(`@testing-library/react`・`react-dom` とその下)を import する
-
-**待ちの一覧(村の2つめの段階まで)** — `scripts/container-dirs.mjs` が、減るだけの一覧を2つ持つ([ADR 0019](../decisions/0019-hooks-make-containers.md) の「2つの段階」)。
-
-- `PENDING_CONTAINER_FILES` — まだフックを呼ぶ表示部品。ESLint の `layer/hook-only-in-container` から外す。
-  村の起動の覆い(`src/components/VillagePage/components/Boot/` の `index.tsx`)と、`src/components/VillagePage/components/Village/components/` の下の ClockModal・Ground・Joystick・Lighting・StopModal・TalkBubble・WorldMap の `index.tsx`
-- `PENDING_HOOK_DIRS` — 隣に `container.tsx` が無い `hooks` フォルダ。上の置き場の検査から外す。
-  `src/components/VillagePage/components/Village/components/` の下の ClockModal・Joystick・StopModal・WorldMap の `hooks` フォルダ
-- 一覧の項目がもう無いか、もう違反していないと `npm run test:boundary` が落ちる。だから一覧は減るだけで、項目を足さない。
-  `PENDING_CONTAINER_FILES` は `scripts/check-hook-rule.mjs` が ESLint の規則をそのまま使って見て、`PENDING_HOOK_DIRS` は `scripts/check-test-boundary.mjs` が見る
 
 ### 型の正本が下の層にあるとき
 

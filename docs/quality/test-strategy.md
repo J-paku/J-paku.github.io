@@ -83,7 +83,8 @@ last_reviewed: 2026-10-17
   「フックを呼ぶ」は、呼ぶ相手の名前が `use` と大文字か数字で始まる呼び出し(`useX(…)`・`React.useX(…)`)で、React の組み込みのフック(`useState`・`useMemo`・`useId` など)も例外なく数える。`memo()`・`forwardRef()` はフックではない
   - **I/O コンテナ。** 外の世界の入口を import してよいコンテナで、`scripts/container-dirs.mjs` の一覧の6つ(画面の `VillagePage`・`Directory`・`Story` と、横断部品の `ui/SettingsMenu`・`ui/PageviewCounter`・`ui/ScenePlayer`)
   - **状態コンテナ。** それ以外のすべての `container.tsx`。import の制限は表示部品と同じ(外の世界の入口を import しない)。フォルダに `index.tsx` は無く、使う側は `.../<Name>/container` を指す
-  - 今は I/O コンテナ6つと、状態コンテナ8つ(作品ストーリーの `StoryBody`・`SceneModal`・`SceneSection`・`TechChipPopover`・`IntroPreview`、一覧の `WorkCard`、場面の再生の `SceneSvg`、設定メニューの `SettingsMenuPanel`)。
+  - 今は I/O コンテナ6つと、状態コンテナ16個(作品ストーリーの `StoryBody`・`SceneModal`・`SceneSection`・`TechChipPopover`・`IntroPreview`、一覧の `WorkCard`、場面の再生の `SceneSvg`、設定メニューの `SettingsMenuPanel`、
+    村の起動の覆いの `Boot` と、`Village` の下の `ClockModal`・`Ground`・`Joystick`・`Lighting`・`StopModal`・`TalkBubble`・`WorldMap`)。
     どのコンテナがどのフォルダに当たるかの一覧は [../product/feature-map.md](../product/feature-map.md) の「コンテナと統合テスト」
 - **置き場。** 統合テストは `src/` の外、リポジトリ直下の `__tests__/` に置く。E2E の `tests/` はそのまま。単体テスト(`src/**/*.test.ts`。utils・lib の隣)は動かさない。
   コンポーネントを描くテストはこれ以外に置かない(`npm run test:boundary` が落とす。[テストの境界](#テストの境界))。
@@ -115,12 +116,23 @@ last_reviewed: 2026-10-17
 - 設定は `vitest.integration.config.ts` で、`@vitest/browser-playwright` は 4.1.10 に版を固定する(peer が同じ版の vitest で、5.x は vitest 5 を求めて衝突する)
 - コンテナを、フック・子と一緒に本物のまま描く。レイアウト・`ResizeObserver`・入力は差し替えない。rAF と `performance.now` は時間として扱い、下の時間の差し替えの中でだけ偽物にする
 - ブラウザの環境の設定(ビューポートの大きさ、`prefers-reduced-motion` やタッチの模擬を CDP や `matchMedia` で再現すること)はモックではなく環境として扱い、使ってよい
+- Vitest はブラウザのページをファイルをまたいで使い回し、ファイルごとに作り直すのは中の iframe だけなので、CDP で替えた環境は次のファイルへ持ち越す。
+  替えたファイルが `afterEach` で戻す(動きを控える設定は features を空で送れば開いた時の値へ戻る)。
+  タッチの模擬(`Emulation.setTouchEmulationEnabled`)だけは、切っても `pointer`・`hover` が開いた時の `fine`・`hover` へ戻らず `none` のまま残り、
+  入れたことの無いページでも切る指示を1回送っただけで `none` になる(2026-10-17 の実測)。そこで、タッチの模擬を使うファイル(村の `emulateTouch` の名前を書いたファイル)は
+  `vitest.integration.config.ts` がファイルごとに別のブラウザの instance(結果の行頭の名前は `touch:<ファイル>`)で走らせ、ほかのファイルとページを共にさせない。
+  `emulateTouch` はその instance の外では投げ、模擬を切るのは入れたファイルだけ。村と一覧のテストは各テストの始めに、ページがマウスの端末(`(hover: hover) and (pointer: fine)`)のままであることを前提として確かめる
+  (タッチの模擬を使うファイルの中では、前のテストが切った後の `none` が残るので、`pointer: coarse` でないことだけを確かめる)
+- rAF が本物のまま歩く村のテストは、キーを押す・待つ・離すを node の側でまとめて行う(`vitest.integration.config.ts` の `holdKey`。E2E と同じく node の時計で待つ)。
+  テストの iframe の中で待ってから離すと、離す指示が Chromium へ届くまでの遅れが押す長さに足され、負荷の高い時に 1 マス分のつもりの押下が次のマスまで歩いた(2026-10-17 の実測)
 - 差し替えるのはネットワークと時間だけ。`fetch` は `vi.stubGlobal` で差し替え、`afterEach` で `vi.unstubAllGlobals()` して戻す
   (村は天気の応答と、段階が替わる時に読むシートの絵の取得。シートは `Image` を差し替えて応答を決める)
-- 時間は Vitest の偽の時計(`vi.useFakeTimers`)で差し替える。掛け方は describe ごとに違い、正本は村の `__tests__/village-page/village-time.test-helper.ts` の `startVillageClock` と各テストの `vi.useFakeTimers`。
-  - 村の「歩く・待つ・釣り・傘・飛ぶ」は、rAF・`performance.now`・タイマー・Date を全部偽の時計に載せ、テストが 1 フレーム 16ms ずつ進めた分だけ時間が経つ(E2E の `page.clock.install` に当たる)
-  - 村の「画面の大きさ・窓・時計・昼夜」は、rAF・タイマー・`performance.now` を本物のまま使い、段階を決めるテストだけ Date を止める(`page.clock.setFixedTime` に当たる)。
+- 時間は Vitest の偽の時計(`vi.useFakeTimers`)で差し替える。掛け方はファイルごとに違い、正本は村の `__tests__/village-page/village-time.test-helper.ts` の `startVillageClock` と各テストの `vi.useFakeTimers`。
+  - 村の歩く・待つ・釣り・傘・飛ぶを見るファイル(歩行ループの眠り・池での釣り・雨の日の傘・自動移動の直線飛行・村の入力と道中の配線など)は、rAF・`performance.now`・タイマー・Date を全部偽の時計に載せ、
+    テストが 1 フレーム 16ms ずつ進めた分だけ時間が経つ(E2E の `page.clock.install` に当たる)
+  - 村の昼夜と卓上時計のファイル(昼夜と天気・夜の灯り・卓上時計)は、rAF・タイマー・`performance.now` を本物のまま使い、段階を決めるテストだけ Date を止める(`page.clock.setFixedTime` に当たる)。
     開いたまま時間帯が替わるテストは、Date と、段階を1分ごとに確かめ直す `setInterval` を止めてテストが進める
+  - 村の舞台の寸法・窓の焦点・会話窓の中身・拡大地図などのファイルは、時間を差し替えない
   - 作品ストーリーと一覧は、場面の自動送りの `setTimeout` だけを止める
   - Vitest の偽の時計を入れると locator の操作が時計を進めない([ADR 0016](../decisions/0016-testing-trophy-browser-integration.md) の Consequences)ので、時間を差し替えるテストはそこに当たりうる
 - 村の統合テストは、ローダーが `<style>` で差し込むスプライトの背景 CSS(`spriteBackgroundCss`)を入れておらず、ビルドが焼く `/sprites/` の PNG も無いので、村の絵は描かれない。
@@ -306,7 +318,8 @@ I/O コンテナの一覧は `scripts/container-dirs.mjs`(画面の3つと横断
 - `*.integration.test.ts`・`*.integration.test.tsx`・`*.browser.test.*` が、コンテナに当たる `__tests__` のフォルダの `*.integration.test.tsx` のほか(`src/` の中のどこでも)にある
 - どのコンテナにも当たらない `__tests__` のフォルダがある
 - 1つの unit の中で、状態コンテナの kebab-case の名前が重なる
-- 隣に `container.tsx` の無い `hooks` フォルダがある(`src/hooks/` と、下の待ちの一覧 `PENDING_HOOK_DIRS` を除く)
+- 隣に `container.tsx` の無い `hooks` フォルダがある(`src/hooks/` を除く)
+- 状態コンテナのフォルダに `index.tsx` がある(フォルダの名前で import できてしまう `index.ts`・`index.d.ts`・`index.js`・`index.jsx` も。I/O コンテナの6つのフォルダは今の形のまま許す)
 - 状態コンテナが外の世界の入口を import する
 - `container.fixture.ts` を unit のフォルダの直下の外に置く
 - 統合テストの外(`src` と `__tests__/` の `*.test.ts`・`*.test-helper.ts`・`*.fixture.ts`)がコンポーネントを描く道具(`@testing-library/react`・`react-dom` とその下。型だけの import も)を import する
@@ -317,9 +330,8 @@ I/O コンテナの一覧は `scripts/container-dirs.mjs`(画面の3つと横断
 フックを呼んでよい所(`container.tsx` と、`hooks` フォルダの中の `use-*.ts`・`use-*.tsx`)は、ESLint の規則 `layer/hook-only-in-container` が `npm run lint` で見る(テストの部品は外す)。
 同じ規則を `scripts/check-hook-rule.mjs` が `npm run test:boundary` で使う(下の項)。
 
-- 例外の一覧は、村の2段階までの待ちの一覧2つ(`scripts/container-dirs.mjs`)だけ。`PENDING_CONTAINER_FILES` はまだフックを呼ぶ表示部品(ESLint の規則から外す)、
-  `PENDING_HOOK_DIRS` は隣に `container.tsx` の無い `hooks` フォルダ。項目が無くなったか、もう違反しないのに残っていると `npm run test:boundary` が落ちるので、一覧は減る方向にだけ動く。
-  `PENDING_CONTAINER_FILES` を見るのは `scripts/check-hook-rule.mjs` だけで、`PENDING_HOOK_DIRS` は `scripts/check-test-boundary.mjs` が見る
+- 例外を許す一覧は無い。村の2段階まであった待ちの一覧2つ(まだフックを呼ぶ表示部品の `PENDING_CONTAINER_FILES` と、隣に `container.tsx` の無い `hooks` フォルダの `PENDING_HOOK_DIRS`)は、
+  2段階で村を移し終えて消した
 - ADR 0011より前からあった村のフックのテスト4つ(`use-map-data`・`use-village-time`・`use-village-world`・`use-village-travel`)は、
   各フックのロジックを純粋関数へ移して純粋関数のテストで見るようにし、消した。フックのテストに例外の一覧は無い
 - この決まりを変えるにはADRが要る
@@ -329,8 +341,9 @@ I/O コンテナの一覧は `scripts/container-dirs.mjs`(画面の3つと横断
 - 同じコマンドで走る `scripts/check-coverage-ignores.mjs` は、カバレッジから行を外す注釈を見る([カバレッジの床](#カバレッジの床)のフックとコンテナのファイル別100%)
 - 同じコマンドで走る `scripts/check-hook-rule.mjs` は、ESLint の規則 `layer/hook-only-in-container` をそのまま使ってフックを呼ぶ所を見る。
   まず規則の判定(偽のコードの断片から拾うフックの名前)と、`eslint.config.mjs` の掛け方(偽のパスで、規則が掛かる所と外れる所)を自己検査し、src と `__tests__/` のファイルが lint の対象の外になっていないことも確かめる。
-  そのうえで src の `*.ts`・`*.tsx` を全部 lint して違反を数え(`eslint-disable` の注釈で黙らせた呼び出しも数える)、
-  待ちの一覧 `PENDING_CONTAINER_FILES` のファイルがあって、まだフックを呼んでいるかを見る
+  src のファイルごとに、規則が掛かるかを名前の決まり(外れるのは `container.tsx`・`hooks` フォルダの中の `use-*.ts(x)`・テストの部品だけ)と突き合わせ、1つでも違えば落とす
+  (規則の組みの `ignores` に実在のパスを足すと、そのファイルは lint も通るため。この抜け道を実際の設定に入れて拾うことも自己検査する)。
+  そのうえで src の `*.ts`・`*.tsx` を全部 lint して違反を数える(`eslint-disable` の注釈で黙らせた呼び出しも数える)
 
 ## 新しい検査は必ず一度落とす
 
@@ -343,8 +356,8 @@ PASS は調査を止めるので、FAIL より危険である。
 
 ## 走らせる範囲
 
-統合テスト(`npm run test:integration`)はビルド無しで走るが、全体は約2分24秒かかる(2026-10-16 の手元の実測、6ファイル・201件、`--coverage` 無し。1本だった当時の 2026-10-13 の実測は約3.4秒、`-- --coverage` 付きで約4.3秒)。
-反復中は触ったコンテナの統合テストだけを狭めて走らせ(ファイル1つを `-t` で絞るなら `npm run test:integration -- __tests__/village-page/village.integration.test.tsx -t '<名前>'`、
+統合テスト(`npm run test:integration`)はビルド無しで走るが、全体は約51秒かかる(2026-10-18 の手元の実測、87ファイル・314件、`--coverage` 無し。1本だった当時の 2026-10-13 の実測は約3.4秒、`-- --coverage` 付きで約4.3秒)。
+反復中は触ったコンテナの統合テストだけを狭めて走らせ(ファイル1つを `-t` で絞るなら `npm run test:integration -- __tests__/village-page/fishing.integration.test.tsx -t '<名前>'`、
 コンテナ1つのフォルダなら `npm run test:integration -- __tests__/story/story-body/`)、全体は commit の直前に1回だけ走らせる(`npm run verify` に含まれる)。
 
 E2E の反復中は落ちた spec だけを狭く走らせる(`npx playwright test tests/journey.spec.ts -g '<名前>'`)。

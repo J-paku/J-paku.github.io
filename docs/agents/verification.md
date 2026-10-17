@@ -64,7 +64,7 @@ CI(`.github/workflows/deploy.yml`)が `main` への push と `main` への PR �
 E2E の全体は数分かかる(2026-10-11 の手元の実測で約3分44秒)。修理のたびに全体を回さない。
 
 - 反復中: 落ちた spec と新しく書いた spec だけ(`npx playwright test tests/journey.spec.ts -g '<名前>'`)
-- 統合テスト(`npm run test:integration`)はビルド無しで走るが、全体は約2分24秒かかる(2026-10-16 の手元の実測、6ファイル・201件、`--coverage` 無し)。反復中は触ったコンテナの統合テストだけを狭めて走らせ(ファイル1つを `-t` で絞るなら `npm run test:integration -- __tests__/village-page/village.integration.test.tsx -t '<名前>'`、コンテナ1つのフォルダなら `npm run test:integration -- __tests__/story/story-body/`)、全体は commit の直前に1回(`npm run verify` に含まれる。[../quality/test-strategy.md](../quality/test-strategy.md) の「走らせる範囲」)
+- 統合テスト(`npm run test:integration`)はビルド無しで走るが、全体は約51秒かかる(2026-10-18 の手元の実測、87ファイル・314件、`--coverage` 無し)。反復中は触ったコンテナの統合テストだけを狭めて走らせ(ファイル1つを `-t` で絞るなら `npm run test:integration -- __tests__/village-page/fishing.integration.test.tsx -t '<名前>'`、コンテナ1つのフォルダなら `npm run test:integration -- __tests__/story/story-body/`)、全体は commit の直前に1回(`npm run verify` に含まれる。[../quality/test-strategy.md](../quality/test-strategy.md) の「走らせる範囲」)
 - E2E の全体は手元では回さず、push で CI が回す。CI で落ちた spec が出たら、その spec だけを手元で狭く直してから push し直す
 - CI も E2E を再試行しない(`playwright.config.ts` の `retries` は 0)。1 回だけ落ちて次は通る揺れも、再実行で流さず原因を直す
 
