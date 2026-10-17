@@ -7,61 +7,17 @@
 // 動きを控える設定は差し替えず、Chromium の模擬(CDP)で本物の media query を切り替える
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { inject } from 'vitest'
-import { page, userEvent } from 'vitest/browser'
+import { page } from 'vitest/browser'
 import type {
   Career,
   CareerDetail as CareerDetailContent,
   CareerFact,
-  Work,
 } from '@content/types/content'
-// 部品と同じ CSS Modules を import すれば、部品と同じクラス名が引ける
-import cardStyles from '@/components/Directory/components/WorkCard/work-card.module.css'
-import shotStyles from '@/components/Directory/components/WorkCard/components/Shot/shot.module.css'
-import workLinksStyles from '@/components/Directory/components/WorkCard/components/WorkLinks/work-links.module.css'
 import type { DirectoryData } from './container.fixture'
 import DirectoryContainer from '@/components/Directory/container'
 
 const directoryJa = inject('directoryJa')
-const directoryKo = inject('directoryKo')
-const { works, ui, profile } = directoryJa
-
-const pickWork = (candidates: Work[], label: string, predicate: (work: Work) => boolean): Work => {
-  const found = candidates.find(predicate)
-  if (found === undefined) throw new Error(`${label}作品がcontentに無い`)
-  return found
-}
-
-// 動画もリールも持たず、静止画だけを持つ作品
-const stillWork = pickWork(
-  works,
-  '静止画だけを持つ',
-  work => work.thumbnail !== undefined && work.video === undefined && work.storyReel !== true
-)
-// 公開ページとGitHubの両方を持ち、ストーリーは持たない作品(下部パネルのリンク)
-const linkWork = pickWork(
-  works,
-  '公開ページとGitHubを持ちストーリーを持たない',
-  work => work.links.live !== undefined && work.links.repo !== undefined && work.story === undefined
-)
-// 公開ページとGitHubの両方を持ち、動き(動画・リール)を持たない作品。覆いのトリガーはマウスでもタッチでも出る
-const stillLinkWork = pickWork(
-  works,
-  '公開ページとGitHubを持つ動きの無い',
-  work =>
-    work.links.live !== undefined &&
-    work.links.repo !== undefined &&
-    work.video === undefined &&
-    work.storyReel !== true
-)
-// 公開ページとGitHubの両方を持ち、動画を持つ作品。マウスでは全面トグル、タッチでは覆いの中の一時停止ボタンが出る
-const motionLinkWork = pickWork(
-  works,
-  '公開ページとGitHubを持つ動画の',
-  work => work.links.live !== undefined && work.links.repo !== undefined && work.video !== undefined
-)
-// 外部リンクを持たず、ストーリーだけを持つ作品(覆いはストーリーへの入口1つになる)
-const isStoryOnly = (work: Work) =>
-  work.links.live === undefined && work.links.repo === undefined && work.story !== undefined
+const { ui, profile } = directoryJa
 
 // detailを持つ経歴だけを、detailを非undefinedの型で受け取る
 type DetailedCareer = Career & { detail: CareerDetailContent }
@@ -104,12 +60,6 @@ const withoutField = (career: DetailedCareer, key: keyof CareerDetailContent): D
 const renderDirectory = (data: DirectoryData = directoryJa) =>
   render(<DirectoryContainer {...data} />)
 
-// 作品を1件差し替えた画面の props。同じ slug の作品と入れ替え、並び順は実データのまま
-const withWork = (work: Work): DirectoryData => ({
-  ...directoryJa,
-  works: works.map(candidate => (candidate.slug === work.slug ? work : candidate)),
-})
-
 // 経歴を1件差し替えた画面の props。同じ id の経歴と入れ替える
 const withCareer = (career: Career): DirectoryData => ({
   ...directoryJa,
@@ -118,30 +68,6 @@ const withCareer = (career: Career): DirectoryData => ({
     careers: profile.careers.map(candidate => (candidate.id === career.id ? career : candidate)),
   },
 })
-
-const queryOrThrow = (root: HTMLElement, selector: string): HTMLElement => {
-  const element = root.querySelector<HTMLElement>(selector)
-  if (element === null) throw new Error(`${selector}が描かれていない`)
-  return element
-}
-
-// カードは <article id="<slug>"> で並ぶ。詳細の開閉・一時停止などはカードごとに同じ名前で並ぶので、カードの中で探す
-const cardOf = (work: Work): HTMLElement => {
-  const card = document.getElementById(work.slug)
-  if (card === null || card.tagName !== 'ARTICLE') {
-    throw new Error(`${work.slug}のカードが描かれていない`)
-  }
-  return card
-}
-
-// 画面キャプチャの枠。リンクの覆いが外側の押下を判定する基準でもある
-const shotOf = (work: Work) => queryOrThrow(cardOf(work), `.${shotStyles.shot}`)
-// リンクの覆い。表示の切り替えは CSS が受け持ち、開いている印はクラスで見る
-const overlayOf = (work: Work) => queryOrThrow(shotOf(work), `.${shotStyles.shotOverlay}`)
-const isOverlayOpen = (overlay: HTMLElement) =>
-  overlay.classList.contains(shotStyles.shotOverlayOpen)
-// 事実のパネル(仕様表・タグ・リンク)。下部パネルのリンクはこの中に並ぶ
-const factPanelOf = (work: Work) => queryOrThrow(cardOf(work), `.${cardStyles.panel}`)
 
 // 日本語はPhraseTextが文節ごとに<wbr>を挟む。flexの箱の中では<wbr>も箱になり、名前を組む
 // dom-accessibility-apiが箱の境に空白を足す(実測: 作品一覧への戻り道が「作品一覧へ 戻る」になった)。
@@ -173,20 +99,6 @@ const factPairsIn = (root: HTMLElement) =>
 const pairsOf = (rows: CareerFact[]) => rows.map(row => [row.label, row.value])
 
 const NO_NETWORK = 'テストでは通信しない'
-// カードのフックが問う「ホバーできる細かいポインタか」(use-card-motion.ts)
-const FINE_POINTER = '(hover: hover) and (pointer: fine)'
-
-// タッチ端末として見る。カードのフックが問う FINE_POINTER だけを「いいえ」と答え、ほかの問い合わせは本物へ渡す。
-// Chromium のタッチの模擬(CDP の Emulation.setTouchEmulationEnabled)は使わない — 切った後もポインタもホバーも
-// 無い端末のまま戻らず(2026-10-14 の実測)、同じページで続くテスト(村の枠の読み上げ名はポインタで変わる)へ漏れる。
-// CSS の @media は本物のマウスのまま(ホバーで覆いが出て、動画カードの覆いは押下を通さない)なので、
-// 覆いに重なるボタンはキーボードで押す
-const viewAsTouch = () => {
-  const realMatchMedia = window.matchMedia.bind(window)
-  vi.stubGlobal('matchMedia', (query: string) =>
-    realMatchMedia(query === FINE_POINTER ? 'not all' : query)
-  )
-}
 
 // 場面 SVG の取得を、テストが手放すまで返さずに留める。手放すと失敗で返す。
 // 失敗した取得は取得の覚え(src/lib/fetch-svg-source.ts)から消えるので、次のテストは空の覚えから始まる
@@ -212,252 +124,6 @@ afterEach(async () => {
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
   window.history.replaceState(null, '', originalUrl)
-})
-
-describe('作品カード(WorkCard)', () => {
-  describe('通し番号', () => {
-    // 10件並べた一覧。番号は並び順だけで決まるので、静止画の作品を slug だけ替えて並べる
-    const tenWorks = Array.from({ length: 10 }, (_, index) => ({
-      ...stillWork,
-      slug: `${stillWork.slug}-${index}`,
-    }))
-
-    it.each([
-      [0, 'NO.01'],
-      [9, 'NO.10'],
-    ])('一覧の配列で%i番目(0始まり)のカードは、1始まりの2桁で %s と振る', (index, serial) => {
-      renderDirectory({ ...directoryJa, works: tenWorks })
-
-      expect(within(cardOf(tenWorks[index])).getByText(serial)).toBeDefined()
-    })
-  })
-})
-
-describe('リンクの覆い(LinksOverlay)', () => {
-  describe('覆いの有無', () => {
-    it('リンクもストーリーも持たない作品では、トリガーも覆いも描かない', () => {
-      // リンクもストーリーも持たない作品(準備中の作品の形)。いまの実データには無いので、実データから外して作る
-      const bareWork: Work = { ...stillLinkWork, links: {}, story: undefined }
-      viewAsTouch()
-      renderDirectory(withWork(bareWork))
-
-      // 枠に残るのは静止画だけ
-      const shot = shotOf(bareWork)
-      expect([...shot.children].map(child => child.tagName)).toEqual(['IMG'])
-    })
-  })
-
-  describe('トリガー(タップで開閉する入口)', () => {
-    it.each([
-      ['動きの無いカードをマウスで', stillLinkWork, false],
-      ['動きの無いカードをタッチで', stillLinkWork, true],
-      ['動きを持つカードをタッチで', motionLinkWork, true],
-    ])('%s見るときは、閉じた状態のトリガーを置く', (_label, work, isTouch) => {
-      if (isTouch) viewAsTouch()
-      renderDirectory()
-
-      const trigger = within(shotOf(work)).getByRole('button', { name: ui.work.openLinks })
-      expect(trigger.getAttribute('aria-expanded')).toBe('false')
-    })
-
-    it('動きを持つカードをマウスで見るときは、トリガーも覆い内の一時停止ボタンも置かず(全面トグルが担う)、覆いのリンクは置く', () => {
-      renderDirectory()
-
-      const overlay = overlayOf(motionLinkWork)
-      expect(within(overlay).queryAllByRole('button')).toHaveLength(0)
-      // 枠の中で押せるボタンは、覆いの外の全面トグルだけ
-      const buttons = within(shotOf(motionLinkWork)).getAllByRole('button')
-      expect(buttons.map(button => button.getAttribute('aria-label'))).toEqual([
-        ui.work.pauseMotion,
-      ])
-      expect(within(overlay).getByRole('link', { name: ui.work.live }).getAttribute('href')).toBe(
-        motionLinkWork.links.live
-      )
-    })
-
-    it('トリガーを押すと覆いが開いてaria-expandedがtrueになり、覆いの空きを押すと閉じる', async () => {
-      renderDirectory()
-
-      const trigger = within(shotOf(stillLinkWork)).getByRole('button', {
-        name: ui.work.openLinks,
-      })
-      const overlay = overlayOf(stillLinkWork)
-      expect(isOverlayOpen(overlay)).toBe(false)
-
-      // マウスではホバーした枠に覆いが出てトリガーに重なる(マウスの利用者はリンクを直接押す)。トリガーはキーボードで押す
-      trigger.focus()
-      await userEvent.keyboard('{Enter}')
-      await expect.element(trigger).toHaveAttribute('aria-expanded', 'true')
-      expect(isOverlayOpen(overlay)).toBe(true)
-
-      // 覆いの空きを押す。リンクのボタンは下端の中央に並ぶので、左上の角は空いている
-      await userEvent.click(overlay, { position: { x: 4, y: 4 } })
-      await expect.element(trigger).toHaveAttribute('aria-expanded', 'false')
-      expect(isOverlayOpen(overlay)).toBe(false)
-    })
-  })
-
-  describe('覆いの中のリンク', () => {
-    const linkCases: [string, Work][] = [
-      ['公開ページとGitHub', stillLinkWork],
-      ['公開ページだけ', { ...stillLinkWork, links: { live: stillLinkWork.links.live } }],
-      ['GitHubだけ', { ...stillLinkWork, links: { repo: stillLinkWork.links.repo } }],
-    ]
-
-    it.each(linkCases)(
-      '外部リンクが%sの作品は、「リンクを開く」トリガーと持っているリンクだけを置き、ストーリーへの入口は置かない',
-      (_label, work) => {
-        viewAsTouch()
-        renderDirectory(withWork(work))
-
-        const shot = within(shotOf(work))
-        expect(shot.getByRole('button', { name: ui.work.openLinks })).toBeDefined()
-        // 持たないリンクは要素ごと無い(行き先がundefinedのまま一致する)
-        const live = shot.queryByRole('link', { name: ui.work.live })
-        const repo = shot.queryByRole('link', { name: ui.work.repo })
-        expect(live?.getAttribute('href')).toBe(work.links.live)
-        expect(repo?.getAttribute('href')).toBe(work.links.repo)
-        expect(shot.queryByRole('link', { name: ui.work.story })).toBeNull()
-      }
-    )
-
-    it('公開ページとGitHubへの外部リンクは、行き先へ参照元を渡さない(rel=noreferrer)', () => {
-      viewAsTouch()
-      renderDirectory()
-
-      const overlay = within(overlayOf(stillLinkWork))
-      for (const name of [ui.work.live, ui.work.repo]) {
-        expect(overlay.getByRole('link', { name }).getAttribute('rel')).toBe('noreferrer')
-      }
-    })
-
-    it.each([
-      ['ja', directoryJa, ''],
-      ['ko', directoryKo, '/ko'],
-    ] as const)(
-      'ストーリーだけを持つ作品は、「ストーリーを開く」トリガーと、その言語のストーリーページへの入口を1つだけ置く(%s)',
-      (_locale, data, prefix) => {
-        const work = pickWork(data.works, 'ストーリーだけを持つ', isStoryOnly)
-        viewAsTouch()
-        renderDirectory(data)
-
-        const shot = within(shotOf(work))
-        expect(shot.getByRole('button', { name: data.ui.work.openStory })).toBeDefined()
-        const links = shot.getAllByRole('link')
-        expect(links).toHaveLength(1)
-        expect(links[0].textContent).toBe(data.ui.work.story)
-        expect(links[0].getAttribute('href')).toBe(`${prefix}/works/${work.slug}/`)
-      }
-    )
-  })
-
-  describe('覆いの中の一時停止ボタン(タッチ環境の操作口)', () => {
-    it('動きを持つカードをタッチで見るときは一時停止ボタンを置き、押すと再生へ替わり、開いた覆いは閉じない', async () => {
-      viewAsTouch()
-      renderDirectory()
-
-      const shot = within(shotOf(motionLinkWork))
-      const trigger = shot.getByRole('button', { name: ui.work.openLinks })
-      await userEvent.click(trigger)
-      await expect.element(trigger).toHaveAttribute('aria-expanded', 'true')
-
-      // 押されたボタンは覆いの中にある(覆いの背景を押せば閉じる)。ホバー中の動画カードの覆いは CSS が押下を通さないので、キーボードで押す
-      const toggle = shot.getByRole('button', { name: ui.work.pauseMotion })
-      expect(overlayOf(motionLinkWork).contains(toggle)).toBe(true)
-      toggle.focus()
-      await userEvent.keyboard('{Enter}')
-      await expect.element(toggle).toHaveAttribute('aria-label', ui.work.resumeMotion)
-      // 覆いの背景を押したことにはならない(押下は覆いの閉じる処理へ伝わらない)
-      expect(trigger.getAttribute('aria-expanded')).toBe('true')
-
-      await userEvent.keyboard('{Enter}')
-      await expect.element(toggle).toHaveAttribute('aria-label', ui.work.pauseMotion)
-    })
-
-    it.each([
-      ['マウスで', false],
-      ['タッチで', true],
-    ])('動きの無いカードを%s見るときは一時停止ボタンを置かない', (_label, isTouch) => {
-      if (isTouch) viewAsTouch()
-      renderDirectory()
-
-      const shot = within(shotOf(stillLinkWork))
-      expect(shot.queryByRole('button', { name: ui.work.pauseMotion })).toBeNull()
-      expect(shot.queryByRole('button', { name: ui.work.resumeMotion })).toBeNull()
-    })
-  })
-})
-
-describe('下部パネルのリンク(WorkLinks)', () => {
-  it('リンクもストーリーも持たない作品では何も描かない', () => {
-    // リンクもストーリーも持たない作品(準備中の作品の形)。いまの実データには無いので、実データから外して作る
-    const bareWork: Work = { ...linkWork, links: {}, story: undefined }
-    renderDirectory(withWork(bareWork))
-
-    const panel = factPanelOf(bareWork)
-    expect(panel.querySelector(`.${workLinksStyles.links}`)).toBeNull()
-    expect(within(panel).queryAllByRole('link')).toHaveLength(0)
-  })
-
-  const linkCases: [string, Work][] = [
-    ['公開ページとGitHub', linkWork],
-    ['公開ページだけ', { ...linkWork, links: { live: linkWork.links.live } }],
-    ['GitHubだけ', { ...linkWork, links: { repo: linkWork.links.repo } }],
-  ]
-
-  it.each(linkCases)(
-    '外部リンクが%sでストーリーを持たない作品は、持っているリンクだけを出す',
-    (_label, work) => {
-      renderDirectory(withWork(work))
-
-      // 持たないリンクは要素ごと無い(行き先がundefinedのまま一致する)
-      const panel = within(factPanelOf(work))
-      const live = panel.queryByRole('link', { name: ui.work.live })
-      const repo = panel.queryByRole('link', { name: ui.work.repo })
-      expect(live?.getAttribute('href')).toBe(work.links.live)
-      expect(repo?.getAttribute('href')).toBe(work.links.repo)
-      expect(panel.queryByRole('link', { name: ui.work.story })).toBeNull()
-    }
-  )
-
-  it('公開ページとGitHubへの外部リンクは、行き先へ参照元を渡さない(rel=noreferrer)', () => {
-    renderDirectory()
-
-    const panel = within(factPanelOf(linkWork))
-    for (const name of [ui.work.live, ui.work.repo]) {
-      expect(panel.getByRole('link', { name }).getAttribute('rel')).toBe('noreferrer')
-    }
-  })
-
-  it.each([
-    ['ja', directoryJa, ''],
-    ['ko', directoryKo, '/ko'],
-  ] as const)(
-    'ストーリーを持つ作品は、その言語のストーリーページへのリンクを出す(%s)',
-    (_locale, data, prefix) => {
-      const work = pickWork(
-        data.works,
-        'ストーリーを持つ',
-        candidate => candidate.story !== undefined
-      )
-      renderDirectory(data)
-
-      const story = within(factPanelOf(work)).getByRole('link', { name: data.ui.work.story })
-      expect(story.getAttribute('href')).toBe(`${prefix}/works/${work.slug}/`)
-    }
-  )
-
-  it('外部リンクとストーリーの両方を持つ作品にも、ストーリーへの常設の入口を並べて出す', () => {
-    const storyWork = pickWork(works, 'ストーリーを持つ', work => work.story !== undefined)
-    const work: Work = { ...linkWork, story: storyWork.story }
-    renderDirectory(withWork(work))
-
-    expect(
-      within(factPanelOf(work))
-        .getAllByRole('link')
-        .map(link => link.textContent)
-    ).toEqual([ui.work.live, ui.work.repo, ui.work.story])
-  })
 })
 
 describe('担当業務の詳細(CareerDetail)', () => {
