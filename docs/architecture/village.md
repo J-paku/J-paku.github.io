@@ -4,7 +4,7 @@ read_when:
   - 村の地形・会話地点・移動・当たり判定を変えるとき
   - 村の UI(操作帯・会話窓・地図)を変えるとき
 source_of_truth: true
-last_reviewed: 2026-10-15
+last_reviewed: 2026-10-17
 ---
 
 # 村(トップ画面)
@@ -18,12 +18,12 @@ last_reviewed: 2026-10-15
 
 ## 4つの層
 
-| 層     | 場所                                              | 持つもの                                                                                   | 依存                                                                                       |
-| ------ | ------------------------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
-| データ | `content/world.ts` / `content/{ja,ko}/village.ts` | 地形・構造物・会話地点・ワープ / 文言                                                      | 無し                                                                                       |
-| 規則   | `src/lib/village/`                                | 移動・衝突・経路・地点判定の純粋関数                                                       | React・DOM に依存しない                                                                    |
-| 絵     | `src/lib/pixel/`                                  | ドット絵の定義とシート合成                                                                 | 同上。→ [../../src/lib/pixel/AGENTS.md](../../src/lib/pixel/AGENTS.md)                     |
-| 画面   | `src/components/VillagePage/`                     | 組み立てと操作(サーバのローダー `index.tsx`・状態を持つコンテナ `container.tsx`・表示部品) | → [../../src/components/VillagePage/AGENTS.md](../../src/components/VillagePage/AGENTS.md) |
+| 層     | 場所                                              | 持つもの                                                                                                   | 依存                                                                                       |
+| ------ | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| データ | `content/world.ts` / `content/{ja,ko}/village.ts` | 地形・構造物・会話地点・ワープ / 文言                                                                      | 無し                                                                                       |
+| 規則   | `src/lib/village/`                                | 移動・衝突・経路・地点判定の純粋関数                                                                       | React・DOM に依存しない                                                                    |
+| 絵     | `src/lib/pixel/`                                  | ドット絵の定義とシート合成                                                                                 | 同上。→ [../../src/lib/pixel/AGENTS.md](../../src/lib/pixel/AGENTS.md)                     |
+| 画面   | `src/components/VillagePage/`                     | 組み立てと操作(サーバのローダー `index.tsx`・I/O コンテナ `container.tsx`・その下の状態コンテナと表示部品) | → [../../src/components/VillagePage/AGENTS.md](../../src/components/VillagePage/AGENTS.md) |
 
 **規則の層に画面の都合を持ち込まない。** ここが純粋なので、移動も経路も Vitest で単体テストできている。
 
@@ -143,7 +143,7 @@ Z キー / 画面の A / 吹き出しのボタンで直接投げる(E キーも�
   `src/lib/village/flight.ts`、入力の錠と着地は `src/lib/village/movement.ts`、動いているかの判定(`isMoving`)は `src/lib/village/is-moving.ts`、
   コマは `src/lib/village/player-pose.ts`。
   画面での振る舞い(どの移動で飛ぶか・影と主人公の描き方・降りた所での到着)は村の統合テスト
-  (`src/components/VillagePage/container.browser.test.tsx` の「自動移動の直線飛行」)が見る
+  (`__tests__/village-page/flight-route.integration.test.tsx`・`__tests__/village-page/flight-shape.integration.test.tsx`・`__tests__/village-page/flight-input.integration.test.tsx`)が見る
 
 ## 昼夜と天気
 

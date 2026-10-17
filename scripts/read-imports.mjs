@@ -1,4 +1,4 @@
-// src のファイルの import を TypeScript の構文木で読む(check-layers.mjs と check-test-boundary.mjs が使う)。
+// src と __tests__ のファイルの import を TypeScript の構文木で読む(check-layers.mjs と check-test-boundary.mjs が使う)。
 // 正規表現で読むと、注釈・文字列の中の import を拾い、型だけの import と実行時に読み込まれる import を分けられないため。
 // 判定が壊れていないかは、使う側の自己検査が偽のファイルで確かめる。
 //

@@ -1,12 +1,12 @@
 // 卓上時計の窓の中身。段階(選択 → 時刻)・針の値・焦点とキー操作をここに集め、
-// index.tsx は受け取った手を並べるだけにする。時刻の読み書きはコンテナから props で受け取る
+// container.tsx は受け取った手を並べるだけにする。時刻の読み書きは村の I/O コンテナから props で受け取る
 import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent, RefObject } from 'react'
 import type { ClockText, Direction } from '@content/types/world'
 import { wrapWithin } from '@/utils/wrap-within'
-import { useDialogFocus } from '../../../hooks/use-dialog-focus'
-import { useHeldDirection } from '../../../hooks/use-held-direction'
-import { CLOCK_FOCUSABLE_SELECTOR, focusablesIn } from '../../../utils/focusables'
+import { useDialogFocus } from '@/hooks/use-dialog-focus'
+import { useHeldDirection } from '@/hooks/use-held-direction'
+import { CLOCK_FOCUSABLE_SELECTOR, focusablesIn } from '@/utils/focusables'
 import { formatClock } from '../utils/clock-time'
 import { moveForDirection, nextRepeatAt, shiftHour, shiftMinute } from '../utils/step-clock-time'
 import type { ClockStep } from '../utils/step-clock-time'

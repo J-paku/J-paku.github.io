@@ -3,7 +3,7 @@ status: active
 read_when:
   - コードを書く前に書き方を確かめたいとき
 source_of_truth: true
-last_reviewed: 2026-10-15
+last_reviewed: 2026-10-17
 ---
 
 # 書き方
@@ -26,9 +26,9 @@ last_reviewed: 2026-10-15
 
 ## 命名とファイル
 
-- ファイル名は **kebab-case**。コンポーネントフォルダだけ **PascalCase**、その入口が `index.tsx`。
-  例外はコンテナ(`container.tsx`)を持つ横断部品で、外から `container.tsx` を直接指す(何も描かない `PageviewCounter` は `index.tsx` を持たない)。
-  画面のフォルダの `index.tsx` はサーバのローダー → [../architecture/frontend.md](../architecture/frontend.md) の「ローダー・コンテナ・表示部品」
+- ファイル名は **kebab-case**。コンポーネントフォルダだけ **PascalCase**。
+  入口は、フックを1つも呼ばない表示部品なら `index.tsx`、フックを1つでも呼ぶコンテナなら `container.tsx`。コンテナは外から `container` を直接指し、状態コンテナのフォルダに `index.tsx` は無い。
+  I/O コンテナのうち画面の3つは、サーバのローダーの `index.tsx` と `container.tsx` を両方持つ(横断部品の3つの形も含めて → [../architecture/frontend.md](../architecture/frontend.md) の「ローダー・コンテナ・表示部品」「コンポーネントのフォルダ」)
 - フックは `use-` 始まり。**フックのフォルダに `index.ts` を作らない**(不変ルール4)
 - `hooks` フォルダには `use-` 始まりのフック以外を置かない。テストも置かない(`npm run test:boundary` が落とす)。純粋関数・レンダラーは `utils` フォルダへ
 - ファイル名は動詞-名詞の kebab-case、3語まで(例: `paint-camera.ts`)。長い名前を付けない

@@ -4,7 +4,7 @@
 // 動き終えれば歩行ループが眠る(振りかぶりの間は回っている)。
 // 画素を比べるには、ビルドが焼くシート(/sprites/ の PNG)とローダーが差し込むスプライトの背景が要るので E2E に残す。
 // 釣りの流れ(浮き・糸・巻物・結果窓・考え事の吹き出し・タッチの A/B・動きを控える設定)と、コマの時間割・左右反転・立ち位置・
-// 歩行ループの眠りは、村の統合テスト(src/components/VillagePage/container.browser.test.tsx)が見る
+// 歩行ループの眠りは、村の統合テスト(__tests__/village-page/fishing.integration.test.tsx)が見る
 // (docs/decisions/0018-move-e2e-and-gate-all-hooks.md)
 import { expect, type Locator, type Page } from '@playwright/test'
 import { village as villageJa } from '@content/ja/village'

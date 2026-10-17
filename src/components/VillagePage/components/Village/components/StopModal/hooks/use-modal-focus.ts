@@ -2,8 +2,8 @@
 // 開いている間は Esc で閉じ、Tab はこの窓の中で回す(戻しと Tab の輪は use-dialog-focus が持つ)
 import type { KeyboardEvent, RefObject } from 'react'
 
-import { useDialogFocus } from '../../../hooks/use-dialog-focus'
-import { STOP_FOCUSABLE_SELECTOR } from '../../../utils/focusables'
+import { useDialogFocus } from '@/hooks/use-dialog-focus'
+import { STOP_FOCUSABLE_SELECTOR } from '@/utils/focusables'
 
 type UseModalFocusParams = {
   dialogRef: RefObject<HTMLDivElement | null>

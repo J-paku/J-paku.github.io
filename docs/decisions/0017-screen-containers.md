@@ -5,7 +5,7 @@ read_when:
   - 外の世界(保存・天気・計測・SVG の取得・content の読み出し)に触れる import をどこに書くか迷ったとき
   - コンポーネントを描くテストをどこに置くかを問われたとき
 source_of_truth: false
-last_reviewed: 2026-10-14
+last_reviewed: 2026-10-17
 ---
 
 # 0017. ファイルを utils・lib、コンテナ、表示部品の3層に分け、コンポーネントを描くテストをコンテナの統合テストへ集める
@@ -25,6 +25,11 @@ Accepted(2026-10-14、利用者の決定)。次の部分を置き換える。
 `hooks`フォルダに単体テストを置かない・どのテストでも`renderHook`を使わない([0011](0011-extreme-constraints.md))は変えない。
 DOM を使う utils と歩行ループの部品を happy-dom で見る部分(0009)、0016 の「E2E を消す条件」とフックのファイル別100%の決め方も変えない
 
+D1・D3 の一部・D5 は [0019](0019-hooks-make-containers.md) で置き換えた(2026-10-17。D1 のうちコンテナを役割で決めて6つのフォルダだけに置く部分は、フックを1つでも呼ぶコンポーネントをコンテナ(`container.tsx`)にする形に替わり、
+6つは外の世界に触れてよい「I/O コンテナ」として残った。D3 のうち表示部品に UI のフックを許す部分は、表示部品はフックを1つも呼ばない形に替わった。
+D5 の `container.browser.test.tsx`(コンテナの隣・コンテナごとにちょうど1本)は、リポジトリ直下の `__tests__` の下の動作ごとの `<動作>.integration.test.tsx`(コンテナごとに1本以上)に替わった。
+D2・D4・D6・D7 と、D3 の外の世界の入口の一覧は、この記録のまま)
+
 ## Context
 
 2026-10-14、利用者がファイルを「utils・lib」「コンテナ」「表示部品」の3つの層に分け、コンポーネントを描くテストを全部コンテナの統合テストへ集めると決めた。
@@ -38,7 +43,7 @@ DOM を使う utils と歩行ループの部品を happy-dom で見る部分(000
   - `@/lib/preferences` — 村の3つのフック(`use-village-arrive`・`use-village-restore`・`use-course-progress`)と、設定メニューの `use-theme-choice`
   - `@/lib/weather` — 村の `use-weather`
   - `@/lib/analytics` と `next/navigation` — ページ移動の計測(`PageviewCounter`)の入口の `index.tsx`
-  - `@/lib/fetch-svg-source` — 場面の再生の下位部品 `src/components/ui/ScenePlayer/components/SceneSvg/index.tsx`
+  - `@/lib/fetch-svg-source` — 場面の再生の下位部品 SceneSvg(当時の `src/components/ui/ScenePlayer/components/SceneSvg/` の `index.tsx`)
   - 卓上時計のストア(`use-village-time`、zustand)— 村の `use-day-phase` と、卓上時計の窓の `use-clock-modal`
 - **コンポーネントを描くテストは2種類あった。** happy-dom でコンポーネント1つを描く単体の8本(`index.test.tsx`。作品カードとその部品の LinksOverlay・WorkLinks・ShotMedia、経歴の CareerDetail、
   設定メニュー、ページ移動の計測、作品ストーリーの技術チップの TechChipPopover)と、実ブラウザで村の `Village` を描く統合の1本。
@@ -146,7 +151,7 @@ happy-dom の8本を消すこと、コンポーネントを描くテストの置
     村は `src/components/VillagePage/utils/village-props.ts`、一覧は `src/components/Directory/utils/directory-props.ts`、
     作品ストーリーは `src/components/Story/utils/story-props.ts`(ストーリーが無ければ null を返し、`notFound()` はローダーに残る)。フィクスチャはローダーを写さない
   - 村の画面のフックは `src/components/VillagePage/hooks/` へ移した(下のフォルダ `use-village-guide`・`use-village-overlay`・`use-walk-loop` はそのまま)。
-    窓の UI のフックが使う `use-dialog-focus.ts`・`use-held-direction.ts` は表示部品の側(`src/components/VillagePage/components/Village/hooks/`)に残る
+    窓の UI のフックが使う `use-dialog-focus.ts`・`use-held-direction.ts` は表示部品の側(当時の `Village` の `hooks` フォルダ)に残る(今は [0019](0019-hooks-make-containers.md) で `src/hooks/` へ移した)
   - `src/components/Directory/container.tsx`・`src/components/Story/container.tsx` はフックが無く、`'use client'` も無い。中のクライアントの島(作品カード・場面モーダルなど)は今までどおり
   - 作品ストーリーの `use-active-scene`(`IntersectionObserver` で今読んでいる場面を追う UI のフック)は、画面のフォルダの直下の `hooks` フォルダから、それを使う表示部品の
     `src/components/Story/components/StoryBody/hooks/use-active-scene.ts` へ移した。画面のフォルダの直下の `hooks` フォルダはコンテナの隣の(I/O を許す)フォルダ、という D4 に合わせるため

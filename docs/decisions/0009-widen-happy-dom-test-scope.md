@@ -4,7 +4,7 @@ read_when:
   - happy-dom で見るテストの対象を広げる・狭めるとき
   - 村のフックや部品を happy-dom のテストで見てよいか迷ったとき
 source_of_truth: false
-last_reviewed: 2026-10-14
+last_reviewed: 2026-10-17
 ---
 
 # 0009. happy-dom で見るテストを、props・操作で分かれる部品、DOM を使う utils、寸法・rAF の実物に頼らない村のフック・部品へ広げる
@@ -25,7 +25,7 @@ happy-dom でコンポーネントを描くテストは、ここでは「統合�
 
 [0007](0007-component-tests-happy-dom.md) は happy-dom の統合テストを足したとき、対象を**環境で分かれる出し分け**だけに絞り、
 寸法・rAF に依存する村(`src/components/VillagePage/`)は対象にしないとした。そのときの対象は作品カード
-(当時の `WorkCard` の隣の `index.test.tsx`。今は [0017](0017-screen-containers.md) で断定を `src/components/Directory/container.browser.test.tsx` へ移して消した)1つだった。
+(当時の `WorkCard` の隣の `index.test.tsx`。今は [0017](0017-screen-containers.md) で断定を、当時の `src/components/Directory/` の `container.browser.test.tsx` へ移して消した)1つだった。
 
 2026-09-29 に、happy-dom で走るテストを5つのコミットで足した。
 
@@ -39,7 +39,7 @@ happy-dom でコンポーネントを描くテストは、ここでは「統合�
 - `00326c0` — 村の歩行ループの部品(`src/components/VillagePage/components/Village/utils/walk-loop/`)に78件。
   本文は「DOM へ直接書く部品は happy-dom で(中略)見る。rAF と performance.now は差し替えて決定的に回す」
 - `69b92e0` — 村の組み立て・地図・操作帯・会話などの utils 17ファイルに166件。happy-dom で走るのはそのうち3ファイル
-  (`src/components/VillagePage/components/Village/utils/focusables.test.ts`・`src/components/VillagePage/utils/phase-init.test.ts`・
+  (当時の `Village` の `utils` の `focusables.test.ts`(今は [0019](0019-hooks-make-containers.md) で `src/utils/focusables.test.ts` へ移した)・`src/components/VillagePage/utils/phase-init.test.ts`・
   `src/components/VillagePage/components/Village/components/WorldMap/utils/arrange-badges.test.ts`)。
   本文は「DOM に触れる focusables・phase-init・arrange-badges だけ happy-dom。happy-dom は配置を計算しないので、arrange-badges は getBoundingClientRect を差し替えて寸法を与える」
 - `11764fc` — 共通(`src/utils/`)と作品カードの utils 6ファイルに58件。本文は「linkedom-browser-stub だけ happy-dom、ほかは node」。

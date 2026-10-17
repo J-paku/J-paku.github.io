@@ -5,11 +5,14 @@
 - `index.tsx` — **サーバのローダー**。content を読み出し、スプライトシートの合成・地点リンクを含む props をここで1回だけ組み
   (組み立ては純粋関数の `utils/village-props.ts`。中身は `utils/sprite-css.ts`・`utils/stop-links.ts`)、直列化できる props で `container.tsx` を描く。
   初回の HTML に必ず要るインラインの `<style>`(スプライトの背景)と `<script>`(初回ペイント前に段階を直す `utils/phase-init.ts` の `PHASE_INIT`)もここで作り、
-  コンテナへ ReactNode の差し込み口の props で渡す。統合テストのフィクスチャ(`container.fixture.ts`)も同じ `utils/village-props.ts` で組む
-- `container.tsx` — **クライアントのコンテナ**(`'use client'`)。画面のフック(`hooks/` の `useDayPhase`・`useWeather`・`useVillage`)と卓上時計のストア(`hooks/use-village-time.ts`)を呼ぶ。
+  コンテナへ ReactNode の差し込み口の props で渡す。統合テストのフィクスチャ(`__tests__/village-page/container.fixture.ts`)も同じ `utils/village-props.ts` で組む
+- `container.tsx` — **クライアントの I/O コンテナ**(`'use client'`)。画面のフック(`hooks/` の `useDayPhase`・`useWeather`・`useVillage`)と卓上時計のストア(`hooks/use-village-time.ts`)を呼ぶ。
   起動の覆い(`Boot`)・見出しのロゴ(`Logo`)・近道・一覧への出口(`ExitLink`)・設定メニュー(`Navigation`)と表示部品の `Village` を並べて値と手を props で渡し、
   ローダーから受けた `<style>`・`<script>` を元の位置(`Village` の前と直後)に置く
-- `components/` の下 — **表示部品**。保存・天気・時計のストア・画面のフック(`hooks/`)を import せず、受け取った props を描く。窓のフォーカスなど部品の中で閉じる UI のフックは使ってよい
+- `components/` の下 — **表示部品と状態コンテナ**。どちらも保存・天気・時計のストア・画面のフック(`hooks/`)を import せず、受け取った props を描く。
+  フックを呼ぶ部品は状態コンテナ(`container.tsx`。[../../../docs/decisions/0019-hooks-make-containers.md](../../../docs/decisions/0019-hooks-make-containers.md))で、
+  起動の覆いの `Boot` と、`Village` の下の `ClockModal`・`Ground`・`Joystick`・`Lighting`・`StopModal`・`TalkBubble`・`WorldMap` の8つ。使う側は `.../<Name>/container` を指す。
+  `Village` 自身はフックを呼ばない表示部品(`index.tsx`)なので、その直下に `hooks` フォルダは置かない(窓の3つが使うフックは `src/hooks/`)
 
 ## 守ること
 
@@ -19,10 +22,10 @@
    (`Village` にフックがあった頃は後だった)。マウントの時にそちらで走るのは `useLightDismiss`(閉じているので何もしない)とテーマの購読だけで、今は互いに見えない。
    `Navigation` の側に村のフックと状態を分け合う effect を入れるときは、この順を前提にする
 3. **移動・衝突・経路・地点判定のロジックをここに書かない。** `src/lib/village/` の純粋関数に置く(React・DOM なしで網羅的にテストできるため)
-4. **保存は `src/lib/preferences.ts` 経由。** `sessionStorage` を直接触らない。窓口を import するのはコンテナの隣の `hooks/` だけ(表示部品からは呼ばない)
+4. **保存は `src/lib/preferences.ts` 経由。** `sessionStorage` を直接触らない。窓口を import するのは I/O コンテナの隣の `hooks/` だけ(表示部品と状態コンテナからは呼ばない)
 5. 歩行ループ(`hooks/use-walk-loop/use-walk-loop.ts`。フレームの中身は `components/Village/utils/walk-loop/` に分けてある)は rAF の中で **DOM へ直接書く**。React state を経由させない(再レンダーで駒が飛ぶ)
 6. `hooks/use-stage-scale.ts` は `--cell` と `--band` を実測で書く(寸法の計算式は `components/Village/utils/stage-scale.ts`)。重ね表示(会話窓・地図)は `--band` を超えて操作帯を覆わない
-7. 村の枠の中に出す窓(会話窓 `StopModal`・卓上時計の窓 `ClockModal`・拡大地図 `WorldMap`)は `role='dialog'` + `aria-modal='true'` の `div` と手製のフォーカストラップ(`components/Village/hooks/use-dialog-focus.ts`)で作る。
+7. 村の枠の中に出す窓(会話窓 `StopModal`・卓上時計の窓 `ClockModal`・拡大地図 `WorldMap`)は `role='dialog'` + `aria-modal='true'` の `div` と手製のフォーカストラップ(`src/hooks/use-dialog-focus.ts`)で作る。
    ネイティブ `<dialog>` の `showModal()` は top layer へ出て操作帯(`--band`)を覆うので使わない(守ること 6)。
    `showModal()` を使うのは村の外の全画面モーダル(作品ストーリーの場面モーダル `src/components/Story/components/SceneModal/`)だけ → [../../../docs/quality/accessibility.md](../../../docs/quality/accessibility.md)
 8. **街灯だけは主人公の上にも描く層がある** — `components/Village/components/LampVeil/`(`.world` の中・`.terrain` の外・z 3)。
@@ -60,8 +63,12 @@ world 層(`.world`)の中の並びは `components/Village/components/WorldLayer/
 
 ## 確かめ方
 
-コンテナの統合テスト(`container.browser.test.tsx`。props は `container.fixture.ts` が node で組む)はビルド無しで走る。
-舞台の寸法と操作帯・歩く・待つ・釣り・傘・飛ぶ・窓の焦点と吹き出し・卓上時計・昼夜と天気はここで見る。
+村の統合テスト(`__tests__/village-page/` の下。props は `__tests__/village-page/container.fixture.ts` が node で組む)はビルド無しで走る。
+村の画面全体(`container.tsx`)を描くテストは `__tests__/village-page/` の直下に動作ごとのファイルで置き、舞台の寸法と操作帯・歩く・待つ・釣り・傘・飛ぶ・村の入力と道中の配線・
+窓の焦点と吹き出しの位置・卓上時計・昼夜と天気をここで見る(例: `__tests__/village-page/fishing.integration.test.tsx`・`__tests__/village-page/day-night.integration.test.tsx`)。
+`components/` の下の状態コンテナ8つは、それぞれ `__tests__/village-page/<フォルダの名前の kebab-case>/` のテストがそのコンテナを props で直接描いて見る
+(例: `__tests__/village-page/stop-modal/`。どのフォルダがどのコンテナかは [../../../docs/product/feature-map.md](../../../docs/product/feature-map.md) の「コンテナと統合テスト」)。
+1つめの段階では元の1本(`village.integration.test.tsx`)を中身を変えずに移しただけで、2つめの段階でこの形に分けてその1本は消した。
 
 ```bash
 npm run test:integration

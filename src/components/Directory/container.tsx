@@ -5,7 +5,7 @@
 // クライアントへ送る JS も増えない(状態を持つのは下位の WorkCard・Navigation の島だけ)
 import type { Locale, Profile, UiStrings, Work } from '@content/types/content'
 import Navigation from '@/components/ui/Navigation'
-import WorkCard from './components/WorkCard'
+import WorkCard from './components/WorkCard/container'
 import PhraseText from '@/components/ui/PhraseText'
 import ProfileColumn from './components/ProfileColumn'
 import CareerDetail from './components/CareerDetail'

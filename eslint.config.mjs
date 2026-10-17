@@ -1,5 +1,6 @@
 import nextCoreWebVitals from 'eslint-config-next/core-web-vitals'
 import nextTypescript from 'eslint-config-next/typescript'
+import hookOnlyInContainer from './scripts/eslint-rules/hook-only-in-container.mjs'
 
 // バレル禁止(全ファイル共通)。レイヤー override でも rule 全体が置き換わるため毎回同梱する
 const BARREL_PATHS = [
@@ -24,6 +25,9 @@ const layerRule = (group, message, gateContent = false) => {
   if (gateContent) patterns.push({ regex: CONTENT_DATA_REGEX, message })
   return ['error', { paths: BARREL_PATHS, patterns }]
 }
+
+// このリポジトリの規則(scripts/eslint-rules/)をまとめたプラグイン。規則は layer/<名前> で指す
+const layerPlugin = { rules: { 'hook-only-in-container': hookOnlyInContainer } }
 
 const eslintConfig = [
   {
@@ -131,6 +135,24 @@ const eslintConfig = [
         ['@/utils/**', '@/lib/**', '@/hooks/**', '@/components/**', '@/app/**'],
         'content はデータ。src を import しない(型は content/types に置く)'
       ),
+    },
+  },
+  // ---- フックを呼んでよい所(ADR 0019) ----
+  // フックを1つでも呼ぶ部品はコンテナ(container.tsx)、1つも呼ばない部品は表示部品。src でフックを呼べるのは、
+  // コンテナ・hooks/ の中の use-*.ts(x)(src/hooks/ も)・テストの側だけ。
+  // 掛け方の自己検査と、注釈で黙らせた呼び出しの数え上げは scripts/check-hook-rule.mjs(npm run test:boundary)
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: [
+      '**/container.tsx',
+      'src/**/hooks/**/use-*.{ts,tsx}',
+      '**/*.test.{ts,tsx}',
+      '**/*.fixture.ts',
+      '**/*.test-helper.ts',
+    ],
+    plugins: { layer: layerPlugin },
+    rules: {
+      'layer/hook-only-in-container': 'error',
     },
   },
 ]

@@ -4,7 +4,7 @@
 // 原文の取得はコンテナ(./container.tsx)が持ち、ここは取れた原文を描き、取得に失敗した場面はプレースホルダ文言で描く
 // (WorkCard shotPlaceholder 踏襲)
 import type { WorkStoryScene } from '@content/types/content'
-import SceneSvg from './components/SceneSvg'
+import SceneSvg from './components/SceneSvg/container'
 import styles from './scene-player.module.css'
 
 type ScenePlayerProps = {

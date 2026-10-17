@@ -4,7 +4,7 @@ read_when:
   - コンポーネントのテストの置き場や DOM 環境を変えようとするとき
   - 統合テストの対象を広げようとするとき
 source_of_truth: false
-last_reviewed: 2026-10-14
+last_reviewed: 2026-10-17
 ---
 
 # 0007. 環境で分かれるコンポーネントの出し分けを、happy-dom の統合テストで見る
@@ -16,7 +16,7 @@ Superseded by [0009](0009-widen-happy-dom-test-scope.md)(対象の範囲。2026-
 一部を [0017](0017-screen-containers.md) が置き換えた(2026-10-14。コンポーネントの隣の `index.test.tsx` を happy-dom で走らせてコンポーネントを描く形は無くなり、断定はコンテナの隣の `container.browser.test.tsx`(実ブラウザの統合テスト)へ移った。
 DOM が要るファイルだけを先頭の `// @vitest-environment happy-dom` で切り替えるのは、DOM を使う utils の単体テストで続く)
 
-採った時点: Accepted(2026-09-28。`vitest.config.ts` と、当時の作品カード `WorkCard` の隣の `index.test.tsx`(今は [0017](0017-screen-containers.md) で断定を `src/components/Directory/container.browser.test.tsx` へ移して消した))
+採った時点: Accepted(2026-09-28。`vitest.config.ts` と、当時の作品カード `WorkCard` の隣の `index.test.tsx`(今は [0017](0017-screen-containers.md) で断定を、当時の `src/components/Directory/` の `container.browser.test.tsx` へ移して消した))
 
 ## Context
 

@@ -10,8 +10,8 @@
 // 検査するのは「経路 × 見え方」+ 開いた状態。初期状態(PC・明るいテーマ)だけを測ると、
 // 実機で一番使われる縦持ちの操作帯も、色が総入れ替えになるダークテーマも、会話窓を開いた
 // 状態も一度も axe に掛からないまま「全経路で違反0件」になる。
-// 状態の作り方は tests/journey.spec.ts(E で会話窓)と、src/components/VillagePage/container.browser.test.tsx の
-// 「画面の大きさ・窓・時計・昼夜 > 舞台の寸法」(縦持ちの寸法)に合わせる。
+// 状態の作り方は tests/journey.spec.ts(E で会話窓)と、__tests__/village-page/stage-layout.integration.test.tsx の
+// 「舞台の寸法」(縦持ちの寸法)に合わせる。
 //
 // 「開かないまま検査した」は PASS 方向の誤りなので、状態を作れなかったこと自体も NG として数える
 // (03-pitfalls.md #5・#7・#11)。
@@ -52,8 +52,8 @@ const RAINING_BODY = JSON.stringify({ current: { precipitation: 2.4, snowfall: 0
 // src/app/html-shell.tsx が起動時に読む文字列と同じ値を保つ
 const THEME_STORAGE_KEY = 'theme'
 
-// 検査する見え方。縦持ちの寸法(390×664)と入力種別(タッチ端末)は、src/components/VillagePage/container.browser.test.tsx の
-// 「画面の大きさ・窓・時計・昼夜 > 舞台の寸法 > 縦持ちのスマートフォン」と同じ。
+// 検査する見え方。縦持ちの寸法(390×664)と入力種別(タッチ端末)は、__tests__/village-page/stage-layout.integration.test.tsx の
+// 「舞台の寸法 > 縦持ちのスマートフォン」と同じ。
 // 縦持ちでしか描かれない操作帯(スティック・A/B)と、ダークテーマの配色は、既定の見え方の
 // 結果からは何も分からないので別々に測る
 const PORTRAIT_WIDTH = 390
@@ -72,7 +72,7 @@ const VIEWS = [
     // (1280px + hasTouch でも帯は出ると実測した)ので、幅そのものを見る
     expectedWidth: PORTRAIT_WIDTH,
     // 指のある環境でだけ見える操作帯。PC の見え方では DOM に在っても hidden
-    // (src/components/VillagePage/container.browser.test.tsx の「舞台の寸法」の PC のテストが not.toBeVisible で押さえている前提)。
+    // (__tests__/village-page/stage-layout.integration.test.tsx の「舞台の寸法」の PC のテストが not.toBeVisible で押さえている前提)。
     // 村の経路でこれが見えていなければ、スティックと A/B を一度も axe に掛けていない
     villageOnlyVisible: '[data-village-controls]',
   },
