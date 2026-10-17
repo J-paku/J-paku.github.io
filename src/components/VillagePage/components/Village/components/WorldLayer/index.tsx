@@ -7,7 +7,7 @@ import type { RefObject } from 'react'
 import type { Locale } from '@content/types/content'
 import type { Cell, World } from '@content/types/world'
 import type { SheetLayout } from '@/lib/pixel/art'
-import Lighting from '../Lighting'
+import Lighting from '../Lighting/container'
 import TalkBubble from '../TalkBubble'
 // Ground・FishingFloat・LampVeilはscene.module.cssを読むので、CSSの出力順を変えないよう他の子より後に読み込む
 import Ground from '../Ground/container'
