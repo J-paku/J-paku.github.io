@@ -1,6 +1,6 @@
 import { defineConfig, configDefaults } from 'vitest/config'
 import { playwright } from '@vitest/browser-playwright'
-import { globSync } from 'node:fs'
+import { globSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
@@ -88,6 +88,30 @@ if (UNCOVERED_CONTAINERS.length > 0) {
   )
 }
 
+// 統合テストとして拾わない物。下の instances の 1 つ目(タッチの模擬を使わないファイル)は、これにタッチのファイルを足して外す
+const TEST_EXCLUDE = [...configDefaults.exclude, '**/.claude/**', 'tests/**']
+
+// タッチの模擬(CDP の Emulation.setTouchEmulationEnabled)を使うファイルは、1 ファイルずつ自分だけのページで走らせる。
+// Vitest はブラウザのページ(セッション)をファイルをまたいで使い回し、ファイルごとに作り直すのは中の iframe だけ
+// (node_modules/vitest の BrowserPool。4.1.10 で確認)。CDP で替えた環境はページ全体に掛かるので、次のファイルへ持ち越す。
+// 動きを控える設定(setEmulatedMedia)は features を空で送れば開いた時の値へ戻るが、タッチの模擬は一度入れると、切っても
+// pointer・hover が開いた時の fine・hover へ戻らず none のまま残る(2026-10-17 の実測。入れる前は fine・hover、入れると coarse・none、
+// 切ると none・none。切った後に setEmitTouchEventsForMouse・setDeviceMetricsOverride と clearDeviceMetricsOverride・
+// setEmulatedMedia の pointer と hover・Page.setTouchEmulationEnabled などを送っても none のまま)。
+// 同じページで後に走るファイルは、(hover: hover) and (pointer: fine) で出し分ける CSS(一覧のカードなど)をタッチ端末の形で描いてしまう。
+// そこで、タッチの模擬を使うファイルにはそれぞれ別のブラウザの instance を割り当て、ほかのファイルとページを共にさせない。
+// instance は Vitest の project として数えられ、それぞれのブラウザを開き、globalSetup(上の CONTAINER_FIXTURES)も走らせる。
+// どのファイルが使うかは、ファイルが emulateTouch(__tests__/village-page/village-walk.test-helper.ts)の名前を書いているかで拾う。
+// 名前を書かずに別の部品から呼ぶと拾えないので、emulateTouch は名前が TOUCH_PROJECT_PREFIX で始まる instance の外では投げる
+const TOUCH_PROJECT_PREFIX = 'touch:'
+const TOUCH_TESTS = globSync(INTEGRATION_TESTS, { cwd: ROOT, exclude: TEST_EXCLUDE })
+  .map(file => file.split(path.sep).join('/'))
+  .filter(file => /\bemulateTouch\b/.test(readFileSync(path.join(ROOT, file), 'utf8')))
+  .sort()
+// instance の名前(テストの結果の行頭に出る)。__tests__/ と .integration.test.tsx を落とした残り
+const touchProjectName = (file: string) =>
+  TOUCH_PROJECT_PREFIX + file.replace(/^__tests__\//, '').replace(/\.integration\.test\.tsx$/, '')
+
 // 統合テスト(Vitest Browser Mode)の設定。画面単位のコンポーネントを実際の Chromium で、ビルド無しで描く
 // (docs/decisions/0016-testing-trophy-browser-integration.md)。
 // 単体の vitest.config.ts と別のファイルにするのは、変異テスト(stryker.config.mjs)が vitest.config.ts を読むため。
@@ -118,7 +142,7 @@ export default defineConfig({
   test: {
     globals: true,
     include: INTEGRATION_TESTS,
-    exclude: [...configDefaults.exclude, '**/.claude/**', 'tests/**'],
+    exclude: TEST_EXCLUDE,
     // 上で拾った container.fixture.ts を、テストの前に node で走らせる
     globalSetup: CONTAINER_FIXTURES,
     // 落ちた時の画面の写しは、既定だとテストの隣(__tests__ の中)とリポジトリ直下に出る。git が無視する test-results/ へ寄せる
@@ -130,7 +154,17 @@ export default defineConfig({
       // TZ=UTC(package.json の scripts と vitest.config.ts の env)は node のプロセスにしか効かない。
       // ブラウザの時間帯は context で別に固定し、機器の時間帯に結果を左右させない
       provider: playwright({ contextOptions: { timezoneId: 'UTC' } }),
-      instances: [{ browser: 'chromium' }],
+      // 1 つ目はタッチの模擬を使わないファイルの全部で、ページを使い回す。続きはタッチの模擬を使うファイル 1 つずつ
+      // (上の TOUCH_TESTS)。instance の exclude・include は親の値を足し込まず置き換える
+      // (node_modules/vitest の cloneConfig。4.1.10 で確認)ので、1 つ目は TEST_EXCLUDE ごと書く
+      instances: [
+        { browser: 'chromium', exclude: [...TEST_EXCLUDE, ...TOUCH_TESTS] },
+        ...TOUCH_TESTS.map(file => ({
+          browser: 'chromium' as const,
+          name: touchProjectName(file),
+          include: [file],
+        })),
+      ],
       screenshotDirectory: 'test-results/vitest-screenshots',
     },
     // 測るのは --coverage を付けたときだけ。フックとコンポーネントもここで測る(単体の設定はフックと components の .tsx を外す)。

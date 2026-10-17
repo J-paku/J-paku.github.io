@@ -184,6 +184,13 @@ const originalUrl = window.location.href
 
 // 各ファイルの beforeEach が呼ぶ。既定は PC の画面・マウス・動きを許す設定。各テストが必要な条件だけ替える
 export const prepareEachTest = async () => {
+  // 前提: ページはマウスの端末(hover: hover・pointer: fine)のまま。CSS の @media は差し替えないので、
+  // 同じページで前に走ったファイルがタッチの模擬を持ち込んでいれば、カードがタッチ端末の形で描かれる
+  // (タッチの模擬を使うファイルは自分だけのページで走る。vitest.integration.config.ts の TOUCH_TESTS)
+  expect(
+    window.matchMedia(FINE_POINTER).matches,
+    '前提: ほかのファイルがタッチの模擬を持ち込んでいない(ページはマウスの端末のまま)'
+  ).toBe(true)
   await page.viewport(1280, 720)
   // 外へ通信させない。リールは場面 SVG を取りに行き、取れない場面は準備中の文言に替わる
   vi.stubGlobal('fetch', () => Promise.reject(new Error(NO_NETWORK)))

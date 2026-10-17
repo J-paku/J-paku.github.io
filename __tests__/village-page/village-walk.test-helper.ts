@@ -8,7 +8,7 @@
 // どちらでも、時間を進める手(stepFrame・runFor・advanceUntil)とそれを使う手(walk・press など)は同じ物を使い、
 // 経った時間は performance.now() で測る(rAF まで偽物の時は performance.now も偽の時計の上で進む)。
 // 押す・叩くは実際の入力(vitest/browser の userEvent と CDP の Input)で行い、DOM へ作り物のイベントを投げない
-import { cdp, userEvent } from 'vitest/browser'
+import { cdp, server, userEvent } from 'vitest/browser'
 import type { Cell } from '@content/types/world'
 import { readPosition } from '@/lib/preferences'
 
@@ -259,23 +259,45 @@ export const emulateReducedMotion = () =>
     features: [{ name: 'prefers-reduced-motion', value: 'reduce' }],
   })
 
-// タッチ端末(pointer: coarse)。E2E の hasTouch に当たる。描く前に呼ぶ。
-// 同時に触れる指の数は既定で 1 本。2 本の指を置く検査(touches)だけ増やす
-export const emulateTouch = (maxTouchPoints = 1) =>
-  cdp().send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints })
+// タッチの模擬を使うファイルだけが走る instance の名前の頭(vitest.integration.config.ts の TOUCH_PROJECT_PREFIX と同じ値)。
+// 今のファイルが自分だけのページで走っているか(タッチの模擬をほかのファイルへ持ち越さないか)を、instance の名前で見る
+const TOUCH_PROJECT_PREFIX = 'touch:'
+export const onOwnPage = () => server.config.name?.startsWith(TOUCH_PROJECT_PREFIX) === true
 
-// どちらの設定も外す。テストの後始末で呼ぶ。
-// タッチの模擬を外しても pointer: fine・hover: hover には戻らず、どちらも none のまま同じページの後のテストへ残る。
+// このファイルでタッチの模擬を入れたか。入れていなければ resetEmulation は模擬に触らない
+let touchEmulated = false
+
+// タッチ端末(pointer: coarse)。E2E の hasTouch に当たる。描く前に呼ぶ。
+// 同時に触れる指の数は既定で 1 本。2 本の指を置く検査(touches)だけ増やす。
+// 模擬は切っても pointer・hover が開いた時の値へ戻らない(下の resetEmulation の注)ので、ほかのファイルとページを共にする
+// instance では投げる。vitest.integration.config.ts はこの名前を書いたファイルを自分だけのページで走らせる
+export const emulateTouch = async (maxTouchPoints = 1) => {
+  if (!onOwnPage()) {
+    throw new Error(
+      `タッチの模擬はほかのファイルとページを共にする instance(${server.config.name})では使えない。` +
+        'テストのファイルに emulateTouch の名前を書くと、vitest.integration.config.ts がそのファイルを自分だけのページで走らせる'
+    )
+  }
+  touchEmulated = true
+  await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints })
+}
+
+// どちらの設定も外す。テストの後始末で呼ぶ。動きを控える設定は features を空で送れば開いた時の値へ戻る。
+// タッチの模擬は、外しても pointer: fine・hover: hover には戻らず、どちらも none のまま同じページの後のテストへ残る。
 // 開いた時の fine・hover は Playwright が headless の Chromium に渡す --blink-settings(primaryPointerType など)の値で、
-// 模擬を外すと端末そのものの値(none)へ戻るとみられる(推定)。CDP で戻す手は見つからなかった(2026-10-15 の実測:
+// 模擬を外すと端末そのものの値(none)へ戻るとみられる(推定)。CDP で戻す手は見つからなかった(2026-10-15・2026-10-17 の実測:
 // Emulation.setEmitTouchEventsForMouse の false・setEmulatedMedia の pointer: fine と hover: hover・
-// setDeviceMetricsOverride の mobile: false・clearDeviceMetricsOverride のどれでも none のまま。
+// setDeviceMetricsOverride の mobile: false・clearDeviceMetricsOverride・Page.setTouchEmulationEnabled の false のどれでも none のまま。
 // setTouchEmulationEnabled の maxTouchPoints: 0 は 1〜16 の外として CDP が断る)。
+// 入れたことの無いページでも、切る指示を 1 回送っただけで none になる(2026-10-17 の実測)ので、このファイルで入れた時だけ切る。
+// 入れたファイルは自分だけのページで走る(emulateTouch の注)ので、none が残るのはそのファイルの後のテストだけ。
 // 村の CSS とフックは pointer: coarse かどうかで分けるので、none でもマウスの端末と同じに描く
 // (hover: hover and pointer: fine で隠すスティックは、帯ごと隠れている)。coarse へ戻っていないことは
 // village.test-helper.ts の prepareVillage(各ファイルの beforeEach が呼ぶ)が、どのテストの始めにも前提として確かめる
 export const resetEmulation = async () => {
   await cdp().send('Emulation.setEmulatedMedia', { features: [] })
+  if (!touchEmulated) return
+  touchEmulated = false
   await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false })
 }
 

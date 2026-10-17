@@ -9,14 +9,15 @@
 //     (開いたまま時間帯が替わるテストは Date と setInterval を止め、テストが進める)
 //   - その間にある画面の大きさのテストは時間を差し替えない
 // 偽の時計・差し替えた通信と Image・CDP で替えたブラウザの環境・卓上時計のストア・保存した位置は、下の resetVillage が毎回戻す
-// (タッチの模擬を切った後の pointer・hover だけは戻り切らない。village-walk.test-helper.ts の resetEmulation の注)。
+// (タッチの模擬を切った後の pointer・hover だけは戻り切らない。village-walk.test-helper.ts の resetEmulation の注。
+// 模擬を使うファイルは自分だけのページで走るので、戻り切らない物もほかのファイルへは持ち越さない)。
 // 描く道具(@testing-library/react・react-dom)はここから import しない(npm run test:boundary)。
 // 各ファイルは beforeEach で prepareVillage を、afterEach で描いた物を cleanup で外した後に resetVillage を呼ぶ
 import { inject } from 'vitest'
 import { page } from 'vitest/browser'
 import { clearVillageProgress } from '@/lib/preferences'
 import { useVillageTime } from '@/components/VillagePage/hooks/use-village-time'
-import { resetEmulation, stubWeather } from './village-walk.test-helper'
+import { onOwnPage, resetEmulation, stubWeather } from './village-walk.test-helper'
 
 // container.fixture.ts が node で組んで provide した村の props(ja)
 export const villageJa = inject('villageJa')
@@ -37,11 +38,20 @@ export const frameSize = () => {
 export const prepareVillage = (): void => {
   // 前提: どのテストもタッチ端末(pointer: coarse)ではない所から始まる。タッチのテストは、この後にテストの中か describe の
   // beforeEach で模擬を入れる。模擬を切った後は pointer: fine・hover: hover へ戻らない(resetEmulation の注)ので、
-  // タッチのテストより後の PC のテストが頼れるのは coarse でないことだけで、それをここで確かめる
+  // タッチの模擬を使うファイル(自分だけのページで走る。onOwnPage)で、タッチのテストより後の PC のテストが頼れるのは
+  // coarse でないことだけで、それをここで確かめる
   expect(
     window.matchMedia('(pointer: coarse)').matches,
     '前提: 前のテストのタッチの模擬を持ち越していない'
   ).toBe(false)
+  // タッチの模擬を使わないファイルは、ほかのファイルとページを共にする。そのページでは誰も模擬を入れないので、
+  // 開いた時のマウスの端末(hover: hover・pointer: fine)のままのはずで、崩れていればほかのファイルが持ち込んだ
+  if (!onOwnPage()) {
+    expect(
+      window.matchMedia('(hover: hover) and (pointer: fine)').matches,
+      '前提: ほかのファイルがタッチの模擬を持ち込んでいない(ページはマウスの端末のまま)'
+    ).toBe(true)
+  }
   stubWeather('clear')
 }
 
