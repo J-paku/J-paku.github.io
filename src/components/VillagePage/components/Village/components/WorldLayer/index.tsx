@@ -10,7 +10,7 @@ import type { SheetLayout } from '@/lib/pixel/art'
 import Lighting from '../Lighting'
 import TalkBubble from '../TalkBubble'
 // Ground・FishingFloat・LampVeilはscene.module.cssを読むので、CSSの出力順を変えないよう他の子より後に読み込む
-import Ground from '../Ground'
+import Ground from '../Ground/container'
 import FishingFloat, { type FishingFloatProps } from '../FishingFloat'
 import LampVeil from '../LampVeil'
 import { cellShift, type InitialView } from '../../utils/initial-view'
