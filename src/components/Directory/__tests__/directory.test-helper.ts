@@ -1,5 +1,5 @@
 // 一覧の統合テスト(src/components/Directory の下の *.integration.test.tsx)が共有する部品。
-// container.fixture.ts が node で組んで provide した props と、そこから選んだ作品、カードの中を探す関数、
+// index.fixture.ts が node で組んで provide した props と、そこから選んだ作品、カードの中を探す関数、
 // ブラウザの環境の差し替えと戻し(各ファイルの beforeEach・afterEach が呼ぶ)を持つ。
 // 差し替えるのはネットワーク(場面 SVG の取得)と時間(リールの自動送り)と、タッチ端末かどうかの問い合わせ1つだけ(理由は viewAsTouch の注釈)。
 // 動きを控える設定は差し替えず、Chromium の模擬(CDP)で本物の media query を切り替える。
@@ -11,7 +11,7 @@ import type { Work } from '@content/types/content'
 // 部品と同じ CSS Modules を import すれば、部品と同じクラス名が引ける
 import cardStyles from '@/components/Directory/components/WorkCard/work-card.module.css'
 import shotStyles from '@/components/Directory/components/WorkCard/components/Shot/shot.module.css'
-import type { DirectoryData } from './container.fixture'
+import type { DirectoryData } from './index.fixture'
 
 export const directoryJa = inject('directoryJa')
 export const directoryKo = inject('directoryKo')

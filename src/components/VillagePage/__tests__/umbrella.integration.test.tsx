@@ -2,7 +2,7 @@
 // 差し替える物・時間の差し替え方・毎回戻す物は village.test-helper.ts の冒頭の注
 import { cleanup, render } from '@testing-library/react'
 import { page, userEvent } from 'vitest/browser'
-import VillagePageContainer from '@/components/VillagePage/container'
+import VillagePageContainer from '@/components/VillagePage'
 import { UMBRELLA_CLOSE_MS, UMBRELLA_OPEN_MS } from '@/lib/village/player-pose'
 import {
   FRAME_MS,

@@ -3,7 +3,7 @@
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, inject, it } from 'vitest'
 import { page } from 'vitest/browser'
-import SceneSection from '@/components/Story/components/SceneSection/container'
+import SceneSection from '@/components/Story/components/SceneSection'
 import {
   emulateFullMotion,
   resetEmulatedMedia,

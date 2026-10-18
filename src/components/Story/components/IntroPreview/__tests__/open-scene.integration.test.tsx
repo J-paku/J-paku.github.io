@@ -5,7 +5,7 @@ import type { ComponentProps } from 'react'
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, inject, it, vi } from 'vitest'
 import { page } from 'vitest/browser'
-import IntroPreview from '@/components/Story/components/IntroPreview/container'
+import IntroPreview from '@/components/Story/components/IntroPreview'
 import { stubSvgFetch } from '@/components/Story/__tests__/story.test-helper'
 import '@/styles/tokens.css'
 

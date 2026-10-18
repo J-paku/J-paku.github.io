@@ -1,13 +1,15 @@
-// フックを呼んでよい所を決める ESLint の規則 layer/hook-only-in-container(docs/decisions/0019-hooks-make-containers.md)。
+// フックを呼んでよい所を決める ESLint の規則 layer/hook-only-in-container(ADR 0024。もとは docs/decisions/0019-hooks-make-containers.md)。
 //
-// 決まり: フックを1つでも呼ぶ部品はコンテナで、ファイルの名前は container.tsx。それ以外の部品は表示部品で、フックを1つも呼ばない
-// (同じ props なら同じ画面になる)。フックの呼び出しは、呼ぶ相手の名前が /^use[A-Z0-9]/ に合う呼び出しのこと。
+// 決まり: フックを1つでも呼ぶ部品はコンテナで、ファイルの名前は(表示部品と同じ)コンポーネントのフォルダの入口 index.tsx。
+// フックを呼ばない index.tsx は表示部品で、同じ props なら同じ画面になる。src/components の中でフックを呼べるのは index.tsx と
+// hooks/ の中の use-*.ts(x) だけで、ほかのファイル(部品の中の別のファイル・utils など)はフックを呼ばない。
+// フックの呼び出しは、呼ぶ相手の名前が /^use[A-Z0-9]/ に合う呼び出しのこと。
 // useX(…) も React.useX(…) も数え、React の組み込みのフック(useState・useEffect・useRef・useMemo・useId など)も例外にしない。
 // memo()・forwardRef() はフックではない。use() も名前が合わないので数えない。
 //
-// なぜ: ファイル別100%のカバレッジの門が掛かるのは container.tsx と hooks/ の中だけで、表示部品は全体の下限にしか入らない(ADR 0019)。
-// 表示部品がフックを呼ぶと、状態とその移り変わりがその門の外に出る。フックを呼ぶかどうかをファイルの名前で分かるようにして、
-// 状態を持つ部品が必ず門の内側に来るようにする。
+// なぜ: フックを呼ぶ所を入口の index.tsx に寄せると、状態を持つ部品はフォルダごとに1つの入口に集まり、
+// そのフォルダの統合テストがその入口を描く(scripts/check-test-boundary.mjs)。index.tsx がフックを呼ぶかどうかでコンテナか表示部品かが決まり、
+// その判定は scripts/find-containers.mjs が持つ(この規則と同じものを数える。HOOK_NAME はここから渡す)。
 //
 // 見るのは名前だけ。[…] で引く形(React['useX'](…))・?. の呼び出し・型の書き方で包んだ呼ぶ相手(useX!(…)・(useX as T)(…) など)も同じ名前で見る。
 // 名前だけで見るので、フックを別の名前で受けてから呼ぶと(const s = useState の後の s(0))呼び出しを数えられない。
@@ -18,11 +20,12 @@
 // 同じ名前で受けるもの(import { useState } from 'react'・const { useState } = React)は、その後の呼び出しが上で数えられるので報告しない。
 // 型だけの import(import type { … }・import { type … })は値にならず呼べないので見ない。
 // 受ける形だけを見るので、値として渡す形(f(useState)・[useState]・{ s: useState }・export { useState as s })は見ない。
-// どこに掛け、どこで外すか(コンテナ・hooks/ の use-*.ts(x)・テストの側)は eslint.config.mjs が決める。
-// 判定と掛け方が壊れていないか、注釈で黙らせた呼び出しが無いかは scripts/check-hook-rule.mjs(npm run test:boundary)が確かめる。
+// どこに掛け、どこで外すか(src/components の index.tsx・hooks/ の use-*.ts(x)・テストの側)は eslint.config.mjs が決める。
+// 判定と掛け方が壊れていないか、注釈で黙らせた呼び出しが無いか、scripts/find-containers.mjs と同じものを数えるかは
+// scripts/check-hook-rule.mjs(npm run test:boundary)が確かめる。
 
-// フックの名前。呼ぶ相手の名前がこの形ならフック
-const HOOK_NAME = /^use[A-Z0-9]/
+// フックの名前。呼ぶ相手の名前がこの形ならフック(scripts/find-containers.mjs も同じものを使う)
+export const HOOK_NAME = /^use[A-Z0-9]/
 // 呼ぶ相手を包むだけの式。中身の名前で見る
 const WRAPPERS = new Set([
   'ChainExpression',
@@ -35,8 +38,8 @@ const WRAPPERS = new Set([
 
 // 報告の文面。落ちた人がこのファイルを開かなくても直し方が分かるように書く
 const FIX =
-  'フックを呼んでよいのは、コンテナ(container.tsx)と hooks/ の中の use-*.ts(x) だけ(ADR 0019)。' +
-  '状態を持つ部品なら、このファイルを同じフォルダのコンテナ container.tsx にする(index.tsx は残さず、import する側は …/<名前>/container を指す)。' +
+  'フックを呼んでよいのは、src/components のコンポーネントのフォルダの入口 index.tsx と hooks/ の中の use-*.ts(x) だけ(ADR 0024)。' +
+  '状態を持つ部品なら、フックを呼ぶ所をそのフォルダの index.tsx(コンテナ)に移し、統合テストをそのフォルダに置く(1本なら隣の index.integration.test.tsx)。' +
   '持たない部品なら、フックを呼ばない表示部品(同じ props なら同じ画面)に直し、値は props で受け取る。' +
   '部品でない関数なら、コンテナの隣の hooks/ か src/hooks/ の use-*.ts(x) に移す'
 const MESSAGE = `フック {{name}}() を呼んでいる。${FIX}`
@@ -83,7 +86,7 @@ const rule = {
     type: 'problem',
     docs: {
       description:
-        'フックを呼んでよいのはコンテナ(container.tsx)と hooks/ の use-*.ts(x) だけ(ADR 0019)',
+        'フックを呼んでよいのは src/components の index.tsx と hooks/ の use-*.ts(x) だけ(ADR 0024)',
     },
     schema: [],
     messages: { hookCall: MESSAGE, hookAlias: ALIAS_MESSAGE },

@@ -4,7 +4,7 @@
 'use client'
 import type { Locale, UiStrings } from '@content/types/content'
 import { useThemeChoice } from './hooks/use-theme-choice'
-import SettingsMenuPanel from './components/SettingsMenuPanel/container'
+import SettingsMenuPanel from './components/SettingsMenuPanel'
 
 type SettingsMenuContainerProps = {
   locale: Locale

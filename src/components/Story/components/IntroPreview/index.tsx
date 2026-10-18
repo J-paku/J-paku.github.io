@@ -5,7 +5,7 @@
 import { useRef } from 'react'
 import type { WorkStoryScene } from '@content/types/content'
 import DeviceFrame from '@/components/ui/DeviceFrame'
-import ScenePlayer from '@/components/ui/ScenePlayer/container'
+import ScenePlayer from '@/components/ui/ScenePlayer'
 import styles from './intro-preview.module.css'
 
 type IntroPreviewProps = {

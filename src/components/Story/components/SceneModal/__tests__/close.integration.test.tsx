@@ -3,7 +3,7 @@
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, inject, it, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
-import SceneModal from '@/components/Story/components/SceneModal/container'
+import SceneModal from '@/components/Story/components/SceneModal'
 import {
   counterOf,
   emulateFullMotion,

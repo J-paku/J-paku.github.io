@@ -1,57 +1,34 @@
 'use client'
 
-// 場面ごとの画面キャプチャを絶対配置で重ね、activeIndex の1枚だけを opacity で見せる(クロスフェード)。
-// 原文の取得はコンテナ(./container.tsx)が持ち、ここは取れた原文を描き、取得に失敗した場面はプレースホルダ文言で描く
-// (WorkCard shotPlaceholder 踏襲)
-import type { WorkStoryScene } from '@content/types/content'
-import SceneSvg from './components/SceneSvg/container'
-import styles from './scene-player.module.css'
+// 場面再生のコンテナ。作品一覧(WorkCard のリール)と作品ストーリー(イントロのプレビュー・場面モーダル)の
+// 両方から使う入口で、呼び出し側はこのファイルを直接 import する。
+// 場面SVGの原文を取る(ネットワーク)のは隣の hooks/use-scene-sources.ts で、取れた原文と取れなかった場面を
+// 表示の SceneStack(./components/SceneStack/index.tsx)へ渡す。表示の部品は取得を持たない(I/O はコンテナとその hooks だけが触る)
+import type { ComponentProps } from 'react'
+import SceneStack from './components/SceneStack'
+import { useSceneSources } from './hooks/use-scene-sources'
 
-type ScenePlayerProps = {
-  scenes: WorkStoryScene[]
-  activeIndex: number
-  placeholder: string
-  // 呼び出し側が一時停止を持つ場合だけ渡す。SVG内部のアニメーションを今の絵のまま止める
-  paused?: boolean
-  // 取れた場面SVGの原文(場面の id → 原文)。届く前の場面は持たない
-  sources: ReadonlyMap<string, string>
-  // 読み込みに失敗した場面の id。この場面はプレースホルダのまま留める
-  failedScenes: ReadonlySet<string>
-}
+// 呼び出し側が渡す props。表示の props から、ここで取って渡す2つを除いたもの
+type ScenePlayerContainerProps = Omit<ComponentProps<typeof SceneStack>, 'sources' | 'failedScenes'>
 
-function ScenePlayer({
+function ScenePlayerContainer({
   scenes,
   activeIndex,
   placeholder,
-  paused = false,
-  sources,
-  failedScenes,
-}: ScenePlayerProps) {
-  return (
-    <div className={styles.player}>
-      {scenes.map((scene, index) => {
-        const isActive = index === activeIndex
-        const frameClassName = isActive ? `${styles.frame} ${styles.frameActive}` : styles.frame
+  paused,
+}: ScenePlayerContainerProps) {
+  const { sources, failedScenes } = useSceneSources(scenes)
 
-        return (
-          <div key={scene.id} className={frameClassName}>
-            {failedScenes.has(scene.id) ? (
-              <span>{placeholder}</span>
-            ) : (
-              // 活性/非活性が切り替わった時だけ restartKey が変わる。SVG内部のCSSアニメーションは
-              // 組み直しでしか再始動しないため、場面が活性化するたび頭から再生させる
-              <SceneSvg
-                source={sources.get(scene.id) ?? null}
-                className={styles.sceneSvg}
-                restartKey={isActive ? 'on' : 'off'}
-                paused={paused}
-              />
-            )}
-          </div>
-        )
-      })}
-    </div>
+  return (
+    <SceneStack
+      scenes={scenes}
+      activeIndex={activeIndex}
+      placeholder={placeholder}
+      paused={paused}
+      sources={sources}
+      failedScenes={failedScenes}
+    />
   )
 }
 
-export default ScenePlayer
+export default ScenePlayerContainer

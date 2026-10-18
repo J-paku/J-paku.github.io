@@ -2,7 +2,7 @@
 // 取得のフック・表示の部品・場面SVG(SceneSvg)と一緒に描く(ADR 0016)。
 // 差し替えるのは場面SVGの通信(fetch)だけ。見せる場面の添字(activeIndex)は描き直して渡す
 import { render } from '@testing-library/react'
-import ScenePlayer from '@/components/ui/ScenePlayer/container'
+import ScenePlayer from '@/components/ui/ScenePlayer'
 import {
   ART,
   PLACEHOLDER,

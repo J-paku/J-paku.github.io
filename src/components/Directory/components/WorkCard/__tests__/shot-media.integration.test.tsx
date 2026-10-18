@@ -2,7 +2,7 @@
 // カードを実際の Chromium で、フック・子と一緒に描き(ADR 0016)、動画・リール・静止画・準備中の文言の出し分けを、
 // 利用者に見える形(要素の有無・行き先・aria-hidden・文字)で確かめる。
 // 差し替えるのはネットワーク(場面 SVG の取得)と時間(リールの自動送り)だけ。
-// props は一覧の container.fixture.ts が node で組んで provide した作品・文言を inject で受け取る。
+// props は一覧の index.fixture.ts が node で組んで provide した作品・文言を inject で受け取る。
 // 実データに無い形(静止画を持たない作品など)は、作品の写しを変えてテストが直接渡す
 import { act, cleanup, render, within } from '@testing-library/react'
 import { userEvent } from 'vitest/browser'
@@ -10,8 +10,8 @@ import type { Work } from '@content/types/content'
 import { sceneCycleMs } from '@/utils/cycle-scenes'
 // 部品と同じ CSS Modules を import すれば、部品と同じクラス名が引ける
 import shotStyles from '@/components/Directory/components/WorkCard/components/Shot/shot.module.css'
-import playerStyles from '@/components/ui/ScenePlayer/scene-player.module.css'
-import WorkCard from '@/components/Directory/components/WorkCard/container'
+import playerStyles from '@/components/ui/ScenePlayer/components/SceneStack/scene-stack.module.css'
+import WorkCard from '@/components/Directory/components/WorkCard'
 import {
   belowFold,
   cardOf,

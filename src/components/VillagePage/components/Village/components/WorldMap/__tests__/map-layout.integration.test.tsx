@@ -2,7 +2,7 @@
 // 地点の印(字 + 番号の札)どうしを開いた時と画面の大きさが変わった後に重ねないことを見る。村の画面の中で町の地図を開いた時の印は、画面全体を描く map-badges が見る
 import { cleanup, render } from '@testing-library/react'
 import { page } from 'vitest/browser'
-import WorldMap from '@/components/VillagePage/components/Village/components/WorldMap/container'
+import WorldMap from '@/components/VillagePage/components/Village/components/WorldMap'
 import { runFrames } from '@/components/VillagePage/__tests__/village-walk.test-helper'
 import { cellAwayFromSpots, entries, mapCanvas, mapProps, town } from './world-map.test-helper'
 

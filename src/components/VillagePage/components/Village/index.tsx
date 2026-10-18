@@ -4,15 +4,15 @@ import type { DayPhase } from '@/utils/day-phase'
 // 子の CSS は、子を初めて読み込んだ順に出力される。WorldLayer・FrameOverlays が描く部品も
 // この並びの位置を保つためだけにここで読み込む(値は使わない。消すと CSS の出力順が変わる)
 import ActionButtons from './components/ActionButtons'
-import './components/ClockModal/container'
-import Joystick from './components/Joystick/container'
-import './components/Lighting/container'
+import './components/ClockModal'
+import Joystick from './components/Joystick'
+import './components/Lighting'
 import './components/Minimap'
 import './components/SpeechBox'
-import './components/StopModal/container'
-import './components/TalkBubble/container'
+import './components/StopModal'
+import './components/TalkBubble'
 import './components/Weather'
-import WorldMap, { type WorldMapProps } from './components/WorldMap/container'
+import WorldMap, { type WorldMapProps } from './components/WorldMap'
 import FrameOverlays, { type FrameOverlaysProps } from './components/FrameOverlays'
 // WorldLayer は scene.module.css を読む Ground・FishingFloat・LampVeil を抱えるので、
 // CSS の出力順を変えないよう他の子より後に読み込む

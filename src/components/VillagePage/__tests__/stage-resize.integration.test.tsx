@@ -2,7 +2,7 @@
 // 差し替える物・時間の差し替え方・毎回戻す物は village.test-helper.ts の冒頭の注
 import { cleanup, render } from '@testing-library/react'
 import { page } from 'vitest/browser'
-import VillagePageContainer from '@/components/VillagePage/container'
+import VillagePageContainer from '@/components/VillagePage'
 import { frameSize, prepareVillage, resetVillage, villageJa } from './village.test-helper'
 
 // 晴れの天気を敷き、タッチの模擬を持ち越していないことを確かめる(village.test-helper.ts の prepareVillage)

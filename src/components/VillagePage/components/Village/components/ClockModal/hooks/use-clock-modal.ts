@@ -1,5 +1,5 @@
 // 卓上時計の窓の中身。段階(選択 → 時刻)・針の値・焦点とキー操作をここに集め、
-// container.tsx は受け取った手を並べるだけにする。時刻の読み書きは村の I/O コンテナから props で受け取る
+// index.tsx は受け取った手を並べるだけにする。時刻の読み書きは村の I/O コンテナから props で受け取る
 import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent, RefObject } from 'react'
 import type { ClockText, Direction } from '@content/types/world'

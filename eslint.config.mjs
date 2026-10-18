@@ -137,14 +137,18 @@ const eslintConfig = [
       ),
     },
   },
-  // ---- フックを呼んでよい所(ADR 0019) ----
-  // フックを1つでも呼ぶ部品はコンテナ(container.tsx)、1つも呼ばない部品は表示部品。src でフックを呼べるのは、
-  // コンテナ・hooks/ の中の use-*.ts(x)(src/hooks/ も)・テストの側だけ。
+  // ---- フックを呼んでよい所(ADR 0024。もとは ADR 0019) ----
+  // コンポーネントのフォルダの入口は index.tsx で、フックを1つでも呼ぶ index.tsx はコンテナ、1つも呼ばない index.tsx は表示部品
+  // (判定は scripts/find-containers.mjs)。src でフックを呼べるのは、src/components の index.tsx・hooks/ の中の use-*.ts(x)
+  // (src/hooks/ も)・テストの側だけ。hooks/ と __tests__/ の中の index.tsx は入口でないので、外した後で掛け直す
+  // (! の打ち消しは、それより前の外しだけを取り消す。後ろの use-*.ts(x)・テストの側の外しはそのまま効く)。
   // 掛け方の自己検査と、注釈で黙らせた呼び出しの数え上げは scripts/check-hook-rule.mjs(npm run test:boundary)
   {
     files: ['src/**/*.{ts,tsx}'],
     ignores: [
-      '**/container.tsx',
+      'src/components/**/index.tsx',
+      '!src/**/hooks/**',
+      '!src/**/__tests__/**',
       'src/**/hooks/**/use-*.{ts,tsx}',
       '**/*.test.{ts,tsx}',
       '**/*.fixture.ts',

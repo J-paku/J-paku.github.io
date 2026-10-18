@@ -3,11 +3,11 @@
 // どう呼ぶかを、利用者に見える物(role・名前・焦点・針の数字)で確かめる。
 // 窓を描く・外すのは呼び出し側の村なので、ここでは閉じる知らせを呼んだかを見て、外した後の焦点はテストが外して見る。
 // 村の中で開いて昼夜が替わるまでは src/components/VillagePage/__tests__/desk-clock.integration.test.tsx が見る。
-// props は村の container.fixture.ts が node で組んで provide した文言(villageJa)を inject で受け取り、手はテストが作る
+// props は村の index.fixture.ts が node で組んで provide した文言(villageJa)を inject で受け取り、手はテストが作る
 import { cleanup, render } from '@testing-library/react'
 import { inject, onTestFinished } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
-import ClockModal from '@/components/VillagePage/components/Village/components/ClockModal/container'
+import ClockModal from '@/components/VillagePage/components/Village/components/ClockModal'
 
 const { lang, text } = inject('villageJa')
 const clock = text.clock

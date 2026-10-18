@@ -6,7 +6,7 @@ import { cleanup, render } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { page, userEvent } from 'vitest/browser'
 import type { Direction } from '@content/types/world'
-import StopModal from '@/components/VillagePage/components/Village/components/StopModal/container'
+import StopModal from '@/components/VillagePage/components/Village/components/StopModal'
 // 部品と同じ CSS Modules を import すれば、部品と同じクラス名が引ける
 import styles from '@/components/VillagePage/components/Village/components/StopModal/stop-modal.module.css'
 import { measureScrollThumb } from '@/components/VillagePage/components/Village/components/StopModal/utils/measure-scroll-thumb'

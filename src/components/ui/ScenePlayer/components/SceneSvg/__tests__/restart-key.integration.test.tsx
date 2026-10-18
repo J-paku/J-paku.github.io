@@ -2,7 +2,7 @@
 // SVG の中の CSS アニメーションは組み直しでしか頭から始まらないので、組み直した時は絵の要素が新しく作られる。
 // どの場面の restartKey を替えるかは場面再生のテスト(../../../__tests__/crossfade.integration.test.tsx)が見る
 import { render } from '@testing-library/react'
-import SceneSvg from '@/components/ui/ScenePlayer/components/SceneSvg/container'
+import SceneSvg from '@/components/ui/ScenePlayer/components/SceneSvg'
 import { ART, artOf, svgOf } from '@/components/ui/ScenePlayer/__tests__/scene-player.test-helper'
 
 test('restartKey が替わると同じ原文のまま絵を組み直し、ほかの props の描き直しでは組み直さない', async () => {

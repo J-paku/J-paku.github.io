@@ -1,5 +1,6 @@
-// カバレッジから行を外す注釈の検査(docs/decisions/0018-move-e2e-and-gate-all-hooks.md・docs/decisions/0019-hooks-make-containers.md)。
-// フックとコンテナ(container.tsx)は統合テストのカバレッジでファイル別100%に固めている(vitest.integration.config.ts)。そこから外してよいのは、
+// カバレッジから行を外す注釈の検査(docs/decisions/0018-move-e2e-and-gate-all-hooks.md・docs/decisions/0019-hooks-make-containers.md・ADR 0024)。
+// フックとコンテナ(フックを使う index.tsx と I/O コンテナの index.tsx。判定は scripts/find-containers.mjs)は統合テストのカバレッジで
+// ファイル別100%に固めている(vitest.integration.config.ts。表示部品もファイル別100%)。そこから外してよいのは、
 // 統合テストで構造上届かず、E2E だけが作れる場合の行(IntersectionObserver の無い環境など)だけで、その行を見ている E2E を名指しする。
 //
 // 決まり:
@@ -12,8 +13,8 @@
 //     数えるのは走るテストだけ: test('…')(test.skip・test.fixme・test.fail・test.only は数えない)と、
 //     test.describe・test.describe.serial・test.describe.parallel の中のもの(test.describe.skip・fixme・only の中は数えない)。
 //     名前を式で組んだテスト(`${prefix}…` の形)は名指しできない
-//   - 置けるのは hooks フォルダの下のファイルと container.tsx だけ。門(ファイル別100%)が掛かるのはフックとコンテナで、
-//     単体の門(純粋モジュールのファイル別100%と変異テスト)の対象を E2E で外すことはしない
+//   - 置けるのは hooks フォルダの下のファイルとコンテナの index.tsx だけ(フックを使わない index.tsx の表示部品と、もとの名前の container.tsx には置けない)。
+//     単体の門(純粋モジュールのファイル別100%と変異テスト)の対象を E2E で外すことはしないし、表示部品も外さない
 //   - 注釈の直後(空白を飛ばした先)の字句から始まる構文は、始まりと終わりが同じ1行に収まるもの(if (…) return など)だけ。
 //     v8 ignore next は、注釈の後の最初の字句から始まるいちばん外側の構文をまるごと外す(ast-v8-to-istanbul がその位置で探す)ので、
 //     useEffect(…) の呼び出しやブロックを持つ if の前に置くと、その全体がカバレッジから消える。
@@ -34,6 +35,8 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
+import { CONTAINER_DIRS } from './container-dirs.mjs'
+import { isContainer } from './find-containers.mjs'
 import { parseSource } from './read-imports.mjs'
 
 // cwd に依存しない。どこから呼んでもリポジトリ直下を見る
@@ -47,9 +50,8 @@ const CODE_FILE = /\.(?:tsx?|jsx?|mjs|cjs)$/
 const IGNORE_WORD = /\b(?:istanbul|[cv]8|node:coverage)\s+ignore\b/gi
 // 許す形。spec のパスとテストの名前を取り出す
 const ALLOWED_NOTE = /^\/\* v8 ignore next -- e2e: (tests\/[^\s]+\.spec\.ts) > (\S(?:.*\S)?) \*\/$/
-// 親フォルダのどれかが hooks であるパス(check-test-boundary.mjs と同じ。use-hooks/ のような名前は含めない)と、コンテナ
+// 親フォルダのどれかが hooks であるパス(check-test-boundary.mjs と同じ。use-hooks/ のような名前は含めない)
 const HOOKS_DIR = /(^|\/)hooks\//
-const CONTAINER_FILE = /(^|\/)container\.tsx$/
 // 数えるテストと、その中を数える describe
 const TEST_CALL = 'test'
 const RUNNING_DESCRIBES = ['test.describe', 'test.describe.serial', 'test.describe.parallel']
@@ -60,8 +62,8 @@ const REASON_FORM =
   `カバレッジから外す注釈は ${NOTE_FORM} の1行のブロック注釈だけ(空白もこのとおり)。理由(e2e の参照)の無い外し・別の形(if・else・file・start・stop・行注釈)・` +
   '文字列の中の外しの言葉は使わない。統合テストで届かない行でなければ、テストを足して通すか、起きない場合の防御なら分岐の生まれない形へ書き換える(ADR 0018)'
 const REASON_PLACE =
-  'e2e の注釈を置けるのは hooks フォルダの下のファイルと container.tsx だけ(ファイル別100%の門が掛かるもの)。' +
-  '純粋モジュールは単体の門(ファイル別100%・変異テスト)で固め、E2E を理由に外さない。表示部品も外さない(ADR 0018・0019)'
+  'e2e の注釈を置けるのは hooks フォルダの下のファイルとコンテナ(フックを使う index.tsx と、I/O コンテナの一覧のフォルダの index.tsx)だけ。' +
+  '純粋モジュールは単体の門(ファイル別100%・変異テスト)で固め、E2E を理由に外さない。表示部品(フックを使わない index.tsx)も外さない(ADR 0018・0019・0024)'
 const REASON_SPEC =
   '注釈が指す spec が、git が追跡している tests/ の下に無い。spec のパスを直すか、その E2E を残す(注釈が外す根拠は、その行を見ている E2E)(ADR 0018)'
 const REASON_TEST =
@@ -179,15 +181,16 @@ const testNamesOf = (file, code) => {
   return names
 }
 
-// ファイル別100%の門が掛かるファイル(フックとコンテナ)か
-const isGated = file => HOOKS_DIR.test(file) || CONTAINER_FILE.test(file)
+// e2e の注釈を置けるファイル(フックとコンテナ)か。ioDirs は I/O コンテナの一覧(自己検査では偽の一覧)
+const isGated = (file, code, ioDirs) =>
+  HOOKS_DIR.test(file) || isContainer(file, ioDirs, () => code)
 
-// 1 ファイルの違反を { line, reason } で返す。specs は追跡されている spec のパス → 中身
-const violationsOf = (file, code, specs) =>
+// 1 ファイルの違反を { line, reason } で返す。specs は追跡されている spec のパス → 中身、ioDirs は I/O コンテナの一覧
+const violationsOf = (file, code, specs, ioDirs) =>
   ignoreNotesOf(file, code).flatMap(({ note, line, nextIsOneLine }) => {
     const match = note === undefined ? null : ALLOWED_NOTE.exec(note)
     if (match === null) return [{ line, reason: REASON_FORM }]
-    if (!isGated(file)) return [{ line, reason: REASON_PLACE }]
+    if (!isGated(file, code, ioDirs)) return [{ line, reason: REASON_PLACE }]
     const [, spec, name] = match
     const specCode = specs.get(spec)
     if (specCode === undefined) return [{ line, reason: REASON_SPEC }]
@@ -228,6 +231,9 @@ const EXPECTED_TEST_NAMES = [
 const FAKE_SPECS = new Map([['tests/fake.spec.ts', FAKE_SPEC]])
 const note = name => `/* v8 ignore next -- e2e: tests/fake.spec.ts > ${name} */`
 const HOOK = 'src/components/A/hooks/use-a.ts'
+// 偽の I/O コンテナの一覧と、フックを呼ぶ1行(index.tsx をコンテナにする)
+const FAKE_IO_DIRS = ['src/components/Screen']
+const CALL = 'const a = useA()'
 // [パス, 中身, 期待する違反の理由(行の順)]
 const NOTE_CASES = [
   [HOOK, `${note('上の名前')}\nif (a) return`, []],
@@ -253,17 +259,21 @@ const NOTE_CASES = [
   [HOOK, note('文字列の中の名前'), [REASON_TEST]],
   // 追跡されていない spec
   [HOOK, '/* v8 ignore next -- e2e: tests/gone.spec.ts > 上の名前 */', [REASON_SPEC]],
-  // コンテナ(I/O コンテナも状態コンテナも)はフックと同じに置ける
-  ['src/components/A/container.tsx', `${note('上の名前')}\nif (a) return`, []],
-  ['src/components/A/components/B/container.tsx', `${note('上の名前')}\nif (a) return`, []],
-  ['src/components/A/container.tsx', note('無い名前'), [REASON_TEST]],
-  // フックとコンテナの外(名前の後ろが container.tsx なだけのもの・コンテナのテストも外)
+  // コンテナ(フックを使う index.tsx と、フックを使わなくても I/O コンテナの一覧のフォルダの index.tsx)はフックと同じに置ける
+  ['src/components/A/index.tsx', `${CALL}\n${note('上の名前')}\nif (a) return`, []],
+  ['src/components/A/components/B/index.tsx', `${CALL}\n${note('上の名前')}\nif (a) return`, []],
+  ['src/components/Screen/index.tsx', `${note('上の名前')}\nif (a) return`, []],
+  ['src/components/A/index.tsx', `${CALL}\n${note('無い名前')}`, [REASON_TEST]],
+  // フックとコンテナの外(フックを使わない index.tsx の表示部品・もとの名前の container.tsx・hooks/ の外のフックの名前・コンテナのテストも外)
   ['src/utils/a.ts', note('上の名前'), [REASON_PLACE]],
   ['src/components/A/index.tsx', note('上の名前'), [REASON_PLACE]],
+  ['src/components/A/index.tsx', `// ${CALL}\n${note('上の名前')}\nif (a) return`, [REASON_PLACE]],
   ['src/use-hooks/a.ts', note('上の名前'), [REASON_PLACE]],
-  ['src/components/A/my-container.tsx', note('上の名前'), [REASON_PLACE]],
-  ['src/components/A/container.test.tsx', note('上の名前'), [REASON_PLACE]],
-  ['src/components/A/container.ts', note('上の名前'), [REASON_PLACE]],
+  ['src/components/A/container.tsx', `${CALL}\n${note('上の名前')}\nif (a) return`, [REASON_PLACE]],
+  ['src/components/A/my-index.tsx', `${CALL}\n${note('上の名前')}`, [REASON_PLACE]],
+  ['src/components/A/index.test.tsx', `${CALL}\n${note('上の名前')}`, [REASON_PLACE]],
+  ['src/components/A/index.ts', `${CALL}\n${note('上の名前')}`, [REASON_PLACE]],
+  ['src/components/ScreenX/index.tsx', note('上の名前'), [REASON_PLACE]],
   // 理由の無い外し・別の形・別の名前・文字列の中
   [HOOK, '/* v8 ignore next */\nif (a) return', [REASON_FORM]],
   [HOOK, '/* istanbul ignore next */', [REASON_FORM]],
@@ -302,8 +312,9 @@ const selfCheckFailures = [
     : []),
   ...NOTE_CASES.filter(
     ([file, code, expected]) =>
-      JSON.stringify(violationsOf(file, code, FAKE_SPECS).map(({ reason }) => reason)) !==
-      JSON.stringify(expected)
+      JSON.stringify(
+        violationsOf(file, code, FAKE_SPECS, FAKE_IO_DIRS).map(({ reason }) => reason)
+      ) !== JSON.stringify(expected)
   ).map(([file, code]) => `注釈の判定 ${file} ${JSON.stringify(code)}`),
 ]
 if (selfCheckFailures.length > 0) {
@@ -338,7 +349,7 @@ const failures = []
 for (const file of codeFiles) {
   const code = readFileSync(path.join(ROOT, file), 'utf8')
   noteCount += ignoreNotesOf(file, code).length
-  for (const { line, reason } of violationsOf(file, code, trackedSpecs)) {
+  for (const { line, reason } of violationsOf(file, code, trackedSpecs, CONTAINER_DIRS)) {
     failures.push(`${file}:${line}: ${reason}`)
   }
 }

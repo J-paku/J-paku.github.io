@@ -4,7 +4,7 @@ read_when:
   - ルーティングやメタデータを変えるとき
   - ビルド・配信の仕組みを前提にした判断をするとき
 source_of_truth: true
-last_reviewed: 2026-10-15
+last_reviewed: 2026-10-18
 ---
 
 # 全体像
@@ -17,7 +17,7 @@ last_reviewed: 2026-10-15
 
 ```
 content/     表示文字列(ja/ko)・村の地形・その型。src を参照しないデータ(置く処理はデータを組み立てるだけの展開まで)
-src/app/     ルート定義と、ja/ko が共有する枠・組み立て(html-shell / locale-routes)。画面本体は components に置く
+src/app/     ルート定義と、ja/ko が共有する枠・組み立て(html-shell / locale-routes)と、画面のサーバのローダー(directory-screen / story-screen / village-screen)。画面本体は components に置く
 src/components/  VillagePage(村)/ Directory(一覧)/ Story(作品)の3画面 + ui/(横断部品)
 src/hooks/   画面横断のフック
 src/lib/     外の世界(ファイル読み・保存・ネットワーク)に触れる層 + 村エンジン

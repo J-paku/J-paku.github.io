@@ -1,9 +1,9 @@
 // 拡大地図(WorldMap)を直接描く統合テストが共有する props と、描いた物の読み方。
 // 地点の印・扉の印・地点名は、村が町で地図を開く時と同じ手(src/lib/village・utils/collect-place-names.ts)で、
-// container.fixture.ts が provide した村から組む。描く道具(@testing-library/react・react-dom)はここから import しない(npm run test:boundary)
+// index.fixture.ts が provide した村から組む。描く道具(@testing-library/react・react-dom)はここから import しない(npm run test:boundary)
 import { inject } from 'vitest'
 import type { Cell, Direction } from '@content/types/world'
-import type { WorldMapProps } from '@/components/VillagePage/components/Village/components/WorldMap/container'
+import type { WorldMapProps } from '@/components/VillagePage/components/Village/components/WorldMap'
 import { collectPlaceNames } from '@/components/VillagePage/components/Village/utils/collect-place-names'
 import { fillPlace } from '@/components/VillagePage/components/Village/utils/spot-text'
 import { doorMarkers } from '@/lib/village/door-marker'

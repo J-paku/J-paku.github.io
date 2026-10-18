@@ -7,7 +7,7 @@ import { useId, type Ref } from 'react'
 import type { Locale, WorkStoryScene } from '@content/types/content'
 import { useReveal } from '@/hooks/use-reveal'
 import PhraseText from '@/components/ui/PhraseText'
-import TechChipPopover from '../TechChipPopover/container'
+import TechChipPopover from '../TechChipPopover'
 import styles from './scene-section.module.css'
 
 type SceneSectionProps = {

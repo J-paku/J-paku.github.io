@@ -2,13 +2,13 @@
 // サーバの描画で書き出した一覧全体の HTML へハイドレーションしても、React が書き出した要素を捨てて作り直さないことを、要素の同一性で確かめる。
 // 食い違いはカードの外(プロフィール・経歴の詳細・ナビゲーション)にあっても一覧全体の作り直しになるので、カードだけを描く
 // カードのテスト(../components/WorkCard/__tests__/reveal.integration.test.tsx)では見えない。そのため一覧全体を描いて見る。
-// props は入口(index.tsx)と同じ組み方で container.fixture.ts が node で組み、inject で受け取る
+// props は入口(src/app/directory-screen.tsx)と同じ組み方で index.fixture.ts が node で組み、inject で受け取る
 import { cleanup, render } from '@testing-library/react'
 import { renderToString } from 'react-dom/server'
 import { onTestFinished } from 'vitest'
 // 部品と同じ CSS Modules を import すれば、部品と同じクラス名が引ける
 import shotStyles from '@/components/Directory/components/WorkCard/components/Shot/shot.module.css'
-import DirectoryContainer from '@/components/Directory/container'
+import DirectoryContainer from '@/components/Directory'
 import {
   directoryJa,
   prepareEachTest,

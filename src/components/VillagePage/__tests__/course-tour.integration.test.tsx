@@ -3,7 +3,7 @@
 import { cleanup, render } from '@testing-library/react'
 import { page, userEvent } from 'vitest/browser'
 import type { Cell, Direction, WorldSet } from '@content/types/world'
-import VillagePageContainer from '@/components/VillagePage/container'
+import VillagePageContainer from '@/components/VillagePage'
 import { readVisited, writePosition, writeVisited } from '@/lib/preferences'
 import {
   FRAME_MS,

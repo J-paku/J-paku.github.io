@@ -5,7 +5,7 @@
 // 取れた原文をシャドウルートへ展開すること自体は場面SVGのテスト(../components/SceneSvg/__tests__/)が見る
 import { render } from '@testing-library/react'
 import type { WorkStoryScene } from '@content/types/content'
-import ScenePlayer from '@/components/ui/ScenePlayer/container'
+import ScenePlayer from '@/components/ui/ScenePlayer'
 import {
   ART,
   PLACEHOLDER,

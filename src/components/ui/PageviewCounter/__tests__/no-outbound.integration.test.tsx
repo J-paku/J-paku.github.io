@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // App Router が経路を配る文脈。usePathname(next/dist/client/components/navigation.js)はこれを useContext で読む。
 // 公開の入口が無いので、Next 自身が読むのと同じモジュールを直に指す(別のモジュールなら別の文脈になり、経路が届かない)
 import { PathnameContext } from 'next/dist/shared/lib/hooks-client-context.shared-runtime'
-import PageviewCounter from '@/components/ui/PageviewCounter/container'
+import PageviewCounter from '@/components/ui/PageviewCounter'
 
 // 読み込み時の経路
 const INITIAL_PATHNAME = '/list/'

@@ -5,7 +5,7 @@ read_when:
   - 外の世界(保存・天気・計測・SVG の取得・content の読み出し)に触れる import をどこに書くか迷ったとき
   - コンポーネントを描くテストをどこに置くかを問われたとき
 source_of_truth: false
-last_reviewed: 2026-10-17
+last_reviewed: 2026-10-18
 ---
 
 # 0017. ファイルを utils・lib、コンテナ、表示部品の3層に分け、コンポーネントを描くテストをコンテナの統合テストへ集める
@@ -29,6 +29,10 @@ D1・D3 の一部・D5 は [0019](0019-hooks-make-containers.md) で置き換え
 6つは外の世界に触れてよい「I/O コンテナ」として残った。D3 のうち表示部品に UI のフックを許す部分は、表示部品はフックを1つも呼ばない形に替わった。
 D5 の `container.browser.test.tsx`(コンテナの隣・コンテナごとにちょうど1本)は、リポジトリ直下の `__tests__` の下の動作ごとの `<動作>.integration.test.tsx`(コンテナごとに1本以上)に替わった。
 D2・D4・D6・D7 と、D3 の外の世界の入口の一覧は、この記録のまま)
+
+一部を [0024](0024-containers-as-index.md) が置き換えた(2026-10-18。D2 のうち、画面のフォルダの `index.tsx` をサーバのローダーにし、アプリのルート(`src/app/`)がそれを import する部分は、
+ローダーを `src/app/` の `directory-screen.tsx`・`story-screen.tsx`・`village-screen.tsx` へ移し、画面のフォルダの `index.tsx` が画面のコンテナ(もとの `container.tsx`)になる形に替わった。
+ローダーがすること(サーバの読み出し・スプライトの生成・`notFound()`・インラインの `<style>`・`<script>`)と、ローダーが直列化できる props で画面のコンテナを描くことは、この記録のまま)
 
 ## Context
 
@@ -142,7 +146,7 @@ happy-dom の8本を消すこと、コンポーネントを描くテストの置
 ## Consequences
 
 - **コンテナは6つになった。**
-  - `src/components/VillagePage/container.tsx`(`'use client'`)が画面のフック `useDayPhase`・`useWeather`・`useVillage` と卓上時計のストアを呼び、値を表示部品の `Village` へ渡す。
+  - `src/components/VillagePage/` の `container.tsx`(`'use client'`)が画面のフック `useDayPhase`・`useWeather`・`useVillage` と卓上時計のストアを呼び、値を表示部品の `Village` へ渡す。
     フックを呼ぶ順(effect の順)は元の `Village` と同じ。卓上時計の窓(ClockModal)はストアを読まず、時計の値と設定する関数を props で受け取る(`use-clock-modal` もストアを import しない)
   - 村の `'use client'` の入口が `Village` から `container.tsx` へ上がり、起動の覆い(Boot)・見出しのロゴ(Logo)・作品への近道・一覧への出口(ExitLink)・設定メニュー(Navigation)もコンテナが描くようになった。
     スプライトの背景を当てるインラインの `<style>` と、初回ペイント前に段階を直す `PHASE_INIT` の `<script>` はローダー(`src/components/VillagePage/index.tsx`)が作り、
@@ -152,12 +156,12 @@ happy-dom の8本を消すこと、コンポーネントを描くテストの置
     作品ストーリーは `src/components/Story/utils/story-props.ts`(ストーリーが無ければ null を返し、`notFound()` はローダーに残る)。フィクスチャはローダーを写さない
   - 村の画面のフックは `src/components/VillagePage/hooks/` へ移した(下のフォルダ `use-village-guide`・`use-village-overlay`・`use-walk-loop` はそのまま)。
     窓の UI のフックが使う `use-dialog-focus.ts`・`use-held-direction.ts` は表示部品の側(当時の `Village` の `hooks` フォルダ)に残る(今は [0019](0019-hooks-make-containers.md) で `src/hooks/` へ移した)
-  - `src/components/Directory/container.tsx`・`src/components/Story/container.tsx` はフックが無く、`'use client'` も無い。中のクライアントの島(作品カード・場面モーダルなど)は今までどおり
+  - `src/components/Directory/` の `container.tsx`・`src/components/Story/` の `container.tsx` はフックが無く、`'use client'` も無い。中のクライアントの島(作品カード・場面モーダルなど)は今までどおり
   - 作品ストーリーの `use-active-scene`(`IntersectionObserver` で今読んでいる場面を追う UI のフック)は、画面のフォルダの直下の `hooks` フォルダから、それを使う表示部品の
     `src/components/Story/components/StoryBody/hooks/use-active-scene.ts` へ移した。画面のフォルダの直下の `hooks` フォルダはコンテナの隣の(I/O を許す)フォルダ、という D4 に合わせるため
-  - `src/components/ui/SettingsMenu/container.tsx` がテーマの保存のフック(`useThemeChoice`)を呼ぶ
-  - `src/components/ui/PageviewCounter/container.tsx` は元の入口の `index.tsx` を移したもので、何も描かないので表示部品は無い
-  - `src/components/ui/ScenePlayer/container.tsx` は元の ScenePlayer と同じ props を受ける。場面 SVG の原本の取得(`@/lib/fetch-svg-source`)は SceneSvg からコンテナの隣の `hooks` フォルダへ移した
+  - `src/components/ui/SettingsMenu/` の `container.tsx` がテーマの保存のフック(`useThemeChoice`)を呼ぶ
+  - `src/components/ui/PageviewCounter/` の `container.tsx` は元の入口の `index.tsx` を移したもので、何も描かないので表示部品は無い
+  - `src/components/ui/ScenePlayer/` の `container.tsx` は元の ScenePlayer と同じ props を受ける。場面 SVG の原本の取得(`@/lib/fetch-svg-source`)は SceneSvg からコンテナの隣の `hooks` フォルダへ移した
 - **横断部品のコンテナは、外から `container.tsx` を直接指す。** 呼び出し側は殻(`src/app/html-shell.tsx`)・`Navigation`・作品カードの ShotMedia・作品ストーリーの IntroPreview と SceneModal。
   コンポーネントの入口は `index.tsx` という決まりの例外になる。画面の3つは今までどおり、ルートがローダーの `index.tsx` を指す
 - **統合テストはコンテナごとに1本の6本になった。** node で props を組む `container.fixture.ts` は、村・一覧・作品ストーリー・設定メニューの4つ。

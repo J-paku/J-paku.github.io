@@ -3,7 +3,7 @@
 import { cleanup, render } from '@testing-library/react'
 import { useLayoutEffect } from 'react'
 import { page, userEvent } from 'vitest/browser'
-import VillagePageContainer from '@/components/VillagePage/container'
+import VillagePageContainer from '@/components/VillagePage'
 import { CLOCK_FOCUSABLE_SELECTOR } from '@/utils/focusables'
 import {
   FRAME_MS,

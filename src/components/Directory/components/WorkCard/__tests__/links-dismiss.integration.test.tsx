@@ -2,10 +2,10 @@
 // カードを実際の Chromium で、フック・子と一緒に描き(ADR 0016)、タップで開いた覆いが Esc とキャプチャ枠の外の押下で閉じ、
 // 枠の中の押下では閉じないことを、トリガーの aria-expanded で確かめる。
 // タッチ端末かどうかの問い合わせだけを差し替える(directory.test-helper.ts の viewAsTouch)。
-// props は一覧の container.fixture.ts が node で組んで provide した作品・文言を inject で受け取る
+// props は一覧の index.fixture.ts が node で組んで provide した作品・文言を inject で受け取る
 import { act, cleanup, render, within } from '@testing-library/react'
 import { userEvent } from 'vitest/browser'
-import WorkCard from '@/components/Directory/components/WorkCard/container'
+import WorkCard from '@/components/Directory/components/WorkCard'
 import {
   cardOf,
   cardProps,

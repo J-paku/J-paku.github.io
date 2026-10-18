@@ -21,7 +21,7 @@ import { clearVillageProgress } from '@/lib/preferences'
 import { useVillageTime } from '@/components/VillagePage/hooks/use-village-time'
 import { onOwnPage, resetEmulation, stubWeather } from './village-walk.test-helper'
 
-// container.fixture.ts が node で組んで provide した村の props(ja)
+// index.fixture.ts が node で組んで provide した村の props(ja)
 export const villageJa = inject('villageJa')
 
 // 利用者に見える枠の大きさ(px)。操作帯のスティックも role=application なので、枠の読み上げ名

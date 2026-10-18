@@ -7,7 +7,7 @@ import { renderToString } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 import { THEME_STORAGE_KEY, type Theme } from '@/lib/preferences'
-import SettingsMenu from '@/components/ui/SettingsMenu/container'
+import SettingsMenu from '@/components/ui/SettingsMenu'
 import { PATHNAME, preventNavigation, triggerOf, ui } from './settings-menu.test-helper'
 
 const renderMenu = () => render(<SettingsMenu locale='ja' pathname={PATHNAME} ui={ui} />)

@@ -1,13 +1,13 @@
 // 一覧の統合テスト(src/components/Directory の下の *.integration.test.tsx)へ渡すコンテナの props を、
-// 入口(src/components/Directory/index.tsx)と同じ純粋関数(src/components/Directory/utils/directory-props.ts)で node 側で組む。
+// 入口(src/app/directory-screen.tsx)と同じ純粋関数(src/components/Directory/utils/directory-props.ts)で node 側で組む。
 // content の読み出し(src/lib/content/read.ts)は node:fs を使うので、ブラウザでは読み込めない。
-// vitest.integration.config.ts の globalSetup が __tests__ の下の container.fixture.ts としてこのファイルを拾い、node で走らせて
+// vitest.integration.config.ts の globalSetup が __tests__ の下の index.fixture.ts としてこのファイルを拾い、node で走らせて
 // provide し、テストは inject で受け取る
 import type { ComponentProps } from 'react'
 import type { TestProject } from 'vitest/node'
 import type { Locale } from '@content/types/content'
 import { readContent, readVillageText } from '@/lib/content/read'
-import type DirectoryContainer from '@/components/Directory/container'
+import type DirectoryContainer from '@/components/Directory'
 import { directoryProps } from '@/components/Directory/utils/directory-props'
 
 export type DirectoryData = ComponentProps<typeof DirectoryContainer>

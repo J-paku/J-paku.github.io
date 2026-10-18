@@ -2,7 +2,7 @@
 // 差し替える物・時間の差し替え方・毎回戻す物は village.test-helper.ts の冒頭の注
 import { cleanup, render } from '@testing-library/react'
 import { page, userEvent } from 'vitest/browser'
-import VillagePageContainer from '@/components/VillagePage/container'
+import VillagePageContainer from '@/components/VillagePage'
 import { FISHING_BITE_MS, FISHING_CAST_MS, FISHING_LAND_MS } from '@/lib/village/fishing'
 import {
   BITE_BRACE_MS,

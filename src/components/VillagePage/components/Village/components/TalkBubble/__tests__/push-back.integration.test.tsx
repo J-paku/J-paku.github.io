@@ -6,7 +6,7 @@
 import { cleanup, render } from '@testing-library/react'
 import type { CSSProperties } from 'react'
 import { page } from 'vitest/browser'
-import TalkBubble from '@/components/VillagePage/components/Village/components/TalkBubble/container'
+import TalkBubble from '@/components/VillagePage/components/Village/components/TalkBubble'
 import { FRAME_PADDING } from '@/components/VillagePage/components/Village/components/TalkBubble/utils/shift-bubble'
 import {
   FRAME_MS,

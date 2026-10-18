@@ -1,10 +1,10 @@
 // 会話窓(StopModal)を直接描く統合テストが共有する props と、描いた物の読み方。
 // 地点の文言・本文のリンクの行き先と開き方は、村が地点で話しかけた時と同じく(utils/pick-dialog.ts)、
-// container.fixture.ts が provide した村の文言と行き先から組む。描く道具(@testing-library/react・react-dom)はここから import しない
+// index.fixture.ts が provide した村の文言と行き先から組む。描く道具(@testing-library/react・react-dom)はここから import しない
 // (npm run test:boundary)ので、窓を重ねる箱は各ファイルが描く
 import { inject } from 'vitest'
 import type { Direction, StopText } from '@content/types/world'
-import type { StopModalProps } from '@/components/VillagePage/components/Village/components/StopModal/container'
+import type { StopModalProps } from '@/components/VillagePage/components/Village/components/StopModal'
 
 const { lang, text, stopHrefs, stopExternal, listHref } = inject('villageJa')
 

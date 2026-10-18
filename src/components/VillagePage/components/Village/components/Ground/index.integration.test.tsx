@@ -1,12 +1,12 @@
 // 地面の層(Ground。床・設置物の正面・行き先の印を並べる状態のコンテナ)を直接描き、床のマスと設置物の正面のマスを
 // それぞれの位置へマスの種類のシートの絵で並べること(ワールドが替われば並べ直すこと)と、行き先を渡した間だけそのマスに行き先の印を立てることを、
 // 描かれた箱の位置とシートの絵の番号(--i)で確かめる。
-// props は村の container.fixture.ts が node で組んで provide したワールドとシートを使う。マスの大きさ(--cell)は、村では
+// props は村の index.fixture.ts が node で組んで provide したワールドとシートを使う。マスの大きさ(--cell)は、村では
 // 舞台の実測(use-stage-scale)が書くので、ここでは描く箱にテストが決めた値を置く。
 // 地図で選んだ地点へ向かう間に村が印を立てる・下ろすかは、村を描く destination-pin が見る
 import { cleanup, render } from '@testing-library/react'
 import type { Cell, World } from '@content/types/world'
-import Ground from '@/components/VillagePage/components/Village/components/Ground/container'
+import Ground from '@/components/VillagePage/components/Village/components/Ground'
 import { facadeCells } from '@/lib/village/facade'
 import { spotOf } from '@/components/VillagePage/__tests__/village-spots.test-helper'
 import {

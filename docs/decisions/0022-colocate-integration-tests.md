@@ -37,13 +37,19 @@ Accepted(2026-10-18、利用者の決定)。統合テスト(`*.integration.test.
 - 単体テスト(`*.test.ts`)をモジュールの隣に置くこと、E2E を `tests/` に置くこと
 - 親と子の役割と props の作り方(0019)、モックはネットワークと時間だけ(0017 の D6)
 
+一部を [0024](0024-containers-as-index.md) が置き換えた(2026-10-18。「置き場と名前」の1のうち、対のファイルの名前 `container.integration.test.tsx` は `index.integration.test.tsx` に、
+統合テストが自分のコンテナを `./container`・`../container`・`@/components/.../container` で import する形は、別名 `@/components/<フォルダの道>` で import する形に替わった。
+`index.integration.test.tsx` を採らない理由(画面のフォルダの `index.tsx` がローダー)は、ローダーが `src/app/` へ移って当たらなくなった。
+3・4 の `container.fixture.ts` は `index.fixture.ts` に替わった。「カバレッジ」のうち、画面の3つのローダーを `SCREEN_LOADERS` で門から外す部分は、ローダーが `src/components/` の外へ出たので無くなった。
+置き場の決まり・表示部品は自分のテストを持たないこと・表示部品のファイル別100%は、この記録のまま)
+
 ## Context
 
 決める前(`ba8229c`)のこのリポジトリは次の状態だった。
 
 - **統合テストは87本で、全部がリポジトリ直下の `__tests__` の下にあった**(0019)。統合テストの部品の20個(`*.test-helper.ts` が16個、`container.fixture.ts` が4個)も同じ所にあった
 - `__tests__` の下は、I/O コンテナの6つの unit のフォルダ(`story`・`directory`・`village-page`・`ui/settings-menu`・`ui/pageview-counter`・`ui/scene-player`)と、その下の状態コンテナの名前の kebab-case のフォルダに分かれていた。
-  例えば一覧の作品カード WorkCard(`src/components/Directory/components/WorkCard/container.tsx`)の統合テストの8本は、`__tests__` の下の `directory` の下の `work-card` にあり、
+  例えば一覧の作品カード WorkCard(`src/components/Directory/components/WorkCard/` の `container.tsx`)の統合テストの8本は、`__tests__` の下の `directory` の下の `work-card` にあり、
   `src` の中の WorkCard のフォルダにはテストのファイルが1つも無かった
 - `container.tsx` は22個(I/O コンテナが6つ、状態コンテナが16個)で、どれも統合テストを1本以上持っていた。1本だけのものは村の Boot・ClockModal・Ground・Joystick・Lighting の5つで、残る17個は2本以上だった
 - 表示部品(フックを呼ばない `index.tsx`)は自分のテストを持たず、それを描くコンテナの統合テストに覆われていた。
@@ -92,13 +98,13 @@ Accepted(2026-10-18、利用者の決定)。統合テスト(`*.integration.test.
 
 統合テストが1本だけの5つのコンテナでは、その1本の名前を `container.integration.test.tsx` に変える。前の置き場は、どれもリポジトリ直下の `__tests__` の下の `village-page` の下の、コンテナの名前の kebab-case のフォルダだった。
 
-| コンテナ   | 前の名前                            | 移した先                                                                                             |
-| ---------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| Boot       | `logo-flight.integration.test.tsx`  | `src/components/VillagePage/components/Boot/container.integration.test.tsx`                          |
-| ClockModal | `pick-time.integration.test.tsx`    | `src/components/VillagePage/components/Village/components/ClockModal/container.integration.test.tsx` |
-| Ground     | `sprite-cells.integration.test.tsx` | `src/components/VillagePage/components/Village/components/Ground/container.integration.test.tsx`     |
-| Joystick   | `knob-drag.integration.test.tsx`    | `src/components/VillagePage/components/Village/components/Joystick/container.integration.test.tsx`   |
-| Lighting   | `light-boxes.integration.test.tsx`  | `src/components/VillagePage/components/Village/components/Lighting/container.integration.test.tsx`   |
+| コンテナ   | 前の名前                            | 移した先                                                                                                   |
+| ---------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Boot       | `logo-flight.integration.test.tsx`  | `src/components/VillagePage/components/Boot/` の `container.integration.test.tsx`                          |
+| ClockModal | `pick-time.integration.test.tsx`    | `src/components/VillagePage/components/Village/components/ClockModal/` の `container.integration.test.tsx` |
+| Ground     | `sprite-cells.integration.test.tsx` | `src/components/VillagePage/components/Village/components/Ground/` の `container.integration.test.tsx`     |
+| Joystick   | `knob-drag.integration.test.tsx`    | `src/components/VillagePage/components/Village/components/Joystick/` の `container.integration.test.tsx`   |
+| Lighting   | `light-boxes.integration.test.tsx`  | `src/components/VillagePage/components/Village/components/Lighting/` の `container.integration.test.tsx`   |
 
 残る82本は、統合テストを2本以上持つ17個のコンテナのフォルダの `__tests__` の下へ、名前を変えずに移す
 (例: 作品カードの8本は `src/components/Directory/components/WorkCard/__tests__/`、村の画面全体を描く33本は `src/components/VillagePage/__tests__/`)。

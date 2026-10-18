@@ -3,7 +3,7 @@
 // 差し替えるのは場面SVGの通信(fetch)だけ。場面の送りは呼び出し側(作品カードのリール・場面モーダル)が持つので、
 // ここでは見せる場面の添字(activeIndex)を描き直して渡す
 import { render } from '@testing-library/react'
-import ScenePlayer from '@/components/ui/ScenePlayer/container'
+import ScenePlayer from '@/components/ui/ScenePlayer'
 import {
   ART,
   PLACEHOLDER,

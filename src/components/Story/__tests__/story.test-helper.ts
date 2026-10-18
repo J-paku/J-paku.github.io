@@ -6,7 +6,7 @@ import type { ComponentProps } from 'react'
 import { expect, vi } from 'vitest'
 import { cdp, page, userEvent, type Locator } from 'vitest/browser'
 import type { UiStrings, WorkStoryScene } from '@content/types/content'
-import type SceneModal from '@/components/Story/components/SceneModal/container'
+import type SceneModal from '@/components/Story/components/SceneModal'
 
 // 一時停止の間に進める時間。どの場面の周期(数秒)よりも十分に長く取る
 export const LONG_MS = 60_000

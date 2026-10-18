@@ -3,7 +3,7 @@
 // 計算された配置(矩形)とスタイルで確かめる。
 // 段階(data-phase)と 1 マスの長さ(--cell)は村の根が配るので、ここでは描く箱に置く。
 // 村の中で夜に灯り、歩いても主人公から離れないかは src/components/VillagePage/__tests__/night-lights.integration.test.tsx が見る。
-// props は村の container.fixture.ts が node で組んで provide したワールド(villageJa)を inject で受け取る
+// props は村の index.fixture.ts が node で組んで provide したワールド(villageJa)を inject で受け取る
 import { createRef } from 'react'
 import { cleanup, render } from '@testing-library/react'
 import { inject, onTestFinished } from 'vitest'
@@ -11,7 +11,7 @@ import { page } from 'vitest/browser'
 import { PLAYER_LIGHT, worldLights } from '@/lib/village/lights'
 // 部品と同じ CSS Modules を import すれば、部品と同じクラス名が引ける
 import styles from '@/components/VillagePage/components/Village/components/Lighting/lighting.module.css'
-import Lighting from '@/components/VillagePage/components/Village/components/Lighting/container'
+import Lighting from '@/components/VillagePage/components/Village/components/Lighting'
 
 const { worlds } = inject('villageJa').worldSet
 

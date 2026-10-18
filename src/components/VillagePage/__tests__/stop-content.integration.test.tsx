@@ -4,7 +4,7 @@ import { cleanup, render } from '@testing-library/react'
 import { page, userEvent } from 'vitest/browser'
 import type { Cell, Direction, StopText } from '@content/types/world'
 import { writePosition } from '@/lib/preferences'
-import VillagePageContainer from '@/components/VillagePage/container'
+import VillagePageContainer from '@/components/VillagePage'
 import { advanceUntil, focusVillage, villageFrame } from './village-walk.test-helper'
 import { prepareVillage, resetVillage, villageJa } from './village.test-helper'
 

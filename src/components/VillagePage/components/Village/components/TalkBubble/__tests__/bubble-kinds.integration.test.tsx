@@ -5,7 +5,7 @@ import { cleanup, render } from '@testing-library/react'
 import type { CSSProperties, ReactNode } from 'react'
 import { inject } from 'vitest'
 import { page } from 'vitest/browser'
-import TalkBubble from '@/components/VillagePage/components/Village/components/TalkBubble/container'
+import TalkBubble from '@/components/VillagePage/components/Village/components/TalkBubble'
 import { bubbleElement, speechProps, thoughtProps } from './talk-bubble.test-helper'
 
 const { lang } = inject('villageJa')

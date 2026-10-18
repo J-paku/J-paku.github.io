@@ -5,7 +5,7 @@
 // かといって件数を「2」と書くと、作品が増減した日に黙って合わなくなる。
 // そこで「どの作品が詳細を持つか」の正本である content/<locale>/works/*.ts を読み、
 // 詳細を持つ作品ごとに WorkCard が描く aria-controls の値(`${slug}-detail`)を列挙する。
-// id の組み立ては src/components/Directory/components/WorkCard/container.tsx の detailId と同じ形に保つ
+// id の組み立ては src/components/Directory/components/WorkCard/index.tsx の detailId と同じ形に保つ
 import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'

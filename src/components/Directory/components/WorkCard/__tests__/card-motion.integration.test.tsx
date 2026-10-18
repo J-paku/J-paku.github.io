@@ -2,10 +2,10 @@
 // カードを実際の Chromium で、フック・子と一緒に描き(ADR 0016)、動きを控える設定では動画・リールを流さないことと、
 // 一時停止のボタンで動画を止める・流し直すことを、利用者に見える形(role・名前・aria-*・要素の有無)で確かめる。
 // 動きを控える設定は差し替えず、Chromium の模擬(CDP)で本物の media query を切り替える(directory.test-helper.ts の preferReducedMotion)。
-// props は一覧の container.fixture.ts が node で組んで provide した作品・文言を inject で受け取る
+// props は一覧の index.fixture.ts が node で組んで provide した作品・文言を inject で受け取る
 import { cleanup, render, within } from '@testing-library/react'
 import { userEvent } from 'vitest/browser'
-import WorkCard from '@/components/Directory/components/WorkCard/container'
+import WorkCard from '@/components/Directory/components/WorkCard'
 // 部品と同じ CSS Modules を import すれば、部品と同じクラス名が引ける
 import shotStyles from '@/components/Directory/components/WorkCard/components/Shot/shot.module.css'
 import {

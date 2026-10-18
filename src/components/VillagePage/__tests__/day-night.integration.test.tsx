@@ -3,7 +3,7 @@
 import { cleanup, render } from '@testing-library/react'
 import { page, userEvent } from 'vitest/browser'
 import { clearVillageProgress } from '@/lib/preferences'
-import VillagePageContainer from '@/components/VillagePage/container'
+import VillagePageContainer from '@/components/VillagePage'
 import { DAY_PHASES } from '@/utils/day-phase'
 import {
   advanceUntil,

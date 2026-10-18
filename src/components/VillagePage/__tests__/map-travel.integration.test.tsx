@@ -3,7 +3,7 @@
 import { cleanup, render } from '@testing-library/react'
 import { page, userEvent } from 'vitest/browser'
 import type { Cell } from '@content/types/world'
-import VillagePageContainer from '@/components/VillagePage/container'
+import VillagePageContainer from '@/components/VillagePage'
 import { isWalkable } from '@/lib/village/collision'
 import {
   FRAME_MS,

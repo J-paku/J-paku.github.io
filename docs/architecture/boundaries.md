@@ -7,7 +7,7 @@ read_when:
   - 'use client' を足す・動かすとき
   - 新しいレイヤーやフォルダを作ろうとするとき
 source_of_truth: true
-last_reviewed: 2026-10-17
+last_reviewed: 2026-10-18
 ---
 
 # 境界
@@ -46,19 +46,23 @@ utils ← lib ← hooks ← components ← app
 
 `src/components/` と `src/hooks/` の中は、フックを呼んでよいファイルを**コンテナ**と `hooks` フォルダのフックに限り([ADR 0019](../decisions/0019-hooks-make-containers.md))、
 外の世界に触れてよいファイルを **I/O コンテナ**に限る([ADR 0017](../decisions/0017-screen-containers.md))。2つは別の軸で、状態を持つ(フックを呼ぶ)ことは外の世界に触れてよい理由にならない。
+コンポーネントのファイルはどれもフォルダの入口の `index.tsx` で、コンテナかどうかはファイルの名前ではなく、中のフックの呼び出しと I/O コンテナの一覧で決まる([ADR 0024](../decisions/0024-containers-as-index.md))。
 ファイルの分け方(ローダー・コンテナ・表示部品)は [frontend.md](frontend.md) の「ローダー・コンテナ・表示部品」。
 
 - **I/O コンテナ** — 画面の3つ(`src/components/VillagePage/`・`src/components/Directory/`・`src/components/Story/`)と、
-  横断部品の3つ(`src/components/ui/SettingsMenu/`・`src/components/ui/PageviewCounter/`・`src/components/ui/ScenePlayer/`)の `container.tsx` と、そのフォルダの直下の `hooks` フォルダ。
-  この6つの一覧の正本は `scripts/container-dirs.mjs`。外の世界に触れてよいのはここだけ
-- **状態コンテナ** — それ以外のすべての `container.tsx`(フックを1つでも呼ぶコンポーネント)と、その隣の `hooks` フォルダ。フックを呼んでよいが、import の制限は表示部品と同じ(下の一覧を import しない)
-- **ローダー** — 画面の3つのフォルダの `index.tsx`(横断部品のフォルダの `index.tsx` はローダーではない)。サーバでだけ働き、content の読み出し(`@/lib/content/read`)と `notFound()` はここで行う
-- **表示部品** — フックを1つも呼ばない、それ以外のすべての `.tsx`。`src/hooks/` も import の制限は同じ。次を import しない
-  - 外の世界に触れるモジュール: `@/lib/preferences`・`@/lib/weather`・`@/lib/analytics`・`@/lib/fetch-svg-source`・`@/lib/content/` の下・`@/lib/metadata`
+  横断部品の3つ(`src/components/ui/SettingsMenu/`・`src/components/ui/PageviewCounter/`・`src/components/ui/ScenePlayer/`)の `index.tsx` と、そのフォルダの直下の `hooks` フォルダ。
+  フックを呼ばない `index.tsx`(一覧と作品ストーリーの画面)も、この一覧にあるのでコンテナに数える。
+  この6つの一覧の正本は `scripts/container-dirs.mjs`。外の世界に触れてよいのはここだけ。
+  ただし content の読み出し(`@/lib/content/` の下)は、ここからも読まない。読むのは下のローダーだけで、コンテナは読み出した値を props で受け取る
+- **状態コンテナ** — それ以外の、フックを1つでも呼ぶ `src/components/` の下の `index.tsx`(`hooks`・`__tests__` の中の `index.tsx` を除く)と、その隣の `hooks` フォルダ。フックを呼んでよいが、import の制限は表示部品と同じ(下の一覧を import しない)
+- **ローダー** — 画面の3つのサーバのローダー(`src/app/directory-screen.tsx`・`src/app/story-screen.tsx`・`src/app/village-screen.tsx`)。`src/components/` の外にある。
+  サーバでだけ働き、content の読み出し(`@/lib/content/read`)と `notFound()` はここで行う
+- **表示部品** — フックを1つも呼ばず、I/O コンテナの一覧にも無い、それ以外のすべての `index.tsx`(`src/components/` の下のコンポーネント)。`src/hooks/` も import の制限は同じ。次を import しない
+  - 外の世界に触れるモジュール: `@/lib/preferences`・`@/lib/weather`・`@/lib/analytics`・`@/lib/fetch-svg-source`・`@/lib/content/` の下(これは I/O コンテナとその `hooks` フォルダも import しない)・`@/lib/metadata`
   - 村の時計のストア(`src/components/VillagePage/hooks/use-village-time.ts`)
   - `next/navigation`
   - 画面のフック(画面のフォルダの直下の `hooks` フォルダの下)
-  - 画面のコンテナ(画面の3つの `container.tsx`。描くのはそのフォルダのローダーと、統合テスト・フィクスチャだけ)
+  - 画面のコンテナ(画面の3つのフォルダの `index.tsx`。描くのはその画面のローダー(`src/app/<名前>-screen.tsx`)と、その画面のフォルダの統合テスト・フィクスチャだけ)
 
   import の要らない外の世界の入口(`fetch`・`localStorage`・`sessionStorage`・`indexedDB`・`navigator.sendBeacon`・`document.cookie`・`XMLHttpRequest`・`WebSocket`・`EventSource`)も使わない。
 
@@ -73,53 +77,57 @@ utils ← lib ← hooks ← components ← app
 
 - `src/**/*.{ts,tsx}` のフックの呼び出しを全部落とす。フックの呼び出しは、呼ぶ相手の名前が `/^use[A-Z0-9]/` に合うもの(識別子の `useX(...)` も、メンバーの `React.useX(...)` も)。
   React の組み込みのフック(`useState`・`useMemo`・`useId` など)も数え、例外は無い。`memo()`・`forwardRef()` はフックではない
-- 外すのは `**/container.tsx`、`hooks` フォルダの中の `use-*.ts(x)`(`src/hooks/` を含む)、テストの部品(`*.test.ts(x)`・`*.fixture.ts`・`*.test-helper.ts`)
+- 外すのは `src/components/` の下の `index.tsx`(`hooks`・`__tests__` の中の `index.tsx` を除く)、`hooks` フォルダの中の `use-*.ts(x)`(`src/hooks/` を含む)、テストの部品(`*.test.ts(x)`・`*.fixture.ts`・`*.test-helper.ts`)
 - `scripts/check-hook-rule.mjs` は、規則の判定と `eslint.config.mjs` の掛け方を偽の断片で自己検査し、src のファイル(コンテナのフォルダの `__tests__` の中も)が lint の対象の外になっていないことを確かめてから、
   src の `*.ts`・`*.tsx` を全部 lint して違反を数える。`eslint-disable` の注釈で黙らせた呼び出しも違反に数える
-- 同じ `scripts/check-hook-rule.mjs` は、src のファイルごとに規則が掛かるかを名前の決まり(外れるのは上の `container.tsx`・`hooks` フォルダの中の `use-*.ts(x)`・テストの部品だけ)と突き合わせ、
+- 同じ `scripts/check-hook-rule.mjs` は、src のファイルごとに規則が掛かるかを名前の決まり(外れるのは上の `index.tsx`・`hooks` フォルダの中の `use-*.ts(x)`・テストの部品だけ)と突き合わせ、
   1つでも違えば落とす。規則の組みの `ignores` に実在のパスを足す・後ろの組みで `off` や `warn` にすると、そのファイルは lint も通ってしまうため。
   この抜け道を実際の設定に入れて突き合わせが拾うことも、走るたびに自己検査する
-- 落ちたら、その部品を状態コンテナ(`container.tsx`)にし、フックをその隣の `hooks` フォルダへ置く([frontend.md](frontend.md) の「コンポーネントのフォルダ」)
+- 落ちたら、フックの呼び出しをその部品のフォルダの `index.tsx` へ移し(その `index.tsx` は状態コンテナになり、統合テストが要る)、フックをその隣の `hooks` フォルダへ置く([frontend.md](frontend.md) の「コンポーネントのフォルダ」)
 
 **外の世界に触れてよい所** — `scripts/check-layers.mjs`(`npm run test:boundary`)。src の import を全部読んでつながりをたどり、式の中の大域の名前も見る。
 ESLint の `no-restricted-imports` はファイル1つずつの指定子しか見ないので、「入口を import するフックを表示部品が import する」形を見逃すため。
 
-- **許す側**は I/O コンテナの6つの `container.tsx`・その隣の `hooks` フォルダ(下のフォルダも)・ローダー(画面の3つのフォルダの `index.tsx`)・`src/app/`・`src/lib/`・テスト(コンテナのフォルダの統合テストと、src の単体テストの `*.test.ts`)・`*.fixture.ts`・`*.test-helper.ts`。
+- **許す側**は I/O コンテナの6つの `index.tsx`・その隣の `hooks` フォルダ(下のフォルダも)・`src/app/`(画面のローダーを含む)・`src/lib/`・テスト(コンテナのフォルダの統合テストと、src の単体テストの `*.test.ts`)・`*.fixture.ts`・`*.test-helper.ts`。
   それ以外の src のファイル(状態コンテナとその隣の `hooks` フォルダ、表示部品と、その utils、`src/hooks/`、`src/utils/`)が、上の入口か、入口へ届くファイルを import すると落ちる。間にフック・部品・utils を何段挟んでも同じで、落ちたときは入口へ届く道(import のつながり)を出す。
   パッケージの入口は前方一致で見る(`next/navigation` の後ろに拡張子を付けて書いても同じ)
 - **許す側の外のファイルは、import の要らない外の世界の入口を使わない。** 構文木で式の中の名前を見て、`window.`・`globalThis.`・`self.` を付けたもの・`['…']` で引くもの・分割代入で取り出すものも数える。
   注釈・文字列・型の位置は数えない。名前だけで見るので、同じ名前の変数や引数を作ってそれを使っても落ちる(名前を変える)
-- **I/O コンテナは届く道を外へ伝えない。** 横断部品の I/O コンテナ(`src/components/ui/ScenePlayer/container.tsx` など)は、外から `container.tsx` を直接指して描く決まりなので([ADR 0017](../decisions/0017-screen-containers.md) の Consequences)
+- **I/O コンテナは届く道を外へ伝えない。** 横断部品の I/O コンテナ(`src/components/ui/ScenePlayer/index.tsx` など)は、表示部品が外からそのフォルダを指して描くので([ADR 0017](../decisions/0017-screen-containers.md) の Consequences)
 - **許す側の外のファイルは、I/O コンテナの隣の `hooks` フォルダ**(一覧のフォルダの直下の `hooks` の下。画面の3つと横断部品の3つのどれも)**を import しない。** 今は入口へ届かないフックでも、そこは画面の状態・データのフックの置き場なので落ちる。
   状態コンテナのフックは、そのコンテナの隣の `hooks` フォルダに置く
-- **画面のコンテナを import してよいのは、同じフォルダのローダーと、テスト(統合テストとフィクスチャ)だけ。** 許す側(`src/app/` など)でも同じで、ルートはローダーを指す。
+- **I/O コンテナとその隣の `hooks` フォルダも、content の読み出し(`src/lib/content/` の下)へは届かない。** 間に lib・utils を挟んでも落ちる。
+  content を読むのは画面のローダーだけで、ローダーを `src/components/` の中へ戻す(I/O コンテナの `index.tsx` が content を読む)とここで落ちる([ADR 0024](../decisions/0024-containers-as-index.md))
+- **画面のコンテナを import してよいのは、その画面のローダー(`src/app/<名前>-screen.tsx`。画面ごとに1つ)と、その画面のフォルダのテスト(統合テストとフィクスチャ)だけ。** 許す側(`src/app/` のほかのファイル・ほかの画面のローダーなど)でも同じで、ルートはローダーを指す。
   型だけの import は数えない
-- **一覧のフォルダに `container.tsx` が無いと落ちる。** 改名・移動で一覧が空振りして、そのフォルダの `hooks` の許しだけが黙って残らないように。
-  一覧の外の `container.tsx` は状態コンテナで、外の世界の import を許さない。I/O コンテナを足すなら、一覧と ADR を直す
-- 入口の一覧と許す側の正本は `scripts/check-layers.mjs`、I/O コンテナの一覧の正本は `scripts/container-dirs.mjs`。
+- **一覧のフォルダに `index.tsx` が無いか、画面のローダーのファイルが無いと落ちる。** 改名・移動で一覧が空振りして、そのフォルダの `hooks` の許しだけが黙って残らないように。
+  画面とローダーの対(`scripts/check-layers.mjs` の `SCREEN_LOADER_OF`)は、画面のフォルダの一覧と同じフォルダを持ち、ローダーが `src/app/` の直下の `<名前>-screen.tsx` で、2つの画面に同じローダーを当てない(合わなければ自己検査が落とす)。
+  一覧の外のコンテナは状態コンテナで、外の世界の import を許さない。I/O コンテナを足すなら、一覧と ADR を直す
+- 入口の一覧・許す側・画面とローダーの対の正本は `scripts/check-layers.mjs`、I/O コンテナの一覧の正本は `scripts/container-dirs.mjs`。
   落ちたら、その import を I/O コンテナ(またはその隣の `hooks` フォルダ)へ移し、値を props で下へ渡す
 
 **テストと `hooks` フォルダの置き場** — `npm run test:boundary`(`scripts/check-test-boundary.mjs`・`scripts/check-layers.mjs`)。テストの置き場の決まりは [../quality/test-strategy.md](../quality/test-strategy.md)(統合テストをコンテナのフォルダに置くことは [ADR 0022](../decisions/0022-colocate-integration-tests.md))。次のときに落ちる。
 
-- `container.tsx` のあるフォルダ(コンテナのフォルダ)に `*.integration.test.tsx` が無い。
-  そのコンテナのテストが1本なら隣の `container.integration.test.tsx`、2本以上ならそのフォルダの `__tests__` の中の `<動作>.integration.test.tsx` に置く
-- 1つのコンテナのフォルダに、隣の `container.integration.test.tsx` と `__tests__` が両方ある。`__tests__` の中の統合テストが1本だけ(隣の `container.integration.test.tsx` にする)
-- 統合テストが、自分のフォルダのコンテナ(隣のテストは `./container`、`__tests__` の中は `../container`。`@/components/…/container` で指しても同じ)を(型だけでなく)import していない
+- コンテナの `index.tsx` のあるフォルダ(コンテナのフォルダ)に `*.integration.test.tsx` が無い。
+  そのコンテナのテストが1本なら隣の `index.integration.test.tsx`、2本以上ならそのフォルダの `__tests__` の中の `<動作>.integration.test.tsx` に置く。
+  表示部品がフックを呼び始めるとコンテナになるので、テストを足さないとここで落ちる
+- 1つのコンテナのフォルダに、隣の `index.integration.test.tsx` と `__tests__` が両方ある。`__tests__` の中の統合テストが1本だけ(隣の `index.integration.test.tsx` にする)
+- 統合テストが、自分のフォルダのコンテナを別名 `@/components/<フォルダの道>` で(型だけでなく)import していない
 - `*.integration.test.tsx` が、コンテナのフォルダの隣とその `__tests__` の直下のほか(表示部品の `index.tsx` の隣・`hooks` フォルダの中・コンテナのフォルダでない所の `__tests__`・`__tests__` の下のフォルダ)にある。
   `*.integration.test.ts`・`*.browser.test.*` はどこにあっても落ちる
-- 統合テストの名前が決まりと違う。コンテナのフォルダの隣に置けるのは `container.integration.test.tsx` だけで、
-  `__tests__` の中は kebab-case の `<動作>.integration.test.tsx`(`container.integration.test.tsx` という名前は置けない)
-- コンテナのフォルダでない所の `__tests__` か、`__tests__` の下のフォルダに、ファイルがある(統合テストに限らず、中のどのファイルでも)
+- 統合テストの名前が決まりと違う。コンテナのフォルダの隣に置けるのは `index.integration.test.tsx` だけで、
+  `__tests__` の中は kebab-case の `<動作>.integration.test.tsx`(`index.integration.test.tsx` という名前は置けない)
+- コンテナのフォルダでない所(表示部品のフォルダなど)の `__tests__` か、`__tests__` の下のフォルダに、ファイルがある(統合テストに限らず、中のどのファイルでも)
 - リポジトリ直下に `__tests__` がある
-- `__tests__` の下に、`*.integration.test.tsx`・`*.test-helper.ts`・`container.fixture.ts`・`*.md` のほかの名前のファイルがある(単体テストの `*.test.ts` も置かない)
-- 隣に `container.tsx` が無い `hooks` フォルダがある(`src/hooks/` を除く)
-- `container.tsx` が、`src/components/<名前>/`(`ui` の下は `src/components/ui/<名前>/`)の下の外にある(`src/app/`・`src/lib/` など、`src/components/`・`src/components/ui/` の直下)。
-  `scripts/check-layers.mjs` は `src/app/`・`src/lib/` を許す側として見るので、そこに置いたコンテナが外の世界に触れても見逃すため
-- 状態コンテナのフォルダに `index.tsx` がある(フォルダの名前で import できてしまう `index.ts`・`index.d.ts`・`index.js`・`index.jsx` も)。import する側は `.../<Name>/container` を直接指す。
-  I/O コンテナの6つのフォルダは今の形のまま許す(画面の3つの `index.tsx` はローダー、`src/components/ui/ScenePlayer/index.tsx` はコンテナが描く表示部品)
+- `__tests__` の下に、`*.integration.test.tsx`・`*.test-helper.ts`・`index.fixture.ts`・`*.md` のほかの名前のファイルがある(単体テストの `*.test.ts` も置かない)
+- 隣にコンテナの `index.tsx` が無い `hooks` フォルダがある(表示部品のフォルダの `hooks` も。`src/hooks/` を除く)
+- コンテナが、`src/components/<名前>/`(`ui` の下は `src/components/ui/<名前>/`)の下の外にある(`src/components/`・`src/components/ui/` の直下)。
+  `scripts/check-layers.mjs` は `src/app/`・`src/lib/` を許す側として見るので、そこにコンテナを置くと外の世界に触れても見逃すため(そこでフックを呼ぶと上の ESLint の規則が落とす)
+- `container.tsx`・`container.integration.test.tsx`・`container.fixture.ts` という名前のファイルがある(どこにあっても。前の名前で、今はどれも `index` で始まる。[ADR 0024](../decisions/0024-containers-as-index.md))
+- `index.tsx` のあるフォルダに `index.ts`・`index.d.ts`・`index.js`・`index.jsx` がある(フォルダの名前で import すると、道具によっては `index.tsx` より先にそちらを拾う。どの道具がどれを先に拾うかは `scripts/check-test-boundary.mjs` の注釈)
 - 状態コンテナが外の世界の入口を import する(上の「外の世界に触れてよい所」)
-- `container.fixture.ts` が、I/O コンテナの6つのフォルダ(その `__tests__` の中か `container.tsx` の隣)のほかの所にある
-- 統合テストか `__tests__` の中のファイルが import する `*.test-helper.ts`・`*.fixture.ts`(部品が import する部品も)が、コンテナのフォルダの `__tests__` の中と `container.tsx` の隣のほかの所にある。
+- `index.fixture.ts` が、I/O コンテナの6つのフォルダ(その `__tests__` の中か `index.tsx` の隣)のほかの所にある
+- 統合テストか `__tests__` の中のファイルが import する `*.test-helper.ts`・`*.fixture.ts`(部品が import する部品も)が、コンテナのフォルダの `__tests__` の中とコンテナの `index.tsx` の隣のほかの所にある。
   単体テストだけが使う部品は、今までどおりそのテストの隣に置く
 - 統合テストの外のテストの側(`*.test.ts`・`*.test-helper.ts`・`*.fixture.ts`。`__tests__` の中も)が、コンポーネントを描く道具(`@testing-library/react`・`react-dom` とその下)を import する
 
@@ -132,11 +140,11 @@ ESLint の `no-restricted-imports` はファイル1つずつの指定子しか�
 
 既定はサーバコンポーネント。`'use client'` は**ブラウザの入力・アニメーション・保存・DOM 実測が必要な島**にだけ置く。
 
-現在クライアントなのは、村のコンテナ(`src/components/VillagePage/container.tsx`)とその下の全部(起動の覆い・見出し・`src/components/VillagePage/components/Village/` 配下・設定メニュー)、一覧の `WorkCard`、
+現在クライアントなのは、村のコンテナ(`src/components/VillagePage/index.tsx`)とその下の全部(起動の覆い・見出し・`src/components/VillagePage/components/Village/` 配下・設定メニュー)、一覧の `WorkCard`、
 作品ストーリーのモーダル・ポップオーバー・場面再生(`src/components/Story/` 配下と `src/components/ui/ScenePlayer/` `src/components/ui/SettingsMenu/`)、
 全ページ共通のアクセス計測(`src/components/ui/PageviewCounter/`。pathname の変化を見て送るだけで何も描かない)。
-一覧と作品ストーリーのコンテナ(`src/components/Directory/container.tsx`・`src/components/Story/container.tsx`)はフックを持たず、サーバのまま描く。
-画面のローダー(各画面の `index.tsx`)は常にサーバ。
+一覧と作品ストーリーのコンテナ(`src/components/Directory/index.tsx`・`src/components/Story/index.tsx`)はフックを持たず、サーバのまま描く。
+画面のローダー(`src/app/` の `directory-screen.tsx`・`story-screen.tsx`・`village-screen.tsx`)は常にサーバ。
 
 線を引くときの基準:
 

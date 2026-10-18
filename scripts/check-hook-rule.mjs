@@ -1,21 +1,28 @@
-// フックを呼ぶ所の検査(docs/decisions/0019-hooks-make-containers.md)。ESLint の規則 layer/hook-only-in-container
-// (scripts/eslint-rules/hook-only-in-container.mjs)が正しく判定し、eslint.config.mjs が正しい所に掛けていることを確かめてから、
-// 実際の src を lint して違反を数える。
+// フックを呼ぶ所の検査(ADR 0024。もとは docs/decisions/0019-hooks-make-containers.md)。ESLint の規則 layer/hook-only-in-container
+// (scripts/eslint-rules/hook-only-in-container.mjs)が正しく判定し、eslint.config.mjs が正しい所に掛けていることと、
+// コンテナの判定(scripts/find-containers.mjs)が規則と同じものを数えることを確かめてから、実際の src を lint して違反を数える。
+//
+// 規則が外れる src/components の index.tsx は、フックを使えばコンテナになる(判定は scripts/find-containers.mjs)。
+// 規則と判定のどちらかがずれると、フックを呼ぶ index.tsx が規則にも判定にも掛からずに表示部品のまま残るので、両方を同じ断片で突き合わせる。
 //
 // 確かめること(1〜3 は自己検査。期待と違えば検査そのものが壊れているので、理由を出して落とす):
 //   1. 規則の判定   — 偽のコードの断片を ESLint の Linter で規則だけに掛け、拾ったフックの名前(出る順)が期待とぴったり同じか。
 //                     useState()・React.useMemo() は拾い、memo()・forwardRef()・use()・user()・呼ばない useless は拾わない。
 //                     フックを別の名前で受ける所(import { useState as state }・const s = useState・const { useState: s } = React など)も
-//                     「useState as s」の形で拾い、同じ名前で受けるもの(import { useState })は拾わない
+//                     「useState as s」の形で拾い、同じ名前で受けるもの(import { useState })は拾わない。
+//                     同じ断片を scripts/find-containers.mjs の hookUsesOf にも掛け、拾う名前が規則と同じか(並びは問わない)
 //   2. 設定の掛け方 — 実際の eslint.config.mjs で、偽のパスに置いた断片を lint し、拾う数が期待とぴったり同じか。
-//                     表示部品の index.tsx・utils などには掛かり、container.tsx・hooks/ の use-*.ts(x)・テストの側
-//                     (*.test.ts(x)・*.fixture.ts・*.test-helper.ts)では外れる
-//                     (別の名前で受ける所の報告も同じ所で外れる)。コンテナのフォルダに置く統合テスト(container.tsx の隣の
-//                     container.integration.test.tsx と __tests__/ の中)と、その部品・フィクスチャも、外れる側にあって lint の対象の外になっていないかを見る
-//   3. 名前の決まり — 規則が外れてよいファイルを、eslint.config.mjs とは別に名前で決める(container.tsx・hooks/ の中の use-*.ts(x)・
+//                     src/components の index.tsx・hooks/ の use-*.ts(x)・テストの側(*.test.ts(x)・*.fixture.ts・*.test-helper.ts)では外れ、
+//                     ほかの所(部品の中の別のファイル・もとの名前の container.tsx・hooks/ と __tests__/ の中の index.tsx・src/components の外の
+//                     index.tsx・utils など)には掛かる(別の名前で受ける所の報告も同じ所で外れる)。コンテナのフォルダに置く統合テスト
+//                     (index.tsx の隣の index.integration.test.tsx と __tests__/ の中)と、その部品・フィクスチャも、外れる側にあって
+//                     lint の対象の外になっていないかを見る。掛かるパスでは、規則が拾った名前と hookUsesOf の名前が同じか(TypeScript の書き方の断片で)も見る
+//   3. 名前の決まり — 規則が外れてよいファイルを、eslint.config.mjs とは別に名前で決める(src/components の index.tsx(hooks/ と __tests__/ の中を除く。
+//                     scripts/find-containers.mjs の isEntryCandidate。コンテナの判定が読む入口と同じ)・hooks/ の中の use-*.ts(x)・
 //                     *.test.ts(x)・*.fixture.ts・*.test-helper.ts だけ)。その決まりが 2 の掛かるパス・外れるパスと合うかと、
-//                     実際の設定に偽の抜け道(規則の組みの ignores に表示部品のパスやフォルダを足す・後ろの組みで off や warn にする・
-//                     ignores から *.fixture.ts を外す)を入れた設定で、4 の突き合わせがその抜け道のファイルだけを拾うかを見る
+//                     実際の設定に偽の抜け道(規則の組みの ignores に部品のパスやフォルダ・もとの名前を足す・index.tsx の外しを広げる・
+//                     hooks/ と __tests__/ の打ち消しを外す・後ろの組みで off や warn にする・ignores から *.fixture.ts を外す)を入れた設定で、
+//                     4 の突き合わせがその抜け道のファイルだけを拾うかを見る
 //   4. 実際の src   — src の *.ts・*.tsx のすべてで、規則が error で掛かるかを 3 の名前の決まりと突き合わせ、1件でも違えば落とす。
 //                     ignores に実在のパスを足すとそのファイルは lint も 2 も通り、掛かるファイルの数が1つ減るだけになるため。
 //                     そのうえで eslint.config.mjs で lint し、この規則の違反を数える。1件でもあれば落とす。
@@ -33,6 +40,7 @@ import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { ESLint, Linter } from 'eslint'
 import hookOnlyInContainer from './eslint-rules/hook-only-in-container.mjs'
+import { hookUsesOf, isEntryCandidate } from './find-containers.mjs'
 
 // cwd に依存しない。どこから呼んでもリポジトリ直下を見る
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -167,13 +175,22 @@ const RULE_CASES = [
   ['const value = { useLabel: label }', []],
 ]
 const linter = new Linter({ cwd: ROOT })
-const FAKE_VIEW = path.join(ROOT, 'src/components/Fake/index.tsx')
+const FAKE_ENTRY = 'src/components/Fake/index.tsx'
+const FAKE_VIEW = path.join(ROOT, FAKE_ENTRY)
+// 規則とコンテナの判定(scripts/find-containers.mjs の hookUsesOf)が同じ名前を拾うか。並びは問わない
+const sameNames = (a, b) => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort())
 const ruleFailures = []
 for (const [code, expected] of RULE_CASES) {
   const found = namesOf(linter.verify(code, RULE_ONLY, { filename: FAKE_VIEW }))
   if (JSON.stringify(found) !== JSON.stringify(expected)) {
     ruleFailures.push(
       `規則の判定 ${JSON.stringify(code)}: 拾った ${JSON.stringify(found)}(期待 ${JSON.stringify(expected)})`
+    )
+  }
+  const judged = hookUsesOf(FAKE_ENTRY, code)
+  if (!sameNames(judged, found)) {
+    ruleFailures.push(
+      `コンテナの判定 ${JSON.stringify(code)}: 拾った ${JSON.stringify(judged)}(規則は ${JSON.stringify(found)})`
     )
   }
 }
@@ -226,37 +243,48 @@ const TYPE_ONLY_ALIASES = [
   `import { type useRef as Ref } from 'react'`,
   'export type Hooks = [typeof State, typeof Ref]',
 ].join('\n')
-// 規則が掛かるパス。表示部品・utils・lib・app と、名前が container.tsx・hooks/ の use-*.ts(x) に似ているだけのもの
+// 規則が掛かるパス。部品の中の index.tsx でないファイル・もとの名前の container.tsx・hooks/ と __tests__/ の中の index.tsx・
+// src/components の外の index.tsx・utils・lib・app と、名前が index.tsx・hooks/ の use-*.ts(x) に似ているだけのもの
 const RULED_PATHS = [
-  'src/components/Fake/index.tsx',
-  'src/components/Fake/components/Part/index.tsx',
-  'src/components/Fake/my-container.tsx',
-  'src/components/Fake/container.ts',
+  'src/components/Fake/part.tsx',
+  'src/components/Fake/container.tsx',
+  'src/components/Fake/components/Part/container.tsx',
+  'src/components/Fake/my-index.tsx',
+  'src/components/Fake/index.ts',
+  'src/components/Fake/hooks/index.tsx',
+  'src/components/Fake/hooks/use-fake/index.tsx',
+  'src/components/Fake/__tests__/index.tsx',
   'src/components/Fake/use-fake.ts',
   'src/components/Fake/hooks/fake.ts',
   'src/components/use-hooks/use-fake.ts',
+  'src/componentsX/Fake/index.tsx',
+  'src/app/x/index.tsx',
+  'src/hooks/index.tsx',
   'src/hooks/fake.ts',
   'src/utils/fake.ts',
   'src/lib/fake.ts',
   'src/app/page.tsx',
 ]
-// 規則が外れるパス。コンテナ・hooks/ の use-*.ts(x)(フォルダにしたフックと src/hooks/ も)・テストの側
-// (コンテナのフォルダの統合テスト・部品・フィクスチャは container.tsx の隣と __tests__/ の中の両方。ADR 0022)
+// 規則が外れるパス。src/components の index.tsx(コンテナか表示部品。ui/ の下も、src/components の直下も)・
+// hooks/ の use-*.ts(x)(フォルダにしたフックと src/hooks/ も)・テストの側
+// (コンテナのフォルダの統合テスト・部品・フィクスチャは index.tsx の隣と __tests__/ の中の両方。ADR 0022・ADR 0024)
 const EXEMPT_PATHS = [
-  'src/components/Fake/container.tsx',
-  'src/components/Fake/components/Part/container.tsx',
+  'src/components/Fake/index.tsx',
+  'src/components/Fake/components/Part/index.tsx',
+  'src/components/ui/Fake/index.tsx',
+  'src/components/index.tsx',
   'src/components/Fake/hooks/use-fake.ts',
   'src/components/Fake/hooks/use-fake.tsx',
   'src/components/Fake/hooks/use-fake/use-fake-draft.ts',
   'src/hooks/use-fake.ts',
   'src/components/Fake/index.test.tsx',
   'src/utils/fake.test.ts',
-  'src/components/Fake/container.fixture.ts',
+  'src/components/Fake/index.fixture.ts',
   'src/components/Fake/fake.test-helper.ts',
-  'src/components/Fake/container.integration.test.tsx',
+  'src/components/Fake/index.integration.test.tsx',
   'src/components/Fake/__tests__/open-modal.integration.test.tsx',
   'src/components/Fake/__tests__/fake.test-helper.ts',
-  'src/components/Fake/__tests__/container.fixture.ts',
+  'src/components/Fake/__tests__/index.fixture.ts',
 ]
 // [パス, コード, 拾う数]
 const CONFIG_CASES = [
@@ -268,8 +296,8 @@ const CONFIG_CASES = [
   ...EXEMPT_PATHS.map(file => [file, TWO_HOOKS, 0]),
   ...EXEMPT_PATHS.map(file => [file, THREE_ALIASES, 0]),
   // eslint-disable の注釈で黙らせても数える
-  ['src/components/Fake/index.tsx', `// eslint-disable-next-line ${RULE_ID}\nuseFake()`, 1],
-  ['src/components/Fake/components/Part/index.tsx', '/* eslint-disable */\nuseFake()', 1],
+  ['src/components/Fake/part.tsx', `// eslint-disable-next-line ${RULE_ID}\nuseFake()`, 1],
+  ['src/components/Fake/container.tsx', '/* eslint-disable */\nuseFake()', 1],
 ]
 const configFailures = []
 for (const [file, code, expected] of CONFIG_CASES) {
@@ -279,11 +307,16 @@ for (const [file, code, expected] of CONFIG_CASES) {
   }
   const [result] = await eslint.lintText(code, { filePath: file })
   const fatal = fatalsOf(result)[0]
-  const count = hookCallsOf(result).length
+  const calls = hookCallsOf(result)
   if (fatal !== undefined) {
     configFailures.push(`設定の掛け方 ${file}: 断片を読めない(${fatal.message})`)
-  } else if (count !== expected) {
-    configFailures.push(`設定の掛け方 ${file}: 拾った ${count} 件(期待 ${expected})`)
+  } else if (calls.length !== expected) {
+    configFailures.push(`設定の掛け方 ${file}: 拾った ${calls.length} 件(期待 ${expected})`)
+  } else if (RULED_PATHS.includes(file) && !sameNames(hookUsesOf(file, code), namesOf(calls))) {
+    // 規則が掛かるパスでは、TypeScript の書き方の断片でも、コンテナの判定が規則と同じ名前を拾うか
+    configFailures.push(
+      `コンテナの判定 ${file}: 拾った ${JSON.stringify(hookUsesOf(file, code))}(規則は ${JSON.stringify(namesOf(calls))})`
+    )
   }
 }
 if (configFailures.length > 0) {
@@ -302,13 +335,17 @@ const configsOf = async (engine, files) =>
   )
 
 // ---- 名前の決まり ----
-// 規則が外れてよいのは、名前でこれと決まるファイルだけ(ADR 0019)。eslint.config.mjs の ignores とは別にここで書き、実際の設定と突き合わせる。
-// 設定の ignores に実在のパス(表示部品の index.tsx など)を足すと、そのファイルは lint も自己検査 2 も通り、掛かるファイルの数が1つ減るだけになるため
-const EXEMPT_NAMES = [/^container\.tsx$/, /\.test\.tsx?$/, /\.fixture\.ts$/, /\.test-helper\.ts$/]
+// 規則が外れてよいのは、名前でこれと決まるファイルだけ(ADR 0024)。eslint.config.mjs の ignores とは別にここで書き、実際の設定と突き合わせる。
+// 設定の ignores に実在のパス(部品の中の別のファイルなど)を足すと、そのファイルは lint も自己検査 2 も通り、掛かるファイルの数が1つ減るだけになるため。
+// src/components の index.tsx は、コンテナの判定(scripts/find-containers.mjs)が読む入口と同じもの(isEntryCandidate)を外す。
+// 外れるのに判定が読まない index.tsx があると、そこでフックを呼んでもどちらにも掛からないので、同じ関数で決める
+const EXEMPT_NAMES = [/\.test\.tsx?$/, /\.fixture\.ts$/, /\.test-helper\.ts$/]
 // hooks/ の中(フォルダにしたフックの入れ子も)の use-*.ts(x)。use-hooks/ のような名前のフォルダは hooks/ に数えない
 const HOOK_FILE = /(^|\/)hooks\/(?:[^/]+\/)*use-[^/]*\.tsx?$/
 const isExemptByName = file =>
-  HOOK_FILE.test(file) || EXEMPT_NAMES.some(pattern => pattern.test(path.posix.basename(file)))
+  isEntryCandidate(file) ||
+  HOOK_FILE.test(file) ||
+  EXEMPT_NAMES.some(pattern => pattern.test(path.posix.basename(file)))
 // 突き合わせの報告(掛かるはずのファイルに掛からない・外れるはずのファイルに掛かる)
 const missedAt = file => `${file}(掛かるはずなのに掛からない)`
 const extraAt = file => `${file}(外れるはずなのに掛かる)`
@@ -341,9 +378,39 @@ const BYPASS_CASES = [
   ['抜け道なし', actualConfig, []],
   // 検証で見つかった抜け道。規則の組みの ignores に実在のパスを足すと、lint も自己検査 2 も通った
   [
-    'ignores に表示部品のパスを足す',
-    withIgnores(ignores => [...ignores, 'src/components/Fake/index.tsx']),
-    [missedAt('src/components/Fake/index.tsx')],
+    'ignores に部品の中の別のファイルのパスを足す',
+    withIgnores(ignores => [...ignores, 'src/components/Fake/part.tsx']),
+    [missedAt('src/components/Fake/part.tsx')],
+  ],
+  [
+    'ignores にもとの名前 container.tsx を足す',
+    withIgnores(ignores => [...ignores, '**/container.tsx']),
+    [
+      missedAt('src/components/Fake/container.tsx'),
+      missedAt('src/components/Fake/components/Part/container.tsx'),
+    ],
+  ],
+  [
+    'index.tsx の外しを src の全部へ広げる',
+    withIgnores(ignores =>
+      ignores.map(pattern =>
+        pattern === 'src/components/**/index.tsx' ? 'src/**/index.tsx' : pattern
+      )
+    ),
+    [missedAt('src/componentsX/Fake/index.tsx'), missedAt('src/app/x/index.tsx')],
+  ],
+  [
+    'hooks/ の中の打ち消しを外す',
+    withIgnores(ignores => ignores.filter(pattern => pattern !== '!src/**/hooks/**')),
+    [
+      missedAt('src/components/Fake/hooks/index.tsx'),
+      missedAt('src/components/Fake/hooks/use-fake/index.tsx'),
+    ],
+  ],
+  [
+    '__tests__/ の中の打ち消しを外す',
+    withIgnores(ignores => ignores.filter(pattern => pattern !== '!src/**/__tests__/**')),
+    [missedAt('src/components/Fake/__tests__/index.tsx')],
   ],
   [
     'ignores にフォルダを足す',
@@ -364,8 +431,8 @@ const BYPASS_CASES = [
     'ignores から *.fixture.ts を外す',
     withIgnores(ignores => ignores.filter(pattern => pattern !== '**/*.fixture.ts')),
     [
-      extraAt('src/components/Fake/container.fixture.ts'),
-      extraAt('src/components/Fake/__tests__/container.fixture.ts'),
+      extraAt('src/components/Fake/index.fixture.ts'),
+      extraAt('src/components/Fake/__tests__/index.fixture.ts'),
     ],
   ],
 ]
@@ -421,8 +488,8 @@ const mismatches = mismatchesOf(files, configOf)
 if (mismatches.length > 0) {
   console.error(
     `check-hook-rule: 規則 ${RULE_ID} の掛かり方が名前の決まりと合わない src のファイル ${mismatches.length} 件。` +
-      '規則が外れてよいのは container.tsx・hooks/ の中の use-*.ts(x)・*.test.ts(x)・*.fixture.ts・*.test-helper.ts だけ。' +
-      'eslint.config.mjs の規則の組みの files・ignores と、後ろの組みでの上書きを直す。フックを呼ぶ部品なら、外すのではなく container.tsx にする(ADR 0019)'
+      '規則が外れてよいのは src/components の index.tsx(hooks/ と __tests__/ の中を除く)・hooks/ の中の use-*.ts(x)・*.test.ts(x)・*.fixture.ts・*.test-helper.ts だけ。' +
+      'eslint.config.mjs の規則の組みの files・ignores と、後ろの組みでの上書きを直す。フックを呼ぶ部品なら、外すのではなくフックを呼ぶ所をそのフォルダの index.tsx(コンテナ)にする(ADR 0024)'
   )
   for (const line of mismatches) console.error(`  - ${line}`)
   process.exit(1)

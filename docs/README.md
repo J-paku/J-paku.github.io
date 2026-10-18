@@ -3,7 +3,7 @@ status: active
 read_when:
   - どの文書を読めばよいか AGENTS.md で決まらなかったとき
 source_of_truth: false
-last_reviewed: 2026-10-17
+last_reviewed: 2026-10-18
 ---
 
 # docs/
@@ -27,26 +27,26 @@ last_reviewed: 2026-10-17
 
 同じ規則を2箇所に書かない。以下が正本で、他の文書はリンクするだけにする。
 
-| 知識                                                                                                                                                                         | 正本                                                                              |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| 作業の routing・不変ルール・コミット規則                                                                                                                                     | [../AGENTS.md](../AGENTS.md)                                                      |
-| 現在のシステム構成・境界・画面の作り方                                                                                                                                       | [architecture/](architecture/README.md)                                           |
-| 用語                                                                                                                                                                         | [product/terminology.md](product/terminology.md)                                  |
-| 型・業務規則(正本はコード。ここは案内)                                                                                                                                       | [product/](product/README.md)                                                     |
-| 機械が見ない書き方の決まり                                                                                                                                                   | [development/coding-guidelines.md](development/coding-guidelines.md)              |
-| コマンドが何を見るか                                                                                                                                                         | [development/commands.md](development/commands.md)                                |
-| 検査の基準(何を満たせば合格か)                                                                                                                                               | [quality/](quality/README.md)                                                     |
-| 何をどこまで走らせるか・作業手順                                                                                                                                             | [agents/](agents/README.md)                                                       |
-| 配信と切り戻し                                                                                                                                                               | [operations/](operations/README.md)                                               |
-| 過去の設計判断                                                                                                                                                               | [decisions/](decisions/README.md)                                                 |
-| 表示文字列・村の地形の実データ                                                                                                                                               | `content/`(→ [../content/README.md](../content/README.md))                        |
-| 依存の向き(機械が守らせる)                                                                                                                                                   | `eslint.config.mjs`                                                               |
-| 表示部品と状態コンテナが外の世界に触れないこと(import と、`fetch`・`localStorage` など import の要らない入口。機械が守らせる)                                                | `scripts/check-layers.mjs`                                                        |
-| 外の世界に触れてよい I/O コンテナのフォルダの一覧(機械が守らせる。一覧の外の `container.tsx` は状態コンテナで、外の世界へ届く import を `scripts/check-layers.mjs` が落とす) | `scripts/container-dirs.mjs`                                                      |
-| フックを呼んでよい所(`container.tsx` と `hooks` フォルダの `use-*.ts(x)`。機械が守らせる。規則の自己検査は `scripts/check-hook-rule.mjs`)                                    | `scripts/eslint-rules/hook-only-in-container.mjs`(掛ける所は `eslint.config.mjs`) |
-| コンポーネントを描くテストとフィクスチャの置き場(機械が守らせる)                                                                                                             | `scripts/check-test-boundary.mjs`                                                 |
-| インストール済みの版                                                                                                                                                         | `package.json`                                                                    |
-| 人間向けのサイト紹介                                                                                                                                                         | [../README.md](../README.md)                                                      |
+| 知識                                                                                                                                                                                                          | 正本                                                                              |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| 作業の routing・不変ルール・コミット規則                                                                                                                                                                      | [../AGENTS.md](../AGENTS.md)                                                      |
+| 現在のシステム構成・境界・画面の作り方                                                                                                                                                                        | [architecture/](architecture/README.md)                                           |
+| 用語                                                                                                                                                                                                          | [product/terminology.md](product/terminology.md)                                  |
+| 型・業務規則(正本はコード。ここは案内)                                                                                                                                                                        | [product/](product/README.md)                                                     |
+| 機械が見ない書き方の決まり                                                                                                                                                                                    | [development/coding-guidelines.md](development/coding-guidelines.md)              |
+| コマンドが何を見るか                                                                                                                                                                                          | [development/commands.md](development/commands.md)                                |
+| 検査の基準(何を満たせば合格か)                                                                                                                                                                                | [quality/](quality/README.md)                                                     |
+| 何をどこまで走らせるか・作業手順                                                                                                                                                                              | [agents/](agents/README.md)                                                       |
+| 配信と切り戻し                                                                                                                                                                                                | [operations/](operations/README.md)                                               |
+| 過去の設計判断                                                                                                                                                                                                | [decisions/](decisions/README.md)                                                 |
+| 表示文字列・村の地形の実データ                                                                                                                                                                                | `content/`(→ [../content/README.md](../content/README.md))                        |
+| 依存の向き(機械が守らせる)                                                                                                                                                                                    | `eslint.config.mjs`                                                               |
+| 表示部品と状態コンテナが外の世界に触れないこと(import と、`fetch`・`localStorage` など import の要らない入口。機械が守らせる)                                                                                 | `scripts/check-layers.mjs`                                                        |
+| 外の世界に触れてよい I/O コンテナのフォルダの一覧(機械が守らせる。一覧の外のコンテナ(フックを呼ぶ `index.tsx`)は状態コンテナで、外の世界へ届く import を `scripts/check-layers.mjs` が落とす)                 | `scripts/container-dirs.mjs`                                                      |
+| フックを呼んでよい所(`src/components/` の中の `index.tsx`(`hooks`・`__tests__` の中の `index.tsx` を除く)と `hooks` フォルダの `use-*.ts(x)`。機械が守らせる。規則の自己検査は `scripts/check-hook-rule.mjs`) | `scripts/eslint-rules/hook-only-in-container.mjs`(掛ける所は `eslint.config.mjs`) |
+| コンポーネントを描くテストとフィクスチャの置き場(機械が守らせる)                                                                                                                                              | `scripts/check-test-boundary.mjs`                                                 |
+| インストール済みの版                                                                                                                                                                                          | `package.json`                                                                    |
+| 人間向けのサイト紹介                                                                                                                                                                                          | [../README.md](../README.md)                                                      |
 
 **版番号・コマンド名・座標などの数値を文書へ書き写すときは、正本のファイル名を併記する。**
 併記が無い数値は、正本が変わったときに誰も直せない。

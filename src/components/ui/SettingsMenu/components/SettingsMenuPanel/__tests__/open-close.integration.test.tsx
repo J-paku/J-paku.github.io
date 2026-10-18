@@ -4,7 +4,7 @@
 import { cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
-import SettingsMenuPanel from '@/components/ui/SettingsMenu/components/SettingsMenuPanel/container'
+import SettingsMenuPanel from '@/components/ui/SettingsMenu/components/SettingsMenuPanel'
 import {
   PATHNAME,
   isOpen,

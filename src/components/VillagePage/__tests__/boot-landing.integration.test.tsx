@@ -5,7 +5,7 @@
 import { cleanup, render } from '@testing-library/react'
 import { useLayoutEffect } from 'react'
 import { page } from 'vitest/browser'
-import VillagePageContainer from '@/components/VillagePage/container'
+import VillagePageContainer from '@/components/VillagePage'
 import {
   FRAME_MS,
   SLACK_MS,

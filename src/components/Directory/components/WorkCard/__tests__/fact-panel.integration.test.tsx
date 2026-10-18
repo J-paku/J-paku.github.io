@@ -5,7 +5,7 @@
 // 公開済みの作品の写しの項目だけを替えてテストが直接渡す(ADR 0017 の D6)
 import { cleanup, render, within } from '@testing-library/react'
 import type { Work } from '@content/types/content'
-import WorkCard from '@/components/Directory/components/WorkCard/container'
+import WorkCard from '@/components/Directory/components/WorkCard'
 import {
   cardProps,
   factPanelOf,

@@ -2,7 +2,7 @@
 // 渡された原文がシャドウルートの中へ展開されるかを見る。原文は props で渡すので通信はしない。
 // 原文を取って渡す流れは場面再生のテスト(../../../__tests__/fetch-sources.integration.test.tsx)が見る
 import { render } from '@testing-library/react'
-import SceneSvg from '@/components/ui/ScenePlayer/components/SceneSvg/container'
+import SceneSvg from '@/components/ui/ScenePlayer/components/SceneSvg'
 import { ART, artOf, svgOf } from '@/components/ui/ScenePlayer/__tests__/scene-player.test-helper'
 
 // 絵の文字から、それを展開したシャドウルートを引く。シャドウルートの外に描かれていたら落とす

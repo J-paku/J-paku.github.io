@@ -1,8 +1,8 @@
 // 吹き出し(TalkBubble)を直接描く統合テストが共有する props と、描いた物の読み方。
-// 文言は村が地点の前で出すものと同じ手(utils/spot-text.ts)で、container.fixture.ts が provide した村の文言から組む。
+// 文言は村が地点の前で出すものと同じ手(utils/spot-text.ts)で、index.fixture.ts が provide した村の文言から組む。
 // 描く道具(@testing-library/react・react-dom)はここから import しない(npm run test:boundary)ので、枠と world 層は各ファイルが描く
 import { inject } from 'vitest'
-import type { TalkBubbleProps } from '@/components/VillagePage/components/Village/components/TalkBubble/container'
+import type { TalkBubbleProps } from '@/components/VillagePage/components/Village/components/TalkBubble'
 import {
   arriveSpeech,
   talkLabelOf,

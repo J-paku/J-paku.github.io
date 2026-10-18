@@ -5,7 +5,7 @@
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, inject, it, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
-import StoryContainer from '@/components/Story/container'
+import StoryContainer from '@/components/Story'
 import {
   counterFor,
   counterText,

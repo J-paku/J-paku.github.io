@@ -4,7 +4,7 @@ import { cleanup, render } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { inject } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
-import StopModal from '@/components/VillagePage/components/Village/components/StopModal/container'
+import StopModal from '@/components/VillagePage/components/Village/components/StopModal'
 import { STOP_FOCUSABLE_SELECTOR } from '@/utils/focusables'
 import {
   cycleWithTab,

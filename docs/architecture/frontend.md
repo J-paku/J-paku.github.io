@@ -4,13 +4,13 @@ read_when:
   - コンポーネントやフックを追加・分割するとき
   - スタイル・色・テーマを触るとき
 source_of_truth: true
-last_reviewed: 2026-10-17
+last_reviewed: 2026-10-18
 ---
 
 # 画面とコンポーネント
 
 画面は3つ。それぞれ `src/components/` 直下の1フォルダが本体で、`src/app/` 側はルート定義と、ja/ko が共有する枠・組み立て
-(`src/app/html-shell.tsx` / `src/app/locale-routes.tsx`)を持ち、画面本体は持たない。
+(`src/app/html-shell.tsx` / `src/app/locale-routes.tsx`)と、画面のサーバのローダー(`src/app/directory-screen.tsx` / `src/app/story-screen.tsx` / `src/app/village-screen.tsx`)を持ち、画面本体は持たない。
 
 | 画面           | 本体                                                                                                                                                                                                                                             |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -27,50 +27,54 @@ last_reviewed: 2026-10-17
 
 コンポーネントは、フックを呼ぶかどうかでコンテナと表示部品に分ける([ADR 0019](../decisions/0019-hooks-make-containers.md))。
 外の世界に触れてよいのは、画面の3つと、複数の画面にまたがり外の I/O に触れる横断部品の3つの I/O コンテナだけ([ADR 0017](../decisions/0017-screen-containers.md))。
+content の読み出しは I/O コンテナも行わず、画面のローダーだけが行う([ADR 0024](../decisions/0024-containers-as-index.md))。
+コンポーネントのファイルはどれもフォルダの入口の `index.tsx` で、どれに当たるかはファイルの名前ではなく、中のフックの呼び出しと I/O コンテナの一覧で決まる([ADR 0024](../decisions/0024-containers-as-index.md))。
 
-| ファイル                      | 役割                                                                                                                                                                                                                                         | 置く所                                                                                                                                                                       |
-| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `index.tsx`(画面のローダー)   | サーバでしかできないことだけを行う。content の読み出し(`@/lib/content/read`)・`node:` のモジュールを使うスプライトの生成・`notFound()`・初回の HTML に必ず要るインラインの `<style>`・`<script>`。直列化できる props で `./container` を描く | 画面の3つ(`src/components/VillagePage/`・`src/components/Directory/`・`src/components/Story/`)。ルート(`src/app/`)はこれを import する                                       |
-| `container.tsx`(I/O コンテナ) | 画面か横断部品の組み立て(静的なマークアップを含む)。画面の状態・データのフックとストアを呼び、外の世界に触れる import を持つ。フックが無くてもよい                                                                                           | 画面の3つと、横断部品の `src/components/ui/SettingsMenu/`・`src/components/ui/PageviewCounter/`・`src/components/ui/ScenePlayer/`(一覧の正本は `scripts/container-dirs.mjs`) |
-| `container.tsx`(状態コンテナ) | フックを1つでも呼ぶ、上の6つの外のコンポーネント。フックを呼び、値と手を props で表示部品へ渡す。import の制限は表示部品と同じで、外の世界に触れない                                                                                         | フックを呼ぶ部品のフォルダ。そのフォルダに `index.tsx` は置かない                                                                                                            |
-| `hooks` フォルダ              | `use-` 始まりのフックだけを置く。外の世界に触れるフックを置いてよいのは I/O コンテナの隣のものだけ(画面のフォルダの直下の `src/components/VillagePage/hooks/` は画面の状態・データのフックで、I/O コンテナだけが呼ぶ)                        | `container.tsx` のあるフォルダと、横断する `src/hooks/` だけ                                                                                                                 |
-| 表示部品(`index.tsx`)         | フックを1つも呼ばず、受け取った props を描く。同じ props なら同じ画面                                                                                                                                                                        | それ以外の全部                                                                                                                                                               |
+| ファイル                  | 役割                                                                                                                                                                                                                                                               | 置く所                                                                                                                                                                                                                                                            |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 画面のローダー            | サーバでしかできないことだけを行う。content の読み出し(`@/lib/content/read`)・`node:` のモジュールを使うスプライトの生成・`notFound()`・初回の HTML に必ず要るインラインの `<style>`・`<script>`。直列化できる props で画面のコンテナ(`@/components/<画面>`)を描く | `src/app/directory-screen.tsx`・`src/app/story-screen.tsx`・`src/app/village-screen.tsx`。ルートの `page.tsx` はこれを import する                                                                                                                                |
+| `index.tsx`(I/O コンテナ) | 画面か横断部品の組み立て(静的なマークアップを含む)。画面の状態・データのフックとストアを呼び、外の世界に触れる import を持つ。フックが無くてもよい                                                                                                                 | 画面の3つ(`src/components/VillagePage/`・`src/components/Directory/`・`src/components/Story/`)と、横断部品の `src/components/ui/SettingsMenu/`・`src/components/ui/PageviewCounter/`・`src/components/ui/ScenePlayer/`(一覧の正本は `scripts/container-dirs.mjs`) |
+| `index.tsx`(状態コンテナ) | フックを1つでも呼ぶ、上の6つの外のコンポーネント。フックを呼び、値と手を props で表示部品へ渡す。import の制限は表示部品と同じで、外の世界に触れない                                                                                                               | フックを呼ぶ部品のフォルダ                                                                                                                                                                                                                                        |
+| `hooks` フォルダ          | `use-` 始まりのフックだけを置く。外の世界に触れるフックを置いてよいのは I/O コンテナの隣のものだけ(画面のフォルダの直下の `src/components/VillagePage/hooks/` は画面の状態・データのフックで、I/O コンテナだけが呼ぶ)                                              | コンテナのフォルダと、横断する `src/hooks/` だけ                                                                                                                                                                                                                  |
+| `index.tsx`(表示部品)     | フックを1つも呼ばず、受け取った props を描く。同じ props なら同じ画面                                                                                                                                                                                              | それ以外の全部                                                                                                                                                                                                                                                    |
 
-- **フックを呼んでよいのは `container.tsx` と、`hooks` フォルダの中の `use-` 始まりのファイルだけ。** `useState`・`useMemo`・`useId` など React の組み込みのフックも数え、例外は無い。`memo()`・`forwardRef()` はフックではない。
+- **フックを呼んでよいのは、`src/components/` の中の `index.tsx`(`hooks`・`__tests__` の中の `index.tsx` を除く)と、`hooks` フォルダの中の `use-` 始まりのファイルだけ。** `useState`・`useMemo`・`useId` など React の組み込みのフックも数え、例外は無い。`memo()`・`forwardRef()` はフックではない。
   ESLint の `layer/hook-only-in-container`(`scripts/eslint-rules/hook-only-in-container.mjs`)が落とす
-- I/O コンテナは上の6つだけ。一覧の外の `container.tsx` は状態コンテナで、外の世界に触れない。「状態を持つ」ことと「外の世界に触れる」ことは別の軸
+- I/O コンテナは上の6つだけ。一覧の外のコンテナは状態コンテナで、外の世界に触れない。「状態を持つ」ことと「外の世界に触れる」ことは別の軸
 - 状態コンテナと表示部品は、外の世界に触れるモジュール・村の時計のストア・`next/navigation`・画面のフック(画面のフォルダの直下の `hooks` フォルダ)を import しない。
   一覧と正本は [boundaries.md](boundaries.md) の「コンテナと表示部品」
-- コンポーネントを描くテストは、`container.tsx` のあるフォルダに置く統合テストだけ(コンテナごとに1本以上。1本なら隣の `container.integration.test.tsx`、2本以上ならそのフォルダの `__tests__` の中の `<動作>.integration.test.tsx`。表示部品は自分のテストを持たず、それを描くコンテナのテストで見る)
+- コンポーネントを描くテストは、コンテナのフォルダに置く統合テストだけ(コンテナごとに1本以上。1本なら隣の `index.integration.test.tsx`、2本以上ならそのフォルダの `__tests__` の中の `<動作>.integration.test.tsx`。表示部品は自分のテストを持たず、それを描くコンテナのテストで見る)
   → [../quality/test-strategy.md](../quality/test-strategy.md)・[ADR 0022](../decisions/0022-colocate-integration-tests.md)。
-  `hooks` フォルダの中のファイルと全部の `container.tsx` と全部の表示部品(画面の3つのサーバのローダーは入らない)は、統合テストのカバレッジでファイル別100%。
+  `hooks` フォルダの中のファイルと `src/components/` の中の全部のコンポーネント(コンテナと表示部品)は、統合テストのカバレッジでファイル別100%。
   表示部品のどの分岐も、それを描く親のコンテナの統合テストが通らなければ落ちる
 
 ## コンポーネントのフォルダ
 
-コンポーネントは必ずフォルダで作る。入口は、フックを呼ばない表示部品なら **`index.tsx`**、フックを呼ぶコンテナなら **`container.tsx`**。
-表示部品は外から `@/components/<Name>` だけを見ればよい状態にする。コンテナは外から `container` を直接指す(`@/components/ui/SettingsMenu/container`・`./components/StoryBody/container` など)。
+コンポーネントは必ずフォルダで作る。入口は、表示部品もコンテナも **`index.tsx`**。`container.tsx` という名前のファイルは置かない([ADR 0024](../decisions/0024-containers-as-index.md))。
+外からはフォルダを指す(`@/components/ui/SettingsMenu`・`./components/StoryBody` など)。
 横断部品の I/O コンテナは、フォルダの形が3つで違う。
 
-- `ScenePlayer` — `container.tsx` と、コンテナが描く表示部品の `index.tsx` を持つ。場面 SVG の原本を取るフックはコンテナの隣の `src/components/ui/ScenePlayer/hooks/` に置く
-- `SettingsMenu` — 開閉のフック(`use-menu-open`)を呼ぶ部品を、状態コンテナ `src/components/ui/SettingsMenu/components/SettingsMenuPanel/` の `container.tsx` にし、
-  そのフックはその隣の `src/components/ui/SettingsMenu/components/SettingsMenuPanel/hooks/` に置く。フォルダの直下に `index.tsx` は無い。
+- `ScenePlayer` — I/O コンテナの `index.tsx` が、場面を重ねて切り替える表示部品 `src/components/ui/ScenePlayer/components/SceneStack/` を描く。
+  場面 SVG の原本を取るフックはコンテナの隣の `src/components/ui/ScenePlayer/hooks/` に置く
+- `SettingsMenu` — 開閉のフック(`use-menu-open`)を呼ぶ部品を、状態コンテナ `src/components/ui/SettingsMenu/components/SettingsMenuPanel/` の `index.tsx` にし、
+  そのフックはその隣の `src/components/ui/SettingsMenu/components/SettingsMenuPanel/hooks/` に置く。
   直下の `src/components/ui/SettingsMenu/hooks/` は I/O コンテナの隣で、外の世界に触れるフック(テーマの保存の `use-theme-choice`)の置き場だから
-- `PageviewCounter` — 何も描かないので表示部品が無く、`container.tsx` だけを持つ
+- `PageviewCounter` — 何も描かないので表示部品が無く、I/O コンテナの `index.tsx` だけを持つ
 
-**フックを呼ぶ部品は、それ自身を状態コンテナ(`container.tsx`)にし、そのフックは同じフォルダの `hooks` フォルダに置く。** そのフォルダに `index.tsx` は置かない。
+**フックを呼ぶ部品は、それ自身が状態コンテナになり(ファイルは `index.tsx` のまま)、そのフックは同じフォルダの `hooks` フォルダに置く。** そのフォルダには統合テストが要る(1本なら隣の `index.integration.test.tsx`)。
 I/O コンテナの隣の `hooks` フォルダは、状態コンテナからも表示部品からも import できない(`npm run test:boundary`。[boundaries.md](boundaries.md))ので、状態のフックをそこへ置かない。
 
 ```
 src/components/Directory/components/WorkCard/
-  container.tsx        入口(状態コンテナ)。フックを呼び、Props と値を下位部品へ配る
+  index.tsx            入口(状態コンテナ)。フックを呼び、Props と値を下位部品へ配る
   work-card.module.css このフォルダのスタイル(下位部品と共有してよい)。ファイル名はフォルダ名の kebab-case
-  components/          このカード専用の下位部品(フックを呼ばない表示部品は index.tsx)
-  hooks/               このカード専用のフック(container.tsx のあるフォルダにだけ置ける)
+  components/          このカード専用の下位部品(フックを呼ばない表示部品も入口は index.tsx)
+  hooks/               このカード専用のフック(コンテナのフォルダにだけ置ける)
+  __tests__/           このカードの統合テスト(2本以上なので。1本なら隣の index.integration.test.tsx)
 ```
 
 - フォルダ名は **PascalCase**、その中のファイル名は **kebab-case**(`index.tsx` を除く)
-- Props の型は入口のファイル(`index.tsx` か `container.tsx`)の中に直接書く。このリポジトリに `type.ts` を置く前例は無い
+- Props の型は入口のファイル(`index.tsx`)の中に直接書く。このリポジトリに `type.ts` を置く前例は無い
 - **バレルを作らない**(理由と正確な条件は [boundaries.md](boundaries.md))
 - 2箇所以上から使い始めた部品・フック・純粋関数は、その時点で上位(`src/components/ui/`・`src/hooks/`・`src/utils/`)へ引き上げる。
   部品は、import が1箇所でも、そこが全画面に掛かる殻(`src/app/html-shell.tsx`)や他の横断部品で複数の画面にまたがるなら
@@ -98,7 +102,7 @@ src/components/Directory/components/WorkCard/
   `WorldMap` の下位部品 → `world-map.module.css`、`Story` の `StoryBody` → `story.module.css`)
 - ファイルの置き方の例外は村に2つある。`src/components/VillagePage/components/Boot/boot.css` は CSS Modules ではなく、`#boot` の id で当てる大域 CSS。
   `src/components/VillagePage/components/Village/scene.module.css` はフォルダ名(`Village`)と違う名前で、下位部品
-  (`WorldLayer`・`Ground`・`LampVeil`・`FishingFloat`。後の2つは自分の `*.module.css` と両方読む)に加えて親の `src/components/VillagePage/index.tsx` も
+  (`WorldLayer`・`Ground`・`LampVeil`・`FishingFloat`。後の2つは自分の `*.module.css` と両方読む)に加えて画面のローダーの `src/app/village-screen.tsx` も
   読む(スプライトの背景 CSS のクラス名に使う。`src/components/VillagePage/utils/sprite-css.ts`)
 - **新しく書く CSS に色リテラル(`#rrggbb` / `rgb()` / `hsl()`)を置かない。** 色の定義は `src/styles/tokens.css` に置き、参照は `var(--...)` で行う
 - テーマは `<html data-theme="light|dark">` の1属性だけで決まる。`prefers-color-scheme` の分岐は持たない

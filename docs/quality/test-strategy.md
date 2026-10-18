@@ -28,18 +28,18 @@ last_reviewed: 2026-10-18
 
 - ロジックは純粋関数(`src/lib/`・`src/utils/`・コンポーネント専用のutils)に置き、単体テスト・ファイル別カバレッジ100%・ミューテーションで固める
 - フックとコンポーネントは配線だけを持つ。`hooks`フォルダに単体テストを置かず、どのテストでも`renderHook`を使わない([テストの境界](#テストの境界))。
-  フックを1つでも呼ぶコンポーネントはコンテナ(`container.tsx`)で、コンテナはどれも自分の統合テストを持つ。フックと、フックを呼ばない表示部品は、それを使うコンテナを統合テストで描いて見る(表示部品は自分のテストを持たない)。
-  コンポーネントを描くテストは、コンテナのフォルダに置く統合テスト(`*.integration.test.tsx`)だけ([統合テストの約束](#統合テストの約束)。[../decisions/0019-hooks-make-containers.md](../decisions/0019-hooks-make-containers.md)・[../decisions/0022-colocate-integration-tests.md](../decisions/0022-colocate-integration-tests.md))
+  フックを1つでも呼ぶコンポーネント(と I/O コンテナの6つ)はコンテナで、コンテナはどれも自分の統合テストを持つ。ファイルの名前はコンテナも表示部品も `index.tsx`。フックと、フックを呼ばない表示部品は、それを使うコンテナを統合テストで描いて見る(表示部品は自分のテストを持たない)。
+  コンポーネントを描くテストは、コンテナのフォルダに置く統合テスト(`*.integration.test.tsx`)だけ([統合テストの約束](#統合テストの約束)。[../decisions/0019-hooks-make-containers.md](../decisions/0019-hooks-make-containers.md)・[../decisions/0022-colocate-integration-tests.md](../decisions/0022-colocate-integration-tests.md)・[../decisions/0024-containers-as-index.md](../decisions/0024-containers-as-index.md))
 - 制約は上げる方向にだけ動かす。下限を下げる・テストを消す・変異テストやファイル別100%の対象から外す・テストの境界の決まりを変えるにはADRが要る
 
 ## 4層
 
-| 層                                      | 置き場・ファイル名                                                                                                                                                                | 対象                                                                                                                                                                                                                                                                                                                           | 環境                                                                                                                                                                                                                 |
-| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 静的                                    | —                                                                                                                                                                                 | 型・lint(レイヤー境界を含む)・整形・文書の参照(`npm run typecheck`・`npm run lint`・`npm run format:check`・`npm run docs:check`)                                                                                                                                                                                              | ソースをそのまま読む                                                                                                                                                                                                 |
-| 単体(Vitest)                            | 対象ファイルの隣 `*.test.ts`                                                                                                                                                      | **純粋関数**と、`fetch`・Storage を `vi.stubGlobal` で差し替えて測る `src/lib/` の入口。DOMを使う(読む・書く・DOMParser)utils(歩行ループの部品など)。**コンポーネントを描くテストと、フックを`renderHook`で呼ぶテストは置かない**([テストの境界](#テストの境界))                                                               | `environment: 'node'`(既定)。DOM を持たない。DOMを使う(読む・書く・DOMParser)utilsだけは、ファイル先頭の`// @vitest-environment happy-dom`でそのファイルだけhappy-domで走る                                          |
-| 統合(Vitest Browser Mode。一番厚くする) | コンテナのフォルダの `*.integration.test.tsx`(1本なら `container.tsx` の隣の `container.integration.test.tsx`、2本以上ならそのフォルダの `__tests__` の下。コンテナごとに1本以上) | **コンテナ(フックを1つでも呼ぶコンポーネント)を、フック・子と一緒に描く。** コンポーネントを描くテストはこの層だけ。村も含む。モックはネットワーク(天気など)と時間だけ                                                                                                                                                         | 実ブラウザ(Chromium 1つ、headless)で、ビルド無しで走る(`vitest.integration.config.ts`・`npm run test:integration`)。ブラウザの時間帯は UTC に固定する。置き場と分け方の決まりは[統合テストの約束](#統合テストの約束) |
-| E2E(Playwright)                         | `tests/**/*.spec.ts`                                                                                                                                                              | **ビルド結果でしか確かめられないもの**(静的経路・404・初回ペイント前のテーマ・言語の接頭を保つ移動・保存が塞がれた時・ビルドが焼いたスプライトの絵)と、**ページをまたぐ核心の旅程**と、**統合テストの中では作れない場合**(再読み込み・`IntersectionObserver` の無い環境・ko の文言。[E2E に残したテスト](#e2e-に残したテスト)) | `out/` を `:4173` で静的配信                                                                                                                                                                                         |
+| 層                                      | 置き場・ファイル名                                                                                                                                                                  | 対象                                                                                                                                                                                                                                                                                                                           | 環境                                                                                                                                                                                                                 |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 静的                                    | —                                                                                                                                                                                   | 型・lint(レイヤー境界を含む)・整形・文書の参照(`npm run typecheck`・`npm run lint`・`npm run format:check`・`npm run docs:check`)                                                                                                                                                                                              | ソースをそのまま読む                                                                                                                                                                                                 |
+| 単体(Vitest)                            | 対象ファイルの隣 `*.test.ts`                                                                                                                                                        | **純粋関数**と、`fetch`・Storage を `vi.stubGlobal` で差し替えて測る `src/lib/` の入口。DOMを使う(読む・書く・DOMParser)utils(歩行ループの部品など)。**コンポーネントを描くテストと、フックを`renderHook`で呼ぶテストは置かない**([テストの境界](#テストの境界))                                                               | `environment: 'node'`(既定)。DOM を持たない。DOMを使う(読む・書く・DOMParser)utilsだけは、ファイル先頭の`// @vitest-environment happy-dom`でそのファイルだけhappy-domで走る                                          |
+| 統合(Vitest Browser Mode。一番厚くする) | コンテナのフォルダの `*.integration.test.tsx`(1本ならコンテナの `index.tsx` の隣の `index.integration.test.tsx`、2本以上ならそのフォルダの `__tests__` の下。コンテナごとに1本以上) | **コンテナ(フックを1つでも呼ぶコンポーネントと、I/O コンテナ)を、フック・子と一緒に描く。** コンポーネントを描くテストはこの層だけ。村も含む。モックはネットワーク(天気など)と時間だけ                                                                                                                                         | 実ブラウザ(Chromium 1つ、headless)で、ビルド無しで走る(`vitest.integration.config.ts`・`npm run test:integration`)。ブラウザの時間帯は UTC に固定する。置き場と分け方の決まりは[統合テストの約束](#統合テストの約束) |
+| E2E(Playwright)                         | `tests/**/*.spec.ts`                                                                                                                                                                | **ビルド結果でしか確かめられないもの**(静的経路・404・初回ペイント前のテーマ・言語の接頭を保つ移動・保存が塞がれた時・ビルドが焼いたスプライトの絵)と、**ページをまたぐ核心の旅程**と、**統合テストの中では作れない場合**(再読み込み・`IntersectionObserver` の無い環境・ko の文言。[E2E に残したテスト](#e2e-に残したテスト)) | `out/` を `:4173` で静的配信                                                                                                                                                                                         |
 
 - コンポーネント1つだけを happy-dom で描いていた単体の8本(`index.test.tsx`。ADR 0016 まで「統合」と呼んでいた)は、断定を各コンテナの統合テストへ移して消した。
   `*.test.tsx` はコンポーネントのテストに使わない([../decisions/0017-screen-containers.md](../decisions/0017-screen-containers.md))。
@@ -52,7 +52,7 @@ last_reviewed: 2026-10-18
   統合の `vitest.integration.config.ts` は `src` の下の `*.integration.test.tsx` だけを拾う(コンテナのフォルダの外に置いた `*.integration.test.tsx` と、`*.integration.test.ts`・`*.browser.test.*` は `npm run test:boundary` が落とす)。どちらも `content/` や `tests/` は対象外。
   ファイルを分けたのは、変異テスト(`stryker.config.mjs`)が `vitest.config.ts` を読むため(ブラウザのテストを変異テストに入れない。[ミューテーションテスト](#ミューテーションテスト))
 - 純粋関数に切り出せる計算は切り出してから単体テストを書く。`src/lib/village/` と `src/lib/pixel/` がその形になっている
-- フィクスチャは `*.fixture.ts`(Vitest の対象から外れる名前)。統合テストの props を node で組むものは、I/O コンテナのフォルダの `container.fixture.ts`([統合テストの約束](#統合テストの約束))
+- フィクスチャは `*.fixture.ts`(Vitest の対象から外れる名前)。統合テストの props を node で組むものは、I/O コンテナのフォルダの `index.fixture.ts`([統合テストの約束](#統合テストの約束))
 - モジュール変数に覚えを持つ関数(`src/lib/fetch-svg-source.ts` の取得の覚え)は、テストごとに `vi.resetModules()` してから import し直し、空の覚えから始める
 
 ### どの層に置くか
@@ -77,36 +77,37 @@ last_reviewed: 2026-10-18
 ### 統合テストの約束
 
 実ブラウザでコンテナを描くテスト(コンテナのフォルダの `*.integration.test.tsx`)の約束。例は村の `src/components/VillagePage/`(画面全体を描く `src/components/VillagePage/__tests__/fishing.integration.test.tsx`、
-状態コンテナを直接描く `src/components/VillagePage/components/Village/components/StopModal/__tests__/stop-actions.integration.test.tsx`、1本だけの対のファイル `src/components/VillagePage/components/Boot/container.integration.test.tsx` など)。
-コンテナの定義と分け方は [../decisions/0019-hooks-make-containers.md](../decisions/0019-hooks-make-containers.md)、テストの置き場と名前は [../decisions/0022-colocate-integration-tests.md](../decisions/0022-colocate-integration-tests.md) で決めた。
+状態コンテナを直接描く `src/components/VillagePage/components/Village/components/StopModal/__tests__/stop-actions.integration.test.tsx`、1本だけの対のファイル `src/components/VillagePage/components/Boot/index.integration.test.tsx` など)。
+コンテナの定義と分け方は [../decisions/0019-hooks-make-containers.md](../decisions/0019-hooks-make-containers.md)、テストの置き場と名前は [../decisions/0022-colocate-integration-tests.md](../decisions/0022-colocate-integration-tests.md)、コンテナのファイルを `index.tsx` にすることと対のファイル・フィクスチャの名前は [../decisions/0024-containers-as-index.md](../decisions/0024-containers-as-index.md) で決めた。
 
-- **コンテナ。** フックを1つでも呼ぶコンポーネントはコンテナで、ファイルの名前は `container.tsx`。フックを1つも呼ばないコンポーネントは表示部品で、入口は `index.tsx`。
+- **コンテナ。** `src/components/` の下の `index.tsx`(`hooks`・`__tests__` の中の `index.tsx` を除く)のうち、フックを1つでも呼ぶものと、I/O コンテナの6つのフォルダのものがコンテナ。ほかの `index.tsx`(フックを1つも呼ばない)は表示部品。
+  ファイルの名前はどれも `index.tsx` なので、コンテナかどうかは名前ではなく中身で決まる。`container.tsx` という名前のファイルは置かない
   「フックを呼ぶ」は、呼ぶ相手の名前が `use` と大文字か数字で始まる呼び出し(`useX(…)`・`React.useX(…)`)で、React の組み込みのフック(`useState`・`useMemo`・`useId` など)も例外なく数える。`memo()`・`forwardRef()` はフックではない
-  - **I/O コンテナ。** 外の世界の入口を import してよいコンテナで、`scripts/container-dirs.mjs` の一覧の6つ(画面の `VillagePage`・`Directory`・`Story` と、横断部品の `ui/SettingsMenu`・`ui/PageviewCounter`・`ui/ScenePlayer`)
-  - **状態コンテナ。** それ以外のすべての `container.tsx`。import の制限は表示部品と同じ(外の世界の入口を import しない)。フォルダに `index.tsx` は無く、使う側は `.../<Name>/container` を指す
+  - **I/O コンテナ。** 外の世界の入口(content の読み出しを除く。読むのは画面のローダーだけ)を import してよいコンテナで、`scripts/container-dirs.mjs` の一覧の6つ(画面の `VillagePage`・`Directory`・`Story` と、横断部品の `ui/SettingsMenu`・`ui/PageviewCounter`・`ui/ScenePlayer`)
+  - **状態コンテナ。** それ以外の、フックを呼ぶすべての `index.tsx`。import の制限は表示部品と同じ(外の世界の入口を import しない)。使う側はフォルダ(`.../<Name>`)を指す
   - 今は I/O コンテナ6つと、状態コンテナ16個(作品ストーリーの `StoryBody`・`SceneModal`・`SceneSection`・`TechChipPopover`・`IntroPreview`、一覧の `WorkCard`、場面の再生の `SceneSvg`、設定メニューの `SettingsMenuPanel`、
     村の起動の覆いの `Boot` と、`Village` の下の `ClockModal`・`Ground`・`Joystick`・`Lighting`・`StopModal`・`TalkBubble`・`WorldMap`)。
     どのコンテナがどのフォルダに当たるかの一覧は [../product/feature-map.md](../product/feature-map.md) の「コンテナと統合テスト」
-- **置き場。** 統合テストは、そのテストが描くコンテナの `container.tsx` があるフォルダ(コンテナのフォルダ)に置く。E2E の `tests/` はそのまま。単体テスト(`src/**/*.test.ts`。utils・lib の隣)は動かさない。
+- **置き場。** 統合テストは、そのテストが描くコンテナの `index.tsx` があるフォルダ(コンテナのフォルダ)に置く。E2E の `tests/` はそのまま。単体テスト(`src/**/*.test.ts`。utils・lib の隣)は動かさない。
   コンポーネントを描くテストはこれ以外に置かない(`npm run test:boundary` が落とす。[テストの境界](#テストの境界))
-  - **1本なら対のファイル。** そのコンテナの統合テストが1本なら、`container.tsx` の隣の `container.integration.test.tsx`(例: `src/components/VillagePage/components/Boot/container.integration.test.tsx`)。
+  - **1本なら対のファイル。** そのコンテナの統合テストが1本なら、`index.tsx` の隣の `index.integration.test.tsx`(例: `src/components/VillagePage/components/Boot/index.integration.test.tsx`)。
     今は村の `Boot`・`ClockModal`・`Ground`・`Joystick`・`Lighting` の5つ
   - **2本以上なら `__tests__`。** コンテナのフォルダの `__tests__` の下に、動作ごとの `<動作>.integration.test.tsx` を並べる(例: 作品カードの8本は `src/components/Directory/components/WorkCard/__tests__/`)。
     `__tests__` の下にフォルダを作らない
   - 1つのコンテナのフォルダに、対のファイルと `__tests__` を両方は置かない(`__tests__` の中が部品だけでも)。`__tests__` の下の統合テストが1本だけになったら、対のファイルに戻す
-  - 置かない所: 表示部品(`index.tsx`)の隣、`hooks` フォルダの中、コンテナのフォルダでない所の `__tests__`、`__tests__` の下のフォルダ、リポジトリ直下の `__tests__`
-  - **表示部品は自分のテストを持たない。** 表示部品は、それを描く親のコンテナの統合テストが覆う
-  - `__tests__` に置けるのは `*.integration.test.tsx`・`*.test-helper.ts`・`container.fixture.ts`・`*.md` だけで、単体テストの `*.test.ts` も置かない
+  - 置かない所: 表示部品(フックを呼ばない `index.tsx`)の隣、`hooks` フォルダの中、コンテナのフォルダでない所の `__tests__`、`__tests__` の下のフォルダ、リポジトリ直下の `__tests__`
+  - **表示部品は自分のテストを持たない。** 表示部品は、それを描く親のコンテナの統合テストが覆う。表示部品がフックを呼び始めるとコンテナになるので、そのときはそのフォルダに統合テストを足す
+  - `__tests__` に置けるのは `*.integration.test.tsx`・`*.test-helper.ts`・`index.fixture.ts`・`*.md` だけで、単体テストの `*.test.ts` も置かない
 - **ファイルの名前と分け方。** `__tests__` の下は kebab-case の `<動作>.integration.test.tsx`(`open-modal.integration.test.tsx`・`focus-return.integration.test.tsx`・`auto-advance.integration.test.tsx` など)。
   1ファイルが動作のまとまり1つで、たいてい最上位の `describe` 1つが覆う範囲。コンテナ1つにファイルが1つ以上ある。
-  統合テストはどれも、自分のフォルダのコンテナを(型だけでなく)import して描く(対のファイルは `./container`、`__tests__` の下は `../container`。同じファイルを別名の `@/components/.../container` で書いてもよい)
+  統合テストはどれも、自分のフォルダのコンテナを別名 `@/components/<フォルダの道>` で(型だけでなく)import して描く
 - **親と子の役割。** 親のテストは流れとつながりを見る(子が現れる、子のコールバックが親の側の結果 — 保存・移動・子どうしの間のフォーカスの戻り — に届く)。子のテストは子自身の動作を見る。
   断定を親から子へ移すときに捨てない。移した断定は全部、新しいファイルにある。子のコンポーネントも本物を描き、要素は role・名前・文字で引く。
   `renderHook` を使わず、`hooks` フォルダにテストを置かず、フックの戻り値を読まない
-- **props の作り方。** 子のテストは、親の I/O コンテナの `container.fixture.ts` が `provide` した値を `inject(…)` で受ける(provide のキーは全部のフィクスチャで共通の1つの名前空間)か、手で組む。
+- **props の作り方。** 子のテストは、親の I/O コンテナの `index.fixture.ts` が `provide` した値を `inject(…)` で受ける(provide のキーは全部のフィクスチャで共通の1つの名前空間)か、手で組む。
   実際のコンテンツでは作れない分岐(説明の無い作品など)は、親でも子でも、props を変えた版をテストが直接渡してよい([../decisions/0017-screen-containers.md](../decisions/0017-screen-containers.md) の D6)
-- **フィクスチャとテストの部品。** node でしか組めない props の `container.fixture.ts`(globalSetup。下の node の API の項)と、統合テストか `__tests__` の中のファイルが import する `*.test-helper.ts`・`*.fixture.ts`(部品が import する部品も)は、
-  コンテナのフォルダの `__tests__` の下か `container.tsx` の隣にだけ置く。`container.fixture.ts` は I/O コンテナの6つ(`scripts/container-dirs.mjs`)のものだけ。
+- **フィクスチャとテストの部品。** node でしか組めない props の `index.fixture.ts`(globalSetup。下の node の API の項)と、統合テストか `__tests__` の中のファイルが import する `*.test-helper.ts`・`*.fixture.ts`(部品が import する部品も)は、
+  コンテナのフォルダの `__tests__` の下かコンテナの `index.tsx` の隣にだけ置く。`index.fixture.ts` は I/O コンテナの6つ(`scripts/container-dirs.mjs`)のものだけ。
   複数のコンテナのテストが使う部品は、それらのコンテナを包むいちばん近いコンテナの側に置く
   (例: 作品ストーリーの画面のテストと `TechChipPopover` のテストが使う `src/components/Story/__tests__/chip-popover.test-helper.ts`)。
   単体テストだけが使う部品(`src/lib/pixel/png.test-helper.ts` など)は、それを使う単体テストの隣に置く。
@@ -116,7 +117,8 @@ last_reviewed: 2026-10-18
   今は、画面全体を描くテストが `src/components/VillagePage/__tests__/` に、8つの状態コンテナのテストがそれぞれのコンテナのフォルダ(1本だけの5つは対のファイル)にある。
   状態コンテナのテストは、そのコンテナを props で直接描く(画面全体を描くテストと1つのファイルに混ぜない)。`test(…)` の名前は変えずに移した
 - 以前の名前 `container.browser.test.tsx` と、「コンテナごとに隣にちょうど1本」の決まりは無くなった。
-  リポジトリ直下の `__tests__` に unit ごとのフォルダで置く形(2026-10-17〜18)も無くなった([../decisions/0022-colocate-integration-tests.md](../decisions/0022-colocate-integration-tests.md))
+  リポジトリ直下の `__tests__` に unit ごとのフォルダで置く形(2026-10-17〜18)も無くなった([../decisions/0022-colocate-integration-tests.md](../decisions/0022-colocate-integration-tests.md))。
+  コンテナの `container.tsx`・対のファイルの `container.integration.test.tsx`・フィクスチャの `container.fixture.ts` という名前(2026-10-14〜18)も無くなり、どれも `index` で始まる名前になった([../decisions/0024-containers-as-index.md](../decisions/0024-containers-as-index.md))
 - 設定は `vitest.integration.config.ts` で、`@vitest/browser-playwright` は 4.1.10 に版を固定する(peer が同じ版の vitest で、5.x は vitest 5 を求めて衝突する)
 - コンテナを、フック・子と一緒に本物のまま描く。レイアウト・`ResizeObserver`・入力は差し替えない。rAF と `performance.now` は時間として扱い、下の時間の差し替えの中でだけ偽物にする
 - ブラウザの環境の設定(ビューポートの大きさ、`prefers-reduced-motion` やタッチの模擬を CDP や `matchMedia` で再現すること)はモックではなく環境として扱い、使ってよい
@@ -145,14 +147,14 @@ last_reviewed: 2026-10-18
   `PathnameContext`(`next/dist/shared/lib/hooks-client-context.shared-runtime`)の Provider で今の経路を渡し、経路を変えるときは別の value で描き直す
 - ブラウザの操作は `vitest/browser` の `page` と `userEvent` で行う。画面の大きさは `page.viewport(幅, 高さ)` で変え、要素は `page.getByRole(…)` で引く。
   断定は利用者に見えるもの(role・名前・文字・`aria-*`・要素の有無・枠の寸法)で行う
-- ブラウザでは node の API(`node:fs`・`node:zlib`・`node:crypto`)を読み込めない。それを使って組む props は、I/O コンテナのフォルダの `container.fixture.ts` が
+- ブラウザでは node の API(`node:fs`・`node:zlib`・`node:crypto`)を読み込めない。それを使って組む props は、I/O コンテナのフォルダの `index.fixture.ts` が
   `export function setup(project: TestProject)` の中で node で組んで `project.provide(…)` し、テストは `inject` で受け取る(子の状態コンテナのテストも、親の I/O コンテナのフィクスチャが provide した値を受け取れる)。
-  `vitest.integration.config.ts` が `container.fixture.ts` を全部拾って globalSetup に入れる(1つも拾えないと設定を読む時点で落ちる)。
-  置けるのは I/O コンテナの6つのフォルダ(その `__tests__` の下か `container.tsx` の隣)だけで、ほかに置くと `npm run test:boundary` が落とす(全部拾うので、黙って走らせないため)。
-  今は村・一覧・作品ストーリー・設定メニューの4つ(`src/components/VillagePage/__tests__/container.fixture.ts`・`src/components/Directory/__tests__/container.fixture.ts`・
-  `src/components/Story/__tests__/container.fixture.ts`・`src/components/ui/SettingsMenu/__tests__/container.fixture.ts`)。設定メニューは ui の文言が要り、テストが `@content/ja/ui` を直接 import すると content の実データの import 規則(ESLint)に掛かり、
+  `vitest.integration.config.ts` が `index.fixture.ts` を全部拾って globalSetup に入れる(1つも拾えないと設定を読む時点で落ちる)。
+  置けるのは I/O コンテナの6つのフォルダ(その `__tests__` の下か `index.tsx` の隣)だけで、ほかに置くと `npm run test:boundary` が落とす(全部拾うので、黙って走らせないため)。
+  今は村・一覧・作品ストーリー・設定メニューの4つ(`src/components/VillagePage/__tests__/index.fixture.ts`・`src/components/Directory/__tests__/index.fixture.ts`・
+  `src/components/Story/__tests__/index.fixture.ts`・`src/components/ui/SettingsMenu/__tests__/index.fixture.ts`)。設定メニューは ui の文言が要り、テストが `@content/ja/ui` を直接 import すると content の実データの import 規則(ESLint)に掛かり、
   `readContent` は `node:fs` を使うのでブラウザで読めないため、フィクスチャが provide する。
-  画面の3つは、ローダーとフィクスチャが同じ純粋な組み立て関数(読み出した結果を引数で受ける)を使う。村は `src/components/VillagePage/utils/village-props.ts`、
+  画面の3つは、ローダー(`src/app/` の `*-screen.tsx`)とフィクスチャが同じ純粋な組み立て関数(読み出した結果を引数で受ける)を使う。村は `src/components/VillagePage/utils/village-props.ts`、
   一覧は `src/components/Directory/utils/directory-props.ts`、作品ストーリーは `src/components/Story/utils/story-props.ts`
   (ストーリーが無ければ null を返し、`notFound()` はローダーに残る)。組み方はこの関数1か所にあり、フィクスチャはローダーを写さない
 - globalSetup が読み込む `server-only` は中身の無い版(パッケージ同梱の `empty.js`)へ alias する。
@@ -165,7 +167,7 @@ last_reviewed: 2026-10-18
 - 落ちた時の画面の写しは `test-results/vitest-screenshots/`、添付は `test-results/vitest-attachments/` に出る(git は追わない)
 - 走らせると React の「not wrapped in act(...)」の `console.error` が出力に混ざる。テストは通る。既知のもので、まだ手当てしていない
 - カバレッジは `npm run test:integration -- --coverage` で測り、フックとコンポーネントも含む。報告は `coverage/integration` に出て、全体の床を下回るか、
-  フック・コンテナ(`container.tsx`)・表示部品(画面の3つのサーバのローダーは入らない)のどれかがファイル別100%に届かないと落ちる([カバレッジの床](#カバレッジの床))
+  フック・コンテナ・表示部品のどれかがファイル別100%に届かないと落ちる([カバレッジの床](#カバレッジの床))
 
 ## E2E から統合への移行
 
@@ -197,7 +199,7 @@ journey のそれ以外のテストの行き先は、この表では決めてい
 | spec                             | 残したテスト                                                                                         | 残した理由                                                                                                                                                                                                                                                                                                        |
 | -------------------------------- | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `tests/fishing.spec.ts`          | 投げる・かかる・釣り上げるの各コマは足元と立ち位置を残して体だけが動き、動き終えれば歩行ループが眠る | 体の画素を構えのコマと比べるには、ビルドが焼くシートとローダーのスプライトの背景が要り、統合テストでは描かれない。右向きの張るコマに構えの絵を当てる欠陥は、コマの名前は替わるので統合テストでは落ちず、この E2E の画素の比較だけが落とした。コマの時間割・左右反転・立ち位置・歩行ループの眠りは統合テストも見る |
-| `tests/layout.spec.ts`           | PC: 一覧への出口は右下に固定される (/ko/)                                                            | 統合のフィクスチャ(`src/components/VillagePage/__tests__/container.fixture.ts`)は ja の props だけを渡す。ja の出口の配置と舞台の寸法は統合テストが見る                                                                                                                                                           |
+| `tests/layout.spec.ts`           | PC: 一覧への出口は右下に固定される (/ko/)                                                            | 統合のフィクスチャ(`src/components/VillagePage/__tests__/index.fixture.ts`)は ja の props だけを渡す。ja の出口の配置と舞台の寸法は統合テストが見る                                                                                                                                                               |
 | `tests/day-night.spec.ts`        | 4段階のどれも属性だけでなく焼いたシートそのものが入れ替わる (/)                                      | 段階ごとのシートが別物で読めるかは、ビルドが焼く `/sprites/` の PNG とローダーの `<style>` が要る。段階の属性(`data-phase`)は統合テストも見る                                                                                                                                                                     |
 | `tests/day-night.spec.ts`        | 夜で雨でも8か所のコースは最後まで通る (/ko)                                                          | ko の全部の地点の文言で次へを連ねる完走([../decisions/0015-trim-e2e-overlap-and-ko.md](../decisions/0015-trim-e2e-overlap-and-ko.md))。統合のフィクスチャは ja の props だけを渡す。ja の完走は統合テストが見る                                                                                                   |
 | `tests/night-transition.spec.ts` | 3本とも                                                                                              | 描いた背景がその段階の焼いたシートを指し、画像として読めるかは、焼いたシートとローダーの `<style>` が要る。段階の切り替えとシート2枚の取得・decode 待ちは統合テストも見る                                                                                                                                         |
@@ -250,17 +252,18 @@ E2E は `out/` を配る。**先に `npm run build` を済ませる。**
 - 測る範囲・外す名前(テスト・`*.fixture.ts`・`*.test-helper.ts`・`src/**/hooks/**`・`src/components/**/*.tsx`)・床の値の正本は`vitest.config.ts`の`coverage`。数値はここへ書き写さない
 - **単体の門ではフックとコンポーネントを測らない**(`vitest.config.ts`が`src/**/hooks/**`と`src/components/**/*.tsx`を外す)。どちらも単体テストを置かない層で、
   コンテナの統合テストが描いて測る([../decisions/0017-screen-containers.md](../decisions/0017-screen-containers.md))
+- 画面の3つのローダー(`src/app/<名前>-screen.tsx`)は `src/components/` の外へ出たので([../decisions/0024-containers-as-index.md](../decisions/0024-containers-as-index.md))、ルートの `src/app/**/page.tsx` と同じく単体の全体の床の分母に入る(どの単体テストも import しない。移した後の 2026-10-18 の実測は文 97.08%(2030/2091)・分岐 98.57%・関数 94.83%・行 96.93% で、床は下回らない)
 - **統合の門。** `npm run test:integration -- --coverage`(`vitest.integration.config.ts`の`coverage`)はフックとコンポーネントも含めて測り、報告を`coverage/integration`へ出し、全体の床を下回ると落ちる。
   床の決め方は単体と同じく実測から2pt引いた値で、正本は`vitest.integration.config.ts`の`coverage`。数値はここへ書き写さない。
   CI(`.github/workflows/deploy.yml` の build ジョブ)は `npm run test:boundary` の後に Playwright の Chromium を入れ、これを走らせる
-- **フックとコンテナと表示部品のファイル別100%:** 統合のカバレッジで、`src/**/hooks/**` の全部(`src/hooks/` を含む)と、すべての `container.tsx` と、
-  `src/components/**` のすべての表示部品(`.tsx` のうち `container.tsx` とテストの側(`*.test.tsx`・`__tests__` の中)と、下の画面の3つのサーバのローダーでない物)を、ファイルごとに文・分岐・関数・行のそれぞれ100%にし、1つでも届かなければ落ちる
+- **フックとコンテナと表示部品のファイル別100%:** 統合のカバレッジで、`src/**/hooks/**` の全部(`src/hooks/` を含む)と、
+  `src/components/**` のすべての `.tsx`(コンテナと表示部品。テストの側(`*.test.tsx`・`__tests__` の中)は除く)を、ファイルごとに文・分岐・関数・行のそれぞれ100%にし、1つでも届かなければ落ちる
   (表示部品は [../decisions/0022-colocate-integration-tests.md](../decisions/0022-colocate-integration-tests.md))。
-  画面の3つのサーバのローダー(`src/components/Directory/index.tsx`・`src/components/Story/index.tsx`・`src/components/VillagePage/index.tsx`)は表示部品でなく、ファイル別100%から外して全体の床にだけ入れる。
+  画面の3つのサーバのローダー(`src/app/directory-screen.tsx`・`src/app/story-screen.tsx`・`src/app/village-screen.tsx`)は `src/components/` の外にあり、`src/app/` のほかのファイルと同じく全体の床にだけ入る。
   ビルドの時に node で content を読んでコンテナへ渡すだけでブラウザでは走らないので、統合テストでは測れない(どれも0%)。
-  外すのは名前を並べた一覧(`vitest.integration.config.ts` の `SCREEN_LOADERS`)で、glob で広く外さない。一覧が画面のフォルダの一覧の正本(`scripts/container-dirs.mjs` の `SCREEN_CONTAINER_DIRS`)の各フォルダの `index.tsx` と違うか(数を手で書いた定数とは比べない。名指しと定数を一緒に直せば表示部品を黙って外せるため)、名指しした名前が実物に無い(移動・改名)と、設定を読む時点で落ちる。
-  `src/app/` も全体の床にだけ入る。
-  一覧は手で持たず(上のローダーの3つを除く)、`vitest.integration.config.ts` が設定を読むたびに拾うので、新しいフック・コンテナ・表示部品は置いた時点で対象になる(フック・コンテナ・表示部品のどれかが1つも拾えないと設定を読む時点で落ちる。
+  ローダーを `src/components/` の外へ出したので、ファイル別100%から名前を並べて外す一覧は持たない([../decisions/0024-containers-as-index.md](../decisions/0024-containers-as-index.md))。
+  対象の一覧も手で持たず、`vitest.integration.config.ts` が設定を読むたびに拾うので、新しいフック・コンテナ・表示部品は置いた時点で対象になる(フック(`HOOK_FILES`)か、コンテナと表示部品を合わせた `src/components/**` の `.tsx`(`COMPONENT_FILES`)のどちらかが1つも拾えないと設定を読む時点で落ちる。
+  コンテナと表示部品は分けて数えないので、どちらか一方だけが0でもここでは落ちない。
   [../decisions/0018-move-e2e-and-gate-all-hooks.md](../decisions/0018-move-e2e-and-gate-all-hooks.md)・[../decisions/0019-hooks-make-containers.md](../decisions/0019-hooks-make-containers.md))。
   フックの振る舞いはそれを使うコンテナの統合テストが、コンテナの振る舞いはそのコンテナ自身の統合テストが、表示部品の振る舞いはそれを描く親のコンテナの統合テストが見る
   - フック・コンテナ・表示部品の名前がカバレッジの include から外れるか exclude(`*.fixture.ts`・`*.test-helper.ts` など)に掛かると、そのファイルは表に載らず、Vitest は空の表を100%と数えて門を黙って素通りさせる。
@@ -268,7 +271,7 @@ E2E は `out/` を配る。**先に `npm run build` を済ませる。**
     contains は前後を固定しないので、`*.fixture.ts` は `x.fixture.tsx` にも当たる。
     テストの部品・フィクスチャ(`*.test-helper.ts`・`*.fixture.ts`)を `hooks` フォルダの下に置くこと自体は `npm run test:boundary` が落とす([テストの境界](#テストの境界))
   - 統合テストで構造上届かない行(`IntersectionObserver` の無い環境のように、E2E だけが作れる場合)だけを、その行の前に
-    `/* v8 ignore next -- e2e: tests/<file>.spec.ts > <E2E のテスト名> */` を書いて外す。注釈を置ける場所は `scripts/check-coverage-ignores.mjs` が決め(フックと `container.tsx` だけで、表示部品には置けない)、単体の門(純粋モジュール)の対象を E2E で外すことはしない。
+    `/* v8 ignore next -- e2e: tests/<file>.spec.ts > <E2E のテスト名> */` を書いて外す。注釈を置ける場所は `scripts/check-coverage-ignores.mjs` が決め(フックとコンテナの `index.tsx` だけで、表示部品には置けない)、単体の門(純粋モジュール)の対象を E2E で外すことはしない。
     名指しした spec が git に追跡されていて、その名前の走るテストがあるかを `scripts/check-coverage-ignores.mjs`(`npm run test:boundary` が走らせる)が確かめ、
     理由(e2e の参照)の無い除外の注釈と、ほかの形の除外の注釈は落とす。注釈が指す E2E を消したり名前を変えたりすると、この検査が落ちる
   - 注釈の直後に置けるのは、1行に収まる文(`if (…) return` など)だけ。`v8 ignore next` は注釈の直後から始まる構文をまるごと外すので、
@@ -333,35 +336,36 @@ E2E は `out/` を配る。**先に `npm run build` を済ませる。**
 テストの部品・フィクスチャ(`*.test-helper.ts`・`*.fixture.ts`)を`hooks`フォルダの下に置くことも落とす。統合のカバレッジ(`vitest.integration.config.ts`)はこの名前を exclude で外すので、
 `hooks`フォルダの下に置くと、フックのファイル別100%の門([カバレッジの床](#カバレッジの床))の外に黙って残るため。
 
-加えて、コンテナとコンポーネントを描くテストの置き場を見る([../decisions/0019-hooks-make-containers.md](../decisions/0019-hooks-make-containers.md)・[../decisions/0022-colocate-integration-tests.md](../decisions/0022-colocate-integration-tests.md))。
-I/O コンテナの一覧は `scripts/container-dirs.mjs`(画面の3つと横断部品の3つ。`scripts/check-layers.mjs` と同じもの)で、それ以外の `container.tsx` は状態コンテナ。
+加えて、コンテナとコンポーネントを描くテストの置き場を見る([../decisions/0019-hooks-make-containers.md](../decisions/0019-hooks-make-containers.md)・[../decisions/0022-colocate-integration-tests.md](../decisions/0022-colocate-integration-tests.md)・[../decisions/0024-containers-as-index.md](../decisions/0024-containers-as-index.md))。
+コンテナは `src/components/` の下の `index.tsx`(`hooks`・`__tests__` の中の `index.tsx` を除く)のうち、フックを呼ぶものと I/O コンテナの一覧のフォルダのもの。I/O コンテナの一覧は `scripts/container-dirs.mjs`(画面の3つと横断部品の3つ。`scripts/check-layers.mjs` と同じもの)で、それ以外のコンテナは状態コンテナ。
 置き場の決め方は[統合テストの約束](#統合テストの約束)。落とすのは次のとき。
 
 - `*.integration.test.tsx` のほかの `*.test.tsx`(単体の設定が拾う名前)を src のどこかに置く
 - 統合テスト(`*.integration.test.tsx`)をコンテナのフォルダの外に置く(表示部品の隣・`hooks` フォルダの中・コンテナのフォルダでない所の `__tests__`・`__tests__` の下のフォルダ・リポジトリ直下の `__tests__`)
-- 統合テストの名前が決まりと違う。`container.tsx` の隣に置けるのは `container.integration.test.tsx` だけで、
-  `__tests__` の下は kebab-case の `<動作>.integration.test.tsx`(`container.integration.test.tsx` という名前は置けない)
-- コンテナのフォルダでない所の `__tests__` か、`__tests__` の下のフォルダに、ファイルを置く(統合テストに限らず、中のどのファイルでも)
-- 1つのコンテナのフォルダに、対のファイル `container.integration.test.tsx` と `__tests__` が両方ある(`__tests__` の中が部品だけでも)。`__tests__` の下の統合テストが1本だけ(対のファイルにする)
-- `container.tsx` に統合テスト(対のファイルか、そのフォルダの `__tests__` の下の `*.integration.test.tsx`)が1つも無い
-- 統合テストが、自分のフォルダのコンテナ(対のファイルは `./container`、`__tests__` の下は `../container`、別名の `@/components/.../container` も同じ)を(型だけでなく)import していない
+- 統合テストの名前が決まりと違う。コンテナの `index.tsx` の隣に置けるのは `index.integration.test.tsx` だけで、
+  `__tests__` の下は kebab-case の `<動作>.integration.test.tsx`(`index.integration.test.tsx` という名前は置けない)
+- コンテナのフォルダでない所(表示部品のフォルダなど)の `__tests__` か、`__tests__` の下のフォルダに、ファイルを置く(統合テストに限らず、中のどのファイルでも)
+- 1つのコンテナのフォルダに、対のファイル `index.integration.test.tsx` と `__tests__` が両方ある(`__tests__` の中が部品だけでも)。`__tests__` の下の統合テストが1本だけ(対のファイルにする)
+- コンテナに統合テスト(対のファイルか、そのフォルダの `__tests__` の下の `*.integration.test.tsx`)が1つも無い。表示部品がフックを呼び始めてコンテナになったときも、テストを足さなければここで落ちる
+- 統合テストが、自分のフォルダのコンテナを別名 `@/components/<フォルダの道>` で(型だけでなく)import していない
 - `*.integration.test.ts`・`*.browser.test.*` をどこかに置く
-- `__tests__` の下に、`*.integration.test.tsx`・`*.test-helper.ts`・`container.fixture.ts`・`*.md` のほかの名前のファイルを置く(単体テストの `*.test.ts` も。どちらの設定にも拾われないまま残る)
+- `__tests__` の下に、`*.integration.test.tsx`・`*.test-helper.ts`・`index.fixture.ts`・`*.md` のほかの名前のファイルを置く(単体テストの `*.test.ts` も。どちらの設定にも拾われないまま残る)
 - リポジトリ直下に `__tests__` がある
-- 隣に `container.tsx` の無い `hooks` フォルダがある(`src/hooks/` を除く)
-- `container.tsx` を、`src/components/<名前>/`(`ui` の下は `src/components/ui/<名前>/`)の下の外に置く(`src/app/`・`src/lib/` など、`src/components/`・`src/components/ui/` の直下)。
-  `scripts/check-layers.mjs` は `src/app/`・`src/lib/` を許す側として見るので、そこに置いたコンテナが外の世界に触れても見逃すため
+- 隣にコンテナの `index.tsx` の無い `hooks` フォルダがある(表示部品のフォルダの `hooks` も。`src/hooks/` を除く)
+- コンテナを、`src/components/<名前>/`(`ui` の下は `src/components/ui/<名前>/`)の下の外に置く(`src/components/`・`src/components/ui/` の直下)。
+  `scripts/check-layers.mjs` は `src/app/`・`src/lib/` を許す側として見るので、そこにコンテナを置くと外の世界に触れても見逃すため(そこでフックを呼ぶと ESLint の規則が落とす)
 - I/O コンテナの6つの一覧(`scripts/container-dirs.mjs`)を変える(7つめを足すなど)。検査の自己検査が6つのパスを固定しているので、自己検査が落ちる。一覧を変えるには ADR が要る
-- 状態コンテナのフォルダに `index.tsx` がある(フォルダの名前で import できてしまう `index.ts`・`index.d.ts`・`index.js`・`index.jsx` も。I/O コンテナの6つのフォルダは今の形のまま許す)
+- `container.tsx`・`container.integration.test.tsx`・`container.fixture.ts` という名前のファイルがある(どこにあっても。前の名前で、今はどれも `index` で始まる)
+- `index.tsx` のあるフォルダに `index.ts`・`index.d.ts`・`index.js`・`index.jsx` を置く(フォルダの名前で import すると、道具によっては `index.tsx` より先にそちらを拾う。どの道具がどれを先に拾うかは `scripts/check-test-boundary.mjs` の注釈)
 - 状態コンテナが外の世界の入口を import する
-- 統合テストか `__tests__` の中のファイルが import する `*.test-helper.ts`・`*.fixture.ts`(部品が import する部品も)を、コンテナのフォルダの `__tests__` の下と `container.tsx` の隣の外に置く(単体テストだけが使う部品は、今までどおりそのテストの隣)。
-  `container.fixture.ts` を I/O コンテナの6つのフォルダ(その `__tests__` の下か `container.tsx` の隣)の外に置く
+- 統合テストか `__tests__` の中のファイルが import する `*.test-helper.ts`・`*.fixture.ts`(部品が import する部品も)を、コンテナのフォルダの `__tests__` の下とコンテナの `index.tsx` の隣の外に置く(単体テストだけが使う部品は、今までどおりそのテストの隣)。
+  `index.fixture.ts` を I/O コンテナの6つのフォルダ(その `__tests__` の下か `index.tsx` の隣)の外に置く
 - 統合テストの外(`*.test.ts`・`*.test-helper.ts`・`*.fixture.ts`。`__tests__` の下の部品も)がコンポーネントを描く道具(`@testing-library/react`・`react-dom` とその下。型だけの import も)を import する
 
 統合テストの外で描く道具を落とすのは、happy-dom でコンポーネントを描くと、名前を `*.test.ts` にするだけで置き場の決まりをすり抜けるため
 (統合テストの部品を単体テストが読んで描く道も同じ)。
-`container.fixture.ts` の置き場を落とすのは、統合の設定が `container.fixture.ts` を全部 globalSetup に入れ、ほかに置いても黙って走るため。
-フックを呼んでよい所(`container.tsx` と、`hooks` フォルダの中の `use-*.ts`・`use-*.tsx`)は、ESLint の規則 `layer/hook-only-in-container` が `npm run lint` で見る(テストの部品は外す)。
+`index.fixture.ts` の置き場を落とすのは、統合の設定が `index.fixture.ts` を全部 globalSetup に入れ、ほかに置いても黙って走るため。
+フックを呼んでよい所(`src/components/` の中の `index.tsx`(`hooks`・`__tests__` の中の `index.tsx` を除く)と、`hooks` フォルダの中の `use-*.ts`・`use-*.tsx`)は、ESLint の規則 `layer/hook-only-in-container` が `npm run lint` で見る(テストの部品は外す)。
 同じ規則を `scripts/check-hook-rule.mjs` が `npm run test:boundary` で使う(下の項)。
 
 - 例外を許す一覧は無い。村の2段階まであった待ちの一覧2つ(まだフックを呼ぶ表示部品の `PENDING_CONTAINER_FILES` と、隣に `container.tsx` の無い `hooks` フォルダの `PENDING_HOOK_DIRS`)は、
@@ -370,12 +374,13 @@ I/O コンテナの一覧は `scripts/container-dirs.mjs`(画面の3つと横断
   各フックのロジックを純粋関数へ移して純粋関数のテストで見るようにし、消した。フックのテストに例外の一覧は無い
 - この決まりを変えるにはADRが要る
 - 同じコマンドで走る `scripts/check-layers.mjs` はテストではなく層を見る(表示部品と状態コンテナが外の世界へ届く import を、つながりをたどって落とす。
-  `fetch`・`localStorage` など import の要らない外の世界の入口を I/O コンテナの外で使うこと、画面のコンテナを自分のローダー・統合テスト・フィクスチャの外から import することも落とす)。
+  `fetch`・`localStorage` など import の要らない外の世界の入口を I/O コンテナの外で使うこと、画面のコンテナをその画面のローダー(`src/app/<名前>-screen.tsx`)と自分の画面のフォルダの統合テスト・フィクスチャの外から import することも落とす。
+  I/O コンテナとその隣の `hooks` フォルダが content の読み出し(`src/lib/content/` の下)へ届くこと(content を読むのは画面のローダーだけ)と、I/O コンテナの一覧のフォルダの `index.tsx`・画面のローダーのファイルが無いことも落とす)。
   決まりは [../architecture/boundaries.md](../architecture/boundaries.md) の「コンテナと表示部品」
 - 同じコマンドで走る `scripts/check-coverage-ignores.mjs` は、カバレッジから行を外す注釈を見る([カバレッジの床](#カバレッジの床)のフックとコンテナのファイル別100%)
 - 同じコマンドで走る `scripts/check-hook-rule.mjs` は、ESLint の規則 `layer/hook-only-in-container` をそのまま使ってフックを呼ぶ所を見る。
   まず規則の判定(偽のコードの断片から拾うフックの名前)と、`eslint.config.mjs` の掛け方(偽のパスで、規則が掛かる所と外れる所)を自己検査し、src のファイル(コンテナのフォルダの統合テストと部品を含む)が lint の対象の外になっていないことも確かめる。
-  src のファイルごとに、規則が掛かるかを名前の決まり(外れるのは `container.tsx`・`hooks` フォルダの中の `use-*.ts(x)`・テストの部品だけ)と突き合わせ、1つでも違えば落とす
+  src のファイルごとに、規則が掛かるかを名前の決まり(外れるのは `src/components/` の中の `index.tsx`(`hooks`・`__tests__` の中の `index.tsx` を除く)・`hooks` フォルダの中の `use-*.ts(x)`・テストの部品だけ)と突き合わせ、1つでも違えば落とす
   (規則の組みの `ignores` に実在のパスを足すと、そのファイルは lint も通るため。この抜け道を実際の設定に入れて拾うことも自己検査する)。
   そのうえで src の `*.ts`・`*.tsx` を全部 lint して違反を数える(`eslint-disable` の注釈で黙らせた呼び出しも数える)
 

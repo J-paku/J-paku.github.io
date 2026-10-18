@@ -4,9 +4,9 @@ import { useEffect, useRef, useState } from 'react'
 import type { Locale, UiStrings, WorkStoryScene } from '@content/types/content'
 import PhraseText from '@/components/ui/PhraseText'
 import { useActiveScene } from './hooks/use-active-scene'
-import IntroPreview from '../IntroPreview/container'
-import SceneModal from '../SceneModal/container'
-import SceneSection from '../SceneSection/container'
+import IntroPreview from '../IntroPreview'
+import SceneModal from '../SceneModal'
+import SceneSection from '../SceneSection'
 import styles from '../../story.module.css'
 
 type StoryBodyProps = {

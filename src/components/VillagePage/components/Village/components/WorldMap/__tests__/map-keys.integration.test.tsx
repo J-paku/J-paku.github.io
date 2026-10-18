@@ -4,7 +4,7 @@ import { cleanup, render } from '@testing-library/react'
 import { inject } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
 import type { Direction } from '@content/types/world'
-import WorldMap from '@/components/VillagePage/components/Village/components/WorldMap/container'
+import WorldMap from '@/components/VillagePage/components/Village/components/WorldMap'
 import { spotToward } from '@/components/VillagePage/components/Village/components/WorldMap/utils/spot-navigation'
 import { MAP_FOCUSABLE_SELECTOR } from '@/utils/focusables'
 import {

@@ -4,7 +4,7 @@
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, inject, it, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
-import StoryBody from '@/components/Story/components/StoryBody/container'
+import StoryBody from '@/components/Story/components/StoryBody'
 import {
   emulateFullMotion,
   expectStoryTriggers,

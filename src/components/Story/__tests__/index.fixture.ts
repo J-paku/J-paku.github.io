@@ -3,7 +3,7 @@
 import type { ComponentProps } from 'react'
 import type { TestProject } from 'vitest/node'
 import { readContent, readVillageText } from '@/lib/content/read'
-import type StoryContainer from '@/components/Story/container'
+import type StoryContainer from '@/components/Story'
 import { storyProps } from '@/components/Story/utils/story-props'
 
 type StoryData = ComponentProps<typeof StoryContainer>

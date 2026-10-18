@@ -2,7 +2,7 @@
 // シャドウルートの中の動きが止まるかを計算後のスタイルで見る。
 // 一時停止を場面ごとに渡す流れは場面再生のテスト(../../../__tests__/pause.integration.test.tsx)が見る
 import { render } from '@testing-library/react'
-import SceneSvg from '@/components/ui/ScenePlayer/components/SceneSvg/container'
+import SceneSvg from '@/components/ui/ScenePlayer/components/SceneSvg'
 import { ART, artOf, svgOf } from '@/components/ui/ScenePlayer/__tests__/scene-player.test-helper'
 
 test('一時停止を渡すとシャドウルートの中の動きを今の絵のまま止め、外すと動かす', async () => {

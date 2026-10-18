@@ -3,7 +3,7 @@
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, inject, it, vi } from 'vitest'
 import { page } from 'vitest/browser'
-import StoryContainer from '@/components/Story/container'
+import StoryContainer from '@/components/Story'
 import { expectChip, popoverOf } from './chip-popover.test-helper'
 import { stubSvgFetch } from './story.test-helper'
 import '@/styles/tokens.css'

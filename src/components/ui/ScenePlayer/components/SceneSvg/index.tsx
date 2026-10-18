@@ -8,7 +8,7 @@
 // ただし素のDOMへ展開すると4場面ぶんのSVGが同時に置かれ、互いのクラス名(.anim など。場面ごとに
 // animation-duration が違う)と id(#hex・#dummyCard など)を奪い合う。シャドウルートなら
 // スタイルも id 参照も各場面の中に閉じるので、この構成では必須。
-// 原文の取得はコンテナ(../../container.tsx)が持ち、ここは渡された原文を流し込むだけにする
+// 原文の取得はコンテナ(../../index.tsx)が持ち、ここは渡された原文を流し込むだけにする
 import { useEffect, useRef } from 'react'
 
 type SceneSvgProps = {

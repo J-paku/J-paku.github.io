@@ -4,7 +4,7 @@
 // いまの実データに準備中の作品は無いので、公開済みの作品の写しの status だけを替えてテストが直接渡す(ADR 0017 の D6)
 import { cleanup, render, within } from '@testing-library/react'
 import type { Work } from '@content/types/content'
-import WorkCard from '@/components/Directory/components/WorkCard/container'
+import WorkCard from '@/components/Directory/components/WorkCard'
 import {
   cardOf,
   cardProps,

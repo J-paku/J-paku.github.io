@@ -2,7 +2,7 @@
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, inject, it } from 'vitest'
 import { page } from 'vitest/browser'
-import TechChipPopover from '@/components/Story/components/TechChipPopover/container'
+import TechChipPopover from '@/components/Story/components/TechChipPopover'
 import { expectChip } from '@/components/Story/__tests__/chip-popover.test-helper'
 import '@/styles/tokens.css'
 

@@ -1,7 +1,7 @@
 // 設定メニューの統合テスト(src/components/ui/SettingsMenu の下の *.integration.test.tsx)へ渡す文言(ui)を、Navigation の呼び出し元と同じ readContent で node 側で読む。
 // content の読み出し(@/lib/content/read)は node:fs を使うのでブラウザでは読み込めず、content の実データを components から
 // 直接 import することも層の規則(eslint.config.mjs)が禁じている。
-// vitest.integration.config.ts の globalSetup が __tests__ の下の container.fixture.ts としてこのファイルを拾い、node で走らせて
+// vitest.integration.config.ts の globalSetup が __tests__ の下の index.fixture.ts としてこのファイルを拾い、node で走らせて
 // provide し、テストは inject で受け取る
 import type { TestProject } from 'vitest/node'
 import type { Locale, UiStrings } from '@content/types/content'

@@ -1,10 +1,10 @@
 // 作品カード(状態コンテナ)の、詳細の開閉(use-detail-open)の統合テスト(Vitest Browser Mode)。
 // カードを実際の Chromium で、フック・子と一緒に描き(ADR 0016)、到着した URL のハッシュで詳細の開閉の始まりが決まることと、
 // トグルで閉じると詳細が操作から外れることを、利用者に見える形(role・名前・aria-*・inert)で確かめる。
-// props は一覧の container.fixture.ts が node で組んで provide した作品・文言を inject で受け取る
+// props は一覧の index.fixture.ts が node で組んで provide した作品・文言を inject で受け取る
 import { cleanup, render, within } from '@testing-library/react'
 import { userEvent } from 'vitest/browser'
-import WorkCard from '@/components/Directory/components/WorkCard/container'
+import WorkCard from '@/components/Directory/components/WorkCard'
 import {
   cardOf,
   cardProps,

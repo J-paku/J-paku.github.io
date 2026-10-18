@@ -1,4 +1,4 @@
-// 場面SVGの原文を場面ごとに取ってきて、場面再生のコンテナ(../container.tsx)へ渡す。
+// 場面SVGの原文を場面ごとに取ってきて、場面再生のコンテナ(../index.tsx)へ渡す。
 // 取得そのものと URL ごとの覚えは @/lib/fetch-svg-source が持ち、ここは結果を場面の id に結び付けて状態に置く配線だけにする。
 // 資産が未納の場面は取得失敗で検知し、以降はプレースホルダ文言へ切り替える(WorkCard shotPlaceholder 踏襲)
 import { useEffect, useEffectEvent, useState } from 'react'

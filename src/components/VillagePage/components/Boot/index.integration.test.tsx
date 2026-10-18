@@ -10,7 +10,7 @@ import { StrictMode, useLayoutEffect, type ReactElement } from 'react'
 import { renderToString } from 'react-dom/server'
 import { onTestFinished } from 'vitest'
 import { page } from 'vitest/browser'
-import Boot from '@/components/VillagePage/components/Boot/container'
+import Boot from '@/components/VillagePage/components/Boot'
 import Logo from '@/components/ui/Logo'
 import {
   SLACK_MS,

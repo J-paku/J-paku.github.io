@@ -1,6 +1,6 @@
 // 一覧の画面(コンテナ)の、担当業務の詳細(CareerDetail)の統合テスト(Vitest Browser Mode)。一覧を実際の Chromium で、子と一緒に描き(ADR 0016)、
 // 経歴ごとのパネルの有無・骨組み・任意項目の出し分けを、利用者に見える形(role・名前・要素の有無)で確かめる。
-// props は入口(index.tsx)と同じ組み方で container.fixture.ts が node で組み、inject で受け取る。
+// props は入口(src/app/directory-screen.tsx)と同じ組み方で index.fixture.ts が node で組み、inject で受け取る。
 // 実データに無い形(節を欠いた経歴など)は、経歴を差し替えた props の写しをテストが直接渡す
 import { cleanup, render, screen, within } from '@testing-library/react'
 import type {
@@ -9,8 +9,8 @@ import type {
   CareerDetailAssignment,
   CareerFact,
 } from '@content/types/content'
-import DirectoryContainer from '@/components/Directory/container'
-import type { DirectoryData } from './container.fixture'
+import DirectoryContainer from '@/components/Directory'
+import type { DirectoryData } from './index.fixture'
 import { directoryJa, prepareEachTest, restoreEachTest, ui } from './directory.test-helper'
 
 const { profile } = directoryJa

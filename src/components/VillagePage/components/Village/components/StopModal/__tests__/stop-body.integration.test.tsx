@@ -5,7 +5,7 @@ import { cleanup, render } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { inject } from 'vitest'
 import { page } from 'vitest/browser'
-import StopModal from '@/components/VillagePage/components/Village/components/StopModal/container'
+import StopModal from '@/components/VillagePage/components/Village/components/StopModal'
 import { stopPanel, stopProps, stopTextOf } from './stop-modal.test-helper'
 
 const { lang, stopHrefs } = inject('villageJa')

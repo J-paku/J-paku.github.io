@@ -6,7 +6,7 @@ import { cleanup, render } from '@testing-library/react'
 import { onTestFinished } from 'vitest'
 import { cdp, page } from 'vitest/browser'
 import type { Direction } from '@content/types/world'
-import Joystick from '@/components/VillagePage/components/Village/components/Joystick/container'
+import Joystick from '@/components/VillagePage/components/Village/components/Joystick'
 import {
   CENTER,
   RADIUS_RATIO,

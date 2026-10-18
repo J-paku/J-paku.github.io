@@ -13,17 +13,17 @@ Next.js 16(App Router)の静的エクスポートで、サーバもデータベ�
 1. **locale は `location.pathname` からのみ決まる。** `?lang=`・自動リダイレクトを作らない
 2. **表示文字列を `content/` の外にハードコードしない。** コンポーネントに日本語・韓国語リテラル禁止
 3. **`localStorage` / `sessionStorage` へのアクセスは `src/lib/preferences.ts` 一箇所だけ。** 例外は `src/app/html-shell.tsx` のインラインスクリプト1本だけで、初回ペイント前にテーマを当てるためにある
-4. **フックを呼んでよいのは `container.tsx` と、`hooks` フォルダの中の `use-` 始まりのファイルだけ。** フックを1つでも呼ぶコンポーネントはコンテナで、ファイル名は `container.tsx`。
-   I/O コンテナの6つの外のコンテナ(状態コンテナ)のフォルダには `index.tsx` を置かず、外からは `container` を直接指す。`index.tsx` が入口になるのは、フックを呼ばない表示部品と、画面の3つのサーバのローダーだけ。
-   `hooks` フォルダは `container.tsx` のあるフォルダ(と `src/hooks/`)にだけ置き、`use-` 始まりのフック以外を置かない。フックはフォルダ化しても `index.ts` を作らない。
-   **画面の状態・データのフックと、外の世界に触れる import(保存・天気・計測・SVG の取得・村の時計のストアなど)は、I/O コンテナの6つ(一覧の正本は `scripts/container-dirs.mjs`)の `container.tsx` とその隣の `hooks` フォルダにだけ置く。** content の読み出しは画面のローダー(`index.tsx`)が行う。
+4. **フックを呼んでよいのは、`src/components/` の中の `index.tsx`(`hooks`・`__tests__` の中の `index.tsx` を除く)と、`hooks` フォルダの中の `use-` 始まりのファイルだけ。** コンポーネントのフォルダの入口はいつも `index.tsx` で、外からはフォルダ(`@/components/<フォルダの道>`)を指す。`container.tsx` という名前のファイルは置かない。
+   フックを1つでも呼ぶ `index.tsx` と、I/O コンテナの6つ(一覧の正本は `scripts/container-dirs.mjs`)の `index.tsx` がコンテナで、ほかの `index.tsx` は表示部品。
+   `hooks` フォルダはコンテナのフォルダ(と `src/hooks/`)にだけ置き、`use-` 始まりのフック以外を置かない。フックはフォルダ化しても `index.ts` を作らない。
+   **画面の状態・データのフックと、外の世界に触れる import(保存・天気・計測・SVG の取得・村の時計のストアなど)は、I/O コンテナの6つの `index.tsx` とその隣の `hooks` フォルダにだけ置く。** content の読み出しは画面の3つのサーバのローダー(`src/app/directory-screen.tsx`・`src/app/story-screen.tsx`・`src/app/village-screen.tsx`)が行う。
    フックを呼ぶ所は ESLint の `layer/hook-only-in-container` が守らせる
 5. **wip 作品は詳細ページを作らない。** カードにリンクを付けず、slug 直接アクセスは NotFound
 6. **1段階 = 1セッション**(大きな改修を1回のセッションに詰め込まない)
-7. **新しいロジックは純粋関数(`src/lib/`・`src/utils/`・コンポーネント専用のutils)に置き、新しく作ったファイルごとにカバレッジ100%・ミューテーション100%を守る。`hooks`フォルダに単体テストを置かず、どのテストでも`renderHook`を使わない。コンポーネントを描くテストは、`container.tsx` のあるフォルダに置く統合テスト(コンテナごとに1本以上。1本なら隣の `container.integration.test.tsx`、2本以上ならそのフォルダの `__tests__/<動作>.integration.test.tsx`)だけに書く。`hooks` フォルダの中のファイルと全部の `container.tsx` と全部の表示部品(画面の3つのサーバのローダーは入らない)は、統合テストのカバレッジでファイル別100%**
+7. **新しいロジックは純粋関数(`src/lib/`・`src/utils/`・コンポーネント専用のutils)に置き、新しく作ったファイルごとにカバレッジ100%・ミューテーション100%を守る。`hooks`フォルダに単体テストを置かず、どのテストでも`renderHook`を使わない。コンポーネントを描くテストは、コンテナのフォルダに置く統合テスト(コンテナごとに1本以上。1本なら隣の `index.integration.test.tsx`、2本以上ならそのフォルダの `__tests__/<動作>.integration.test.tsx`)だけに書き、表示部品は自分のテストを持たない。`hooks` フォルダの中のファイルと `src/components/` の中の全部の `.tsx`(コンテナと表示部品。テストを除く)は、統合テストのカバレッジでファイル別100%**
 
 決めた理由は 1 が [docs/decisions/0002-locale-from-url-only.md](docs/decisions/0002-locale-from-url-only.md)、2 が [docs/decisions/0003-content-outside-src.md](docs/decisions/0003-content-outside-src.md)、冒頭の方針と 7 が [docs/decisions/0011-extreme-constraints.md](docs/decisions/0011-extreme-constraints.md)、
-4 のコンテナと 7 のコンポーネントを描くテストが [docs/decisions/0019-hooks-make-containers.md](docs/decisions/0019-hooks-make-containers.md)(I/O コンテナの6つと画面のローダーは [docs/decisions/0017-screen-containers.md](docs/decisions/0017-screen-containers.md)、統合テストをコンテナのフォルダに置くことと表示部品のファイル別100%は [docs/decisions/0022-colocate-integration-tests.md](docs/decisions/0022-colocate-integration-tests.md))にある。
+4 のコンテナと 7 のコンポーネントを描くテストが [docs/decisions/0019-hooks-make-containers.md](docs/decisions/0019-hooks-make-containers.md)(I/O コンテナの6つと画面のローダーは [docs/decisions/0017-screen-containers.md](docs/decisions/0017-screen-containers.md)、統合テストをコンテナのフォルダに置くことと表示部品のファイル別100%は [docs/decisions/0022-colocate-integration-tests.md](docs/decisions/0022-colocate-integration-tests.md)、コンテナも `index.tsx` にすることとローダーを `src/app/` に置くことは [docs/decisions/0024-containers-as-index.md](docs/decisions/0024-containers-as-index.md))にある。
 3〜5 の詳しい決まりは [docs/architecture/data-flow.md](docs/architecture/data-flow.md)・[docs/architecture/frontend.md](docs/architecture/frontend.md)・[docs/product/business-rules.md](docs/product/business-rules.md) にある。
 レイヤー境界(import の向き)と、そのうち機械が守らせている範囲は [docs/architecture/boundaries.md](docs/architecture/boundaries.md)。
 

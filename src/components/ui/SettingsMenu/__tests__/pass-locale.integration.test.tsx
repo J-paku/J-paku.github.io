@@ -4,7 +4,7 @@
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { page, userEvent } from 'vitest/browser'
-import SettingsMenu from '@/components/ui/SettingsMenu/container'
+import SettingsMenu from '@/components/ui/SettingsMenu'
 import { preventNavigation, uiOf } from './settings-menu.test-helper'
 
 beforeEach(() => {

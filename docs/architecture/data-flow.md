@@ -4,7 +4,7 @@ read_when:
   - コンテンツの読み込み・検証を変えるとき
   - ブラウザ保存や外部 API 取得を足すとき
 source_of_truth: true
-last_reviewed: 2026-10-17
+last_reviewed: 2026-10-18
 ---
 
 # データの流れ
@@ -18,17 +18,17 @@ last_reviewed: 2026-10-17
 content/ja/*.ts  content/ko/*.ts  content/world.ts
         └────────── src/lib/content/read.ts ──────────┘
                             ↓ 検証を通ってから
-          src/components/<画面>/index.tsx(ローダー。サーバ)
+            src/app/<画面>-screen.tsx(ローダー。サーバ)
                             ↓ 直列化できる props
-          src/components/<画面>/container.tsx(コンテナ)
+          src/components/<画面>/index.tsx(コンテナ)
                             ↓ props
                          表示部品
 ```
 
-ローダーを描くのは `src/app/**/page.tsx`(サーバ)。ルートもメタデータと静的経路(作品の slug)のために `read.ts` を読む。
+ローダー(`src/app/` の `directory-screen.tsx`・`story-screen.tsx`・`village-screen.tsx`)を描くのは `src/app/**/page.tsx`(サーバ)。ルートもメタデータと静的経路(作品の slug)のために `read.ts` を読む。
 
 - `src/lib/content/read.ts` が唯一の入口。先頭で `import 'server-only'` しており、クライアントへ持ち込むと import の時点で落ちる
-- `src/components/` の中で読み出すのは画面のローダー(`index.tsx`)だけ。コンテナと表示部品は props で受け取る([boundaries.md](boundaries.md) の「コンテナと表示部品」)
+- 読み出すのは `src/app/` の画面のローダーで、`src/components/` の中では読み出さない。コンテナと表示部品は props で受け取る([boundaries.md](boundaries.md) の「コンテナと表示部品」)
 - 作品はバレルや glob で集めず、`read.ts` の **登録表 `WORKS`** に ja/ko を1行ずつ足す。登録表と `content/ja/works/*.ts` の実ファイル一覧はビルド時に突き合わせ、漏れがあればビルドが落ちる
 - 検証は2本。`validate.ts` が ja/ko の slug・status・場面 ID の一致を、`validate-world.ts` が村の座標・ID 重複・到達性・歩数上限を見る。問題があれば `read.ts` が `throw` してビルドが止まる
 - **`content/` は `src/` を import しない。** 型は `content/types/` に置く(`content.ts` = 表示データ、`world.ts` = 村)
@@ -64,7 +64,7 @@ content/ja/*.ts  content/ko/*.ts  content/world.ts
 
 アクセス計測は GoatCounter。計測タグの読み込みは `src/app/html-shell.tsx` で、ページ読み込み時の1件はタグが自動で送る。
 計測先 URL は環境変数 `NEXT_PUBLIC_GOATCOUNTER_URL`(GitHub の変数 `GOATCOUNTER_URL`)からビルド時に入り、未設定なら計測タグを出さない。
-next/link による移動はタグから見えないため、`src/components/ui/PageviewCounter/container.tsx` が pathname の変わるたびに `src/lib/analytics.ts` の送信関数を呼ぶ
+next/link による移動はタグから見えないため、`src/components/ui/PageviewCounter/index.tsx` が pathname の変わるたびに `src/lib/analytics.ts` の送信関数を呼ぶ
 (マウント時は送らず、読み込み時の1件と二重にしない)。Cookie は使わない。計測が落ちても画面は動く。
 
 Web フォントは `src/app/html-shell.tsx` が Google Fonts の配信 CSS を `<link>` で読む(自前の `@font-face` は持たない)。
@@ -83,5 +83,5 @@ Inter・Playfair Display は共通で、Noto Sans・Noto Serif だけ locale で
 DOM の実測(`ResizeObserver` など)はページが閉じれば消えるので「外」ではなく、フックに置く。
 
 `src/lib/` の外の世界に触れる入口(`preferences`・`weather`・`analytics`・`fetch-svg-source`・`content/`・`metadata`)を `src/components/` と `src/hooks/` の中で import してよいのは、
-I/O コンテナ(画面の3つと横断部品の3つの `container.tsx`。一覧の正本は `scripts/container-dirs.mjs`)とその隣の `hooks` フォルダだけ(content の読み出しは画面のローダー `index.tsx`)。
-状態コンテナ(それ以外の `container.tsx`)と表示部品へは値を props で渡す → [boundaries.md](boundaries.md) の「コンテナと表示部品」
+I/O コンテナ(画面の3つと横断部品の3つの `index.tsx`。一覧の正本は `scripts/container-dirs.mjs`)とその隣の `hooks` フォルダだけ(ただし `content/` は I/O コンテナとその `hooks` フォルダも import せず、読むのは `src/app/` の画面のローダーだけ)。
+状態コンテナ(それ以外の、フックを呼ぶ `index.tsx`)と表示部品へは値を props で渡す → [boundaries.md](boundaries.md) の「コンテナと表示部品」

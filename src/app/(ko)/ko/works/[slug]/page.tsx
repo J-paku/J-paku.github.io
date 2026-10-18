@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { findStoryWork, listStorySlugs } from '@/lib/content/read'
 import { buildMetadata } from '@/lib/metadata'
-import Story from '@/components/Story'
+import Story from '@/app/story-screen'
 
 const LOCALE = 'ko' as const
 

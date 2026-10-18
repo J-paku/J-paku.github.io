@@ -3,7 +3,7 @@
 import { inject } from 'vitest'
 import { page } from 'vitest/browser'
 
-// 文言は container.fixture.ts が node で readContent から読んで渡す
+// 文言は index.fixture.ts が node で readContent から読んで渡す
 export const uiOf = inject('settingsMenuUi')
 export const ui = uiOf.ja
 

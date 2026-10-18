@@ -1,5 +1,5 @@
 /* ブートローダーの見た目。舞台と同じ黒地に薄い色のロゴ。中央 → 見出し位置への移動は
-   Boot/container.tsx の script が transform を書き、ここは遷移時間と原点だけ持つ */
+   Boot/index.tsx の script が transform を書き、ここは遷移時間と原点だけ持つ */
 #boot {
   position: fixed;
   inset: 0;

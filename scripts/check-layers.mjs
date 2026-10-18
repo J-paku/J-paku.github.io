@@ -1,30 +1,35 @@
-// 層の境界検査(ADR 0017 の D2〜D4 と ADR 0019)。表示部品と状態コンテナが外の世界に触れていないかを、import のつながりと、
+// 層の境界検査(ADR 0017 の D2〜D4・ADR 0019・ADR 0024)。表示部品と状態コンテナが外の世界に触れていないかを、import のつながりと、
 // import の要らない大域の名前で見る。
 //
-// 決まり: 外の世界に触れる入口(下の IO_FILES・IO_DIRS・IO_PACKAGES)を import してよいのは、I/O コンテナ(container.tsx)と
-// その隣の hooks/、画面のローダー、src/app/・src/lib/、テストの側(テストの名前と、コンテナのフォルダの __tests__/ の中の全部)だけ(下の「許す側」)。
+// 決まり: 外の世界に触れる入口(下の IO_FILES・IO_DIRS・IO_PACKAGES)を import してよいのは、I/O コンテナ(一覧のフォルダの index.tsx)と
+// その隣の hooks/、src/app/(画面のローダーとルート)・src/lib/、テストの側(テストの名前と、コンテナのフォルダの __tests__/ の中の全部)だけ(下の「許す側」)。
 // それ以外は表示部品か状態コンテナで、入口を直接 import しないのはもちろん、入口へ届くファイル(フック・部品・utils)を import してもいけない。
 // ESLint の no-restricted-imports はファイル1つずつの指定子しか見ないので、「入口を import するフックを表示部品が import する」形を見逃す。
 // そこで src の import を全部読んでつながりの図にし、入口へ届くファイル(「染まった」ファイル)を逆向きにたどって求める。
 //
-// I/O コンテナは、置き場の一覧(scripts/container-dirs.mjs。check-test-boundary.mjs と同じもの)のフォルダの container.tsx だけ。
-// 一覧の外の container.tsx は状態コンテナで、import の制限は表示部品と同じ(「状態がある」と「外に触れる」は別の軸。ADR 0019)。
-// 状態コンテナの隣の hooks/ も、許す側に入らない。
-// ローダーは一覧のうち画面の3つのフォルダの index.tsx だけ。
+// I/O コンテナは、置き場の一覧(scripts/container-dirs.mjs。check-test-boundary.mjs と同じもの)のフォルダの index.tsx だけ
+// (どのファイルがコンテナかの判定の正本は scripts/find-containers.mjs。I/O コンテナの名前もそこから取る)。
+// 一覧の外のコンテナ(フックを使う index.tsx)は状態コンテナで、import の制限は表示部品と同じ(「状態がある」と「外に触れる」は別の軸。ADR 0019)。
+// なので、この検査は状態コンテナと表示部品を分けずに見る。状態コンテナの隣の hooks/ も、許す側に入らない。
+// 画面のローダー(content を読んで画面のコンテナへ渡すサーバの入口)は src/app/<名前>-screen.tsx で、画面のフォルダごとに1つ(下の SCREEN_LOADER_OF)。
 //
-// 規則は5つ。
+// 規則は6つ。
 //   1. 許す側の外のファイルは、入口と、染まったファイルを import しない。
-//      ただし I/O コンテナは染まりを外へ伝えない(横断部品のコンテナは、外から container.tsx を直接指して表示部品が描く決まり)
+//      ただし I/O コンテナは染まりを外へ伝えない(横断部品のコンテナは、外から @/components/ui/<名前> を指して表示部品が描く決まり)
 //   2. 許す側の外のファイルは、I/O コンテナの隣の hooks/(一覧のフォルダの直下の hooks/ の下)を import しない。
 //      今は外の世界に触れていないフックでも、そこは画面の状態・データのフックの置き場なので。例外は無い
-//   3. 画面のコンテナを import してよいのは、同じフォルダのローダーと、その画面のフォルダの下の統合テスト(*.integration.test.tsx)と、
-//      画面のフォルダのフィクスチャ(container.tsx の隣か、そのフォルダの __tests__/ の直下の container.fixture.ts)だけ(ADR 0022)。
-//      許す側(src/app/ など)でも同じ。画面を描く入口はローダーで、ルートはローダーを指す
-//   4. 一覧のフォルダには container.tsx が要る。改名・移動で一覧が空振りすると、そのフォルダの hooks/ の許しだけが黙って残るため
+//   3. 画面のコンテナ(画面のフォルダの index.tsx)を import してよいのは、その画面のローダー(SCREEN_LOADER_OF)と、その画面のフォルダの下の
+//      統合テスト(*.integration.test.tsx)と、画面のフォルダのフィクスチャ(index.tsx の隣か、そのフォルダの __tests__/ の直下の index.fixture.ts)だけ(ADR 0022・ADR 0024)。
+//      許す側(src/app/ のほかのファイル・ほかの画面のローダーなど)でも同じ。画面を描く入口はローダーで、ルートはローダーを指す
+//   4. 一覧のフォルダには index.tsx が、画面のフォルダにはローダーが要る。改名・移動で一覧が空振りすると、そのフォルダの hooks/ の許しだけが黙って残るため
 //   5. 許す側の外のファイルは、import の要らない外の世界の入口(下の IO_GLOBALS・IO_MEMBERS。fetch・localStorage など)を式の中で使わない。
 //      window.・globalThis.・self. を前に付けたもの、['…'] で引くもの、分割代入で取り出すものも数える。注釈・文字列・型の位置は数えない。
 //      名前だけで見るので、同じ名前の変数や引数を作ってそれを使っても数える(名前を変える)
-// 規則 1〜3 では、型だけの import(import type・import { type X }・export type)は数えない。実行時に読み込まれないため(表示部品の props に型を使う)。
+//   6. I/O コンテナとその隣の hooks/ も、content の読み出し(IO_DIRS の src/lib/content/)へは届かない(間に lib・utils を挟んでも同じ)。
+//      content を読むのは src/app のローダーだけで、コンテナは読み出した値を props で受け取る(ADR 0024)。
+//      ローダーを src/components の中へ戻す(I/O コンテナの index.tsx が content を読む)とここで落ちる。
+//      許す側の外のファイルが content へ届くのは規則 1 が落とすので、ここでは重ねない
+// 規則 1〜3・6 では、型だけの import(import type・import { type X }・export type)は数えない。実行時に読み込まれないため(表示部品の props に型を使う)。
 // import の読み方は scripts/read-imports.mjs(require('…') の呼び出しは ESLint が src の全部で落とすので集めない)。
 // 指定子の解決は tsconfig.json と同じ(@/ は src、@content/ は content で対象の外、相対パス、拡張子と index の省略)。
 // src の中を指すのに解決できない import があれば、見逃しを避けるため落とす。名指しした入口が実在しないときも落とす。
@@ -43,6 +48,7 @@ import {
   TESTS_DIR,
   inTestsDir,
 } from './container-dirs.mjs'
+import { CONTAINER_ENTRY, isIoContainer } from './find-containers.mjs'
 import { importsOf, parseSource } from './read-imports.mjs'
 
 // cwd に依存しない。どこから呼んでもリポジトリ直下を見る
@@ -65,7 +71,7 @@ const IO_FILES = [
 const IO_DIRS = ['src/lib/content/']
 // パッケージは前方一致で見る(next/navigation.js のような書き方も同じ入口)
 const IO_PACKAGES = ['next/navigation']
-// import の要らない外の世界の入口(規則 6)。名前だけで触れる大域
+// import の要らない外の世界の入口(規則 5)。名前だけで触れる大域
 const IO_GLOBALS = [
   'fetch',
   'localStorage',
@@ -83,7 +89,18 @@ const IO_MEMBERS = new Map([
 // 大域そのものを指す名前(window.fetch・globalThis.localStorage の形)
 const GLOBAL_OBJECTS = ['window', 'globalThis', 'self']
 
-const CONTAINER = 'container.tsx'
+// 画面のフォルダ → その画面のローダー(content を読んで画面のコンテナへ渡すサーバの入口。src/app/<名前>-screen.tsx)。
+// 画面のコンテナを import してよいローダーは、この対の1つだけ。画面のフォルダは scripts/container-dirs.mjs の SCREEN_CONTAINER_DIRS と
+// 同じでなければならず、ローダーは src/app/ の直下の <名前>-screen.tsx でなければならない(下の自己検査が見る。ほかの所を足して許しを広げない)
+const SCREEN_LOADER_OF = new Map([
+  ['src/components/VillagePage', 'src/app/village-screen.tsx'],
+  ['src/components/Directory', 'src/app/directory-screen.tsx'],
+  ['src/components/Story', 'src/app/story-screen.tsx'],
+])
+// ローダーの名前(src/app/ の直下の kebab-case の <名前>-screen.tsx)
+const LOADER_NAME = /^src\/app\/[a-z0-9]+(?:-[a-z0-9]+)*-screen\.tsx$/
+// content の読み出し(規則 6 で I/O コンテナとその hooks/ も届かない入口)
+const CONTENT_DIR = 'src/lib/content/'
 // import を読むファイル。それ以外(CSS など)は指定子の解決先としてだけ数える
 const CODE_FILE = /\.(?:tsx?|jsx?|mjs|cjs)$/
 // 拡張子と index を省いた指定子に、tsconfig.json(moduleResolution: bundler)と同じ順で足して探す
@@ -105,33 +122,41 @@ const RESOLVE_SUFFIXES = [
 const TEST_SIDE = /\.test\.tsx?$|\.fixture\.ts$|\.test-helper\.ts$/
 // 画面のコンテナを import してよい、画面のフォルダの下の統合テストとフィクスチャの名前
 const INTEGRATION_TEST = /\.integration\.test\.tsx$/
-const CONTAINER_FIXTURE = 'container.fixture.ts'
+const CONTAINER_FIXTURE = 'index.fixture.ts'
 
 // 違反ごとに出す理由。落ちた人がこのファイルを開かなくても直し方が分かるように書く
 const REASON_IO =
-  '表示部品と状態コンテナ(I/O コンテナの一覧の外の container.tsx)は外の世界(保存・天気・計測・SVG の取得・content の読み出し・メタデータ・村の時計のストア・next/navigation)に触れない。' +
-  '間にフック・部品・utils を挟んでも同じ(上の道で届く)。その import を I/O コンテナ(scripts/container-dirs.mjs の一覧の container.tsx)か、その隣の hooks/ へ上げ、値は props で受け取る。' +
-  '型だけなら import type にする(ADR 0017 の D3・D4、ADR 0019)'
+  '表示部品と状態コンテナ(I/O コンテナの一覧の外の、フックを使う index.tsx)は外の世界(保存・天気・計測・SVG の取得・content の読み出し・メタデータ・村の時計のストア・next/navigation)に触れない。' +
+  '間にフック・部品・utils を挟んでも同じ(上の道で届く)。その import を I/O コンテナ(scripts/container-dirs.mjs の一覧のフォルダの index.tsx)か、その隣の hooks/ へ上げ、値は props で受け取る。' +
+  '型だけなら import type にする(ADR 0017 の D3・D4、ADR 0019・ADR 0024)'
 const REASON_HOOKS =
   'I/O コンテナの隣の hooks/(コンテナの一覧 scripts/container-dirs.mjs のフォルダの直下の hooks/)は画面の状態・データのフックの置き場で、import してよいのは I/O コンテナとその hooks/ の中だけ' +
-  '(今は外の世界に触れていないフックでも)。部品の UI のフックなら、その部品を状態コンテナ(container.tsx)にして隣の hooks/ へ移す。画面の状態なら、I/O コンテナで呼んで値を props で受け取る(ADR 0017 の D3・D4、ADR 0019)'
+  '(今は外の世界に触れていないフックでも)。部品の UI のフックなら、その部品のフォルダの index.tsx を状態コンテナにして隣の hooks/ へ移す。画面の状態なら、I/O コンテナで呼んで値を props で受け取る(ADR 0017 の D3・D4、ADR 0019・ADR 0024)'
 const REASON_SCREEN =
-  '画面のコンテナ(画面の3つの container.tsx)を import してよいのは、同じフォルダのローダー(index.tsx)と、その画面のフォルダの下の統合テスト(*.integration.test.tsx)と、' +
-  '画面のフォルダのフィクスチャ(container.tsx の隣か、そのフォルダの __tests__/ の直下の container.fixture.ts)だけ。画面を描くならローダーの index.tsx を指す。' +
-  '画面の中の部品を別の所でも使うなら、その部品を表示部品として import する(ADR 0017 の D2、ADR 0022)'
+  '画面のコンテナ(画面の3つのフォルダの index.tsx)を import してよいのは、その画面のローダー(src/app/<名前>-screen.tsx。この検査の SCREEN_LOADER_OF)と、その画面のフォルダの下の統合テスト(*.integration.test.tsx)と、' +
+  '画面のフォルダのフィクスチャ(index.tsx の隣か、そのフォルダの __tests__/ の直下の index.fixture.ts)だけ。ルートから画面を描くならローダーを指す。' +
+  '画面の中の部品を別の所でも使うなら、その部品を表示部品として import する(ADR 0017 の D2、ADR 0022・ADR 0024)'
 const REASON_MISSING =
-  'コンテナの一覧(scripts/container-dirs.mjs)のフォルダに container.tsx が無い。改名・移動したなら、一覧と ADR 0019 を合わせて直す' +
+  'コンテナの一覧(scripts/container-dirs.mjs)のフォルダに index.tsx が無いか、画面のローダー(この検査の SCREEN_LOADER_OF)が無い。改名・移動したなら、一覧・SCREEN_LOADER_OF と ADR を合わせて直す' +
   '(一覧が空振りすると、そのフォルダの hooks/ の許しだけが黙って残る)'
 const REASON_GLOBAL =
   '表示部品と状態コンテナは、import の要らない外の世界の入口(fetch・localStorage・sessionStorage・indexedDB・XMLHttpRequest・WebSocket・EventSource・navigator.sendBeacon・document.cookie。' +
-  'window.・globalThis.・self. を付けても同じ)にも触れない。src/lib/ の入口に置き、I/O コンテナ(container.tsx)かその隣の hooks/ から呼んで、値は props で受け取る。' +
+  'window.・globalThis.・self. を付けても同じ)にも触れない。src/lib/ の入口に置き、I/O コンテナ(一覧のフォルダの index.tsx)かその隣の hooks/ から呼んで、値は props で受け取る。' +
   '名前だけで見るので、同じ名前の変数や引数も数える。そのときは名前を変える(ADR 0017 の D3・D4、ADR 0019)'
+const REASON_LOADER =
+  'I/O コンテナとその隣の hooks/ も、content の読み出し(src/lib/content/)へは届かない(間に lib・utils を挟んでも同じ)。content を読むのは src/app の画面のローダー' +
+  '(src/app/<名前>-screen.tsx)だけで、ローダーが読み出した値を直列化できる props にしてコンテナへ渡す。サーバのローダーを src/components の中へ戻さない' +
+  '(統合テストはブラウザで描くので、content を読むファイルを測れない。ADR 0017 の D2・ADR 0024)'
+const REASON_LOADERS =
+  '画面のローダーの対(この検査の SCREEN_LOADER_OF)が、画面のフォルダの一覧(scripts/container-dirs.mjs の SCREEN_CONTAINER_DIRS)と合わないか、' +
+  'ローダーが src/app/ の直下の <名前>-screen.tsx でないか、同じローダーを2つの画面に当てている。画面のコンテナを import してよい所を広げないため、対は画面ごとに src/app の1つだけにする(ADR 0024)'
 const REASONS = new Map([
   ['io', REASON_IO],
   ['hooks', REASON_HOOKS],
   ['screen', REASON_SCREEN],
   ['missing', REASON_MISSING],
   ['global', REASON_GLOBAL],
+  ['loader', REASON_LOADER],
 ])
 
 // 壊れたシンボリックリンクで statSync が例外を投げないよう、実体の無い入口は集める前に落とす
@@ -218,7 +243,7 @@ const isTypePlace = node =>
   (ts.isHeritageClause(node) && node.token === ts.SyntaxKind.ImplementsKeyword) ||
   (ts.isTypeNode(node) && !ts.isExpressionWithTypeArguments(node))
 
-// 1 ファイルが式の中で使う、import の要らない外の世界の入口を { name, line } で返す(規則 6)
+// 1 ファイルが式の中で使う、import の要らない外の世界の入口を { name, line } で返す(規則 5)
 const globalIoOf = source => {
   const found = []
   const add = (node, name) => {
@@ -254,9 +279,9 @@ const globalIoOf = source => {
 }
 
 // files: リポジトリ直下からのパス → 中身(import を読まないファイルは undefined)。
-// dirs: I/O コンテナを置くフォルダの一覧(screenDirs は画面、sharedDirs は横断部品)。
+// dirs: I/O コンテナを置くフォルダの一覧(screenDirs は画面、sharedDirs は横断部品)と、画面のフォルダ → ローダー(loaders)。
 // 返すのは違反の一覧と、解決できなかった import の一覧
-const checkLayers = (files, { screenDirs, sharedDirs }) => {
+const checkLayers = (files, { screenDirs, sharedDirs, loaders }) => {
   // 実行時の import だけを辺にする(型だけの import は数えない)。大域の入口もここで集める
   const edges = new Map()
   const globals = new Map()
@@ -276,25 +301,23 @@ const checkLayers = (files, { screenDirs, sharedDirs }) => {
   }
 
   const containerDirs = [...screenDirs, ...sharedDirs]
-  // I/O コンテナ(一覧の外の container.tsx は状態コンテナで、ここには数えず表示部品と同じに見る)
-  const isContainer = file => containerDirs.some(dir => file === `${dir}/${CONTAINER}`)
+  // I/O コンテナ(一覧の外のコンテナは状態コンテナで、ここには数えず表示部品と同じに見る)
+  const isContainer = file => isIoContainer(file, containerDirs)
   const inContainerHooks = file => containerDirs.some(dir => file.startsWith(`${dir}/hooks/`))
-  const isLoader = file => screenDirs.some(dir => file === `${dir}/index.tsx`)
   const isAllowed = file =>
     isContainer(file) ||
     inContainerHooks(file) ||
-    isLoader(file) ||
     file.startsWith('src/app/') ||
     file.startsWith('src/lib/') ||
     inTestsDir(file) ||
     TEST_SIDE.test(file)
-  // 画面のコンテナ → それを import してよいファイルか(同じフォルダのローダーと、画面のフォルダの下の統合テストと、
-  // 画面のフォルダの container.tsx の隣か __tests__/ の直下のフィクスチャ)
+  // 画面のコンテナ → それを import してよいファイルか(その画面のローダーと、画面のフォルダの下の統合テストと、
+  // 画面のフォルダの index.tsx の隣か __tests__/ の直下のフィクスチャ)
   const screenOwners = new Map(
     screenDirs.map(dir => [
-      `${dir}/${CONTAINER}`,
+      `${dir}/${CONTAINER_ENTRY}`,
       file =>
-        file === `${dir}/index.tsx` ||
+        file === loaders.get(dir) ||
         file === `${dir}/${CONTAINER_FIXTURE}` ||
         file === `${dir}/${TESTS_DIR}/${CONTAINER_FIXTURE}` ||
         (file.startsWith(`${dir}/`) && INTEGRATION_TEST.test(file)),
@@ -308,18 +331,25 @@ const checkLayers = (files, { screenDirs, sharedDirs }) => {
     for (const target of targets) importers.set(target, [...(importers.get(target) ?? []), file])
   }
   const nodes = [...new Set([...files.keys(), ...importers.keys()])].sort()
-  const towardIo = new Map(nodes.filter(isIo).map(node => [node, null]))
-  const queue = [...towardIo.keys()]
-  while (queue.length > 0) {
-    const node = queue.shift()
-    if (isContainer(node)) continue
-    for (const importer of importers.get(node) ?? []) {
-      if (towardIo.has(importer)) continue
-      towardIo.set(importer, node)
-      queue.push(importer)
+  const taintFrom = isSeed => {
+    const toward = new Map(nodes.filter(isSeed).map(node => [node, null]))
+    const queue = [...toward.keys()]
+    while (queue.length > 0) {
+      const node = queue.shift()
+      if (isContainer(node)) continue
+      for (const importer of importers.get(node) ?? []) {
+        if (toward.has(importer)) continue
+        toward.set(importer, node)
+        queue.push(importer)
+      }
     }
+    return toward
   }
-  const chainOf = node => (node === null ? [] : [node, ...chainOf(towardIo.get(node))])
+  // 外の世界の入口のどれかへ届くファイル(規則 1)と、content の読み出しへ届くファイル(規則 6)
+  const towardIo = taintFrom(isIo)
+  const towardContent = taintFrom(node => node.startsWith(CONTENT_DIR))
+  const chainOf = (toward, node) =>
+    node === null ? [] : [node, ...chainOf(toward, toward.get(node))]
 
   const violations = []
   for (const [file, targets] of edges) {
@@ -329,10 +359,16 @@ const checkLayers = (files, { screenDirs, sharedDirs }) => {
         violations.push({ rule: 'screen', file, target })
       }
     }
+    if (isContainer(file) || inContainerHooks(file)) {
+      const target = towardContent.get(file)
+      if (target !== undefined) {
+        violations.push({ rule: 'loader', file, target, chain: chainOf(towardContent, target) })
+      }
+    }
     if (isAllowed(file)) continue
     for (const target of targets) {
       if (towardIo.has(target) && !isContainer(target)) {
-        violations.push({ rule: 'io', file, target, chain: chainOf(target) })
+        violations.push({ rule: 'io', file, target, chain: chainOf(towardIo, target) })
       } else if (inContainerHooks(target)) {
         violations.push({ rule: 'hooks', file, target })
       }
@@ -342,15 +378,30 @@ const checkLayers = (files, { screenDirs, sharedDirs }) => {
     }
   }
   for (const dir of containerDirs) {
-    if (!files.has(`${dir}/${CONTAINER}`))
-      violations.push({ rule: 'missing', file: `${dir}/${CONTAINER}` })
+    if (!files.has(`${dir}/${CONTAINER_ENTRY}`))
+      violations.push({ rule: 'missing', file: `${dir}/${CONTAINER_ENTRY}` })
+  }
+  for (const dir of screenDirs) {
+    const loader = loaders.get(dir)
+    if (loader !== undefined && !files.has(loader))
+      violations.push({ rule: 'missing', file: loader })
   }
   return { violations, unresolved, edgeCount: [...edges.values()].flat().length }
 }
 
+// 画面のローダーの対が、画面のフォルダの一覧と同じフォルダを持ち、ローダーが src/app/<名前>-screen.tsx で重ならないか(合えば undefined)
+const loadersViolationOf = (loaders, screenDirs) => {
+  const sameDirs =
+    JSON.stringify([...loaders.keys()].sort()) === JSON.stringify([...screenDirs].sort())
+  const values = [...loaders.values()]
+  const named = values.every(loader => LOADER_NAME.test(loader))
+  const distinct = new Set(values).size === values.length
+  return sameDirs && named && distinct ? undefined : REASON_LOADERS
+}
+
 // 違反を1行の文字列にする(自己検査の照合と出力で同じ形を使う)
 const formatViolation = ({ rule, file, target, chain, line }) => {
-  if (rule === 'io') return `${file} → ${target}(届く道: ${chain.join(' → ')})`
+  if (rule === 'io' || rule === 'loader') return `${file} → ${target}(届く道: ${chain.join(' → ')})`
   if (rule === 'global') return `${file}:${line} ${target}`
   if (rule === 'missing') return file
   return `${file} → ${target}`
@@ -361,10 +412,15 @@ const keyOf = violation => `${violation.rule} ${formatViolation(violation)}`
 // ---- 自己検査 ----
 // 型だけの判定・指定子の解決・許す側の判定・染まりのたどり方・大域の名前の判定が壊れると、違反を見逃したまま「違反なし」で通る。
 // そこで違反と分かっているファイルと違反でないファイルを並べた偽の src を、実際の検査と同じ関数でメモリの上で判定し、
-// 違反の一覧(道を含む)が期待とぴったり同じでなければ落とす。コンテナの一覧も偽のものを渡す(Gone は container.tsx が無い)
+// 違反の一覧(道を含む)が期待とぴったり同じでなければ落とす。コンテナの一覧とローダーの対も偽のものを渡す
+// (Gone は index.tsx もローダーも無い。Reader は content を読む I/O コンテナ)
 const FAKE_DIRS = {
   screenDirs: ['src/components/Screen', 'src/components/Gone'],
-  sharedDirs: ['src/components/ui/Player'],
+  sharedDirs: ['src/components/ui/Player', 'src/components/ui/Reader'],
+  loaders: new Map([
+    ['src/components/Screen', 'src/app/fake-screen.tsx'],
+    ['src/components/Gone', 'src/app/gone-screen.tsx'],
+  ]),
 }
 // 大域の入口に触れる表示部品の1行ずつと、その行で数える名前
 const GLOBAL_CASES = [
@@ -403,14 +459,15 @@ const FAKE_SRC = new Map(
     // lib は許す側。入口へ届く lib を表示部品が import すると落ちる
     'src/lib/theme-label.ts': `import { readTheme } from './preferences'\nexport const label = readTheme`,
     'src/lib/village/grid.ts': 'export const grid = 0',
+    'src/lib/text.ts': `import { readContent } from './content/read'\nexport const text = readContent`,
     'src/utils/clamp.ts': 'export const clamp = () => 0',
-    // 画面: ローダー・コンテナ・隣の hooks(下のフォルダも)・テストの側は通る。大域の入口に触れても通る
-    'src/components/Screen/index.tsx': [
+    // 画面: ローダー(src/app)・コンテナ(index.tsx)・隣の hooks(下のフォルダも)・テストの側は通る。大域の入口に触れても通る
+    'src/app/fake-screen.tsx': [
       `import { readContent } from '@/lib/content/read'`,
-      `import Container from './container'`,
+      `import Container from '@/components/Screen'`,
       `const cookie = document.cookie`,
     ].join('\n'),
-    'src/components/Screen/container.tsx': [
+    'src/components/Screen/index.tsx': [
       `import { readTheme } from '@/lib/preferences'`,
       `import { useClock } from './hooks/use-clock'`,
       `import { useWeather } from './hooks/use-weather/use-weather'`,
@@ -422,18 +479,18 @@ const FAKE_SRC = new Map(
     'src/components/Screen/hooks/use-weather/use-weather.ts': `import { fetchWeather } from '@/lib/weather'`,
     'src/components/Screen/hooks/use-ui-only.ts': 'export const useUiOnly = () => 0',
     'src/components/Screen/hooks/use-saved.ts': `export const useSaved = () => localStorage.getItem('a')`,
-    // 画面のフォルダの下の統合テスト(子のコンテナのものも)・画面のフォルダのフィクスチャ(container.tsx の隣と __tests__/ の直下)は、
+    // 画面のフォルダの下の統合テスト(子のコンテナのものも)・画面のフォルダのフィクスチャ(index.tsx の隣と __tests__/ の直下)は、
     // 画面のコンテナを描いてよい。__tests__/ の中は名前を問わずテストの側で、入口・I/O コンテナの隣の hooks/・大域の入口に触れても通る
     'src/components/Screen/__tests__/open.integration.test.tsx': [
       `import { readTheme } from '@/lib/preferences'`,
       `import { useUiOnly } from '../hooks/use-ui-only'`,
-      `import Screen from '../container'`,
+      `import Screen from '@/components/Screen'`,
       `import { stepFrame } from './screen.test-helper'`,
       `globalThis.fetch = () => 0`,
     ].join('\n'),
-    'src/components/Screen/components/Panel/container.integration.test.tsx': `import Screen from '@/components/Screen/container'`,
-    'src/components/Screen/__tests__/container.fixture.ts': `import { readContent } from '@/lib/content/read'\nimport Screen from '../container'`,
-    'src/components/Screen/container.fixture.ts': `import { readContent } from '@/lib/content/read'\nimport Screen from './container'`,
+    'src/components/Screen/components/Panel/index.integration.test.tsx': `import Screen from '@/components/Screen'`,
+    'src/components/Screen/__tests__/index.fixture.ts': `import { readContent } from '@/lib/content/read'\nimport Screen from '@/components/Screen'`,
+    'src/components/Screen/index.fixture.ts': `import { readContent } from '@/lib/content/read'\nimport Screen from './index'`,
     'src/components/Screen/__tests__/screen.test-helper.ts': `import { readTheme } from '@/lib/preferences'\nexport const stepFrame = () => sessionStorage`,
     'src/components/Screen/__tests__/data.ts': `import { readTheme } from '@/lib/preferences'\nexport const store = localStorage`,
     'src/components/Screen/screen.test-helper.ts': `import { readTheme } from '@/lib/preferences'\nconst store = sessionStorage`,
@@ -442,20 +499,21 @@ const FAKE_SRC = new Map(
     'src/components/Screen/container.browser.test.tsx': [
       `import { readTheme } from '@/lib/preferences'`,
       `import { useUiOnly } from './hooks/use-ui-only'`,
-      `import Screen from './container'`,
+      `import Screen from './index'`,
       `globalThis.fetch = () => 0`,
     ].join('\n'),
-    'src/components/Screen/__tests__/render.test-helper.ts': `import Screen from '../container'`,
-    'src/components/Screen/components/Panel/container.fixture.ts': `import Screen from '../../container'`,
-    'src/components/Screen/components/Panel/__tests__/container.fixture.ts': `import Screen from '../../../container'`,
-    'src/components/Screen/__tests__/open.integration.test.ts': `import Screen from '../container'`,
-    'src/components/Gone/__tests__/open.integration.test.tsx': `import Screen from '@/components/Screen/container'`,
-    'src/components/ScreenX/__tests__/open.integration.test.tsx': `import Screen from '../../Screen/container'`,
+    'src/components/Screen/__tests__/render.test-helper.ts': `import Screen from '../index'`,
+    'src/components/Screen/components/Panel/index.fixture.ts': `import Screen from '../../index'`,
+    'src/components/Screen/components/Panel/__tests__/index.fixture.ts': `import Screen from '../../../index'`,
+    'src/components/Screen/__tests__/open.integration.test.ts': `import Screen from '@/components/Screen'`,
+    'src/components/Gone/__tests__/open.integration.test.tsx': `import Screen from '@/components/Screen'`,
+    'src/components/ScreenX/__tests__/open.integration.test.tsx': `import Screen from '../../Screen'`,
     'src/components/Screen/utils/build.test.ts': `import { parse } from '@/lib/content/parse'`,
+    // ルートはローダーを指す(画面のコンテナは型だけなら指してよい)。src/app は大域の入口に触れても通る
     'src/app/page.tsx': [
-      `import Screen from '@/components/Screen'`,
+      `import Screen from '@/app/fake-screen'`,
       `import { buildMetadata } from '@/lib/metadata'`,
-      `import type Container from '@/components/Screen/container'`,
+      `import type Container from '@/components/Screen'`,
       `const socket = new WebSocket('ws://a')`,
     ].join('\n'),
     // 表示部品で通るもの: 型だけの import・注釈の中・純粋な lib と utils・自分の UI のフック・横断部品のコンテナ
@@ -463,14 +521,14 @@ const FAKE_SRC = new Map(
       `import type { Theme } from '@/lib/preferences'`,
       `import { type Precipitation } from '@/lib/weather'`,
       `import type { UiOnly } from '../../hooks/use-ui-only'`,
-      `import type Container from '../../container'`,
+      `import type Container from '../../index'`,
       `// import { readTheme } from '@/lib/preferences'`,
       `/* import { fetchWeather } from '@/lib/weather' */`,
       `import Link from 'next/link'`,
       `import { grid } from '@/lib/village/grid'`,
       `import { clamp } from '../../../../utils/clamp'`,
       `import { useBody } from './hooks/use-body'`,
-      `import Player from '@/components/ui/Player/container'`,
+      `import Player from '@/components/ui/Player'`,
       `import styles from './body.module.css'`,
       `type Kind = typeof import('@/lib/analytics')`,
     ].join('\n'),
@@ -498,33 +556,37 @@ const FAKE_SRC = new Map(
     ].join('\n'),
     // 横断部品のコンテナを描く表示部品を、さらに表示部品が描く(コンテナの先の染まりは伝わらない)
     'src/components/Screen/components/Page/index.tsx': `import Body from '../Body'`,
-    // 横断部品のコンテナ。染まっているが、表示部品が描いてよい
-    'src/components/ui/Player/container.tsx': `import { useSources } from './hooks/use-sources'\nimport Player from './index'`,
+    // 横断部品のコンテナ(フォルダの index.tsx)。染まっているが、表示部品が描いてよい。その下の表示部品は入口に触れない
+    'src/components/ui/Player/index.tsx': `import { useSources } from './hooks/use-sources'\nimport Stack from './components/Stack'`,
     'src/components/ui/Player/hooks/use-sources.ts': `import { fetchSvgSource } from '@/lib/fetch-svg-source'`,
-    // 横断部品のフォルダの index.tsx はローダーではない(ローダーは画面のフォルダの index.tsx だけ)
-    'src/components/ui/Player/index.tsx': `import { parse } from '@/lib/content/parse'\nexport default function Player() {}`,
-    // 一覧の外の container.tsx は状態コンテナで、import の制限は表示部品と同じ。隣の index.tsx もローダーではない(どちらも表示部品と同じに見る)
-    'src/components/Screen/components/Card/container.tsx': `import { readTheme } from '@/lib/preferences'\nexport const load = () => fetch('/a')`,
-    'src/components/Screen/components/Card/index.tsx': `import Card from './container'\nimport { readContent } from '@/lib/content/read'`,
+    'src/components/ui/Player/components/Stack/index.tsx': `import { readTheme } from '@/lib/preferences'\nexport default function Stack() {}`,
+    // content を読む I/O コンテナとその hooks/(サーバのローダーを src/components の中へ戻した形)。lib を挟んでも落ちる。
+    // 外の世界のほかの入口は I/O コンテナが読んでよい
+    'src/components/ui/Reader/index.tsx': `import { readContent } from '@/lib/content/read'\nimport { readTheme } from '@/lib/preferences'`,
+    'src/components/ui/Reader/hooks/use-text.ts': `import { text } from '@/lib/text'`,
+    'src/components/ui/Reader/hooks/use-theme-label.ts': `import { label } from '@/lib/theme-label'`,
+    // 一覧の外のコンテナ(フックを使う index.tsx)は状態コンテナで、import の制限は表示部品と同じ
+    'src/components/Screen/components/Card/index.tsx': `import { readTheme } from '@/lib/preferences'\nexport const load = () => fetch('/a')`,
+    'src/components/Screen/components/Deck/index.tsx': `import Card from '../Card'\nimport { readContent } from '@/lib/content/read'`,
     // 状態コンテナで通るもの: 自分の隣の hooks/ の UI のフック・横断部品の I/O コンテナ・表示部品
-    'src/components/Screen/components/Panel/container.tsx': [
+    'src/components/Screen/components/Panel/index.tsx': [
       `import { usePanel } from './hooks/use-panel'`,
-      `import Player from '@/components/ui/Player/container'`,
+      `import Player from '@/components/ui/Player'`,
       `import Body from '../Body'`,
     ].join('\n'),
     'src/components/Screen/components/Panel/hooks/use-panel.ts': `import { useId } from 'react'`,
     // 状態コンテナで落ちるもの: 隣の hooks/ を挟んで入口へ届く(状態コンテナは染まりを先へ伝える)・I/O コンテナの隣の hooks/
-    'src/components/Screen/components/Saved/container.tsx': `import { useSaved } from './hooks/use-saved'`,
+    'src/components/Screen/components/Saved/index.tsx': `import { useSaved } from './hooks/use-saved'`,
     'src/components/Screen/components/Saved/hooks/use-saved.ts': `import { readTheme } from '@/lib/preferences'`,
-    'src/components/Screen/components/Wrap/index.tsx': `import Saved from '../Saved/container'`,
-    'src/components/Screen/components/Peek/container.tsx': `import { useUiOnly } from '../../hooks/use-ui-only'`,
+    'src/components/Screen/components/Wrap/index.tsx': `import Saved from '../Saved'`,
+    'src/components/Screen/components/Peek/index.tsx': `import { useUiOnly } from '../../hooks/use-ui-only'`,
     // どの I/O コンテナの下にも無い状態コンテナも、I/O の許しを受けない(隣の hooks/ も同じ)。
     // そのフォルダの統合テストはテストの側で通るが、画面のコンテナは描かない
-    'src/components/ui/Logo/container.tsx': `import { useLogo } from './hooks/use-logo'\nexport const load = () => fetch('/a')`,
+    'src/components/ui/Logo/index.tsx': `import { useLogo } from './hooks/use-logo'\nexport const load = () => fetch('/a')`,
     'src/components/ui/Logo/hooks/use-logo.ts': `import { readTheme } from '@/lib/preferences'`,
-    'src/components/Foo/components/Bar/container.tsx': `import { usePathname } from 'next/navigation'`,
-    'src/components/ui/Logo/__tests__/show.integration.test.tsx': `import Logo from '../container'\nimport { readTheme } from '@/lib/preferences'`,
-    'src/components/ui/Logo/__tests__/screen.integration.test.tsx': `import Screen from '@/components/Screen/container'`,
+    'src/components/Foo/components/Bar/index.tsx': `import { usePathname } from 'next/navigation'`,
+    'src/components/ui/Logo/__tests__/show.integration.test.tsx': `import Logo from '@/components/ui/Logo'\nimport { readTheme } from '@/lib/preferences'`,
+    'src/components/ui/Logo/__tests__/screen.integration.test.tsx': `import Screen from '@/components/Screen'`,
     // 表示部品で落ちるもの
     'src/components/Bad/direct.tsx': `import { readTheme } from '@/lib/preferences'`,
     'src/components/Bad/mixed.tsx': `import { readTheme, type Theme } from '@/lib/preferences'`,
@@ -544,7 +606,7 @@ const FAKE_SRC = new Map(
     'src/components/Bad/via-hook.tsx': `import { useTheme } from '@/hooks/use-theme'`,
     'src/hooks/use-theme.ts': `import { readTheme } from '@/lib/preferences'`,
     'src/components/Bad/via-sibling.tsx': `import Direct from './direct'`,
-    'src/components/Bad/via-loader.tsx': `import Screen from '@/components/Screen'`,
+    'src/components/Bad/via-loader.tsx': `import Screen from '@/app/fake-screen'`,
     'src/components/Bad/screen-hook.tsx': `import { useUiOnly } from '@/components/Screen/hooks/use-ui-only'`,
     'src/components/Bad/screen-io-hook.tsx': `import { useWeather } from '../Screen/hooks/use-weather/use-weather'`,
     'src/components/Bad/index.tsx': `import { readContent } from '@/lib/content/read'`,
@@ -553,25 +615,30 @@ const FAKE_SRC = new Map(
     'src/utils/bad.ts': `import { readTheme } from '@/lib/preferences'`,
     // テストの側(__tests__/ の中)も、入口へ届けば染まりを伝える(表示部品が隣の __tests__/ の中のものを import すると落ちる)
     'src/components/Bad/test-data.tsx': `import { store } from '../Screen/__tests__/data'`,
-    // 画面のコンテナを、そのフォルダのローダー・統合テスト・フィクスチャの外から import する(許す側でも落ちる)
-    'src/components/Bad/screen-container.tsx': `import Screen from '@/components/Screen/container'`,
-    'src/components/Bad/container.browser.test.tsx': `import Screen from '../Screen/container'`,
-    'src/app/direct.tsx': `import Screen from '@/components/Screen/container'`,
+    // 画面のコンテナを、そのローダー・統合テスト・フィクスチャの外から import する(許す側でも・ほかの画面のローダーでも落ちる)
+    'src/components/Bad/screen-container.tsx': `import Screen from '@/components/Screen'`,
+    'src/components/Bad/container.browser.test.tsx': `import Screen from '../Screen'`,
+    'src/app/direct.tsx': `import Screen from '@/components/Screen/index'`,
+    'src/app/other-screen.tsx': `import Screen from '@/components/Screen'`,
     // 大域の入口に触れる表示部品
     'src/components/Bad/global.tsx': GLOBAL_CASES.map(([line]) => line).join('\n'),
     'src/hooks/use-socket.ts': `export const useSocket = () => new WebSocket('ws://a')`,
   })
 )
 const io = (file, ...chain) => keyOf({ rule: 'io', file, target: chain[0], chain })
+const loader = (file, ...chain) => keyOf({ rule: 'loader', file, target: chain[0], chain })
 const hooks = (file, target) => keyOf({ rule: 'hooks', file, target })
 const screen = (file, target) => keyOf({ rule: 'screen', file, target })
 const globalIo = (file, line, target) => keyOf({ rule: 'global', file, target, line })
+const missingAt = file => keyOf({ rule: 'missing', file })
 const PREFERENCES = 'src/lib/preferences.ts'
-const SCREEN_CONTAINER = 'src/components/Screen/container.tsx'
-const CARD_CONTAINER = 'src/components/Screen/components/Card/container.tsx'
-const SAVED_CONTAINER = 'src/components/Screen/components/Saved/container.tsx'
+const CONTENT_READ = 'src/lib/content/read.ts'
+const CONTENT_PARSE = 'src/lib/content/parse.ts'
+const SCREEN_CONTAINER = 'src/components/Screen/index.tsx'
+const CARD_CONTAINER = 'src/components/Screen/components/Card/index.tsx'
+const SAVED_CONTAINER = 'src/components/Screen/components/Saved/index.tsx'
 const SAVED_HOOK = 'src/components/Screen/components/Saved/hooks/use-saved.ts'
-const LOGO_CONTAINER = 'src/components/ui/Logo/container.tsx'
+const LOGO_CONTAINER = 'src/components/ui/Logo/index.tsx'
 const LOGO_HOOK = 'src/components/ui/Logo/hooks/use-logo.ts'
 const EXPECTED_VIOLATIONS = [
   io('src/components/Bad/direct.tsx', PREFERENCES),
@@ -584,54 +651,54 @@ const EXPECTED_VIOLATIONS = [
   io('src/components/Bad/require.ts', PREFERENCES),
   io('src/components/Bad/navigation.tsx', 'next/navigation'),
   io('src/components/Bad/navigation-js.tsx', 'next/navigation'),
-  io('src/components/Bad/content.tsx', 'src/lib/content/parse.ts'),
+  io('src/components/Bad/content.tsx', CONTENT_PARSE),
   io('src/components/Bad/metadata.ts', 'src/lib/metadata.ts'),
   io('src/components/Bad/store.tsx', 'src/components/VillagePage/hooks/use-village-time.ts'),
   io('src/components/Bad/via-lib.tsx', 'src/lib/theme-label.ts', PREFERENCES),
   io('src/components/Bad/via-hook.tsx', 'src/hooks/use-theme.ts', PREFERENCES),
   io('src/hooks/use-theme.ts', PREFERENCES),
   io('src/components/Bad/via-sibling.tsx', 'src/components/Bad/direct.tsx', PREFERENCES),
-  io(
-    'src/components/Bad/via-loader.tsx',
-    'src/components/Screen/index.tsx',
-    'src/lib/content/read.ts'
-  ),
+  io('src/components/Bad/via-loader.tsx', 'src/app/fake-screen.tsx', CONTENT_READ),
   hooks('src/components/Bad/screen-hook.tsx', 'src/components/Screen/hooks/use-ui-only.ts'),
   io(
     'src/components/Bad/screen-io-hook.tsx',
     'src/components/Screen/hooks/use-weather/use-weather.ts',
     'src/lib/weather.ts'
   ),
-  io('src/components/Bad/index.tsx', 'src/lib/content/read.ts'),
+  io('src/components/Bad/index.tsx', CONTENT_READ),
   io('src/components/Bad/hooks/use-bad.ts', 'src/lib/weather.ts'),
   io('src/components/Screen/components/Deep/hooks/use-deep.ts', PREFERENCES),
   io('src/utils/bad.ts', PREFERENCES),
   io('src/components/Bad/test-data.tsx', 'src/components/Screen/__tests__/data.ts', PREFERENCES),
-  io('src/components/ui/Player/index.tsx', 'src/lib/content/parse.ts'),
+  io('src/components/ui/Player/components/Stack/index.tsx', PREFERENCES),
+  loader('src/components/ui/Reader/index.tsx', CONTENT_READ),
+  loader('src/components/ui/Reader/hooks/use-text.ts', 'src/lib/text.ts', CONTENT_READ),
   io(CARD_CONTAINER, PREFERENCES),
   globalIo(CARD_CONTAINER, 2, 'fetch'),
-  io('src/components/Screen/components/Card/index.tsx', CARD_CONTAINER, PREFERENCES),
-  io('src/components/Screen/components/Card/index.tsx', 'src/lib/content/read.ts'),
+  io('src/components/Screen/components/Deck/index.tsx', CARD_CONTAINER, PREFERENCES),
+  io('src/components/Screen/components/Deck/index.tsx', CONTENT_READ),
   io(SAVED_HOOK, PREFERENCES),
   io(SAVED_CONTAINER, SAVED_HOOK, PREFERENCES),
   io('src/components/Screen/components/Wrap/index.tsx', SAVED_CONTAINER, SAVED_HOOK, PREFERENCES),
   hooks(
-    'src/components/Screen/components/Peek/container.tsx',
+    'src/components/Screen/components/Peek/index.tsx',
     'src/components/Screen/hooks/use-ui-only.ts'
   ),
   io(LOGO_HOOK, PREFERENCES),
   io(LOGO_CONTAINER, LOGO_HOOK, PREFERENCES),
   globalIo(LOGO_CONTAINER, 2, 'fetch'),
-  io('src/components/Foo/components/Bar/container.tsx', 'next/navigation'),
+  io('src/components/Foo/components/Bar/index.tsx', 'next/navigation'),
   screen('src/components/ui/Logo/__tests__/screen.integration.test.tsx', SCREEN_CONTAINER),
-  keyOf({ rule: 'missing', file: 'src/components/Gone/container.tsx' }),
+  missingAt('src/components/Gone/index.tsx'),
+  missingAt('src/app/gone-screen.tsx'),
   screen('src/components/Bad/screen-container.tsx', SCREEN_CONTAINER),
   screen('src/components/Bad/container.browser.test.tsx', SCREEN_CONTAINER),
   screen('src/app/direct.tsx', SCREEN_CONTAINER),
+  screen('src/app/other-screen.tsx', SCREEN_CONTAINER),
   screen('src/components/Screen/container.browser.test.tsx', SCREEN_CONTAINER),
   screen('src/components/Screen/__tests__/render.test-helper.ts', SCREEN_CONTAINER),
-  screen('src/components/Screen/components/Panel/container.fixture.ts', SCREEN_CONTAINER),
-  screen('src/components/Screen/components/Panel/__tests__/container.fixture.ts', SCREEN_CONTAINER),
+  screen('src/components/Screen/components/Panel/index.fixture.ts', SCREEN_CONTAINER),
+  screen('src/components/Screen/components/Panel/__tests__/index.fixture.ts', SCREEN_CONTAINER),
   screen('src/components/Screen/__tests__/open.integration.test.ts', SCREEN_CONTAINER),
   screen('src/components/Gone/__tests__/open.integration.test.tsx', SCREEN_CONTAINER),
   screen('src/components/ScreenX/__tests__/open.integration.test.tsx', SCREEN_CONTAINER),
@@ -640,6 +707,60 @@ const EXPECTED_VIOLATIONS = [
   ),
   globalIo('src/hooks/use-socket.ts', 1, 'WebSocket'),
 ].sort()
+// [ローダーの対, 画面のフォルダ, 期待する理由]。画面のフォルダが足りない・余る・ローダーが src/app の <名前>-screen.tsx でない・重なるのは落ちる
+const SCREEN_DIRS = ['src/components/A', 'src/components/B']
+const LOADER_CASES = [
+  [
+    new Map([
+      ['src/components/A', 'src/app/a-screen.tsx'],
+      ['src/components/B', 'src/app/b-page-screen.tsx'],
+    ]),
+    SCREEN_DIRS,
+    undefined,
+  ],
+  [new Map([['src/components/A', 'src/app/a-screen.tsx']]), SCREEN_DIRS, REASON_LOADERS],
+  [
+    new Map([
+      ['src/components/A', 'src/app/a-screen.tsx'],
+      ['src/components/B', 'src/app/b-screen.tsx'],
+      ['src/components/C', 'src/app/c-screen.tsx'],
+    ]),
+    SCREEN_DIRS,
+    REASON_LOADERS,
+  ],
+  [
+    new Map([
+      ['src/components/A', 'src/app/a-screen.tsx'],
+      ['src/components/B', 'src/components/B/loader-screen.tsx'],
+    ]),
+    SCREEN_DIRS,
+    REASON_LOADERS,
+  ],
+  [
+    new Map([
+      ['src/components/A', 'src/app/a-screen.tsx'],
+      ['src/components/B', 'src/app/x/b-screen.tsx'],
+    ]),
+    SCREEN_DIRS,
+    REASON_LOADERS,
+  ],
+  [
+    new Map([
+      ['src/components/A', 'src/app/a-screen.tsx'],
+      ['src/components/B', 'src/app/b.tsx'],
+    ]),
+    SCREEN_DIRS,
+    REASON_LOADERS,
+  ],
+  [
+    new Map([
+      ['src/components/A', 'src/app/a-screen.tsx'],
+      ['src/components/B', 'src/app/a-screen.tsx'],
+    ]),
+    SCREEN_DIRS,
+    REASON_LOADERS,
+  ],
+]
 // 解決できない import は、見逃さないよう違反とは別に必ず拾う
 const FAKE_UNRESOLVED = new Map(
   Object.entries({
@@ -662,6 +783,15 @@ const fakeUnresolved = checkLayers(FAKE_UNRESOLVED, FAKE_DIRS).unresolved.map(
   ({ file, specifier }) => `${file} ${specifier}`
 )
 const selfCheckFailures = [
+  // 本物のローダーの対が、画面のフォルダの一覧と合わない
+  ...(loadersViolationOf(SCREEN_LOADER_OF, SCREEN_CONTAINER_DIRS) === undefined
+    ? []
+    : [`画面のローダーの対 ${JSON.stringify([...SCREEN_LOADER_OF])}: ${REASON_LOADERS}`]),
+  ...LOADER_CASES.filter(
+    ([loaders, dirs, expected]) => loadersViolationOf(loaders, dirs) !== expected
+  ).map(
+    ([loaders, , expected]) => `ローダーの対の判定 ${JSON.stringify([...loaders])} → ${expected}`
+  ),
   ...EXPECTED_VIOLATIONS.filter(line => !fakeViolations.includes(line)).map(
     line => `拾うべき違反を拾わない: ${line}`
   ),
@@ -715,6 +845,7 @@ const containerCount = SCREEN_CONTAINER_DIRS.length + SHARED_CONTAINER_DIRS.leng
 const { violations, unresolved, edgeCount } = checkLayers(files, {
   screenDirs: SCREEN_CONTAINER_DIRS,
   sharedDirs: SHARED_CONTAINER_DIRS,
+  loaders: SCREEN_LOADER_OF,
 })
 
 if (unresolved.length > 0) {
@@ -734,5 +865,5 @@ if (violations.length > 0) {
 }
 
 console.log(
-  `check-layers: src のファイル ${files.size} 件(import ${edgeCount} 本)と I/O コンテナの一覧 ${containerCount} か所を検査 — 違反なし`
+  `check-layers: src のファイル ${files.size} 件(import ${edgeCount} 本)と I/O コンテナの一覧 ${containerCount} か所・画面のローダー ${SCREEN_LOADER_OF.size} 本を検査 — 違反なし`
 )

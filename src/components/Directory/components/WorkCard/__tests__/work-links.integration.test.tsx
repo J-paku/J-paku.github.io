@@ -1,13 +1,13 @@
 // 作品カード(状態コンテナ)の、下部パネルのリンク(WorkLinks)の統合テスト(Vitest Browser Mode)。
 // カードを実際の Chromium で、フック・子と一緒に描き(ADR 0016)、事実のパネルに並ぶ外部リンクとストーリーへの常設の入口の出し分けを、
 // 利用者に見える形(role・名前・行き先・要素の有無)で確かめる。
-// props は一覧の container.fixture.ts が node で組んで provide した作品・文言を inject で受け取る。
+// props は一覧の index.fixture.ts が node で組んで provide した作品・文言を inject で受け取る。
 // 実データに無い形(リンクを持たない作品など)は、作品の写しを変えてテストが直接渡す
 import { cleanup, render, within } from '@testing-library/react'
 import type { Work } from '@content/types/content'
 // 部品と同じ CSS Modules を import すれば、部品と同じクラス名が引ける
 import workLinksStyles from '@/components/Directory/components/WorkCard/components/WorkLinks/work-links.module.css'
-import WorkCard from '@/components/Directory/components/WorkCard/container'
+import WorkCard from '@/components/Directory/components/WorkCard'
 import {
   cardProps,
   directoryJa,

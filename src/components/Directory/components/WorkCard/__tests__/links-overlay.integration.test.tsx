@@ -3,14 +3,14 @@
 // 一時停止ボタンの出し分けを、利用者に見える形(role・名前・aria-*・行き先・要素の有無)で確かめる。
 // CSS も Vite が実際に当てるので、押せるかどうかは本物の重なりで決まる。
 // タッチ端末かどうかの問い合わせだけを差し替える(directory.test-helper.ts の viewAsTouch)。
-// props は一覧の container.fixture.ts が node で組んで provide した作品・文言を inject で受け取る。
+// props は一覧の index.fixture.ts が node で組んで provide した作品・文言を inject で受け取る。
 // 実データに無い形(リンクを持たない作品など)は、作品の写しを変えてテストが直接渡す
 import { cleanup, render, within } from '@testing-library/react'
 import { userEvent } from 'vitest/browser'
 import type { Work } from '@content/types/content'
 // 部品と同じ CSS Modules を import すれば、部品と同じクラス名が引ける
 import shotStyles from '@/components/Directory/components/WorkCard/components/Shot/shot.module.css'
-import WorkCard from '@/components/Directory/components/WorkCard/container'
+import WorkCard from '@/components/Directory/components/WorkCard'
 import {
   cardProps,
   directoryJa,

@@ -1,14 +1,14 @@
 // 作品カード(状態コンテナ)の、交差を観察できるかどうか(use-reveal・use-fully-visible)の統合テスト(Vitest Browser Mode)。
 // カードを実際の Chromium で、フック・子と一緒に描き(ADR 0016)、画面に入るまでカードを隠して写真を灰色のままにし、
 // 入ると表示して色を戻すことと、書き出す HTML へのハイドレーションで枠を作り直さないことを、クラスと要素の同一性で確かめる。
-// props は一覧の container.fixture.ts が node で組んで provide した作品・文言を inject で受け取る
+// props は一覧の index.fixture.ts が node で組んで provide した作品・文言を inject で受け取る
 import { cleanup, render } from '@testing-library/react'
 import { renderToString } from 'react-dom/server'
 import { onTestFinished } from 'vitest'
 // 部品と同じ CSS Modules を import すれば、部品と同じクラス名が引ける
 import cardStyles from '@/components/Directory/components/WorkCard/work-card.module.css'
 import shotStyles from '@/components/Directory/components/WorkCard/components/Shot/shot.module.css'
-import WorkCard from '@/components/Directory/components/WorkCard/container'
+import WorkCard from '@/components/Directory/components/WorkCard'
 import {
   belowFold,
   cardOf,

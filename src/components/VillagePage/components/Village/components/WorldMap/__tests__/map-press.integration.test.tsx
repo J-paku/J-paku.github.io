@@ -3,7 +3,7 @@
 import { cleanup, render } from '@testing-library/react'
 import { inject } from 'vitest'
 import { page } from 'vitest/browser'
-import WorldMap from '@/components/VillagePage/components/Village/components/WorldMap/container'
+import WorldMap from '@/components/VillagePage/components/Village/components/WorldMap'
 import {
   cellAwayFromSpots,
   cellPosition,
