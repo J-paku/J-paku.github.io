@@ -347,7 +347,8 @@ I/O コンテナの一覧は `scripts/container-dirs.mjs`(画面の3つと横断
 - I/O コンテナの6つの一覧(`scripts/container-dirs.mjs`)を変える(7つめを足すなど)。検査の自己検査が6つのパスを固定しているので、自己検査が落ちる。一覧を変えるには ADR が要る
 - 状態コンテナのフォルダに `index.tsx` がある(フォルダの名前で import できてしまう `index.ts`・`index.d.ts`・`index.js`・`index.jsx` も。I/O コンテナの6つのフォルダは今の形のまま許す)
 - 状態コンテナが外の世界の入口を import する
-- `container.fixture.ts` を I/O コンテナの6つのフォルダ(その `__tests__` の下か `container.tsx` の隣)の外に置く
+- 統合テストか `__tests__` の中のファイルが import する `*.test-helper.ts`・`*.fixture.ts`(部品が import する部品も)を、コンテナのフォルダの `__tests__` の下と `container.tsx` の隣の外に置く(単体テストだけが使う部品は、今までどおりそのテストの隣)。
+  `container.fixture.ts` を I/O コンテナの6つのフォルダ(その `__tests__` の下か `container.tsx` の隣)の外に置く
 - 統合テストの外(`*.test.ts`・`*.test-helper.ts`・`*.fixture.ts`。`__tests__` の下の部品も)がコンポーネントを描く道具(`@testing-library/react`・`react-dom` とその下。型だけの import も)を import する
 
 統合テストの外で描く道具を落とすのは、happy-dom でコンポーネントを描くと、名前を `*.test.ts` にするだけで置き場の決まりをすり抜けるため

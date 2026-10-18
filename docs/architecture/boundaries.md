@@ -119,6 +119,8 @@ ESLint の `no-restricted-imports` はファイル1つずつの指定子しか�
   I/O コンテナの6つのフォルダは今の形のまま許す(画面の3つの `index.tsx` はローダー、`src/components/ui/ScenePlayer/index.tsx` はコンテナが描く表示部品)
 - 状態コンテナが外の世界の入口を import する(上の「外の世界に触れてよい所」)
 - `container.fixture.ts` が、I/O コンテナの6つのフォルダ(その `__tests__` の中か `container.tsx` の隣)のほかの所にある
+- 統合テストか `__tests__` の中のファイルが import する `*.test-helper.ts`・`*.fixture.ts`(部品が import する部品も)が、コンテナのフォルダの `__tests__` の中と `container.tsx` の隣のほかの所にある。
+  単体テストだけが使う部品は、今までどおりそのテストの隣に置く
 - 統合テストの外のテストの側(`*.test.ts`・`*.test-helper.ts`・`*.fixture.ts`。`__tests__` の中も)が、コンポーネントを描く道具(`@testing-library/react`・`react-dom` とその下)を import する
 
 ### 型の正本が下の層にあるとき

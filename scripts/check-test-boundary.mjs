@@ -34,6 +34,9 @@
 //   - container.fixture.ts は、I/O コンテナ(scripts/container-dirs.mjs の一覧。check-layers.mjs と同じもの)のフォルダの
 //     container.tsx の隣か、そのフォルダの __tests__/ の直下にだけ置ける。統合の設定が src の下の container.fixture.ts を
 //     全部 globalSetup に入れるので、ほかの所に置くと黙って走る
+//   - 統合テストの側(*.integration.test.tsx と __tests__/ の中のコード)が import するテストの部品・フィクスチャ
+//     (*.test-helper.ts・*.fixture.ts。部品が import する部品もたどる)は、コンテナのフォルダの __tests__/ の直下か
+//     container.tsx の隣にだけ置ける。src の単体テスト(*.test.ts)だけが使う部品は、今のまま対象の隣に置ける
 //   - container.tsx は src/components/<名前>/ か src/components/ui/<名前>/ の下にだけ置ける(src/components/ の外と、
 //     src/components/・src/components/ui/ の直下には置かない)。check-layers.mjs は src/app/・src/lib/ を許す側として見るので、
 //     そこにコンテナを置くと、外の世界に触れるのは I/O コンテナの6つだけという決まりをすり抜ける
@@ -41,7 +44,8 @@
 //   - 状態コンテナ(I/O コンテナの一覧の外の container.tsx)のフォルダには index.tsx を置かない(フォルダの名前で import できてしまう
 //     index.ts・index.d.ts・index.js・index.jsx も)。import する側は …/<名前>/container を直接指す。
 //     I/O コンテナの6つのフォルダは今の形のまま(画面の3つの index.tsx はローダー、横断部品の index.tsx はコンテナが描く表示部品)
-// 部品(*.test-helper.ts)を、それを使うコンテナを囲む一番近いコンテナの側に置いているかは見ない(import の向きは check-layers.mjs も見ない)。
+// 部品(*.test-helper.ts)を、それを使うコンテナを囲む一番近いコンテナの側に置いているかまでは見ない
+// (コンテナのフォルダにあるかだけを見る。import の向きは check-layers.mjs も見ない)。
 // 状態コンテナが外の世界の入口を import しないことは check-layers.mjs が見る。
 // import は scripts/read-imports.mjs で構文木から読む(注釈・文字列の中は数えない)。
 //
@@ -174,6 +178,10 @@ const REASON_FIXTURE_PLACE =
   'container.fixture.ts を置けるのは、I/O コンテナの6つ(scripts/container-dirs.mjs の一覧)のフォルダの container.tsx の隣か、そのフォルダの __tests__/ の直下だけ。' +
   '統合の設定(vitest.integration.config.ts)が src の下の container.fixture.ts を全部 globalSetup に入れるので、ほかの所に置くと黙って走る。' +
   'src の単体テストが読むデータなら、対象の隣に別の名前の *.fixture.ts で置く(ADR 0022)'
+const REASON_SUPPORT_PLACE =
+  '統合テストの側(*.integration.test.tsx と __tests__/ の中のファイル)が import するテストの部品・フィクスチャ(*.test-helper.ts・*.fixture.ts。部品が import する部品も)は、' +
+  'コンテナのフォルダ(container.tsx のあるフォルダ)の __tests__/ の直下か container.tsx の隣にだけ置ける(表示部品・utils・lib などのフォルダには置かない)。' +
+  'いくつかのコンテナのテストが一緒に使う部品は、そのコンテナたちを囲む一番近いコンテナの側に置く。src の単体テスト(*.test.ts)だけが使う部品なら、対象の隣のままでよい(ADR 0022)'
 const REASON_CONTAINER_PLACE =
   'コンテナ(container.tsx)は src/components/<名前>/ か src/components/ui/<名前>/ の下にだけ置ける(src/components/ の外と、src/components/・src/components/ui/ の直下には置かない)。' +
   'src/app/・src/lib/ は import の検査(check-layers.mjs)が外の世界の入口を import してよい側として見るので、そこにコンテナを置くと、外の世界に触れるのは I/O コンテナの6つだけという決まりをすり抜ける。' +
@@ -300,6 +308,38 @@ const importViolationOf = (file, code, containerDirs) => {
   return renders ? REASON_UNIT_RENDER : undefined
 }
 
+// 統合テストの側のファイル(統合テストと、__tests__/ の中のコード)から import でたどれるテストの部品・フィクスチャ。
+// 部品が import する部品もたどる(container.tsx の隣の部品が読む部品も、統合テストの側の部品)。
+// 指定子は importTargetOf で解き(@/ と相対パス)、.ts を付けて作業ツリーにあるものだけを数える。型だけの import も数える
+const integrationSupportsOf = (files, readCode) => {
+  const fileSet = new Set(files)
+  const found = new Set()
+  const visit = file => {
+    const supports = importsOf(parseSource(file, readCode(file))).flatMap(({ specifier }) => {
+      const target = importTargetOf(file, specifier)
+      return target === undefined ? [] : [`${target}.ts`]
+    })
+    for (const support of supports) {
+      if (found.has(support) || !TEST_SUPPORT.test(support) || !fileSet.has(support)) continue
+      found.add(support)
+      visit(support)
+    }
+  }
+  files
+    .filter(file => CODE_FILE.test(file) && (INTEGRATION_TEST.test(file) || inTestsDir(file)))
+    .forEach(visit)
+  return found
+}
+
+// 統合テストの側が import する部品・フィクスチャの置き場の違反の理由(違反でなければ undefined)。
+// 置けるのはコンテナのフォルダの __tests__/ の直下か container.tsx の隣で、どちらも ownerDirOf がコンテナのフォルダになる
+// (__tests__/ の下のフォルダとコンテナのフォルダでない所の __tests__/ は、先に testsDirViolationOf が落とす)。
+// containerDirs は placementViolationOf と同じ、integrationSupports は integrationSupportsOf の結果
+const supportPlaceViolationOf = (file, containerDirs, integrationSupports) =>
+  integrationSupports.has(file) && !containerDirs.has(ownerDirOf(file))
+    ? REASON_SUPPORT_PLACE
+    : undefined
+
 // 1 ファイルのパスの途中にある hooks/ フォルダ(src/a/hooks/b/hooks/use-c.ts なら src/a/hooks と src/a/hooks/b/hooks)
 const hooksDirsInPath = file => {
   const parts = file.split('/').slice(0, -1)
@@ -394,15 +434,17 @@ const isPerFileTarget = file =>
 
 // 全体の検査。files は src とリポジトリ直下の __tests__/ のファイル、nameOnlyFiles は名前だけを見るファイル(tests/ の統合テストに見える名前)、
 // ioDirs は I/O コンテナのフォルダの一覧。
-// 1 ファイル 1 件で数える。hooks/ と renderHook の理由を先に出し、無ければ置き場、その次に中身の import(コードのときだけ)、
-// 最後に __tests__/ の中の名前を見る。名前より import を先に見るのは、__tests__/ の部品の名前を直しただけで
-// 描く道具の import が残るのを、最初の報告で分かるようにするため。返すのは { file, reason } の一覧
+// 1 ファイル 1 件で数える。hooks/ と renderHook の理由を先に出し、無ければ置き場(統合テストの側の部品の置き場も)、
+// その次に中身の import(コードのときだけ)、最後に __tests__/ の中の名前を見る。名前より import を先に見るのは、
+// __tests__/ の部品の名前を直しただけで描く道具の import が残るのを、最初の報告で分かるようにするため。返すのは { file, reason } の一覧
 const checkTree = (files, nameOnlyFiles, ioDirs, readCode) => {
   const layout = layoutOf(files, ioDirs)
+  const integrationSupports = integrationSupportsOf(files, readCode)
   const perFile = files.filter(isPerFileTarget).flatMap(file => {
     const reason =
       (TEST_FILE.test(file) ? violationOf(file, () => readCode(file)) : supportViolationOf(file)) ??
       placementViolationOf(file, layout) ??
+      supportPlaceViolationOf(file, layout.containerDirs, integrationSupports) ??
       (CODE_FILE.test(file)
         ? importViolationOf(file, readCode(file), layout.containerDirs)
         : undefined) ??
@@ -602,6 +644,30 @@ const FAKE_TREE = new Map(
     // 状態コンテナの下の表示部品・入口でない index.* は通り、状態コンテナのフォルダの index.tsx・index.ts は落ちる
     'src/components/Screen/components/StoryBody/index.tsx': '',
     'src/components/ui/Badge/index.ts': '',
+    // 統合テストの側が import する部品・フィクスチャ: コンテナのフォルダの __tests__/ の中と container.tsx の隣は通り
+    // (自分のでないコンテナのものも)、表示部品の隣・lib のものは落ちる。__tests__/ の中の部品と、container.tsx の隣の部品が
+    // import するものも同じ(部品から部品へたどる)
+    'src/components/Screen/__tests__/helpers.integration.test.tsx': [
+      `import Screen from '../container'`,
+      `import { step } from './screen.test-helper'`,
+      `import type { Data } from './container.fixture'`,
+      `import { tab } from '../components/Tabs/__tests__/tabs.test-helper'`,
+      `import { play } from '@/components/ui/Player/player.test-helper'`,
+      `import { near } from '../near.test-helper'`,
+      `import { shot } from '../components/Shot/shot.test-helper'`,
+      `import { fly } from '@/lib/flight.test-helper'`,
+    ].join('\n'),
+    'src/components/Screen/near.test-helper.ts': `export { lamp } from '../../lib/lamp.test-helper'`,
+    'src/components/Screen/__tests__/walk.test-helper.ts': `import { route } from '@/lib/route.fixture'`,
+    'src/components/Screen/components/Shot/index.tsx': '',
+    'src/components/Screen/components/Shot/shot.test-helper.ts': '',
+    'src/lib/flight.test-helper.ts': '',
+    'src/lib/lamp.test-helper.ts': '',
+    'src/lib/route.fixture.ts': '',
+    // 単体テストだけが使う部品は、表示部品・utils・lib のフォルダに置いても通る
+    'src/lib/sprites.test.ts': `import { sprites } from './sprites.fixture'\nimport { decode } from './png.test-helper'`,
+    'src/components/Screen/utils/walk-loop/tick.test.ts': `import { frame } from './walk-loop.test-helper'`,
+    'src/components/Screen/utils/walk-loop/walk-loop.test-helper.ts': '',
   })
 )
 const FAKE_NAME_ONLY = ['tests/a.integration.test.tsx', 'tests/b.browser.test.ts']
@@ -662,6 +728,10 @@ const EXPECTED_TREE = [
   at('src/lib/hooks/', REASON_LONELY_HOOKS),
   at('src/components/Screen/components/StoryBody/index.tsx', REASON_STATE_INDEX),
   at('src/components/ui/Badge/index.ts', REASON_STATE_INDEX),
+  at('src/components/Screen/components/Shot/shot.test-helper.ts', REASON_SUPPORT_PLACE),
+  at('src/lib/flight.test-helper.ts', REASON_SUPPORT_PLACE),
+  at('src/lib/lamp.test-helper.ts', REASON_SUPPORT_PLACE),
+  at('src/lib/route.fixture.ts', REASON_SUPPORT_PLACE),
 ].sort()
 // コンテナを置けない所の container.tsx(対のファイルがあっても、落ちるのは container.tsx の1件だけ)。上の偽の作業ツリーに入れると
 // src/components がコンテナのフォルダになり、そこの __tests__/ の例の意味が変わるので分ける。I/O コンテナの一覧は空で見る

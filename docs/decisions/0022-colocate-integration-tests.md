@@ -120,7 +120,8 @@ Accepted(2026-10-18、利用者の決定)。統合テスト(`*.integration.test.
   - コンテナのフォルダでない所の `__tests__` か、`__tests__` の下のフォルダに、ファイルがある(統合テストに限らず、中のどのファイルでも)
   - 1つのコンテナのフォルダに、対のファイルと `__tests__` が両方ある(`__tests__` の中が部品だけでも)。`__tests__` の下の統合テストが1本だけ
   - `container.tsx` に統合テストが1本も無い。統合テストが自分のフォルダのコンテナを(型だけでなく)import していない
-  - `container.fixture.ts` が I/O コンテナの6つのフォルダ(その `__tests__` の下か `container.tsx` の隣)の外にある
+  - 統合テストか `__tests__` の中のファイルが import する `*.test-helper.ts`・`*.fixture.ts`(部品が import する部品も)が、コンテナのフォルダの `__tests__` の下と `container.tsx` の隣の外にある
+    (単体テストだけが使う部品は、今までどおりそのテストの隣)。`container.fixture.ts` が I/O コンテナの6つのフォルダの外にある
   - `__tests__` の下に、`*.integration.test.tsx`・`*.test-helper.ts`・`container.fixture.ts`・`*.md` のほかの名前のファイルがある
   - リポジトリ直下に `__tests__` がある
   - `container.tsx` が `src/components/<名前>/`(`ui` の下は `src/components/ui/<名前>/`)の下の外にある(`src/app/`・`src/lib/` など、`src/components/`・`src/components/ui/` の直下。上の6)
