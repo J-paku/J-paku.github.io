@@ -5,7 +5,7 @@ read_when:
   - コンテナ(`container.tsx`)と表示部品の分け方と、外の世界に触れてよい所を問われたとき
   - 統合テストをどこに置き、どう名付け、どう分けるかを問われたとき
 source_of_truth: false
-last_reviewed: 2026-10-17
+last_reviewed: 2026-10-18
 ---
 
 # 0019. フックを1つでも呼ぶコンポーネントをコンテナ(`container.tsx`)にし、統合テストをリポジトリ直下の `__tests__` に動作ごとに分けて置く
@@ -25,6 +25,13 @@ Accepted(2026-10-17、利用者の決定)。2つの段階で入れ、2つとも�
 0017 の D2(画面のローダー)・D3 の外の世界の入口の一覧・D4(外の世界の import を書いてよい所)・D6(統合テストの約束)・D7、
 `hooks`フォルダに単体テストを置かない・どのテストでも`renderHook`を使わない([0011](0011-extreme-constraints.md))、
 フックのファイル別100%と、統合テストで届かない行だけを E2E を名指しする注釈で外す決まり(0018)は変えない
+
+一部を [0022](0022-colocate-integration-tests.md) が置き換えた(2026-10-18。下の Decision の「テストの置き場」のうち、統合テストをリポジトリ直下の `__tests__` に置き、
+unit(`src/components/` の下のフォルダの道を kebab-case にしたもの)と状態コンテナの名前の kebab-case のフォルダで分ける部分と、`container.fixture.ts`・統合テストの部品の置き場は、
+統合テストを `container.tsx` のあるフォルダに置き、1本なら隣の `container.integration.test.tsx`、2本以上ならそのフォルダの `__tests__` に置く形に替わった。
+「機械が守らせる所」のうちその置き場に合わせた検査と、テストを見る道具を `__tests__` へ向けた部分も替わった。
+「カバレッジ」の「表示部品は、今までどおり全体の床にだけ入る」は、表示部品もファイル別100%にする形に替わった(門は 0022 の後の commit で掛ける)。
+コンテナの定義・ファイルの形・コンテナごとに統合テストが1本以上あること・フックとコンテナのファイル別100%・`hooks`フォルダにテストを置かない・どのテストでも`renderHook`を使わないは、この記録のまま)
 
 ## Context
 
@@ -86,8 +93,8 @@ E2E の `tests/` はそのまま。単体テスト(utils・lib の隣の `*.test
   `<unit>` は `src/components/` の下のフォルダのパスを kebab-case にしたもので、`story`・`directory`・`village-page`・`ui/settings-menu`・`ui/pageview-counter`・`ui/scene-player` の6つ。
   I/O コンテナ自身のテストは、そのフォルダの直下に置く
 - **状態コンテナのフォルダ** — `__tests__/<unit>/<kebab(Name)>/`。`<unit>` はその状態コンテナを囲む一番近い I/O コンテナ、`Name` は状態コンテナのフォルダの名前。
-  例えば StoryBody(`src/components/Story/components/StoryBody/`)は `__tests__/story/story-body/`、場面の再生の SceneSvg は `__tests__/ui/scene-player/scene-svg/`、
-  設定メニューの SettingsMenuPanel は `__tests__/ui/settings-menu/settings-menu-panel/`。1つの unit の中で名前は重ならない
+  例えば StoryBody(`src/components/Story/components/StoryBody/`)は `__tests__/story/story-body`、場面の再生の SceneSvg は `__tests__/ui/scene-player/scene-svg`、
+  設定メニューの SettingsMenuPanel は `__tests__/ui/settings-menu/settings-menu-panel`。1つの unit の中で名前は重ならない
 - **I/O コンテナの6つの外にある状態コンテナ** — 囲む I/O コンテナが無いので、自分で unit になる(利用者の決定)。unit は、その状態コンテナが入っている一番上のコンポーネントのフォルダで、
   `src/components/<Name>/` の下なら `__tests__/<kebab(Name)>/`、`src/components/ui/<Name>/` の下なら `__tests__/ui/<kebab(Name)>/`。
   その一番上のフォルダ自身の `container.tsx` のテストは unit のフォルダの直下に、それより深い状態コンテナは `__tests__/<unit>/<kebab(Name)>/` に置く。
@@ -151,22 +158,22 @@ E2E の `tests/` はそのまま。単体テスト(utils・lib の隣の `*.test
 **1つめの段階(この記録と同じ作業)。** 次の8つの部品のフォルダの `index.tsx` を `container.tsx` へ変え、状態コンテナにする。
 設定メニューの SettingsMenuView は、利用者の決定で名前を SettingsMenuPanel に変える(フォルダの名前も変える)。
 
-| 部品                                             | フォルダ                                                       | 統合テストのフォルダ                              |
-| ------------------------------------------------ | -------------------------------------------------------------- | ------------------------------------------------- |
-| StoryBody                                        | `src/components/Story/components/StoryBody/`                   | `__tests__/story/story-body/`                     |
-| SceneModal                                       | `src/components/Story/components/SceneModal/`                  | `__tests__/story/scene-modal/`                    |
-| SceneSection                                     | `src/components/Story/components/SceneSection/`                | `__tests__/story/scene-section/`                  |
-| TechChipPopover                                  | `src/components/Story/components/TechChipPopover/`             | `__tests__/story/tech-chip-popover/`              |
-| IntroPreview                                     | `src/components/Story/components/IntroPreview/`                | `__tests__/story/intro-preview/`                  |
-| WorkCard                                         | `src/components/Directory/components/WorkCard/`                | `__tests__/directory/work-card/`                  |
-| SceneSvg                                         | `src/components/ui/ScenePlayer/components/SceneSvg/`           | `__tests__/ui/scene-player/scene-svg/`            |
-| SettingsMenuPanel(もとの名前は SettingsMenuView) | `src/components/ui/SettingsMenu/components/SettingsMenuPanel/` | `__tests__/ui/settings-menu/settings-menu-panel/` |
+| 部品                                             | フォルダ                                                       | 統合テストのフォルダ                             |
+| ------------------------------------------------ | -------------------------------------------------------------- | ------------------------------------------------ |
+| StoryBody                                        | `src/components/Story/components/StoryBody/`                   | `__tests__/story/story-body`                     |
+| SceneModal                                       | `src/components/Story/components/SceneModal/`                  | `__tests__/story/scene-modal`                    |
+| SceneSection                                     | `src/components/Story/components/SceneSection/`                | `__tests__/story/scene-section`                  |
+| TechChipPopover                                  | `src/components/Story/components/TechChipPopover/`             | `__tests__/story/tech-chip-popover`              |
+| IntroPreview                                     | `src/components/Story/components/IntroPreview/`                | `__tests__/story/intro-preview`                  |
+| WorkCard                                         | `src/components/Directory/components/WorkCard/`                | `__tests__/directory/work-card`                  |
+| SceneSvg                                         | `src/components/ui/ScenePlayer/components/SceneSvg/`           | `__tests__/ui/scene-player/scene-svg`            |
+| SettingsMenuPanel(もとの名前は SettingsMenuView) | `src/components/ui/SettingsMenu/components/SettingsMenuPanel/` | `__tests__/ui/settings-menu/settings-menu-panel` |
 
 村でない5本の `container.browser.test.tsx` は、動作ごとに分けて `__tests__/<unit>/` の下へ移す。
-村の1本(4066行)は中身を変えず(import だけ直して)、`__tests__/village-page/` の `village.integration.test.tsx` 1本へ移す(この1本は2つめの段階で分けて消した)。
+村の1本(4066行)は中身を変えず(import だけ直して)、`__tests__/village-page` の `village.integration.test.tsx` 1本へ移す(この1本は2つめの段階で分けて消した)。
 
 **2つめの段階(1つめの次のセッション)。** 村の8つの部品のフォルダの `index.tsx` を `container.tsx` へ変え(import を直して)、状態コンテナにした。
-どれも I/O コンテナの `src/components/VillagePage/` の下なので unit は `village-page` で、統合テストのフォルダは `__tests__/village-page/` の下の、自分のフォルダの名前の kebab-case(入れ子でも自分の名前だけ)。
+どれも I/O コンテナの `src/components/VillagePage/` の下なので unit は `village-page` で、統合テストのフォルダは `__tests__/village-page` の下の、自分のフォルダの名前の kebab-case(入れ子でも自分の名前だけ)。
 
 | 部品       | フォルダ                                                               | 統合テストのフォルダの名前 |
 | ---------- | ---------------------------------------------------------------------- | -------------------------- |
@@ -187,12 +194,12 @@ E2E の `tests/` はそのまま。単体テスト(utils・lib の隣の `*.test
 待ちの一覧の2つは、それを使う検査と自己検査の事例ごと消した。
 
 村の統合テストの1本(1つめの段階で移した `village.integration.test.tsx`)は、動作ごとのファイルに分けて消した。`test(…)` の名前は変えずに移した。
-村の画面全体(`VillagePageContainer`)を描くテストは `__tests__/village-page/` の直下に置く。
+村の画面全体(`VillagePageContainer`)を描くテストは `__tests__/village-page` の直下に置く。
 8つの状態コンテナのテストは上の表のフォルダに置き、そのコンテナを props で直接描く(1つのファイルに、画面全体を描くテストと混ぜない)。
 直接描いて届くようになった分岐はテストで覆った。どのテストも通れない防御の分岐(TalkBubble の、いつも付く吹き出しの ref と、いつも囲む村の枠の null の確かめ、
 WorldMap の、押した位置のマスが決まらない場合)は、コミット `f10f530` の前例のとおり、動きを変えずにその場合のコードが無い形に直し、理由を1行の注に書いた。
 起動の覆いの Boot には、開発の StrictMode でクライアントへ描くと覆いが外れない不具合があった(片付けで手順を止めても印の `data-run` が残り、走らせ直した effect が印を見て何もしない)。
-片付けで印を下ろすように直し、`__tests__/village-page/boot/logo-flight.integration.test.tsx` に StrictMode で描く再現のテストを置いた
+片付けで印を下ろすように直し、`__tests__/village-page/boot` の `logo-flight.integration.test.tsx` に StrictMode で描く再現のテストを置いた
 
 ### 0011 が新しいADRを求める変更
 

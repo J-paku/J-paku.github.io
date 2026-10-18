@@ -1,6 +1,6 @@
 // 村の舞台レイアウト E2E。ko の文言でも、PC で一覧への出口が右下に固定されるかを見る。
 // 舞台の寸法(PC・縦持ち・横持ち・タブレットの枠のマスと操作帯の配置)と ja の出口の配置は、
-// 村の統合テスト(__tests__/village-page/stage-layout.integration.test.tsx)が見る。統合のフィクスチャは ja の props だけを
+// 村の統合テスト(src/components/VillagePage/__tests__/stage-layout.integration.test.tsx)が見る。統合のフィクスチャは ja の props だけを
 // 渡すので、ko の出口だけをここに残す(docs/decisions/0018-move-e2e-and-gate-all-hooks.md)。
 // useStageScale が --cell を実測で書いてから測る
 import { expect, type Page } from '@playwright/test'

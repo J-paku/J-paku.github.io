@@ -3,7 +3,7 @@
 // 焼いたシートはビルドが焼く /sprites/ の PNG で、統合テストでは描かれないので E2E に残す。
 // ko の完走は、統合のフィクスチャが ja の props だけを渡すので E2E に残す。
 // 段階の属性・夜の灯り・雨と雪の層・天気の取得失敗・ja の完走は、村の統合テスト
-// (__tests__/village-page/day-night.integration.test.tsx・night-lights.integration.test.tsx)が見る(docs/decisions/0018-move-e2e-and-gate-all-hooks.md)
+// (src/components/VillagePage/__tests__/day-night.integration.test.tsx・night-lights.integration.test.tsx)が見る(docs/decisions/0018-move-e2e-and-gate-all-hooks.md)
 import { expect, type Page } from '@playwright/test'
 import type { VillageText } from '@content/types/world'
 import { village as villageJa } from '@content/ja/village'
@@ -112,7 +112,7 @@ for (const { prefix, text } of JOURNEYS) {
   const journey = text.stops.journey
 
   // 完走は 8 か所の会話と次へを、その言語の文言のまま最後までつなぐ。ja の完走は村の統合テスト
-  // (__tests__/village-page/day-night.integration.test.tsx)が見る。統合のフィクスチャは ja の props だけを渡すので、
+  // (src/components/VillagePage/__tests__/day-night.integration.test.tsx)が見る。統合のフィクスチャは ja の props だけを渡すので、
   // ko の全部の地点の文言で次へを連ねるのはこの検査だけで、ko だけを E2E に残す
   // (docs/decisions/0015-trim-e2e-overlap-and-ko.md・docs/decisions/0018-move-e2e-and-gate-all-hooks.md)
   if (prefix === '') continue

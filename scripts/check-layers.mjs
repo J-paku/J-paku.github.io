@@ -2,15 +2,14 @@
 // import の要らない大域の名前で見る。
 //
 // 決まり: 外の世界に触れる入口(下の IO_FILES・IO_DIRS・IO_PACKAGES)を import してよいのは、I/O コンテナ(container.tsx)と
-// その隣の hooks/、画面のローダー、src/app/・src/lib/、テストの側(src のテストの名前と __tests__/ の全部)だけ(下の「許す側」)。
+// その隣の hooks/、画面のローダー、src/app/・src/lib/、テストの側(テストの名前と、コンテナのフォルダの __tests__/ の中の全部)だけ(下の「許す側」)。
 // それ以外は表示部品か状態コンテナで、入口を直接 import しないのはもちろん、入口へ届くファイル(フック・部品・utils)を import してもいけない。
 // ESLint の no-restricted-imports はファイル1つずつの指定子しか見ないので、「入口を import するフックを表示部品が import する」形を見逃す。
-// そこで src と __tests__ の import を全部読んでつながりの図にし、入口へ届くファイル(「染まった」ファイル)を逆向きにたどって求める。
+// そこで src の import を全部読んでつながりの図にし、入口へ届くファイル(「染まった」ファイル)を逆向きにたどって求める。
 //
 // I/O コンテナは、置き場の一覧(scripts/container-dirs.mjs。check-test-boundary.mjs と同じもの)のフォルダの container.tsx だけ。
 // 一覧の外の container.tsx は状態コンテナで、import の制限は表示部品と同じ(「状態がある」と「外に触れる」は別の軸。ADR 0019)。
-// I/O コンテナの外にあって自分で統合テストの単位になる状態コンテナ(scripts/container-dirs.mjs の unitRootOf)も同じで、
-// 単位になっても I/O の許しは受けない(その隣の hooks/ も、許す側に入らない)。
+// 状態コンテナの隣の hooks/ も、許す側に入らない。
 // ローダーは一覧のうち画面の3つのフォルダの index.tsx だけ。
 //
 // 規則は5つ。
@@ -18,8 +17,8 @@
 //      ただし I/O コンテナは染まりを外へ伝えない(横断部品のコンテナは、外から container.tsx を直接指して表示部品が描く決まり)
 //   2. 許す側の外のファイルは、I/O コンテナの隣の hooks/(一覧のフォルダの直下の hooks/ の下)を import しない。
 //      今は外の世界に触れていないフックでも、そこは画面の状態・データのフックの置き場なので。例外は無い
-//   3. 画面のコンテナを import してよいのは、同じフォルダのローダーと、__tests__/<その単位>/ の下の統合テスト(*.integration.test.tsx)・
-//      フィクスチャ(__tests__/<その単位>/container.fixture.ts)だけ。<単位> は scripts/container-dirs.mjs の unitDirOf で決まる。
+//   3. 画面のコンテナを import してよいのは、同じフォルダのローダーと、その画面のフォルダの下の統合テスト(*.integration.test.tsx)と、
+//      画面のフォルダのフィクスチャ(container.tsx の隣か、そのフォルダの __tests__/ の直下の container.fixture.ts)だけ(ADR 0022)。
 //      許す側(src/app/ など)でも同じ。画面を描く入口はローダーで、ルートはローダーを指す
 //   4. 一覧のフォルダには container.tsx が要る。改名・移動で一覧が空振りすると、そのフォルダの hooks/ の許しだけが黙って残るため
 //   5. 許す側の外のファイルは、import の要らない外の世界の入口(下の IO_GLOBALS・IO_MEMBERS。fetch・localStorage など)を式の中で使わない。
@@ -28,7 +27,7 @@
 // 規則 1〜3 では、型だけの import(import type・import { type X }・export type)は数えない。実行時に読み込まれないため(表示部品の props に型を使う)。
 // import の読み方は scripts/read-imports.mjs(require('…') の呼び出しは ESLint が src の全部で落とすので集めない)。
 // 指定子の解決は tsconfig.json と同じ(@/ は src、@content/ は content で対象の外、相対パス、拡張子と index の省略)。
-// src か __tests__ の中を指すのに解決できない import があれば、見逃しを避けるため落とす。名指しした入口が実在しないときも落とす。
+// src の中を指すのに解決できない import があれば、見逃しを避けるため落とす。名指しした入口が実在しないときも落とす。
 //
 // 見るのは git の追跡ではなく作業ツリー(check-test-boundary.mjs と同じ)。
 // 判定の関数が壊れて違反を見逃すようになっていないかは、走るたびに最初に確かめる(下の「自己検査」)。
@@ -41,15 +40,15 @@ import ts from 'typescript'
 import {
   SCREEN_CONTAINER_DIRS,
   SHARED_CONTAINER_DIRS,
-  TEST_ROOT,
-  unitDirOf,
+  TESTS_DIR,
+  inTestsDir,
 } from './container-dirs.mjs'
 import { importsOf, parseSource } from './read-imports.mjs'
 
 // cwd に依存しない。どこから呼んでもリポジトリ直下を見る
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-// 読むフォルダ(src と、リポジトリ直下の統合テストの __tests__)
-const SCAN_DIRS = ['src', TEST_ROOT]
+// 読むフォルダ(統合テストもコンテナのフォルダに置くので src だけ。リポジトリ直下の __tests__/ は check-test-boundary.mjs が落とす)
+const SCAN_DIRS = ['src']
 const SKIP_DIRS = new Set(['node_modules', '.git'])
 
 // 外の世界に触れる入口(ADR 0017 の D3)
@@ -101,10 +100,10 @@ const RESOLVE_SUFFIXES = [
   '/index.js',
   '/index.jsx',
 ]
-// テストの側(Vitest が拾う名前・フィクスチャ・テストの部品)。__tests__/ の下は名前を問わずテストの側
+// テストの側(Vitest が拾う名前・フィクスチャ・テストの部品)。コンテナのフォルダの __tests__/ の中は名前を問わずテストの側
+// (置ける名前は check-test-boundary.mjs が見る)
 const TEST_SIDE = /\.test\.tsx?$|\.fixture\.ts$|\.test-helper\.ts$/
-const TEST_ROOT_PREFIX = `${TEST_ROOT}/`
-// 画面のコンテナを import してよい、単位フォルダの下の統合テストとフィクスチャの名前
+// 画面のコンテナを import してよい、画面のフォルダの下の統合テストとフィクスチャの名前
 const INTEGRATION_TEST = /\.integration\.test\.tsx$/
 const CONTAINER_FIXTURE = 'container.fixture.ts'
 
@@ -117,8 +116,9 @@ const REASON_HOOKS =
   'I/O コンテナの隣の hooks/(コンテナの一覧 scripts/container-dirs.mjs のフォルダの直下の hooks/)は画面の状態・データのフックの置き場で、import してよいのは I/O コンテナとその hooks/ の中だけ' +
   '(今は外の世界に触れていないフックでも)。部品の UI のフックなら、その部品を状態コンテナ(container.tsx)にして隣の hooks/ へ移す。画面の状態なら、I/O コンテナで呼んで値を props で受け取る(ADR 0017 の D3・D4、ADR 0019)'
 const REASON_SCREEN =
-  '画面のコンテナ(画面の3つの container.tsx)を import してよいのは、同じフォルダのローダー(index.tsx)と、__tests__/<その単位>/ の下の統合テスト(*.integration.test.tsx)・' +
-  'フィクスチャ(__tests__/<その単位>/container.fixture.ts)だけ。画面を描くならローダーの index.tsx を指す。画面の中の部品を別の所でも使うなら、その部品を表示部品として import する(ADR 0017 の D2、ADR 0019)'
+  '画面のコンテナ(画面の3つの container.tsx)を import してよいのは、同じフォルダのローダー(index.tsx)と、その画面のフォルダの下の統合テスト(*.integration.test.tsx)と、' +
+  '画面のフォルダのフィクスチャ(container.tsx の隣か、そのフォルダの __tests__/ の直下の container.fixture.ts)だけ。画面を描くならローダーの index.tsx を指す。' +
+  '画面の中の部品を別の所でも使うなら、その部品を表示部品として import する(ADR 0017 の D2、ADR 0022)'
 const REASON_MISSING =
   'コンテナの一覧(scripts/container-dirs.mjs)のフォルダに container.tsx が無い。改名・移動したなら、一覧と ADR 0019 を合わせて直す' +
   '(一覧が空振りすると、そのフォルダの hooks/ の許しだけが黙って残る)'
@@ -149,8 +149,8 @@ const toPosix = p => p.split(path.sep).join('/')
 const isIo = node =>
   IO_FILES.includes(node) || IO_DIRS.some(dir => node.startsWith(dir)) || IO_PACKAGES.includes(node)
 
-// 指定子の解決。src と __tests__ の中のファイルはリポジトリ直下からのパス、入口のパッケージはその名前(前方一致)、
-// それ以外のパッケージ・@content/・src と __tests__ の外は null(図に入れない)、その中を指すのに見つからなければ undefined
+// 指定子の解決。src の中のファイルはリポジトリ直下からのパス、入口のパッケージはその名前(前方一致)、
+// それ以外のパッケージ・@content/・src の外は null(図に入れない)、その中を指すのに見つからなければ undefined
 const resolveSpecifier = (from, specifier, files) => {
   if (specifier === undefined) return undefined
   const ioPackage = IO_PACKAGES.find(name => specifier.startsWith(name))
@@ -160,7 +160,7 @@ const resolveSpecifier = (from, specifier, files) => {
   else if (/^\.\.?(?:\/|$)/.test(specifier))
     base = path.posix.join(path.posix.dirname(from), specifier)
   else return null
-  if (!base.startsWith('src/') && !base.startsWith(TEST_ROOT_PREFIX)) return null
+  if (!base.startsWith('src/')) return null
   return RESOLVE_SUFFIXES.map(suffix => `${base}${suffix}`).find(candidate => files.has(candidate))
 }
 
@@ -286,20 +286,19 @@ const checkLayers = (files, { screenDirs, sharedDirs }) => {
     isLoader(file) ||
     file.startsWith('src/app/') ||
     file.startsWith('src/lib/') ||
-    file.startsWith(TEST_ROOT_PREFIX) ||
+    inTestsDir(file) ||
     TEST_SIDE.test(file)
-  // 画面のコンテナ → それを import してよいファイルか(同じフォルダのローダーと、単位フォルダの下の統合テスト・単位フォルダ直下のフィクスチャ)
+  // 画面のコンテナ → それを import してよいファイルか(同じフォルダのローダーと、画面のフォルダの下の統合テストと、
+  // 画面のフォルダの container.tsx の隣か __tests__/ の直下のフィクスチャ)
   const screenOwners = new Map(
-    screenDirs.map(dir => {
-      const unitDir = unitDirOf(dir)
-      return [
-        `${dir}/${CONTAINER}`,
-        file =>
-          file === `${dir}/index.tsx` ||
-          file === `${unitDir}/${CONTAINER_FIXTURE}` ||
-          (file.startsWith(`${unitDir}/`) && INTEGRATION_TEST.test(file)),
-      ]
-    })
+    screenDirs.map(dir => [
+      `${dir}/${CONTAINER}`,
+      file =>
+        file === `${dir}/index.tsx` ||
+        file === `${dir}/${CONTAINER_FIXTURE}` ||
+        file === `${dir}/${TESTS_DIR}/${CONTAINER_FIXTURE}` ||
+        (file.startsWith(`${dir}/`) && INTEGRATION_TEST.test(file)),
+    ])
   )
 
   // 入口から import を逆向きにたどり、染まったファイルごとに入口へ1歩近づく先を覚える(入口は null)。
@@ -423,34 +422,35 @@ const FAKE_SRC = new Map(
     'src/components/Screen/hooks/use-weather/use-weather.ts': `import { fetchWeather } from '@/lib/weather'`,
     'src/components/Screen/hooks/use-ui-only.ts': 'export const useUiOnly = () => 0',
     'src/components/Screen/hooks/use-saved.ts': `export const useSaved = () => localStorage.getItem('a')`,
-    // 単位フォルダの下の統合テスト(入れ子のフォルダも)・単位フォルダ直下のフィクスチャは、画面のコンテナを描いてよい。
-    // __tests__/ の下は名前を問わずテストの側で、入口・I/O コンテナの隣の hooks/・大域の入口に触れても通る。相対パスは __tests__ と src の中を解決する
-    '__tests__/screen/open.integration.test.tsx': [
+    // 画面のフォルダの下の統合テスト(子のコンテナのものも)・画面のフォルダのフィクスチャ(container.tsx の隣と __tests__/ の直下)は、
+    // 画面のコンテナを描いてよい。__tests__/ の中は名前を問わずテストの側で、入口・I/O コンテナの隣の hooks/・大域の入口に触れても通る
+    'src/components/Screen/__tests__/open.integration.test.tsx': [
       `import { readTheme } from '@/lib/preferences'`,
-      `import { useUiOnly } from '@/components/Screen/hooks/use-ui-only'`,
-      `import Screen from '@/components/Screen/container'`,
+      `import { useUiOnly } from '../hooks/use-ui-only'`,
+      `import Screen from '../container'`,
       `import { stepFrame } from './screen.test-helper'`,
       `globalThis.fetch = () => 0`,
     ].join('\n'),
-    '__tests__/screen/body/scroll.integration.test.tsx': `import Screen from '../../../src/components/Screen/container'`,
-    '__tests__/screen/container.fixture.ts': `import { readContent } from '@/lib/content/read'\nimport Screen from '@/components/Screen/container'`,
-    '__tests__/screen/screen.test-helper.ts': `import { readTheme } from '@/lib/preferences'\nexport const stepFrame = () => sessionStorage`,
-    '__tests__/screen/data.ts': `import { readTheme } from '@/lib/preferences'\nexport const store = localStorage`,
+    'src/components/Screen/components/Panel/container.integration.test.tsx': `import Screen from '@/components/Screen/container'`,
+    'src/components/Screen/__tests__/container.fixture.ts': `import { readContent } from '@/lib/content/read'\nimport Screen from '../container'`,
+    'src/components/Screen/container.fixture.ts': `import { readContent } from '@/lib/content/read'\nimport Screen from './container'`,
+    'src/components/Screen/__tests__/screen.test-helper.ts': `import { readTheme } from '@/lib/preferences'\nexport const stepFrame = () => sessionStorage`,
+    'src/components/Screen/__tests__/data.ts': `import { readTheme } from '@/lib/preferences'\nexport const store = localStorage`,
     'src/components/Screen/screen.test-helper.ts': `import { readTheme } from '@/lib/preferences'\nconst store = sessionStorage`,
-    // もとの置き場の統合テスト・フィクスチャと、単位フォルダの下でも統合テスト・単位フォルダ直下のフィクスチャでないもの・
-    // ほかの単位・名前の前の方が同じだけの別のフォルダは、テストの側でも画面のコンテナを描かない
+    // もとの名前の統合テストと、画面のフォルダの下でも統合テストと画面のフォルダのフィクスチャでないもの(部品・子のフォルダのフィクスチャ・
+    // *.integration.test.ts)・ほかのフォルダ・名前の前の方が同じだけの別のフォルダは、テストの側でも画面のコンテナを描かない
     'src/components/Screen/container.browser.test.tsx': [
       `import { readTheme } from '@/lib/preferences'`,
       `import { useUiOnly } from './hooks/use-ui-only'`,
       `import Screen from './container'`,
       `globalThis.fetch = () => 0`,
     ].join('\n'),
-    'src/components/Screen/container.fixture.ts': `import { readContent } from '@/lib/content/read'\nimport Screen from './container'`,
-    '__tests__/screen/render.test-helper.ts': `import Screen from '@/components/Screen/container'`,
-    '__tests__/screen/body/container.fixture.ts': `import Screen from '@/components/Screen/container'`,
-    '__tests__/screen/open.integration.test.ts': `import Screen from '@/components/Screen/container'`,
-    '__tests__/gone/open.integration.test.tsx': `import Screen from '@/components/Screen/container'`,
-    '__tests__/screen-extra/open.integration.test.tsx': `import Screen from '@/components/Screen/container'`,
+    'src/components/Screen/__tests__/render.test-helper.ts': `import Screen from '../container'`,
+    'src/components/Screen/components/Panel/container.fixture.ts': `import Screen from '../../container'`,
+    'src/components/Screen/components/Panel/__tests__/container.fixture.ts': `import Screen from '../../../container'`,
+    'src/components/Screen/__tests__/open.integration.test.ts': `import Screen from '../container'`,
+    'src/components/Gone/__tests__/open.integration.test.tsx': `import Screen from '@/components/Screen/container'`,
+    'src/components/ScreenX/__tests__/open.integration.test.tsx': `import Screen from '../../Screen/container'`,
     'src/components/Screen/utils/build.test.ts': `import { parse } from '@/lib/content/parse'`,
     'src/app/page.tsx': [
       `import Screen from '@/components/Screen'`,
@@ -518,13 +518,13 @@ const FAKE_SRC = new Map(
     'src/components/Screen/components/Saved/hooks/use-saved.ts': `import { readTheme } from '@/lib/preferences'`,
     'src/components/Screen/components/Wrap/index.tsx': `import Saved from '../Saved/container'`,
     'src/components/Screen/components/Peek/container.tsx': `import { useUiOnly } from '../../hooks/use-ui-only'`,
-    // I/O コンテナの外で自分で統合テストの単位になる状態コンテナも、I/O の許しを受けない(隣の hooks/ も同じ)。
-    // その単位フォルダの統合テストはテストの側で通るが、画面のコンテナは描かない
+    // どの I/O コンテナの下にも無い状態コンテナも、I/O の許しを受けない(隣の hooks/ も同じ)。
+    // そのフォルダの統合テストはテストの側で通るが、画面のコンテナは描かない
     'src/components/ui/Logo/container.tsx': `import { useLogo } from './hooks/use-logo'\nexport const load = () => fetch('/a')`,
     'src/components/ui/Logo/hooks/use-logo.ts': `import { readTheme } from '@/lib/preferences'`,
     'src/components/Foo/components/Bar/container.tsx': `import { usePathname } from 'next/navigation'`,
-    '__tests__/ui/logo/show.integration.test.tsx': `import Logo from '@/components/ui/Logo/container'\nimport { readTheme } from '@/lib/preferences'`,
-    '__tests__/ui/logo/screen.integration.test.tsx': `import Screen from '@/components/Screen/container'`,
+    'src/components/ui/Logo/__tests__/show.integration.test.tsx': `import Logo from '../container'\nimport { readTheme } from '@/lib/preferences'`,
+    'src/components/ui/Logo/__tests__/screen.integration.test.tsx': `import Screen from '@/components/Screen/container'`,
     // 表示部品で落ちるもの
     'src/components/Bad/direct.tsx': `import { readTheme } from '@/lib/preferences'`,
     'src/components/Bad/mixed.tsx': `import { readTheme, type Theme } from '@/lib/preferences'`,
@@ -551,6 +551,8 @@ const FAKE_SRC = new Map(
     'src/components/Bad/hooks/use-bad.ts': `import { fetchWeather } from '@/lib/weather'`,
     'src/components/Screen/components/Deep/hooks/use-deep.ts': `import { readTheme } from '@/lib/preferences'`,
     'src/utils/bad.ts': `import { readTheme } from '@/lib/preferences'`,
+    // テストの側(__tests__/ の中)も、入口へ届けば染まりを伝える(表示部品が隣の __tests__/ の中のものを import すると落ちる)
+    'src/components/Bad/test-data.tsx': `import { store } from '../Screen/__tests__/data'`,
     // 画面のコンテナを、そのフォルダのローダー・統合テスト・フィクスチャの外から import する(許す側でも落ちる)
     'src/components/Bad/screen-container.tsx': `import Screen from '@/components/Screen/container'`,
     'src/components/Bad/container.browser.test.tsx': `import Screen from '../Screen/container'`,
@@ -604,6 +606,7 @@ const EXPECTED_VIOLATIONS = [
   io('src/components/Bad/hooks/use-bad.ts', 'src/lib/weather.ts'),
   io('src/components/Screen/components/Deep/hooks/use-deep.ts', PREFERENCES),
   io('src/utils/bad.ts', PREFERENCES),
+  io('src/components/Bad/test-data.tsx', 'src/components/Screen/__tests__/data.ts', PREFERENCES),
   io('src/components/ui/Player/index.tsx', 'src/lib/content/parse.ts'),
   io(CARD_CONTAINER, PREFERENCES),
   globalIo(CARD_CONTAINER, 2, 'fetch'),
@@ -620,18 +623,18 @@ const EXPECTED_VIOLATIONS = [
   io(LOGO_CONTAINER, LOGO_HOOK, PREFERENCES),
   globalIo(LOGO_CONTAINER, 2, 'fetch'),
   io('src/components/Foo/components/Bar/container.tsx', 'next/navigation'),
-  screen('__tests__/ui/logo/screen.integration.test.tsx', SCREEN_CONTAINER),
+  screen('src/components/ui/Logo/__tests__/screen.integration.test.tsx', SCREEN_CONTAINER),
   keyOf({ rule: 'missing', file: 'src/components/Gone/container.tsx' }),
   screen('src/components/Bad/screen-container.tsx', SCREEN_CONTAINER),
   screen('src/components/Bad/container.browser.test.tsx', SCREEN_CONTAINER),
   screen('src/app/direct.tsx', SCREEN_CONTAINER),
   screen('src/components/Screen/container.browser.test.tsx', SCREEN_CONTAINER),
-  screen('src/components/Screen/container.fixture.ts', SCREEN_CONTAINER),
-  screen('__tests__/screen/render.test-helper.ts', SCREEN_CONTAINER),
-  screen('__tests__/screen/body/container.fixture.ts', SCREEN_CONTAINER),
-  screen('__tests__/screen/open.integration.test.ts', SCREEN_CONTAINER),
-  screen('__tests__/gone/open.integration.test.tsx', SCREEN_CONTAINER),
-  screen('__tests__/screen-extra/open.integration.test.tsx', SCREEN_CONTAINER),
+  screen('src/components/Screen/__tests__/render.test-helper.ts', SCREEN_CONTAINER),
+  screen('src/components/Screen/components/Panel/container.fixture.ts', SCREEN_CONTAINER),
+  screen('src/components/Screen/components/Panel/__tests__/container.fixture.ts', SCREEN_CONTAINER),
+  screen('src/components/Screen/__tests__/open.integration.test.ts', SCREEN_CONTAINER),
+  screen('src/components/Gone/__tests__/open.integration.test.tsx', SCREEN_CONTAINER),
+  screen('src/components/ScreenX/__tests__/open.integration.test.tsx', SCREEN_CONTAINER),
   ...GLOBAL_CASES.map(([, name], index) =>
     globalIo('src/components/Bad/global.tsx', index + 1, name)
   ),
@@ -642,15 +645,15 @@ const FAKE_UNRESOLVED = new Map(
   Object.entries({
     'src/components/A/index.tsx': `import Gone from './gone'\nimport { lost } from '@/lib/lost'\nconst load = name => import(name)`,
     'src/components/A/b.tsx': `import Link from 'next/link'\nimport type { Locale } from '@content/types/content'`,
-    '__tests__/a/b.integration.test.tsx': `import { page } from 'vitest/browser'\nimport { step } from './gone.test-helper'\nimport A from '../../src/components/A/gone'`,
+    'src/components/A/__tests__/b.integration.test.tsx': `import { page } from 'vitest/browser'\nimport { step } from './gone.test-helper'\nimport A from '../gone'`,
   })
 )
 const EXPECTED_UNRESOLVED = [
   'src/components/A/index.tsx ./gone',
   'src/components/A/index.tsx @/lib/lost',
   'src/components/A/index.tsx (式で組んだ指定子)',
-  '__tests__/a/b.integration.test.tsx ./gone.test-helper',
-  '__tests__/a/b.integration.test.tsx ../../src/components/A/gone',
+  'src/components/A/__tests__/b.integration.test.tsx ./gone.test-helper',
+  'src/components/A/__tests__/b.integration.test.tsx ../gone',
 ]
 
 const fake = checkLayers(FAKE_SRC, FAKE_DIRS)
@@ -731,5 +734,5 @@ if (violations.length > 0) {
 }
 
 console.log(
-  `check-layers: src と __tests__ のファイル ${files.size} 件(import ${edgeCount} 本)と I/O コンテナの一覧 ${containerCount} か所を検査 — 違反なし`
+  `check-layers: src のファイル ${files.size} 件(import ${edgeCount} 本)と I/O コンテナの一覧 ${containerCount} か所を検査 — 違反なし`
 )

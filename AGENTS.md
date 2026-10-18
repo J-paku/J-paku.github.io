@@ -20,10 +20,10 @@ Next.js 16(App Router)の静的エクスポートで、サーバもデータベ�
    フックを呼ぶ所は ESLint の `layer/hook-only-in-container` が守らせる
 5. **wip 作品は詳細ページを作らない。** カードにリンクを付けず、slug 直接アクセスは NotFound
 6. **1段階 = 1セッション**(大きな改修を1回のセッションに詰め込まない)
-7. **新しいロジックは純粋関数(`src/lib/`・`src/utils/`・コンポーネント専用のutils)に置き、新しく作ったファイルごとにカバレッジ100%・ミューテーション100%を守る。`hooks`フォルダに単体テストを置かず、どのテストでも`renderHook`を使わない。コンポーネントを描くテストは、リポジトリ直下の `__tests__/<unit>/…/<動作>.integration.test.tsx`(コンテナごとに1本以上)だけに書く。`hooks` フォルダの中のファイルと全部の `container.tsx` は、統合テストのカバレッジでファイル別100%**
+7. **新しいロジックは純粋関数(`src/lib/`・`src/utils/`・コンポーネント専用のutils)に置き、新しく作ったファイルごとにカバレッジ100%・ミューテーション100%を守る。`hooks`フォルダに単体テストを置かず、どのテストでも`renderHook`を使わない。コンポーネントを描くテストは、`container.tsx` のあるフォルダに置く統合テスト(コンテナごとに1本以上。1本なら隣の `container.integration.test.tsx`、2本以上ならそのフォルダの `__tests__/<動作>.integration.test.tsx`)だけに書く。`hooks` フォルダの中のファイルと全部の `container.tsx` は、統合テストのカバレッジでファイル別100%**
 
 決めた理由は 1 が [docs/decisions/0002-locale-from-url-only.md](docs/decisions/0002-locale-from-url-only.md)、2 が [docs/decisions/0003-content-outside-src.md](docs/decisions/0003-content-outside-src.md)、冒頭の方針と 7 が [docs/decisions/0011-extreme-constraints.md](docs/decisions/0011-extreme-constraints.md)、
-4 のコンテナと 7 のコンポーネントを描くテストが [docs/decisions/0019-hooks-make-containers.md](docs/decisions/0019-hooks-make-containers.md)(I/O コンテナの6つと画面のローダーは [docs/decisions/0017-screen-containers.md](docs/decisions/0017-screen-containers.md))にある。
+4 のコンテナと 7 のコンポーネントを描くテストが [docs/decisions/0019-hooks-make-containers.md](docs/decisions/0019-hooks-make-containers.md)(I/O コンテナの6つと画面のローダーは [docs/decisions/0017-screen-containers.md](docs/decisions/0017-screen-containers.md)、統合テストをコンテナのフォルダに置くことは [docs/decisions/0022-colocate-integration-tests.md](docs/decisions/0022-colocate-integration-tests.md))にある。
 3〜5 の詳しい決まりは [docs/architecture/data-flow.md](docs/architecture/data-flow.md)・[docs/architecture/frontend.md](docs/architecture/frontend.md)・[docs/product/business-rules.md](docs/product/business-rules.md) にある。
 レイヤー境界(import の向き)と、そのうち機械が守らせている範囲は [docs/architecture/boundaries.md](docs/architecture/boundaries.md)。
 

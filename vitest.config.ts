@@ -13,7 +13,7 @@ const FULL_COVERAGE = { statements: 100, branches: 100, functions: 100, lines: 1
 
 // 既定の環境は node(純粋関数と src/lib の入口)。ファイル先頭に `// @vitest-environment happy-dom` を書いたテスト
 // (utils の純粋モジュールのうち、DOM を読む・書く/DOMParser を使うものの *.test.ts)だけが happy-dom で走る。
-// コンポーネントを描くテストは単体には置かず、リポジトリ直下の __tests__ の統合テスト(vitest.integration.config.ts)だけに書く(ADR 0019)。
+// コンポーネントを描くテストは単体には置かず、コンテナのフォルダに置く統合テスト(vitest.integration.config.ts)だけに書く(ADR 0022)。
 // 既定を替えないのは、単体テストを書かれたとおり DOM の無い node で走らせ続けるため
 export default defineConfig({
   resolve: {
@@ -32,13 +32,14 @@ export default defineConfig({
     // (package.json 側の TZ=UTC は npm 経由の入口、こちらは npx vitest を直接叩く入口を塞ぐ)
     env: { TZ: 'UTC' },
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
-    // __tests__ と *.integration.test.{ts,tsx} は統合テスト(vitest.integration.config.ts、実ブラウザ)の置き場と名前。
-    // include の *.test.ts・*.test.tsx に当たってしまう名前なので外す(docs/decisions/0019-hooks-make-containers.md)
+    // __tests__/ と *.integration.test.{ts,tsx} は統合テスト(vitest.integration.config.ts、実ブラウザ)の置き場と名前。
+    // include の *.test.ts・*.test.tsx に当たってしまう名前なので外す。__tests__/ は src の下のコンテナのフォルダにあるので、
+    // 深さを問わず外す(ADR 0022)
     exclude: [
       ...configDefaults.exclude,
       '**/.claude/**',
       'tests/**',
-      '__tests__/**',
+      '**/__tests__/**',
       '**/*.integration.test.{ts,tsx}',
     ],
     // 測るのは--coverageを付けたとき(npm run test:coverage、CIはこちら)だけ。npm run testは今までどおり速く回す
@@ -49,13 +50,15 @@ export default defineConfig({
       // hooks/ 配下は単体テストを置かない層なので測らない。フックの動きは統合テスト(vitest.integration.config.ts)で見て、
       // そちらのカバレッジがフックを全部ファイル別100%で固める(ADR 0018)
       // (hooks/ にテストを置いていないかは scripts/check-test-boundary.mjs が検査する)
-      // components/ の .tsx も同じ理由で測らない。コンポーネントを描くテストは __tests__ の統合テストにだけ置き、そちらで測る(ADR 0019)
+      // components/ の .tsx も同じ理由で測らない。コンポーネントを描くテストは統合テストにだけ置き、そちらで測る(ADR 0019)。
+      // __tests__/ の中は統合テストとその部品・フィクスチャだけを置く所なので、名前を問わず測らない(ADR 0022)
       exclude: [
         'src/**/*.test.{ts,tsx}',
         'src/**/*.fixture.ts',
         'src/**/*.test-helper.ts',
         'src/**/hooks/**',
         'src/components/**/*.tsx',
+        'src/**/__tests__/**',
       ],
       reporter: ['text-summary'],
       reportsDirectory: 'coverage',

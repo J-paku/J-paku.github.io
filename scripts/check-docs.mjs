@@ -29,7 +29,8 @@ const ENTRY_FILES = [
   'content/AGENTS.md',
   'content/README.md',
 ]
-const SCAN_DIRS = ['docs', 'src', 'scripts', 'tests', '__tests__', 'content']
+// 統合テストの置き場(コンテナのフォルダの __tests__/)は src の下なので、その文書も src をたどって拾う
+const SCAN_DIRS = ['docs', 'src', 'scripts', 'tests', 'content']
 const SKIP_DIRS = new Set([
   'node_modules',
   '.git',

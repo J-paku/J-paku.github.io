@@ -41,7 +41,8 @@ last_reviewed: 2026-10-17
 - I/O コンテナは上の6つだけ。一覧の外の `container.tsx` は状態コンテナで、外の世界に触れない。「状態を持つ」ことと「外の世界に触れる」ことは別の軸
 - 状態コンテナと表示部品は、外の世界に触れるモジュール・村の時計のストア・`next/navigation`・画面のフック(画面のフォルダの直下の `hooks` フォルダ)を import しない。
   一覧と正本は [boundaries.md](boundaries.md) の「コンテナと表示部品」
-- コンポーネントを描くテストは、リポジトリ直下の `__tests__/` の下の `<動作>.integration.test.tsx` だけ(コンテナごとに1本以上)→ [../quality/test-strategy.md](../quality/test-strategy.md)。
+- コンポーネントを描くテストは、`container.tsx` のあるフォルダに置く統合テストだけ(コンテナごとに1本以上。1本なら隣の `container.integration.test.tsx`、2本以上ならそのフォルダの `__tests__` の中の `<動作>.integration.test.tsx`。表示部品は自分のテストを持たず、それを描くコンテナのテストで見る)
+  → [../quality/test-strategy.md](../quality/test-strategy.md)・[ADR 0022](../decisions/0022-colocate-integration-tests.md)。
   `hooks` フォルダの中のファイルと全部の `container.tsx` は、統合テストのカバレッジでファイル別100%
 
 ## コンポーネントのフォルダ

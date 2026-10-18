@@ -60,7 +60,7 @@ content/ja/*.ts  content/ko/*.ts  content/world.ts
 - 呼ぶのはクライアント。村を描いたあと、村のコンテナが呼ぶ `src/components/VillagePage/hooks/use-weather.ts` がマウント時に1回だけ実行する
 - 送るのは固定の緯度経度(大阪)だけ。訪問者の位置情報は扱わない。応答は保存しない
 - **失敗は全部 `'none'` に丸める。** タイムアウト(5秒)・ネットワーク障害・応答形の不一致・オフライン、どれでも雨は降らないだけで、村の描画も操作も止めない
-- 雨が出ないのはバグではなくフォールバック。村の統合テストが応答を差し替えて雨・雪・取得失敗を確かめる(`__tests__/village-page/day-night.integration.test.tsx`)
+- 雨が出ないのはバグではなくフォールバック。村の統合テストが応答を差し替えて雨・雪・取得失敗を確かめる(`src/components/VillagePage/__tests__/day-night.integration.test.tsx`)
 
 アクセス計測は GoatCounter。計測タグの読み込みは `src/app/html-shell.tsx` で、ページ読み込み時の1件はタグが自動で送る。
 計測先 URL は環境変数 `NEXT_PUBLIC_GOATCOUNTER_URL`(GitHub の変数 `GOATCOUNTER_URL`)からビルド時に入り、未設定なら計測タグを出さない。

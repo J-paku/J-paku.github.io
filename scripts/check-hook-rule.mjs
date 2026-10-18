@@ -10,7 +10,8 @@
 //   2. 設定の掛け方 — 実際の eslint.config.mjs で、偽のパスに置いた断片を lint し、拾う数が期待とぴったり同じか。
 //                     表示部品の index.tsx・utils などには掛かり、container.tsx・hooks/ の use-*.ts(x)・テストの側
 //                     (*.test.ts(x)・*.fixture.ts・*.test-helper.ts)では外れる
-//                     (別の名前で受ける所の報告も同じ所で外れる)。統合テストを置く __tests__/ が lint の対象の外になっていないかも見る
+//                     (別の名前で受ける所の報告も同じ所で外れる)。コンテナのフォルダに置く統合テスト(container.tsx の隣の
+//                     container.integration.test.tsx と __tests__/ の中)と、その部品・フィクスチャも、外れる側にあって lint の対象の外になっていないかを見る
 //   3. 名前の決まり — 規則が外れてよいファイルを、eslint.config.mjs とは別に名前で決める(container.tsx・hooks/ の中の use-*.ts(x)・
 //                     *.test.ts(x)・*.fixture.ts・*.test-helper.ts だけ)。その決まりが 2 の掛かるパス・外れるパスと合うかと、
 //                     実際の設定に偽の抜け道(規則の組みの ignores に表示部品のパスやフォルダを足す・後ろの組みで off や warn にする・
@@ -240,6 +241,7 @@ const RULED_PATHS = [
   'src/app/page.tsx',
 ]
 // 規則が外れるパス。コンテナ・hooks/ の use-*.ts(x)(フォルダにしたフックと src/hooks/ も)・テストの側
+// (コンテナのフォルダの統合テスト・部品・フィクスチャは container.tsx の隣と __tests__/ の中の両方。ADR 0022)
 const EXEMPT_PATHS = [
   'src/components/Fake/container.tsx',
   'src/components/Fake/components/Part/container.tsx',
@@ -251,6 +253,10 @@ const EXEMPT_PATHS = [
   'src/utils/fake.test.ts',
   'src/components/Fake/container.fixture.ts',
   'src/components/Fake/fake.test-helper.ts',
+  'src/components/Fake/container.integration.test.tsx',
+  'src/components/Fake/__tests__/open-modal.integration.test.tsx',
+  'src/components/Fake/__tests__/fake.test-helper.ts',
+  'src/components/Fake/__tests__/container.fixture.ts',
 ]
 // [パス, コード, 拾う数]
 const CONFIG_CASES = [
@@ -265,14 +271,7 @@ const CONFIG_CASES = [
   ['src/components/Fake/index.tsx', `// eslint-disable-next-line ${RULE_ID}\nuseFake()`, 1],
   ['src/components/Fake/components/Part/index.tsx', '/* eslint-disable */\nuseFake()', 1],
 ]
-// lint の対象の外になっていてはいけないパス(規則が掛かるかは問わない)。統合テストは src の外の __tests__/ に置く
-const LINTED_PATHS = ['__tests__/story/story-body/open-modal.integration.test.tsx']
 const configFailures = []
-for (const file of LINTED_PATHS) {
-  if (await eslint.isPathIgnored(file)) {
-    configFailures.push(`設定の掛け方 ${file}: lint の対象の外(無視されている)`)
-  }
-}
 for (const [file, code, expected] of CONFIG_CASES) {
   if (await eslint.isPathIgnored(file)) {
     configFailures.push(`設定の掛け方 ${file}: lint の対象の外(無視されている)`)
@@ -364,7 +363,10 @@ const BYPASS_CASES = [
   [
     'ignores から *.fixture.ts を外す',
     withIgnores(ignores => ignores.filter(pattern => pattern !== '**/*.fixture.ts')),
-    [extraAt('src/components/Fake/container.fixture.ts')],
+    [
+      extraAt('src/components/Fake/container.fixture.ts'),
+      extraAt('src/components/Fake/__tests__/container.fixture.ts'),
+    ],
   ],
 ]
 const nameFailures = [
@@ -458,5 +460,5 @@ if (violations.length > 0) {
 }
 
 console.log(
-  `check-hook-rule: 自己検査(規則の判定 ${RULE_CASES.length} 件・設定の掛け方 ${CONFIG_CASES.length + LINTED_PATHS.length} 件・名前の決まり ${CHECKED_PATHS.length + BYPASS_CASES.length} 件)を通り、src の *.ts・*.tsx ${files.length} 件(規則が error で掛かるもの ${ruledCount} 件。掛かり方は全件が名前の決まりどおり)を検査 — フックの呼び出しの違反 0 件`
+  `check-hook-rule: 自己検査(規則の判定 ${RULE_CASES.length} 件・設定の掛け方 ${CONFIG_CASES.length} 件・名前の決まり ${CHECKED_PATHS.length + BYPASS_CASES.length} 件)を通り、src の *.ts・*.tsx ${files.length} 件(規則が error で掛かるもの ${ruledCount} 件。掛かり方は全件が名前の決まりどおり)を検査 — フックの呼び出しの違反 0 件`
 )

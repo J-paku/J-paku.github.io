@@ -45,7 +45,6 @@
     "content",
     "scripts",
     "tests",
-    "__tests__",
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",

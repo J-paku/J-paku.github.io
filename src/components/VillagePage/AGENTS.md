@@ -5,7 +5,7 @@
 - `index.tsx` — **サーバのローダー**。content を読み出し、スプライトシートの合成・地点リンクを含む props をここで1回だけ組み
   (組み立ては純粋関数の `utils/village-props.ts`。中身は `utils/sprite-css.ts`・`utils/stop-links.ts`)、直列化できる props で `container.tsx` を描く。
   初回の HTML に必ず要るインラインの `<style>`(スプライトの背景)と `<script>`(初回ペイント前に段階を直す `utils/phase-init.ts` の `PHASE_INIT`)もここで作り、
-  コンテナへ ReactNode の差し込み口の props で渡す。統合テストのフィクスチャ(`__tests__/village-page/container.fixture.ts`)も同じ `utils/village-props.ts` で組む
+  コンテナへ ReactNode の差し込み口の props で渡す。統合テストのフィクスチャ(`__tests__/container.fixture.ts`)も同じ `utils/village-props.ts` で組む
 - `container.tsx` — **クライアントの I/O コンテナ**(`'use client'`)。画面のフック(`hooks/` の `useDayPhase`・`useWeather`・`useVillage`)と卓上時計のストア(`hooks/use-village-time.ts`)を呼ぶ。
   起動の覆い(`Boot`)・見出しのロゴ(`Logo`)・近道・一覧への出口(`ExitLink`)・設定メニュー(`Navigation`)と表示部品の `Village` を並べて値と手を props で渡し、
   ローダーから受けた `<style>`・`<script>` を元の位置(`Village` の前と直後)に置く
@@ -63,11 +63,13 @@ world 層(`.world`)の中の並びは `components/Village/components/WorldLayer/
 
 ## 確かめ方
 
-村の統合テスト(`__tests__/village-page/` の下。props は `__tests__/village-page/container.fixture.ts` が node で組む)はビルド無しで走る。
-村の画面全体(`container.tsx`)を描くテストは `__tests__/village-page/` の直下に動作ごとのファイルで置き、舞台の寸法と操作帯・歩く・待つ・釣り・傘・飛ぶ・村の入力と道中の配線・
-窓の焦点と吹き出しの位置・卓上時計・昼夜と天気をここで見る(例: `__tests__/village-page/fishing.integration.test.tsx`・`__tests__/village-page/day-night.integration.test.tsx`)。
-`components/` の下の状態コンテナ8つは、それぞれ `__tests__/village-page/<フォルダの名前の kebab-case>/` のテストがそのコンテナを props で直接描いて見る
-(例: `__tests__/village-page/stop-modal/`。どのフォルダがどのコンテナかは [../../../docs/product/feature-map.md](../../../docs/product/feature-map.md) の「コンテナと統合テスト」)。
+村の統合テスト(このフォルダと、その下のコンテナのフォルダに置く。props は `__tests__/container.fixture.ts` が node で組む)はビルド無しで走る。
+村の画面全体(`container.tsx`)を描くテストは `__tests__/` に動作ごとのファイルで置き、舞台の寸法と操作帯・歩く・待つ・釣り・傘・飛ぶ・村の入力と道中の配線・
+窓の焦点と吹き出しの位置・卓上時計・昼夜と天気をここで見る(例: `__tests__/fishing.integration.test.tsx`・`__tests__/day-night.integration.test.tsx`)。
+`components/` の下の状態コンテナ8つは、それぞれのフォルダのテストがそのコンテナを props で直接描いて見る。テストが1本の `Boot`・`ClockModal`・`Ground`・`Joystick`・`Lighting` は
+`container.tsx` の隣の `container.integration.test.tsx`、2本以上の `StopModal`・`TalkBubble`・`WorldMap` はそのフォルダの `__tests__` の中に置く
+(例: `components/Village/components/StopModal/__tests__/`。置き方は [../../../docs/decisions/0022-colocate-integration-tests.md](../../../docs/decisions/0022-colocate-integration-tests.md)、
+どのコンテナにどのテストがあるかは [../../../docs/product/feature-map.md](../../../docs/product/feature-map.md) の「コンテナと統合テスト」)。
 1つめの段階では元の1本(`village.integration.test.tsx`)を中身を変えずに移しただけで、2つめの段階でこの形に分けてその1本は消した。
 
 ```bash

@@ -28,18 +28,18 @@ last_reviewed: 2026-10-18
 
 - ロジックは純粋関数(`src/lib/`・`src/utils/`・コンポーネント専用のutils)に置き、単体テスト・ファイル別カバレッジ100%・ミューテーションで固める
 - フックとコンポーネントは配線だけを持つ。`hooks`フォルダに単体テストを置かず、どのテストでも`renderHook`を使わない([テストの境界](#テストの境界))。
-  フックを1つでも呼ぶコンポーネントはコンテナ(`container.tsx`)で、コンテナはどれも自分の統合テストを持つ。フックと、フックを呼ばない表示部品は、それを使うコンテナを統合テストで描いて見る。
-  コンポーネントを描くテストは、リポジトリ直下の `__tests__/` に置く統合テスト(`*.integration.test.tsx`)だけ([統合テストの約束](#統合テストの約束)。[../decisions/0019-hooks-make-containers.md](../decisions/0019-hooks-make-containers.md))
+  フックを1つでも呼ぶコンポーネントはコンテナ(`container.tsx`)で、コンテナはどれも自分の統合テストを持つ。フックと、フックを呼ばない表示部品は、それを使うコンテナを統合テストで描いて見る(表示部品は自分のテストを持たない)。
+  コンポーネントを描くテストは、コンテナのフォルダに置く統合テスト(`*.integration.test.tsx`)だけ([統合テストの約束](#統合テストの約束)。[../decisions/0019-hooks-make-containers.md](../decisions/0019-hooks-make-containers.md)・[../decisions/0022-colocate-integration-tests.md](../decisions/0022-colocate-integration-tests.md))
 - 制約は上げる方向にだけ動かす。下限を下げる・テストを消す・変異テストやファイル別100%の対象から外す・テストの境界の決まりを変えるにはADRが要る
 
 ## 4層
 
-| 層                                      | 置き場・ファイル名                                                     | 対象                                                                                                                                                                                                                                                                                                                           | 環境                                                                                                                                                                                                                 |
-| --------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 静的                                    | —                                                                      | 型・lint(レイヤー境界を含む)・整形・文書の参照(`npm run typecheck`・`npm run lint`・`npm run format:check`・`npm run docs:check`)                                                                                                                                                                                              | ソースをそのまま読む                                                                                                                                                                                                 |
-| 単体(Vitest)                            | 対象ファイルの隣 `*.test.ts`                                           | **純粋関数**と、`fetch`・Storage を `vi.stubGlobal` で差し替えて測る `src/lib/` の入口。DOMを使う(読む・書く・DOMParser)utils(歩行ループの部品など)。**コンポーネントを描くテストと、フックを`renderHook`で呼ぶテストは置かない**([テストの境界](#テストの境界))                                                               | `environment: 'node'`(既定)。DOM を持たない。DOMを使う(読む・書く・DOMParser)utilsだけは、ファイル先頭の`// @vitest-environment happy-dom`でそのファイルだけhappy-domで走る                                          |
-| 統合(Vitest Browser Mode。一番厚くする) | `__tests__/<unit>/` の `*.integration.test.tsx`(コンテナごとに1本以上) | **コンテナ(フックを1つでも呼ぶコンポーネント)を、フック・子と一緒に描く。** コンポーネントを描くテストはこの層だけ。村も含む。モックはネットワーク(天気など)と時間だけ                                                                                                                                                         | 実ブラウザ(Chromium 1つ、headless)で、ビルド無しで走る(`vitest.integration.config.ts`・`npm run test:integration`)。ブラウザの時間帯は UTC に固定する。置き場と分け方の決まりは[統合テストの約束](#統合テストの約束) |
-| E2E(Playwright)                         | `tests/**/*.spec.ts`                                                   | **ビルド結果でしか確かめられないもの**(静的経路・404・初回ペイント前のテーマ・言語の接頭を保つ移動・保存が塞がれた時・ビルドが焼いたスプライトの絵)と、**ページをまたぐ核心の旅程**と、**統合テストの中では作れない場合**(再読み込み・`IntersectionObserver` の無い環境・ko の文言。[E2E に残したテスト](#e2e-に残したテスト)) | `out/` を `:4173` で静的配信                                                                                                                                                                                         |
+| 層                                      | 置き場・ファイル名                                                                                                                                                                | 対象                                                                                                                                                                                                                                                                                                                           | 環境                                                                                                                                                                                                                 |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 静的                                    | —                                                                                                                                                                                 | 型・lint(レイヤー境界を含む)・整形・文書の参照(`npm run typecheck`・`npm run lint`・`npm run format:check`・`npm run docs:check`)                                                                                                                                                                                              | ソースをそのまま読む                                                                                                                                                                                                 |
+| 単体(Vitest)                            | 対象ファイルの隣 `*.test.ts`                                                                                                                                                      | **純粋関数**と、`fetch`・Storage を `vi.stubGlobal` で差し替えて測る `src/lib/` の入口。DOMを使う(読む・書く・DOMParser)utils(歩行ループの部品など)。**コンポーネントを描くテストと、フックを`renderHook`で呼ぶテストは置かない**([テストの境界](#テストの境界))                                                               | `environment: 'node'`(既定)。DOM を持たない。DOMを使う(読む・書く・DOMParser)utilsだけは、ファイル先頭の`// @vitest-environment happy-dom`でそのファイルだけhappy-domで走る                                          |
+| 統合(Vitest Browser Mode。一番厚くする) | コンテナのフォルダの `*.integration.test.tsx`(1本なら `container.tsx` の隣の `container.integration.test.tsx`、2本以上ならそのフォルダの `__tests__` の下。コンテナごとに1本以上) | **コンテナ(フックを1つでも呼ぶコンポーネント)を、フック・子と一緒に描く。** コンポーネントを描くテストはこの層だけ。村も含む。モックはネットワーク(天気など)と時間だけ                                                                                                                                                         | 実ブラウザ(Chromium 1つ、headless)で、ビルド無しで走る(`vitest.integration.config.ts`・`npm run test:integration`)。ブラウザの時間帯は UTC に固定する。置き場と分け方の決まりは[統合テストの約束](#統合テストの約束) |
+| E2E(Playwright)                         | `tests/**/*.spec.ts`                                                                                                                                                              | **ビルド結果でしか確かめられないもの**(静的経路・404・初回ペイント前のテーマ・言語の接頭を保つ移動・保存が塞がれた時・ビルドが焼いたスプライトの絵)と、**ページをまたぐ核心の旅程**と、**統合テストの中では作れない場合**(再読み込み・`IntersectionObserver` の無い環境・ko の文言。[E2E に残したテスト](#e2e-に残したテスト)) | `out/` を `:4173` で静的配信                                                                                                                                                                                         |
 
 - コンポーネント1つだけを happy-dom で描いていた単体の8本(`index.test.tsx`。ADR 0016 まで「統合」と呼んでいた)は、断定を各コンテナの統合テストへ移して消した。
   `*.test.tsx` はコンポーネントのテストに使わない([../decisions/0017-screen-containers.md](../decisions/0017-screen-containers.md))。
@@ -48,11 +48,11 @@ last_reviewed: 2026-10-18
   フックへのつなぎはこの E2E が守る
 - ネットワークのモックは今の方式(`vi.stubGlobal`・Playwright の route)で行い、MSW は入れない([ADR 0016](../decisions/0016-testing-trophy-browser-integration.md))
 - E2E の配信ポートは既定 `:4173` で、`E2E_PORT` で変えられる(`playwright.config.ts`)
-- Vitest の設定は2つのファイルに分かれる。単体の `vitest.config.ts` は `src/**/*.test.ts` と `src/**/*.test.tsx` を拾い、`src` の外の `__tests__/` は拾わない。
-  統合の `vitest.integration.config.ts` は `__tests__/**/*.integration.test.tsx` だけを拾う(ほかの所に置いた `*.integration.test.ts`・`*.integration.test.tsx`・`*.browser.test.*` は `npm run test:boundary` が落とす)。どちらも `content/` や `tests/` は対象外。
+- Vitest の設定は2つのファイルに分かれる。単体の `vitest.config.ts` は `src/**/*.test.ts` と `src/**/*.test.tsx` を拾い、統合テスト(`*.integration.test.tsx`)と `__tests__` の下は exclude で外す(拾うと node の環境で描いて落ちる)。
+  統合の `vitest.integration.config.ts` は `src` の下の `*.integration.test.tsx` だけを拾う(コンテナのフォルダの外に置いた `*.integration.test.tsx` と、`*.integration.test.ts`・`*.browser.test.*` は `npm run test:boundary` が落とす)。どちらも `content/` や `tests/` は対象外。
   ファイルを分けたのは、変異テスト(`stryker.config.mjs`)が `vitest.config.ts` を読むため(ブラウザのテストを変異テストに入れない。[ミューテーションテスト](#ミューテーションテスト))
 - 純粋関数に切り出せる計算は切り出してから単体テストを書く。`src/lib/village/` と `src/lib/pixel/` がその形になっている
-- フィクスチャは `*.fixture.ts`(Vitest の対象から外れる名前)。統合テストの props を node で組むものは、unit のフォルダの直下の `__tests__/<unit>/container.fixture.ts`([統合テストの約束](#統合テストの約束))
+- フィクスチャは `*.fixture.ts`(Vitest の対象から外れる名前)。統合テストの props を node で組むものは、I/O コンテナのフォルダの `container.fixture.ts`([統合テストの約束](#統合テストの約束))
 - モジュール変数に覚えを持つ関数(`src/lib/fetch-svg-source.ts` の取得の覚え)は、テストごとに `vi.resetModules()` してから import し直し、空の覚えから始める
 
 ### どの層に置くか
@@ -76,8 +76,9 @@ last_reviewed: 2026-10-18
 
 ### 統合テストの約束
 
-実ブラウザでコンテナを描くテスト(`__tests__/` の `*.integration.test.tsx`)の約束。例は村の `__tests__/village-page/`(画面全体を描く `__tests__/village-page/fishing.integration.test.tsx` と、状態コンテナを直接描く `__tests__/village-page/stop-modal/stop-actions.integration.test.tsx` など)。
-コンテナの定義と、テストの置き場・名前・分け方は [../decisions/0019-hooks-make-containers.md](../decisions/0019-hooks-make-containers.md) で決めた。
+実ブラウザでコンテナを描くテスト(コンテナのフォルダの `*.integration.test.tsx`)の約束。例は村の `src/components/VillagePage/`(画面全体を描く `src/components/VillagePage/__tests__/fishing.integration.test.tsx`、
+状態コンテナを直接描く `src/components/VillagePage/components/Village/components/StopModal/__tests__/stop-actions.integration.test.tsx`、1本だけの対のファイル `src/components/VillagePage/components/Boot/container.integration.test.tsx` など)。
+コンテナの定義と分け方は [../decisions/0019-hooks-make-containers.md](../decisions/0019-hooks-make-containers.md)、テストの置き場と名前は [../decisions/0022-colocate-integration-tests.md](../decisions/0022-colocate-integration-tests.md) で決めた。
 
 - **コンテナ。** フックを1つでも呼ぶコンポーネントはコンテナで、ファイルの名前は `container.tsx`。フックを1つも呼ばないコンポーネントは表示部品で、入口は `index.tsx`。
   「フックを呼ぶ」は、呼ぶ相手の名前が `use` と大文字か数字で始まる呼び出し(`useX(…)`・`React.useX(…)`)で、React の組み込みのフック(`useState`・`useMemo`・`useId` など)も例外なく数える。`memo()`・`forwardRef()` はフックではない
@@ -86,33 +87,36 @@ last_reviewed: 2026-10-18
   - 今は I/O コンテナ6つと、状態コンテナ16個(作品ストーリーの `StoryBody`・`SceneModal`・`SceneSection`・`TechChipPopover`・`IntroPreview`、一覧の `WorkCard`、場面の再生の `SceneSvg`、設定メニューの `SettingsMenuPanel`、
     村の起動の覆いの `Boot` と、`Village` の下の `ClockModal`・`Ground`・`Joystick`・`Lighting`・`StopModal`・`TalkBubble`・`WorldMap`)。
     どのコンテナがどのフォルダに当たるかの一覧は [../product/feature-map.md](../product/feature-map.md) の「コンテナと統合テスト」
-- **置き場。** 統合テストは `src/` の外、リポジトリ直下の `__tests__/` に置く。E2E の `tests/` はそのまま。単体テスト(`src/**/*.test.ts`。utils・lib の隣)は動かさない。
-  コンポーネントを描くテストはこれ以外に置かない(`npm run test:boundary` が落とす。[テストの境界](#テストの境界))。
-  `__tests__/` に置けるのは `*.integration.test.tsx`・`*.test-helper.ts`・`container.fixture.ts`・`*.md` だけで、単体テストの `*.test.ts` も置かない
-  - **unit のフォルダ。** I/O コンテナの6つは、それぞれ `__tests__/<unit>/` を持つ。`<unit>` は `src/components/` の下のフォルダの道を kebab-case にしたもの
-    (`story`・`directory`・`village-page`・`ui/settings-menu`・`ui/pageview-counter`・`ui/scene-player`)。I/O コンテナ自身のテストはそのフォルダの直下に置く
-  - **状態コンテナのフォルダ。** `__tests__/<unit>/<Name の kebab-case>/`。`<unit>` はその状態コンテナを包むいちばん近い I/O コンテナ、`Name` は状態コンテナのフォルダの名前。
-    例: `src/components/Story/components/StoryBody/container.tsx` は `__tests__/story/story-body/`、`ui/ScenePlayer/components/SceneSvg` は `__tests__/ui/scene-player/scene-svg/`、
-    `ui/SettingsMenu/components/SettingsMenuPanel` は `__tests__/ui/settings-menu/settings-menu-panel/`。1つの unit の中で名前は重ならない
-  - **I/O コンテナの6つの外にある状態コンテナ。** 包む I/O コンテナが無いので、自分で unit になる。unit はその状態コンテナが入っている一番上のコンポーネントのフォルダで、
-    `src/components/<Name>/` の下なら `__tests__/<Name の kebab-case>/`、`src/components/ui/<Name>/` の下なら `__tests__/ui/<Name の kebab-case>/`。
-    その一番上のフォルダ自身の `container.tsx` のテストは unit のフォルダの直下に、それより深い状態コンテナは `__tests__/<unit>/<Name の kebab-case>/` に置く。
-    unit になっても I/O の許しは受けない。今は当てはまる `container.tsx` が無い
-- **ファイルの名前と分け方。** kebab-case の `<動作>.integration.test.tsx`(`open-modal.integration.test.tsx`・`focus-return.integration.test.tsx`・`auto-advance.integration.test.tsx` など)。
+- **置き場。** 統合テストは、そのテストが描くコンテナの `container.tsx` があるフォルダ(コンテナのフォルダ)に置く。E2E の `tests/` はそのまま。単体テスト(`src/**/*.test.ts`。utils・lib の隣)は動かさない。
+  コンポーネントを描くテストはこれ以外に置かない(`npm run test:boundary` が落とす。[テストの境界](#テストの境界))
+  - **1本なら対のファイル。** そのコンテナの統合テストが1本なら、`container.tsx` の隣の `container.integration.test.tsx`(例: `src/components/VillagePage/components/Boot/container.integration.test.tsx`)。
+    今は村の `Boot`・`ClockModal`・`Ground`・`Joystick`・`Lighting` の5つ
+  - **2本以上なら `__tests__`。** コンテナのフォルダの `__tests__` の下に、動作ごとの `<動作>.integration.test.tsx` を並べる(例: 作品カードの8本は `src/components/Directory/components/WorkCard/__tests__/`)。
+    `__tests__` の下にフォルダを作らない
+  - 1つのコンテナのフォルダに、対のファイルと `__tests__` を両方は置かない(`__tests__` の中が部品だけでも)。`__tests__` の下の統合テストが1本だけになったら、対のファイルに戻す
+  - 置かない所: 表示部品(`index.tsx`)の隣、`hooks` フォルダの中、コンテナのフォルダでない所の `__tests__`、`__tests__` の下のフォルダ、リポジトリ直下の `__tests__`
+  - **表示部品は自分のテストを持たない。** 表示部品は、それを描く親のコンテナの統合テストが覆う
+  - `__tests__` に置けるのは `*.integration.test.tsx`・`*.test-helper.ts`・`container.fixture.ts`・`*.md` だけで、単体テストの `*.test.ts` も置かない
+- **ファイルの名前と分け方。** `__tests__` の下は kebab-case の `<動作>.integration.test.tsx`(`open-modal.integration.test.tsx`・`focus-return.integration.test.tsx`・`auto-advance.integration.test.tsx` など)。
   1ファイルが動作のまとまり1つで、たいてい最上位の `describe` 1つが覆う範囲。コンテナ1つにファイルが1つ以上ある。
-  フォルダの中の統合テストはどれも、そのフォルダに当たるコンテナを `@/components/.../container` で(型だけでなく)import して描く
+  統合テストはどれも、自分のフォルダのコンテナを(型だけでなく)import して描く(対のファイルは `./container`、`__tests__` の下は `../container`。同じファイルを別名の `@/components/.../container` で書いてもよい)
 - **親と子の役割。** 親のテストは流れとつながりを見る(子が現れる、子のコールバックが親の側の結果 — 保存・移動・子どうしの間のフォーカスの戻り — に届く)。子のテストは子自身の動作を見る。
   断定を親から子へ移すときに捨てない。移した断定は全部、新しいファイルにある。子のコンポーネントも本物を描き、要素は role・名前・文字で引く。
   `renderHook` を使わず、`hooks` フォルダにテストを置かず、フックの戻り値を読まない
-- **props の作り方。** 子のテストは、親の unit の `container.fixture.ts` が `provide` した値を `inject(…)` で受ける(provide のキーは全部のフィクスチャで共通の1つの名前空間)か、手で組む。
+- **props の作り方。** 子のテストは、親の I/O コンテナの `container.fixture.ts` が `provide` した値を `inject(…)` で受ける(provide のキーは全部のフィクスチャで共通の1つの名前空間)か、手で組む。
   実際のコンテンツでは作れない分岐(説明の無い作品など)は、親でも子でも、props を変えた版をテストが直接渡してよい([../decisions/0017-screen-containers.md](../decisions/0017-screen-containers.md) の D6)
-- **フィクスチャとテストの部品。** node でしか組めない props の `container.fixture.ts`(globalSetup。下の node の API の項)は `__tests__/<unit>/container.fixture.ts` に置く。
-  統合テストだけが使う `*.test-helper.ts` は、それを使う unit のフォルダに置く。`src` の単体テストや E2E も使う部品はその場に残す。
-  統合テストの外のテストの側(`src` と `__tests__/` の両方の `*.test.ts`・`*.test-helper.ts`・`*.fixture.ts`)は、コンポーネントを描く道具を import しない([テストの境界](#テストの境界))
+- **フィクスチャとテストの部品。** node でしか組めない props の `container.fixture.ts`(globalSetup。下の node の API の項)と、統合テストか `__tests__` の中のファイルが import する `*.test-helper.ts`・`*.fixture.ts`(部品が import する部品も)は、
+  コンテナのフォルダの `__tests__` の下か `container.tsx` の隣にだけ置く。`container.fixture.ts` は I/O コンテナの6つ(`scripts/container-dirs.mjs`)のものだけ。
+  複数のコンテナのテストが使う部品は、それらのコンテナを包むいちばん近いコンテナの側に置く
+  (例: 作品ストーリーの画面のテストと `TechChipPopover` のテストが使う `src/components/Story/__tests__/chip-popover.test-helper.ts`)。
+  単体テストだけが使う部品(`src/lib/pixel/png.test-helper.ts` など)は、それを使う単体テストの隣に置く。
+  統合テストの外のテストの側(`*.test.ts`・`*.test-helper.ts`・`*.fixture.ts`。`__tests__` の下の部品も)は、コンポーネントを描く道具を import しない([テストの境界](#テストの境界))
 - **村。** 1段階では、村の統合テストを中身を変えずに(import だけ直して)1本のまま `village.integration.test.tsx` へ移した。
-  2段階で、村の画面全体(`VillagePageContainer`)を描くテストは `__tests__/village-page/` の直下の動作ごとのファイルへ、8つの状態コンテナのテストはそれぞれのフォルダ(`__tests__/village-page/boot/` など)へ分け、その1本は消した。
-  状態コンテナのフォルダのテストは、そのコンテナを props で直接描く(画面全体を描くテストと1つのファイルに混ぜない)。`test(…)` の名前は変えずに移した
-- 以前の名前 `container.browser.test.tsx` と、「コンテナごとに隣にちょうど1本」の決まりは無くなった
+  2段階で、村の画面全体(`VillagePageContainer`)を描くテストは動作ごとのファイルへ、8つの状態コンテナのテストはそれぞれのフォルダへ分け、その1本は消した。
+  今は、画面全体を描くテストが `src/components/VillagePage/__tests__/` に、8つの状態コンテナのテストがそれぞれのコンテナのフォルダ(1本だけの5つは対のファイル)にある。
+  状態コンテナのテストは、そのコンテナを props で直接描く(画面全体を描くテストと1つのファイルに混ぜない)。`test(…)` の名前は変えずに移した
+- 以前の名前 `container.browser.test.tsx` と、「コンテナごとに隣にちょうど1本」の決まりは無くなった。
+  リポジトリ直下の `__tests__` に unit ごとのフォルダで置く形(2026-10-17〜18)も無くなった([../decisions/0022-colocate-integration-tests.md](../decisions/0022-colocate-integration-tests.md))
 - 設定は `vitest.integration.config.ts` で、`@vitest/browser-playwright` は 4.1.10 に版を固定する(peer が同じ版の vitest で、5.x は vitest 5 を求めて衝突する)
 - コンテナを、フック・子と一緒に本物のまま描く。レイアウト・`ResizeObserver`・入力は差し替えない。rAF と `performance.now` は時間として扱い、下の時間の差し替えの中でだけ偽物にする
 - ブラウザの環境の設定(ビューポートの大きさ、`prefers-reduced-motion` やタッチの模擬を CDP や `matchMedia` で再現すること)はモックではなく環境として扱い、使ってよい
@@ -127,7 +131,7 @@ last_reviewed: 2026-10-18
   テストの iframe の中で待ってから離すと、離す指示が Chromium へ届くまでの遅れが押す長さに足され、負荷の高い時に 1 マス分のつもりの押下が次のマスまで歩いた(2026-10-17 の実測)
 - 差し替えるのはネットワークと時間だけ。`fetch` は `vi.stubGlobal` で差し替え、`afterEach` で `vi.unstubAllGlobals()` して戻す
   (村は天気の応答と、段階が替わる時に読むシートの絵の取得。シートは `Image` を差し替えて応答を決める)
-- 時間は Vitest の偽の時計(`vi.useFakeTimers`)で差し替える。掛け方はファイルごとに違い、正本は村の `__tests__/village-page/village-time.test-helper.ts` の `startVillageClock` と各テストの `vi.useFakeTimers`。
+- 時間は Vitest の偽の時計(`vi.useFakeTimers`)で差し替える。掛け方はファイルごとに違い、正本は村の `src/components/VillagePage/__tests__/village-time.test-helper.ts` の `startVillageClock` と各テストの `vi.useFakeTimers`。
   - 村の歩く・待つ・釣り・傘・飛ぶを見るファイル(歩行ループの眠り・池での釣り・雨の日の傘・自動移動の直線飛行・村の入力と道中の配線など)は、rAF・`performance.now`・タイマー・Date を全部偽の時計に載せ、
     テストが 1 フレーム 16ms ずつ進めた分だけ時間が経つ(E2E の `page.clock.install` に当たる)
   - 村の昼夜と卓上時計のファイル(昼夜と天気・夜の灯り・卓上時計)は、rAF・タイマー・`performance.now` を本物のまま使い、段階を決めるテストだけ Date を止める(`page.clock.setFixedTime` に当たる)。
@@ -141,12 +145,12 @@ last_reviewed: 2026-10-18
   `PathnameContext`(`next/dist/shared/lib/hooks-client-context.shared-runtime`)の Provider で今の経路を渡し、経路を変えるときは別の value で描き直す
 - ブラウザの操作は `vitest/browser` の `page` と `userEvent` で行う。画面の大きさは `page.viewport(幅, 高さ)` で変え、要素は `page.getByRole(…)` で引く。
   断定は利用者に見えるもの(role・名前・文字・`aria-*`・要素の有無・枠の寸法)で行う
-- ブラウザでは node の API(`node:fs`・`node:zlib`・`node:crypto`)を読み込めない。それを使って組む props は、unit のフォルダの直下の `container.fixture.ts` が
-  `export function setup(project: TestProject)` の中で node で組んで `project.provide(…)` し、テストは `inject` で受け取る(子の状態コンテナのテストも、親の unit のフィクスチャが provide した値を受け取れる)。
-  `vitest.integration.config.ts` が `__tests__` の下の `container.fixture.ts` を全部拾って globalSetup に入れる(1つも拾えないと設定を読む時点で落ちる)。
-  置けるのは unit のフォルダの直下だけで、ほかに置くと `npm run test:boundary` が落とす(全部拾うので、黙って走らせないため)。
-  今は村・一覧・作品ストーリー・設定メニューの4つ(`__tests__/village-page/container.fixture.ts`・`__tests__/directory/container.fixture.ts`・`__tests__/story/container.fixture.ts`・
-  `__tests__/ui/settings-menu/container.fixture.ts`)。設定メニューは ui の文言が要り、テストが `@content/ja/ui` を直接 import すると content の実データの import 規則(ESLint)に掛かり、
+- ブラウザでは node の API(`node:fs`・`node:zlib`・`node:crypto`)を読み込めない。それを使って組む props は、I/O コンテナのフォルダの `container.fixture.ts` が
+  `export function setup(project: TestProject)` の中で node で組んで `project.provide(…)` し、テストは `inject` で受け取る(子の状態コンテナのテストも、親の I/O コンテナのフィクスチャが provide した値を受け取れる)。
+  `vitest.integration.config.ts` が `container.fixture.ts` を全部拾って globalSetup に入れる(1つも拾えないと設定を読む時点で落ちる)。
+  置けるのは I/O コンテナの6つのフォルダ(その `__tests__` の下か `container.tsx` の隣)だけで、ほかに置くと `npm run test:boundary` が落とす(全部拾うので、黙って走らせないため)。
+  今は村・一覧・作品ストーリー・設定メニューの4つ(`src/components/VillagePage/__tests__/container.fixture.ts`・`src/components/Directory/__tests__/container.fixture.ts`・
+  `src/components/Story/__tests__/container.fixture.ts`・`src/components/ui/SettingsMenu/__tests__/container.fixture.ts`)。設定メニューは ui の文言が要り、テストが `@content/ja/ui` を直接 import すると content の実データの import 規則(ESLint)に掛かり、
   `readContent` は `node:fs` を使うのでブラウザで読めないため、フィクスチャが provide する。
   画面の3つは、ローダーとフィクスチャが同じ純粋な組み立て関数(読み出した結果を引数で受ける)を使う。村は `src/components/VillagePage/utils/village-props.ts`、
   一覧は `src/components/Directory/utils/directory-props.ts`、作品ストーリーは `src/components/Story/utils/story-props.ts`
@@ -172,7 +176,8 @@ last_reviewed: 2026-10-18
   ビルドした配信物で E2E も同じ欠陥で落ちることを確かめてから消した([新しい検査は必ず一度落とす](#新しい検査は必ず一度落とす))。
   どの欠陥でどの統合テストと E2E が落ちたかは、消したコミットの本文にある
 - **移した先。** 村の振る舞いは村の統合テスト、作品ストーリーは作品ストーリーの統合テスト。
-  どちらも 2026-10-17 に `__tests__/` へ移し([../decisions/0019-hooks-make-containers.md](../decisions/0019-hooks-make-containers.md))、今は `__tests__/village-page/` と `__tests__/story/` の下にある。
+  どちらも 2026-10-17 にリポジトリ直下の `__tests__` へ移し([../decisions/0019-hooks-make-containers.md](../decisions/0019-hooks-make-containers.md))、2026-10-18 にコンテナのフォルダへ移した([../decisions/0022-colocate-integration-tests.md](../decisions/0022-colocate-integration-tests.md))。
+  今は `src/components/VillagePage/` と `src/components/Story/` の下(それぞれの `__tests__` と、その下の状態コンテナのフォルダ)にある。
   統合テストが同じ欠陥を落とせなかったもの、統合テストの中では作れないものは消さずに E2E に残した([E2E に残したテスト](#e2e-に残したテスト))
 - **フックのファイル別100%** は、フォルダの一覧を作らず全フックへ掛けた([カバレッジの床](#カバレッジの床))
 - 6つのコンテナの統合テストを入れた段階([../decisions/0017-screen-containers.md](../decisions/0017-screen-containers.md))と、この11本を移した段階は、どちらも利用者の決定で1回のセッション・1つの PR で行った
@@ -192,7 +197,7 @@ journey のそれ以外のテストの行き先は、この表では決めてい
 | spec                             | 残したテスト                                                                                         | 残した理由                                                                                                                                                                                                                                                                                                        |
 | -------------------------------- | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `tests/fishing.spec.ts`          | 投げる・かかる・釣り上げるの各コマは足元と立ち位置を残して体だけが動き、動き終えれば歩行ループが眠る | 体の画素を構えのコマと比べるには、ビルドが焼くシートとローダーのスプライトの背景が要り、統合テストでは描かれない。右向きの張るコマに構えの絵を当てる欠陥は、コマの名前は替わるので統合テストでは落ちず、この E2E の画素の比較だけが落とした。コマの時間割・左右反転・立ち位置・歩行ループの眠りは統合テストも見る |
-| `tests/layout.spec.ts`           | PC: 一覧への出口は右下に固定される (/ko/)                                                            | 統合のフィクスチャ(`__tests__/village-page/container.fixture.ts`)は ja の props だけを渡す。ja の出口の配置と舞台の寸法は統合テストが見る                                                                                                                                                                         |
+| `tests/layout.spec.ts`           | PC: 一覧への出口は右下に固定される (/ko/)                                                            | 統合のフィクスチャ(`src/components/VillagePage/__tests__/container.fixture.ts`)は ja の props だけを渡す。ja の出口の配置と舞台の寸法は統合テストが見る                                                                                                                                                           |
 | `tests/day-night.spec.ts`        | 4段階のどれも属性だけでなく焼いたシートそのものが入れ替わる (/)                                      | 段階ごとのシートが別物で読めるかは、ビルドが焼く `/sprites/` の PNG とローダーの `<style>` が要る。段階の属性(`data-phase`)は統合テストも見る                                                                                                                                                                     |
 | `tests/day-night.spec.ts`        | 夜で雨でも8か所のコースは最後まで通る (/ko)                                                          | ko の全部の地点の文言で次へを連ねる完走([../decisions/0015-trim-e2e-overlap-and-ko.md](../decisions/0015-trim-e2e-overlap-and-ko.md))。統合のフィクスチャは ja の props だけを渡す。ja の完走は統合テストが見る                                                                                                   |
 | `tests/night-transition.spec.ts` | 3本とも                                                                                              | 描いた背景がその段階の焼いたシートを指し、画像として読めるかは、焼いたシートとローダーの `<style>` が要る。段階の切り替えとシート2枚の取得・decode 待ちは統合テストも見る                                                                                                                                         |
@@ -202,18 +207,18 @@ journey のそれ以外のテストの行き先は、この表では決めてい
 
 今走っている spec の全部。
 
-| ファイル                         | 見るもの                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `tests/journey.spec.ts`          | 村の導線。会話 → 扉 → 作品 → 一覧、8か所を巡って経歴碑もコースに数えること、地図の高速移動(番号の印と凡例・自室と池への移動)、位置と訪問の保存、テーマ、当たり判定、会話窓の本文送りと焦点、A/B とスティック、地点の物を押すと話しかけるマスまで歩いて会話が開くこと。言語の接頭を保って作品・一覧と村を行き来する導線とタッチ端末の案内文の折り返しは ja/ko 双方で、ほかは `/` だけ                                                                                                                                                                                                                                                                                                                                         |
-| `tests/layout.spec.ts`           | ko の村で、PC の一覧への出口が右下に固定されるか。舞台の寸法(PC・縦持ち・横持ち・タブレットの枠のマスと操作帯の配置)と ja の出口は統合テストが見る                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `tests/day-night.spec.ts`        | 時計を4段階に固定して、4段階ぶんの焼いたシート(地形・主人公)がどれもサイト内の読める PNG で別物であること(`/`だけ)と、夜で雨でも8か所のコースを ko の文言のまま完走すること。段階の属性・夜の灯り・雨と雪の層・天気の取得失敗・ja の完走は統合テストが見る                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `tests/night-transition.spec.ts` | 再読み込みせずに時間帯が変わるとき。開いたまま2時間進めて夜へ移っても地形と主人公が描けるか、夜の画像が 404 の間は直前の村を残し通信が戻れば夜へ移るか、片方の画像だけ遅れても両方そろうまで昼を残すか。描いた背景が焼いたシートを指して画像として読めるかまで見る                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `tests/clock.spec.ts`            | 自室の卓上時計で 20:00 を決めると夜になり、町へ出ても続き、再読み込みで実時刻へ戻るか(`/`だけ)。窓の操作と、再読み込みの前までは統合テストが見る                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `tests/fishing.spec.ts`          | 池での釣りの主人公の体のコマ。時計を止めて左向きの各コマ(投げる・かかる・釣り上げる)の実画面を撮り、構えのコマと比べて体の画素だけが変わり足元と立ち位置は動かないか、動き終えれば歩行ループが眠るか(`/`だけ)。釣りの流れ・コマの時間割・左右反転は統合テストが見る                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `tests/not-found.spec.ts`        | 存在しない経路。配信が `out/404.html` を 404 で返すか、二言語の案内がそろっているか、そこから村と一覧へ戻る導線がその言語のまま動くか                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `tests/directory.spec.ts`        | 一覧の作品カード。詳細ページを持つ作品にだけ内部リンクが付くか、持たない作品の slug へ直接入ると作品ページが出ないか(不変ルール5)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `tests/storage-blocked.spec.ts`  | 保存(localStorage / sessionStorage)が使えないとき。プロパティを読むだけで投げる形とメソッドが投げる形の両方で、初回ペイント前のテーマ読み込み・テーマの切り替え・会話・歩いて町へ出るまでが、捕まえられない例外(pageerror)を出さずに動くか                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `tests/observer-missing.spec.ts` | `IntersectionObserver` が無い環境での、一覧のカードの出現・写真の色(use-reveal・use-fully-visible)と、作品ストーリーの今の場面(use-active-scene)。一覧は、どのカードも最初から現れ(opacity 1)、作品カードの動画(`#seatmap-demo video`)に src が入り、画面に入りきらない写真も色が付いたまま(grayscale 0)か。観察器がある時の対照(画面の外のカードはまだ opacity 0・grayscale 1)も見る。作品ストーリーは、場面を下へ送っても今の場面が先頭のままで、CTA が最初の場面から開くか(観察器がある時の対照は作品ストーリーの統合テスト(`__tests__/story/` とその下の状態コンテナのテスト)の CTA と場面の現れ方のテスト)。統合では観察器を後から消せない(読み込みの時にそれを覚えた `next/link` が TypeError を投げる)ので E2E で見る |
+| ファイル                         | 見るもの                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tests/journey.spec.ts`          | 村の導線。会話 → 扉 → 作品 → 一覧、8か所を巡って経歴碑もコースに数えること、地図の高速移動(番号の印と凡例・自室と池への移動)、位置と訪問の保存、テーマ、当たり判定、会話窓の本文送りと焦点、A/B とスティック、地点の物を押すと話しかけるマスまで歩いて会話が開くこと。言語の接頭を保って作品・一覧と村を行き来する導線とタッチ端末の案内文の折り返しは ja/ko 双方で、ほかは `/` だけ                                                                                                                                                                                                                                                                                                                                                          |
+| `tests/layout.spec.ts`           | ko の村で、PC の一覧への出口が右下に固定されるか。舞台の寸法(PC・縦持ち・横持ち・タブレットの枠のマスと操作帯の配置)と ja の出口は統合テストが見る                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `tests/day-night.spec.ts`        | 時計を4段階に固定して、4段階ぶんの焼いたシート(地形・主人公)がどれもサイト内の読める PNG で別物であること(`/`だけ)と、夜で雨でも8か所のコースを ko の文言のまま完走すること。段階の属性・夜の灯り・雨と雪の層・天気の取得失敗・ja の完走は統合テストが見る                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `tests/night-transition.spec.ts` | 再読み込みせずに時間帯が変わるとき。開いたまま2時間進めて夜へ移っても地形と主人公が描けるか、夜の画像が 404 の間は直前の村を残し通信が戻れば夜へ移るか、片方の画像だけ遅れても両方そろうまで昼を残すか。描いた背景が焼いたシートを指して画像として読めるかまで見る                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `tests/clock.spec.ts`            | 自室の卓上時計で 20:00 を決めると夜になり、町へ出ても続き、再読み込みで実時刻へ戻るか(`/`だけ)。窓の操作と、再読み込みの前までは統合テストが見る                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `tests/fishing.spec.ts`          | 池での釣りの主人公の体のコマ。時計を止めて左向きの各コマ(投げる・かかる・釣り上げる)の実画面を撮り、構えのコマと比べて体の画素だけが変わり足元と立ち位置は動かないか、動き終えれば歩行ループが眠るか(`/`だけ)。釣りの流れ・コマの時間割・左右反転は統合テストが見る                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `tests/not-found.spec.ts`        | 存在しない経路。配信が `out/404.html` を 404 で返すか、二言語の案内がそろっているか、そこから村と一覧へ戻る導線がその言語のまま動くか                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `tests/directory.spec.ts`        | 一覧の作品カード。詳細ページを持つ作品にだけ内部リンクが付くか、持たない作品の slug へ直接入ると作品ページが出ないか(不変ルール5)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `tests/storage-blocked.spec.ts`  | 保存(localStorage / sessionStorage)が使えないとき。プロパティを読むだけで投げる形とメソッドが投げる形の両方で、初回ペイント前のテーマ読み込み・テーマの切り替え・会話・歩いて町へ出るまでが、捕まえられない例外(pageerror)を出さずに動くか                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `tests/observer-missing.spec.ts` | `IntersectionObserver` が無い環境での、一覧のカードの出現・写真の色(use-reveal・use-fully-visible)と、作品ストーリーの今の場面(use-active-scene)。一覧は、どのカードも最初から現れ(opacity 1)、作品カードの動画(`#seatmap-demo video`)に src が入り、画面に入りきらない写真も色が付いたまま(grayscale 0)か。観察器がある時の対照(画面の外のカードはまだ opacity 0・grayscale 1)も見る。作品ストーリーは、場面を下へ送っても今の場面が先頭のままで、CTA が最初の場面から開くか(観察器がある時の対照は作品ストーリーの統合テスト(`src/components/Story/__tests__/` と、その下の状態コンテナのテスト)の CTA と場面の現れ方のテスト)。統合では観察器を後から消せない(読み込みの時にそれを覚えた `next/link` が TypeError を投げる)ので E2E で見る |
 
 テストの件数は `npx playwright test --list` の末尾で数える(2026-10-15 で 71 件)。
 
@@ -236,7 +241,7 @@ E2E は `out/` を配る。**先に `npm run build` を済ませる。**
   `fastForward` は飛んだ先までに期限の来たタイマーを 1 度だけ呼び、その中で積まれた入れ子のタイマーは呼ばないので、入れ子の段階は次のタイマーが積まれた(文言が替わった)のを見てから 1 段ずつ進める。入れ子まで順に呼ぶなら `runFor`。
   `pauseAt` で止めた後は `runFor` で進めた分しか経たず、rAF と `setTimeout` も止まるので、それを待つ `walk`・`settleRender` は呼ばない
 - **落ちた時に原因を読み分けられるようにする。** `expect` の第2引数と `expect.poll` の `message` に、満たすべき事実を書く(`'床へは 1 マス進める'` など)。
-  前提(立っているマス・焦点が窓の中にあること・本当に歩いたこと)は本題の断定より先に確かめ、前提が崩れた時と本題が壊れた時を別の行で落とす。記録を後から調べる検査は、当たったフレームの番号(index)と時刻(at)をメッセージへ書き足す(統合テストの飛ぶ検査の `hitsNote` も同じ形。`__tests__/village-page/village-walk-flight.test-helper.ts`)
+  前提(立っているマス・焦点が窓の中にあること・本当に歩いたこと)は本題の断定より先に確かめ、前提が崩れた時と本題が壊れた時を別の行で落とす。記録を後から調べる検査は、当たったフレームの番号(index)と時刻(at)をメッセージへ書き足す(統合テストの飛ぶ検査の `hitsNote` も同じ形。`src/components/VillagePage/__tests__/village-walk-flight.test-helper.ts`)
 
 ## カバレッジの床
 
@@ -249,7 +254,7 @@ E2E は `out/` を配る。**先に `npm run build` を済ませる。**
   床の決め方は単体と同じく実測から2pt引いた値で、正本は`vitest.integration.config.ts`の`coverage`。数値はここへ書き写さない。
   CI(`.github/workflows/deploy.yml` の build ジョブ)は `npm run test:boundary` の後に Playwright の Chromium を入れ、これを走らせる
 - **フックとコンテナのファイル別100%:** 統合のカバレッジで、`src/**/hooks/**` の全部(`src/hooks/` を含む)と、すべての `container.tsx` を、ファイルごとに文・分岐・関数・行のそれぞれ100%にし、1つでも届かなければ落ちる。
-  表示部品(フックを呼ばないコンポーネント)は全体の床にだけ入る。
+  表示部品(フックを呼ばないコンポーネント)は、今は全体の床にだけ入る(表示部品もファイル別100%にすることを [../decisions/0022-colocate-integration-tests.md](../decisions/0022-colocate-integration-tests.md) で決めたが、門はまだ掛けていない)。
   一覧は手で持たず、`vitest.integration.config.ts` が設定を読むたびに拾うので、新しいフック・コンテナは置いた時点で対象になる(フックが1つも拾えないと設定を読む時点で落ちる。
   [../decisions/0018-move-e2e-and-gate-all-hooks.md](../decisions/0018-move-e2e-and-gate-all-hooks.md)・[../decisions/0019-hooks-make-containers.md](../decisions/0019-hooks-make-containers.md))。
   フックの振る舞いはそれを使うコンテナの統合テストが、コンテナの振る舞いはそのコンテナ自身の統合テストが見る
@@ -314,33 +319,40 @@ E2E は `out/` を配る。**先に `npm run build` を済ませる。**
 ## テストの境界
 
 `npm run test:boundary` は `scripts/check-test-boundary.mjs`・`scripts/check-layers.mjs`・`scripts/check-coverage-ignores.mjs`・`scripts/check-hook-rule.mjs` の4つを走らせる。
-最初の `scripts/check-test-boundary.mjs` は、`hooks`フォルダの中に単体テストがあることと、どのテスト(`src` と `__tests__/`)でも`renderHook`を使うことを落とす。
+最初の `scripts/check-test-boundary.mjs` は、`hooks`フォルダの中に単体テストがあることと、どのテスト(統合テストと部品を含む `src` の全部のテスト)でも`renderHook`を使うことを落とす。
 フックは配線だけを持ち、ロジックは純粋関数へ移して単体で見る([../decisions/0011-extreme-constraints.md](../decisions/0011-extreme-constraints.md))。
 フックの振る舞いは、それを使うコンテナを統合テストで描いて見る(ADR 0016。この検査の決まりは ADR 0016 でも変えていない)。
-統合テストは `src` の外の `__tests__/` に置くので、`hooks`フォルダの中には置けない。
+統合テストはコンテナのフォルダにだけ置くので、`hooks`フォルダの中には置けない(置くと下の置き場の検査が落とす)。
 テストの部品・フィクスチャ(`*.test-helper.ts`・`*.fixture.ts`)を`hooks`フォルダの下に置くことも落とす。統合のカバレッジ(`vitest.integration.config.ts`)はこの名前を exclude で外すので、
 `hooks`フォルダの下に置くと、フックのファイル別100%の門([カバレッジの床](#カバレッジの床))の外に黙って残るため。
 
-加えて、コンテナとコンポーネントを描くテストの置き場を見る([../decisions/0019-hooks-make-containers.md](../decisions/0019-hooks-make-containers.md))。
+加えて、コンテナとコンポーネントを描くテストの置き場を見る([../decisions/0019-hooks-make-containers.md](../decisions/0019-hooks-make-containers.md)・[../decisions/0022-colocate-integration-tests.md](../decisions/0022-colocate-integration-tests.md))。
 I/O コンテナの一覧は `scripts/container-dirs.mjs`(画面の3つと横断部品の3つ。`scripts/check-layers.mjs` と同じもの)で、それ以外の `container.tsx` は状態コンテナ。
-当たるフォルダの決め方は[統合テストの約束](#統合テストの約束)。落とすのは次のとき。
+置き場の決め方は[統合テストの約束](#統合テストの約束)。落とすのは次のとき。
 
-- `*.test.tsx`(単体の設定が拾う名前)を src のどこかに置く
-- `__tests__/` の下に、`*.integration.test.tsx`・`*.test-helper.ts`・`container.fixture.ts`・`*.md` のほかの名前のファイルを置く(単体テストの `*.test.ts` も。どちらの設定にも拾われないまま残る)
-- `container.tsx` に当たる `__tests__` のフォルダに `*.integration.test.tsx` が1つも無い(I/O コンテナの6つの外にある状態コンテナは、自分の unit のフォルダで数える。[統合テストの約束](#統合テストの約束))
-- そのフォルダの中の統合テストが、そのフォルダのコンテナを(型だけでなく)import していない(自分のコンテナを描く)
-- `*.integration.test.ts`・`*.integration.test.tsx`・`*.browser.test.*` が、コンテナに当たる `__tests__` のフォルダの `*.integration.test.tsx` のほか(`src/` の中のどこでも)にある
-- どのコンテナにも当たらない `__tests__` のフォルダがある
-- 1つの unit の中で、状態コンテナの kebab-case の名前が重なる
+- `*.integration.test.tsx` のほかの `*.test.tsx`(単体の設定が拾う名前)を src のどこかに置く
+- 統合テスト(`*.integration.test.tsx`)をコンテナのフォルダの外に置く(表示部品の隣・`hooks` フォルダの中・コンテナのフォルダでない所の `__tests__`・`__tests__` の下のフォルダ・リポジトリ直下の `__tests__`)
+- 統合テストの名前が決まりと違う。`container.tsx` の隣に置けるのは `container.integration.test.tsx` だけで、
+  `__tests__` の下は kebab-case の `<動作>.integration.test.tsx`(`container.integration.test.tsx` という名前は置けない)
+- コンテナのフォルダでない所の `__tests__` か、`__tests__` の下のフォルダに、ファイルを置く(統合テストに限らず、中のどのファイルでも)
+- 1つのコンテナのフォルダに、対のファイル `container.integration.test.tsx` と `__tests__` が両方ある(`__tests__` の中が部品だけでも)。`__tests__` の下の統合テストが1本だけ(対のファイルにする)
+- `container.tsx` に統合テスト(対のファイルか、そのフォルダの `__tests__` の下の `*.integration.test.tsx`)が1つも無い
+- 統合テストが、自分のフォルダのコンテナ(対のファイルは `./container`、`__tests__` の下は `../container`、別名の `@/components/.../container` も同じ)を(型だけでなく)import していない
+- `*.integration.test.ts`・`*.browser.test.*` をどこかに置く
+- `__tests__` の下に、`*.integration.test.tsx`・`*.test-helper.ts`・`container.fixture.ts`・`*.md` のほかの名前のファイルを置く(単体テストの `*.test.ts` も。どちらの設定にも拾われないまま残る)
+- リポジトリ直下に `__tests__` がある
 - 隣に `container.tsx` の無い `hooks` フォルダがある(`src/hooks/` を除く)
+- `container.tsx` を、`src/components/<名前>/`(`ui` の下は `src/components/ui/<名前>/`)の下の外に置く(`src/app/`・`src/lib/` など、`src/components/`・`src/components/ui/` の直下)。
+  `scripts/check-layers.mjs` は `src/app/`・`src/lib/` を許す側として見るので、そこに置いたコンテナが外の世界に触れても見逃すため
+- I/O コンテナの6つの一覧(`scripts/container-dirs.mjs`)を変える(7つめを足すなど)。検査の自己検査が6つのパスを固定しているので、自己検査が落ちる。一覧を変えるには ADR が要る
 - 状態コンテナのフォルダに `index.tsx` がある(フォルダの名前で import できてしまう `index.ts`・`index.d.ts`・`index.js`・`index.jsx` も。I/O コンテナの6つのフォルダは今の形のまま許す)
 - 状態コンテナが外の世界の入口を import する
-- `container.fixture.ts` を unit のフォルダの直下の外に置く
-- 統合テストの外(`src` と `__tests__/` の `*.test.ts`・`*.test-helper.ts`・`*.fixture.ts`)がコンポーネントを描く道具(`@testing-library/react`・`react-dom` とその下。型だけの import も)を import する
+- `container.fixture.ts` を I/O コンテナの6つのフォルダ(その `__tests__` の下か `container.tsx` の隣)の外に置く
+- 統合テストの外(`*.test.ts`・`*.test-helper.ts`・`*.fixture.ts`。`__tests__` の下の部品も)がコンポーネントを描く道具(`@testing-library/react`・`react-dom` とその下。型だけの import も)を import する
 
 統合テストの外で描く道具を落とすのは、happy-dom でコンポーネントを描くと、名前を `*.test.ts` にするだけで置き場の決まりをすり抜けるため
-(`__tests__/` の部品を `src` の単体テストが読んで描く道も同じ)。
-`container.fixture.ts` の置き場を落とすのは、統合の設定が `__tests__` の下の `container.fixture.ts` を全部 globalSetup に入れ、ほかに置いても黙って走るため。
+(統合テストの部品を単体テストが読んで描く道も同じ)。
+`container.fixture.ts` の置き場を落とすのは、統合の設定が `container.fixture.ts` を全部 globalSetup に入れ、ほかに置いても黙って走るため。
 フックを呼んでよい所(`container.tsx` と、`hooks` フォルダの中の `use-*.ts`・`use-*.tsx`)は、ESLint の規則 `layer/hook-only-in-container` が `npm run lint` で見る(テストの部品は外す)。
 同じ規則を `scripts/check-hook-rule.mjs` が `npm run test:boundary` で使う(下の項)。
 
@@ -354,7 +366,7 @@ I/O コンテナの一覧は `scripts/container-dirs.mjs`(画面の3つと横断
   決まりは [../architecture/boundaries.md](../architecture/boundaries.md) の「コンテナと表示部品」
 - 同じコマンドで走る `scripts/check-coverage-ignores.mjs` は、カバレッジから行を外す注釈を見る([カバレッジの床](#カバレッジの床)のフックとコンテナのファイル別100%)
 - 同じコマンドで走る `scripts/check-hook-rule.mjs` は、ESLint の規則 `layer/hook-only-in-container` をそのまま使ってフックを呼ぶ所を見る。
-  まず規則の判定(偽のコードの断片から拾うフックの名前)と、`eslint.config.mjs` の掛け方(偽のパスで、規則が掛かる所と外れる所)を自己検査し、src と `__tests__/` のファイルが lint の対象の外になっていないことも確かめる。
+  まず規則の判定(偽のコードの断片から拾うフックの名前)と、`eslint.config.mjs` の掛け方(偽のパスで、規則が掛かる所と外れる所)を自己検査し、src のファイル(コンテナのフォルダの統合テストと部品を含む)が lint の対象の外になっていないことも確かめる。
   src のファイルごとに、規則が掛かるかを名前の決まり(外れるのは `container.tsx`・`hooks` フォルダの中の `use-*.ts(x)`・テストの部品だけ)と突き合わせ、1つでも違えば落とす
   (規則の組みの `ignores` に実在のパスを足すと、そのファイルは lint も通るため。この抜け道を実際の設定に入れて拾うことも自己検査する)。
   そのうえで src の `*.ts`・`*.tsx` を全部 lint して違反を数える(`eslint-disable` の注釈で黙らせた呼び出しも数える)
@@ -371,8 +383,8 @@ PASS は調査を止めるので、FAIL より危険である。
 ## 走らせる範囲
 
 統合テスト(`npm run test:integration`)はビルド無しで走るが、全体は約51秒かかる(2026-10-18 の手元の実測、87ファイル・314件、`--coverage` 無し。1本だった当時の 2026-10-13 の実測は約3.4秒、`-- --coverage` 付きで約4.3秒)。
-反復中は触ったコンテナの統合テストだけを狭めて走らせ(ファイル1つを `-t` で絞るなら `npm run test:integration -- __tests__/village-page/fishing.integration.test.tsx -t '<名前>'`、
-コンテナ1つのフォルダなら `npm run test:integration -- __tests__/story/story-body/`)、全体は commit の直前に1回だけ走らせる(`npm run verify` に含まれる)。
+反復中は触ったコンテナの統合テストだけを狭めて走らせ(ファイル1つを `-t` で絞るなら `npm run test:integration -- src/components/VillagePage/__tests__/fishing.integration.test.tsx -t '<名前>'`、
+コンテナ1つの `__tests__` なら `npm run test:integration -- src/components/Story/components/StoryBody/__tests__/`)、全体は commit の直前に1回だけ走らせる(`npm run verify` に含まれる)。
 
 E2E の反復中は落ちた spec だけを狭く走らせる(`npx playwright test tests/journey.spec.ts -g '<名前>'`)。
 **E2E の全体は手元では回さず、push で CI が回す**(E2E で commit の直前に走らせるのは、変えた範囲が指す spec だけ)。詳しくは [../agents/verification.md](../agents/verification.md)。

@@ -74,7 +74,7 @@ utils ← lib ← hooks ← components ← app
 - `src/**/*.{ts,tsx}` のフックの呼び出しを全部落とす。フックの呼び出しは、呼ぶ相手の名前が `/^use[A-Z0-9]/` に合うもの(識別子の `useX(...)` も、メンバーの `React.useX(...)` も)。
   React の組み込みのフック(`useState`・`useMemo`・`useId` など)も数え、例外は無い。`memo()`・`forwardRef()` はフックではない
 - 外すのは `**/container.tsx`、`hooks` フォルダの中の `use-*.ts(x)`(`src/hooks/` を含む)、テストの部品(`*.test.ts(x)`・`*.fixture.ts`・`*.test-helper.ts`)
-- `scripts/check-hook-rule.mjs` は、規則の判定と `eslint.config.mjs` の掛け方を偽の断片で自己検査し、src と `__tests__` のファイルが lint の対象の外になっていないことを確かめてから、
+- `scripts/check-hook-rule.mjs` は、規則の判定と `eslint.config.mjs` の掛け方を偽の断片で自己検査し、src のファイル(コンテナのフォルダの `__tests__` の中も)が lint の対象の外になっていないことを確かめてから、
   src の `*.ts`・`*.tsx` を全部 lint して違反を数える。`eslint-disable` の注釈で黙らせた呼び出しも違反に数える
 - 同じ `scripts/check-hook-rule.mjs` は、src のファイルごとに規則が掛かるかを名前の決まり(外れるのは上の `container.tsx`・`hooks` フォルダの中の `use-*.ts(x)`・テストの部品だけ)と突き合わせ、
   1つでも違えば落とす。規則の組みの `ignores` に実在のパスを足す・後ろの組みで `off` や `warn` にすると、そのファイルは lint も通ってしまうため。
@@ -84,7 +84,7 @@ utils ← lib ← hooks ← components ← app
 **外の世界に触れてよい所** — `scripts/check-layers.mjs`(`npm run test:boundary`)。src の import を全部読んでつながりをたどり、式の中の大域の名前も見る。
 ESLint の `no-restricted-imports` はファイル1つずつの指定子しか見ないので、「入口を import するフックを表示部品が import する」形を見逃すため。
 
-- **許す側**は I/O コンテナの6つの `container.tsx`・その隣の `hooks` フォルダ(下のフォルダも)・ローダー(画面の3つのフォルダの `index.tsx`)・`src/app/`・`src/lib/`・テスト(`__tests__/` の統合テストと、src の単体テストの `*.test.ts`)・`*.fixture.ts`・`*.test-helper.ts`。
+- **許す側**は I/O コンテナの6つの `container.tsx`・その隣の `hooks` フォルダ(下のフォルダも)・ローダー(画面の3つのフォルダの `index.tsx`)・`src/app/`・`src/lib/`・テスト(コンテナのフォルダの統合テストと、src の単体テストの `*.test.ts`)・`*.fixture.ts`・`*.test-helper.ts`。
   それ以外の src のファイル(状態コンテナとその隣の `hooks` フォルダ、表示部品と、その utils、`src/hooks/`、`src/utils/`)が、上の入口か、入口へ届くファイルを import すると落ちる。間にフック・部品・utils を何段挟んでも同じで、落ちたときは入口へ届く道(import のつながり)を出す。
   パッケージの入口は前方一致で見る(`next/navigation` の後ろに拡張子を付けて書いても同じ)
 - **許す側の外のファイルは、import の要らない外の世界の入口を使わない。** 構文木で式の中の名前を見て、`window.`・`globalThis.`・`self.` を付けたもの・`['…']` で引くもの・分割代入で取り出すものも数える。
@@ -92,29 +92,34 @@ ESLint の `no-restricted-imports` はファイル1つずつの指定子しか�
 - **I/O コンテナは届く道を外へ伝えない。** 横断部品の I/O コンテナ(`src/components/ui/ScenePlayer/container.tsx` など)は、外から `container.tsx` を直接指して描く決まりなので([ADR 0017](../decisions/0017-screen-containers.md) の Consequences)
 - **許す側の外のファイルは、I/O コンテナの隣の `hooks` フォルダ**(一覧のフォルダの直下の `hooks` の下。画面の3つと横断部品の3つのどれも)**を import しない。** 今は入口へ届かないフックでも、そこは画面の状態・データのフックの置き場なので落ちる。
   状態コンテナのフックは、そのコンテナの隣の `hooks` フォルダに置く
-- **画面のコンテナを import してよいのは、同じフォルダのローダーと、テスト(`__tests__/` の統合テストとフィクスチャ)だけ。** 許す側(`src/app/` など)でも同じで、ルートはローダーを指す。
+- **画面のコンテナを import してよいのは、同じフォルダのローダーと、テスト(統合テストとフィクスチャ)だけ。** 許す側(`src/app/` など)でも同じで、ルートはローダーを指す。
   型だけの import は数えない
 - **一覧のフォルダに `container.tsx` が無いと落ちる。** 改名・移動で一覧が空振りして、そのフォルダの `hooks` の許しだけが黙って残らないように。
   一覧の外の `container.tsx` は状態コンテナで、外の世界の import を許さない。I/O コンテナを足すなら、一覧と ADR を直す
 - 入口の一覧と許す側の正本は `scripts/check-layers.mjs`、I/O コンテナの一覧の正本は `scripts/container-dirs.mjs`。
   落ちたら、その import を I/O コンテナ(またはその隣の `hooks` フォルダ)へ移し、値を props で下へ渡す
 
-**テストと `hooks` フォルダの置き場** — `npm run test:boundary`(`scripts/check-test-boundary.mjs`・`scripts/check-layers.mjs`)。テストの置き場の決まりは [../quality/test-strategy.md](../quality/test-strategy.md)。次のときに落ちる。
+**テストと `hooks` フォルダの置き場** — `npm run test:boundary`(`scripts/check-test-boundary.mjs`・`scripts/check-layers.mjs`)。テストの置き場の決まりは [../quality/test-strategy.md](../quality/test-strategy.md)(統合テストをコンテナのフォルダに置くことは [ADR 0022](../decisions/0022-colocate-integration-tests.md))。次のときに落ちる。
 
-- `container.tsx` に対応する `__tests__` のフォルダ(I/O コンテナは `__tests__/<unit>/`、状態コンテナは `__tests__/<unit>/<kebab(Name)>/`)に `*.integration.test.tsx` が無い。
-  I/O コンテナの6つの外にある状態コンテナは自分で unit になり、入っている一番上のコンポーネントのフォルダが unit を決める(`src/components/<Name>/` の下なら `__tests__/<kebab(Name)>/`、
-  `src/components/ui/<Name>/` の下なら `__tests__/ui/<kebab(Name)>/`。I/O の許しは受けない)
-- 対応するフォルダの中の統合テストが、そのフォルダのコンテナを(型だけでなく)import していない
-- `*.integration.test.ts`・`*.integration.test.tsx`・`*.browser.test.*` が、ほかの所(`src/` の中のどこでも)にある
+- `container.tsx` のあるフォルダ(コンテナのフォルダ)に `*.integration.test.tsx` が無い。
+  そのコンテナのテストが1本なら隣の `container.integration.test.tsx`、2本以上ならそのフォルダの `__tests__` の中の `<動作>.integration.test.tsx` に置く
+- 1つのコンテナのフォルダに、隣の `container.integration.test.tsx` と `__tests__` が両方ある。`__tests__` の中の統合テストが1本だけ(隣の `container.integration.test.tsx` にする)
+- 統合テストが、自分のフォルダのコンテナ(隣のテストは `./container`、`__tests__` の中は `../container`。`@/components/…/container` で指しても同じ)を(型だけでなく)import していない
+- `*.integration.test.tsx` が、コンテナのフォルダの隣とその `__tests__` の直下のほか(表示部品の `index.tsx` の隣・`hooks` フォルダの中・コンテナのフォルダでない所の `__tests__`・`__tests__` の下のフォルダ)にある。
+  `*.integration.test.ts`・`*.browser.test.*` はどこにあっても落ちる
+- 統合テストの名前が決まりと違う。コンテナのフォルダの隣に置けるのは `container.integration.test.tsx` だけで、
+  `__tests__` の中は kebab-case の `<動作>.integration.test.tsx`(`container.integration.test.tsx` という名前は置けない)
+- コンテナのフォルダでない所の `__tests__` か、`__tests__` の下のフォルダに、ファイルがある(統合テストに限らず、中のどのファイルでも)
+- リポジトリ直下に `__tests__` がある
 - `__tests__` の下に、`*.integration.test.tsx`・`*.test-helper.ts`・`container.fixture.ts`・`*.md` のほかの名前のファイルがある(単体テストの `*.test.ts` も置かない)
-- どのコンテナにも対応しない `__tests__` のフォルダがある
-- 1つの unit の中で、状態コンテナの kebab-case の名前が重なる
 - 隣に `container.tsx` が無い `hooks` フォルダがある(`src/hooks/` を除く)
+- `container.tsx` が、`src/components/<名前>/`(`ui` の下は `src/components/ui/<名前>/`)の下の外にある(`src/app/`・`src/lib/` など、`src/components/`・`src/components/ui/` の直下)。
+  `scripts/check-layers.mjs` は `src/app/`・`src/lib/` を許す側として見るので、そこに置いたコンテナが外の世界に触れても見逃すため
 - 状態コンテナのフォルダに `index.tsx` がある(フォルダの名前で import できてしまう `index.ts`・`index.d.ts`・`index.js`・`index.jsx` も)。import する側は `.../<Name>/container` を直接指す。
   I/O コンテナの6つのフォルダは今の形のまま許す(画面の3つの `index.tsx` はローダー、`src/components/ui/ScenePlayer/index.tsx` はコンテナが描く表示部品)
 - 状態コンテナが外の世界の入口を import する(上の「外の世界に触れてよい所」)
-- `container.fixture.ts` が unit のフォルダの直下でない所にある
-- 統合テストの外のテストの側(`src` と `__tests__` の `*.test.ts`・`*.test-helper.ts`・`*.fixture.ts`)が、コンポーネントを描く道具(`@testing-library/react`・`react-dom` とその下)を import する
+- `container.fixture.ts` が、I/O コンテナの6つのフォルダ(その `__tests__` の中か `container.tsx` の隣)のほかの所にある
+- 統合テストの外のテストの側(`*.test.ts`・`*.test-helper.ts`・`*.fixture.ts`。`__tests__` の中も)が、コンポーネントを描く道具(`@testing-library/react`・`react-dom` とその下)を import する
 
 ### 型の正本が下の層にあるとき
 

@@ -7,21 +7,20 @@ import path from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 import nextConfig from './next.config'
 
-// 画面(コンテナ)の props は node でしか組めない(fs・zlib・crypto を使う)ので、I/O コンテナの単位フォルダ(__tests__/<unit>/)の
-// container.fixture.ts がテストの前に node で組んで provide する。コンテナを足すたびにここを直さずに済むよう、__tests__ の下から全部拾う。
-// 置けるのは単位フォルダの直下だけで、ほかに置くと npm run test:boundary
-// (scripts/check-test-boundary.mjs)が落とす(ここは全部拾うので、黙って走らせないため。docs/decisions/0019-hooks-make-containers.md)。
+// 画面(コンテナ)の props は node でしか組めない(fs・zlib・crypto を使う)ので、I/O コンテナのフォルダの
+// container.fixture.ts(そのフォルダの __tests__/ の中か、container.tsx の隣)がテストの前に node で組んで provide する。
+// コンテナを足すたびにここを直さずに済むよう、src の下から全部拾う。
+// 置けるのは I/O コンテナの6つ(scripts/container-dirs.mjs)のフォルダだけで、ほかに置くと npm run test:boundary
+// (scripts/check-test-boundary.mjs)が落とす(ここは全部拾うので、黙って走らせないため。ADR 0022)。
 // 探す起点はこのファイルの場所にする(走らせた場所で拾う物が変わらないように)。順は名前で並べて、走るたびに揃える
 const ROOT = fileURLToPath(new URL('.', import.meta.url))
-const CONTAINER_FIXTURES = globSync('__tests__/**/container.fixture.ts', { cwd: ROOT })
+const CONTAINER_FIXTURES = globSync('src/**/container.fixture.ts', { cwd: ROOT })
   .sort()
   .map(file => fileURLToPath(new URL(file, import.meta.url)))
 // 1 つも拾えないと globalSetup が空のまま進み、テストの inject が undefined を受けて分かりにくい所で落ちる。
 // パターンや起点の誤りで黙って 0 個になるのを、設定を読む時点で止める
 if (CONTAINER_FIXTURES.length === 0) {
-  throw new Error(
-    `__tests__ の下に container.fixture.ts が 1 つも見つからない(探した起点: ${ROOT})`
-  )
+  throw new Error(`src の下に container.fixture.ts が 1 つも見つからない(探した起点: ${ROOT})`)
 }
 
 // フックとコンテナはファイルごとに、文・分岐・関数・行のすべてを100%にする
@@ -49,13 +48,17 @@ const PER_FILE_TARGETS = [...HOOK_FILES, ...CONTAINER_FILES]
 // 1ファイルを文・分岐・関数・行のすべてで100%に固定するしきい値(単体の vitest.config.ts の FULL_COVERAGE と同じ)
 const FULL_COVERAGE = { statements: 100, branches: 100, functions: 100, lines: 100 }
 
-// 統合テストの名前(test.include)と、カバレッジで測る物・外す物。下の検査と test・coverage の設定が同じ一覧を使う
-const INTEGRATION_TESTS = ['__tests__/**/*.integration.test.tsx']
+// 統合テストの名前(test.include)と、カバレッジで測る物・外す物。下の検査と test・coverage の設定が同じ一覧を使う。
+// 統合テストはコンテナのフォルダ(container.tsx の隣か、そのフォルダの __tests__/ の中)に置く(ADR 0022)
+const INTEGRATION_TESTS = ['src/**/*.integration.test.tsx']
 const COVERAGE_INCLUDE = ['src/**/*.{ts,tsx}']
+// テストの側の物(統合テスト・テストの部品・フィクスチャ)も src の中にあるので、測る物から外して分母に入れない。
+// *.test.{ts,tsx} は統合テスト(*.integration.test.tsx)にも当たる。__tests__/ の中はテストの側の物だけを置く所なので、名前を問わず外す
 const COVERAGE_EXCLUDE = [
   'src/**/*.test.{ts,tsx}',
   'src/**/*.fixture.ts',
   'src/**/*.test-helper.ts',
+  'src/**/__tests__/**',
 ]
 // フックとコンテナが1つ残らずカバレッジで測られることを、設定を読む時点で確かめる。thresholds の glob に当たるファイルがカバレッジの表に無いと、
 // Vitest は空の表を100%と数えて黙って通す。exclude に掛かる名前のフック(hooks/ の下の *.fixture.ts など)は、ファイル別100%の門を素通りする。
@@ -102,18 +105,20 @@ const TEST_EXCLUDE = [...configDefaults.exclude, '**/.claude/**', 'tests/**']
 // 同じページで後に走るファイルは、(hover: hover) and (pointer: fine) で出し分ける CSS(一覧のカードなど)をタッチ端末の形で描いてしまう。
 // そこで、タッチの模擬を使うファイルにはそれぞれ別のブラウザの instance を割り当て、ほかのファイルとページを共にさせない。
 // instance は Vitest の project として数えられ、それぞれのブラウザを開き、globalSetup(上の CONTAINER_FIXTURES)も走らせる。
-// どのファイルが使うかは、ファイルが emulateTouch(__tests__/village-page/village-walk.test-helper.ts)の名前を書いているかで拾う。
+// どのファイルが使うかは、ファイルが emulateTouch(src/components/VillagePage/__tests__/village-walk.test-helper.ts)の名前を書いているかで拾う。
 // 名前を書かずに別の部品から呼ぶと拾えないので、emulateTouch は名前が TOUCH_PROJECT_PREFIX で始まる instance の外では投げる
 const TOUCH_PROJECT_PREFIX = 'touch:'
 const TOUCH_TESTS = globSync(INTEGRATION_TESTS, { cwd: ROOT, exclude: TEST_EXCLUDE })
   .map(file => file.split(path.sep).join('/'))
   .filter(file => /\bemulateTouch\b/.test(readFileSync(path.join(ROOT, file), 'utf8')))
   .sort()
-// instance の名前(テストの結果の行頭に出る)。__tests__/ と .integration.test.tsx を落とした残り
+// instance の名前(テストの結果の行頭に出る)。src/components/ と .integration.test.tsx を落とした残り
 const touchProjectName = (file: string) =>
-  TOUCH_PROJECT_PREFIX + file.replace(/^__tests__\//, '').replace(/\.integration\.test\.tsx$/, '')
+  TOUCH_PROJECT_PREFIX +
+  file.replace(/^src\/components\//, '').replace(/\.integration\.test\.tsx$/, '')
 
-// キーを押したまま待って離す手。村の統合テストが rAF の本物の時に使う(__tests__/village-page/village-walk.test-helper.ts の press・tapHeld)。
+// キーを押したまま待って離す手。村の統合テストが rAF の本物の時に使う
+// (src/components/VillagePage/__tests__/village-walk.test-helper.ts の press・tapHeld)。
 // 押す・待つ・離すを node の側でまとめて行い、E2E(tests/village.helpers.ts の press)と同じく node の時計で待つ。
 // テストの iframe の中で待ってから離すと、離す指示が iframe から Vitest(node)・Playwright を回って Chromium へ届くまでの遅れが
 // 押す長さに足される。負荷が高いと 1 マス分(150ms)のつもりの押下が 1 マスの歩行(256ms)より長く続き、次のマスまで歩いた
@@ -153,9 +158,10 @@ const holdKey: BrowserCommand<[key: string, hold: Hold]> = async ({ page, frame 
 // (docs/decisions/0016-testing-trophy-browser-integration.md)。
 // 単体の vitest.config.ts と別のファイルにするのは、変異テスト(stryker.config.mjs)が vitest.config.ts を読むため。
 // Stryker の Browser Mode 対応は未実測なので、変異テストは node と happy-dom の単体だけで回す(ADR 0016)。
-// 単体の設定は __tests__ と *.integration.test.{ts,tsx} を exclude で外し、ここはリポジトリ直下の __tests__ の *.integration.test.tsx だけを拾う(ADR 0019)。
-// ほかの場所・名前の統合テスト(src の下・*.integration.test.ts・もとの名前の *.browser.test.*)はどちらの設定にも拾われないが、
-// npm run test:boundary(scripts/check-test-boundary.mjs)が落とすので、走らないまま黙って残ることは無い
+// 単体の設定は __tests__/ と *.integration.test.{ts,tsx} を exclude で外し、ここは src の下の *.integration.test.tsx だけを拾う(ADR 0022)。
+// ほかの場所・名前の統合テスト(src の外・*.integration.test.ts・もとの名前の *.browser.test.*)はどちらの設定にも拾われず、
+// src の下でもコンテナのフォルダの外(表示部品の隣・hooks の中など)に置いた物はここで走るが、どちらも
+// npm run test:boundary(scripts/check-test-boundary.mjs)が落とすので、置き場の外のまま黙って残ることは無い
 export default defineConfig({
   // next/link などは Next のビルドが process.env.X を値へ置き換える前提で書かれていて、ブラウザには process が無い。
   // ここで process.env の中身を決める。中身は Next のビルドが next.config から入れる値のうち、テストの結果に表れるものだけ:
@@ -182,7 +188,7 @@ export default defineConfig({
     exclude: TEST_EXCLUDE,
     // 上で拾った container.fixture.ts を、テストの前に node で走らせる
     globalSetup: CONTAINER_FIXTURES,
-    // 落ちた時の画面の写しは、既定だとテストの隣(__tests__ の中)とリポジトリ直下に出る。git が無視する test-results/ へ寄せる
+    // 落ちた時の画面の写しは、既定だとテストの隣(src の中)とリポジトリ直下に出る。git が無視する test-results/ へ寄せる
     attachmentsDir: 'test-results/vitest-attachments',
     browser: {
       enabled: true,
