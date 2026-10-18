@@ -4,7 +4,7 @@ read_when:
   - 変異テストの走らせ方(commit の前・push・全体)を変えたくなったとき
   - CI の変異テストが前回の結果を引き継いでよいか迷ったとき
 source_of_truth: false
-last_reviewed: 2026-10-11
+last_reviewed: 2026-10-18
 ---
 
 # 0013. 変異テストは push ごとに変わった変異体だけを走らせ、全体は週1回手で走らせる
@@ -13,6 +13,9 @@ last_reviewed: 2026-10-11
 
 Accepted(2026-10-11、利用者の決定)。[0011](0011-extreme-constraints.md)が門に置いた変異テスト(`npm run test:mutation`)の走らせ方だけを決める。
 対象(`stryker.config.mjs`の`mutate`)としきい値(`break` 100)は0011のまま
+
+一部を [0021](0021-fail-on-mutation-timeout.md) が置き換えた(2026-10-18。下の Consequences の「走らせた変異体と引き継いだ結果を合わせて`break` 100で判定する」は、
+`break` 100 に「時間切れ(Timeout)の変異体が1体も無い」を足した判定に替わり、時間切れは前回の結果から引き継がなくなった。走らせ方の3段・対象・しきい値は変えない)
 
 ## Context
 

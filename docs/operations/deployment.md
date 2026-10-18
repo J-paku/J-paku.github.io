@@ -21,7 +21,7 @@ push to main / workflow_dispatch
       docs:check → typecheck → lint → format:check → test:coverage(カバレッジの床) → test:boundary
       → Playwright Chromium をキャッシュから戻す(miss なら入れる。hit でも OS 側の依存は入れる)
       → test:integration -- --coverage(統合テスト。ビルド無し。統合のカバレッジの床を下回ると落ちる)
-      → Stryker の前回の結果をキャッシュから戻す → test:mutation(変わった変異体と、前回落とせなかった変異体だけ) → 結果をキャッシュへ保存(test:mutation が落ちても保存する)
+      → Stryker の前回の結果をキャッシュから戻す → test:mutation(変わった変異体と、前回落とせなかった変異体・時間切れだけ。時間切れが1体でもあれば落ちる) → 結果をキャッシュへ保存(test:mutation が落ちても保存する)
       → build → test:e2e
       → out/ を :4173 で配信 → wait-on
       → axe(6経路) → Lighthouse CI(同じ6経路) → CJK フォントの .deb をキャッシュから戻して入れる → 日本語改行検査

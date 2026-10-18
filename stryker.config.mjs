@@ -5,6 +5,9 @@
 // 純粋モジュールは人がコードを読んで確かめない。その代わりに、元のコードを1か所ずつ壊した変異体
 // (演算子・比較・定数・条件の入れ替え)を、テストが1体残らず見抜けることを機械に確かめさせる。
 // 生き残った変異体は「テストが見ていない振る舞い」なので、1体でも残れば落とす(しきい値がすべて100の理由)。
+// 時間切れ(Timeout)の変異体も1体でもあれば落とす。Stryker は時間切れを落とした数に入れるのでしきい値では落ちず、
+// npm run test:mutation の入口の scripts/run-mutation.mjs が落とす(docs/decisions/0021-fail-on-mutation-timeout.md)。
+// 待ち時間(timeoutMS・timeoutFactor)は既定のままにし、延ばさない。変異で止まらなくなるループはコードの形を直す。
 // しきい値を下げる・対象から外すときは、先に ADR を書く
 //
 // 対象は純粋モジュールの置き場(src/lib/・src/utils/・コンポーネント専用の utils/)の全部で、一覧を手で並べない。
@@ -39,8 +42,8 @@ const config = {
   // 埋め方: 週1回、手で npm run test:mutation -- --force を走らせて全部を測り直す。CI のキャッシュの鍵には
   // package-lock.json・この設定・vitest.config.ts の指紋を入れ、どれかが変わると結果を引き継がずに全部を走らせる。
   // 逆向きの穴(前回の生き残りを使い回し、テストを直しても落ち続ける)は、npm run test:mutation の入口の
-  // scripts/run-mutation.mjs が埋める。走らせる前に結果ファイルから落とせなかった変異体を取り除き、毎回測り直させる
-  // (npx stryker run を直接叩くと通らない。理由と実測は scripts/run-mutation.mjs の注釈)
+  // scripts/run-mutation.mjs が埋める。走らせる前に結果ファイルから落とせなかった変異体と時間切れを取り除き、毎回測り直させる
+  // (npx stryker run を直接叩くと通らず、時間切れでも落ちない。理由と実測は scripts/run-mutation.mjs の注釈)
   incremental: true,
   incrementalFile: 'reports/stryker-incremental.json',
   tempDirName: '.stryker-tmp',
