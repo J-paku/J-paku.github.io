@@ -20,7 +20,7 @@ Content                      locale ごとに1つ
 ├── profile: Profile         名前・肩書き・守備範囲・リンク
 │   ├── careers: Career[]        在籍1社 = 1件。id が ja/ko 共通の安定キー
 │   │   ├── assignments: CareerAssignment[] 左列に出す派遣先の1行(持たない経歴もある)
-│   │   └── detail: CareerDetail 右列に展開して並べる担当業務の詳細
+│   │   └── detail?: CareerDetail 右列に展開して並べる担当業務の詳細
 │   │       └── assignments: CareerDetailAssignment[] 派遣先ごとの担当内容(派遣先が複数の経歴だけ)
 │   └── strengths: Strength[]
 ├── skills: SkillCategory[]  項目ごとに evidence(根拠の作品 slug)を持つ
@@ -35,6 +35,7 @@ Content                      locale ごとに1つ
 - **`ja` と `ko` は同じ型を満たす。** キーの過不足は `tsc --noEmit` が落とす。ko の欠けを ja で埋めない
 - **ロケール共通の値**(`glyph`・`story.scenes[].image`)は ja/ko に同じ値を書く。型を分けない
 - `status: 'wip'` の作品は `period` / `role` / `scale` / `detail` / `story` を持たない
+- `Career`・`Work` は `detail` の有無で型が二つに分かれる(持つ側が `DetailedCareer`・`DetailedWork`)。コンテナが `detail` を持つものだけを詳細の部品に渡す
 - 「担当外の工程」を表すのは `CareerFeature.roles` に**含めないこと**。別のフラグを足さない
 - 装飾のための記号(`·` の区切り、節番号 `ASSIGNMENT 01`)は content に持たせず、コンポーネント側が作る
 

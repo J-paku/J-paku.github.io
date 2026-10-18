@@ -1,18 +1,16 @@
 // 作品カードの折りたたみ式詳細。work.detail.sections を順に並べるだけの組み立て役。
-// work.detail を持たない作品ではカード側が開閉トリガー自体を出さない想定だが、念のためここでも null を返す
-import type { Locale, Work } from '@content/types/content'
+// work.detail を持たない作品ではカード側が開閉トリガーも詳細の行も出さない(カードが detail の有無で絞り、型がそれを守る)
+import type { DetailedWork, Locale } from '@content/types/content'
 import PhraseText from '@/components/ui/PhraseText'
 import styles from './work-detail.module.css'
 
 type WorkDetailProps = {
-  work: Work
+  work: DetailedWork
   detailId: string
   locale: Locale
 }
 
 function WorkDetail({ work, detailId, locale }: WorkDetailProps) {
-  if (work.detail === undefined) return null
-
   const { detail } = work
 
   return (

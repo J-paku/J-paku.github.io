@@ -4,7 +4,7 @@
 // 文言は career と ui からのみ取る。ラテンのみのキッカー(CAREER DETAIL)は
 // 左列の PORTFOLIO — 2026 と同じ扱いで content には置かない
 import { Fragment } from 'react'
-import type { Career, Locale, UiStrings } from '@content/types/content'
+import type { DetailedCareer, Locale, UiStrings } from '@content/types/content'
 import PhraseText from '@/components/ui/PhraseText'
 import Asides from './components/Asides'
 import Assignment from './components/Assignment'
@@ -14,8 +14,8 @@ import Origin from './components/Origin'
 import styles from './career-detail.module.css'
 
 type CareerDetailProps = {
-  // 描く経歴。detail を持たない経歴は親が渡さない
-  career: Career
+  // 描く経歴。detail を持たない経歴は親が渡さない(親の一覧が detail の有無で絞り、型がそれを守る)
+  career: DetailedCareer
   ui: UiStrings
   locale: Locale
 }
@@ -25,7 +25,6 @@ const SEPARATOR = ' · '
 
 function CareerDetail({ career, ui, locale }: CareerDetailProps) {
   const { detail } = career
-  if (detail === undefined) return null
 
   // 同じページに複数枚並ぶため、見出しの id も経歴ごとに分ける
   const headingId = `career-heading-${career.id}`

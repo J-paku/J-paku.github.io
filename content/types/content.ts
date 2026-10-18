@@ -111,7 +111,8 @@ export type WorkStory = {
   outro: { title: string; body: string; stackSummary: WorkStoryChip[] }
 }
 
-export type Work = {
+// 作品の項目のうち detail 以外。detail の有無で作品の型を2つに分ける(下の DetailedWork・Work)
+type WorkFields = {
   slug: string
   status: WorkStatus
   title: string
@@ -131,13 +132,20 @@ export type Work = {
   thumbnail?: string
   // 実操作デモ動画(mp4)を持つ作品だけが持つ
   video?: string
-  // カード折りたたみ詳細(見出し+本文段落のセクション列による叙事)。wip作品は持たない — 不変ルール5の延長
-  detail?: WorkDetail
   // 専用ストーリーページ(/works/:slug)を持つ作品のみ。detailとは別物。imageはロケール共通 — glyphの前例に倣う
   story?: WorkStory
   // story.scenes をカードのサムネイル枠で循環再生する作品だけ true — 経路を重複保有せず story を単一ソースとして参照する趣旨
   storyReel?: boolean
 }
+
+// カード折りたたみ詳細を持つ作品。カードは detail を持つ作品にだけ詳細の行を描き、その行の中身(WorkDetail)はこの型だけを受け取る
+export type DetailedWork = WorkFields & {
+  // カード折りたたみ詳細(見出し+本文段落のセクション列による叙事)。wip作品は持たない — 不変ルール5の延長
+  detail: WorkDetail
+}
+
+// detail の有無を型の分かれ目にする。detail !== undefined で調べた先は DetailedWork に絞れる
+export type Work = DetailedWork | (WorkFields & { detail?: undefined })
 
 // ---------- 経歴の詳細(11段階) ----------
 
@@ -201,7 +209,8 @@ export type CareerDetail = {
 // 左列の経歴ブロックに出す派遣先の1行。在籍1社の中の配属を期間付きで並べる
 export type CareerAssignment = { period: string; label: string }
 
-export type Career = {
+// 経歴の項目のうち detail 以外。detail の有無で経歴の型を2つに分ける(下の DetailedCareer・Career)
+type CareerFields = {
   // 左列のトリガーから右列の詳細パネル(#career-<id>)を指す安定キー。表示しないので社名を含めない。ja/koで同じ値
   id: string
   company: string
@@ -213,9 +222,16 @@ export type Career = {
   role: string
   summary: string
   highlights: string[]
-  // 右列に展開して並べる担当業務の詳細。持たない経歴はトリガー自体を出さない
-  detail?: CareerDetail
 }
+
+// 担当業務の詳細を持つ経歴。一覧は detail を持つ経歴にだけ詳細のパネルを描き、パネル(CareerDetail)はこの型だけを受け取る
+export type DetailedCareer = CareerFields & {
+  // 右列に展開して並べる担当業務の詳細。持たない経歴はトリガー自体を出さない
+  detail: CareerDetail
+}
+
+// detail の有無を型の分かれ目にする。detail !== undefined で絞った先は DetailedCareer になる
+export type Career = DetailedCareer | (CareerFields & { detail?: undefined })
 
 export type Strength = {
   title: string
