@@ -6,6 +6,7 @@ import { cleanup, render, screen, within } from '@testing-library/react'
 import type {
   Career,
   CareerDetail as CareerDetailContent,
+  CareerDetailAssignment,
   CareerFact,
 } from '@content/types/content'
 import DirectoryContainer from '@/components/Directory/container'
@@ -50,6 +51,15 @@ const assignmentCareer = pickCareer(
 const withoutField = (career: DetailedCareer, key: keyof CareerDetailContent): DetailedCareer => ({
   ...career,
   detail: { ...career.detail, [key]: undefined },
+})
+
+// 実データの経歴の detail の一部の項目を差し替えた写しを作る(節の中の任意の文を外すときに使う)
+const withDetail = (
+  career: DetailedCareer,
+  patch: Partial<CareerDetailContent>
+): DetailedCareer => ({
+  ...career,
+  detail: { ...career.detail, ...patch },
 })
 
 const renderDirectory = (data: DirectoryData = directoryJa) =>
@@ -297,5 +307,105 @@ describe('担当業務の詳細(CareerDetail)', () => {
         expect(badge.textContent).toBe(`${labels[role]}${expected}`)
       }
     })
+  })
+
+  describe('節の中の任意の文', () => {
+    it.each([
+      ['導入文(lead)', 'lead'],
+      ['注記(note)', 'note'],
+    ] as const)(
+      '現場の手順の%sは、持てば手順の節に出し、外すとその文だけを出さず流れのコマは残す',
+      (_label, key) => {
+        const origin = fullCareer.detail.origin
+        if (origin === undefined) throw new Error('originが無い')
+        const text = origin[key]
+        if (text === undefined) throw new Error(`手順の${key}がcontentに無い`)
+
+        const { unmount } = renderDirectory()
+        expect(within(sectionIn(panelOf(fullCareer), origin.heading)).getByText(text)).toBeTruthy()
+        unmount()
+
+        renderDirectory(
+          withCareer(withDetail(fullCareer, { origin: { ...origin, [key]: undefined } }))
+        )
+        const section = within(sectionIn(panelOf(fullCareer), origin.heading))
+        expect(section.queryByText(text)).toBeNull()
+        for (const step of origin.flow) {
+          expect(section.getAllByText(step.label).length).toBeGreaterThan(0)
+        }
+      }
+    )
+
+    it('機能一覧の導入文(lead)は、持てば機能一覧の節に出し、外すとその文だけを出さず機能の行は残す', () => {
+      const features = fullCareer.detail.features
+      if (features === undefined) throw new Error('featuresが無い')
+      const { lead } = features
+      if (lead === undefined) throw new Error('機能一覧の導入文がcontentに無い')
+
+      const { unmount } = renderDirectory()
+      expect(within(sectionIn(panelOf(fullCareer), features.heading)).getByText(lead)).toBeTruthy()
+      unmount()
+
+      renderDirectory(
+        withCareer(withDetail(fullCareer, { features: { ...features, lead: undefined } }))
+      )
+      const section = within(sectionIn(panelOf(fullCareer), features.heading))
+      expect(section.queryByText(lead)).toBeNull()
+      for (const item of features.items) {
+        expect(section.getAllByText(item.name).length).toBeGreaterThan(0)
+      }
+    })
+
+    // 派遣先の任意の文。外す項目ごとに、その項目が画面に出す文の並びを返す
+    const assignmentTexts: Array<
+      [
+        label: string,
+        key: 'lead' | 'core',
+        textsOf: (assignment: CareerDetailAssignment) => string[],
+      ]
+    > = [
+      [
+        '導入文(lead)',
+        'lead',
+        assignment => (assignment.lead === undefined ? [] : [assignment.lead]),
+      ],
+      [
+        '判断の核(core)',
+        'core',
+        assignment =>
+          assignment.core === undefined ? [] : [assignment.core.claim, assignment.core.body],
+      ],
+    ]
+
+    it.each(assignmentTexts)(
+      '派遣先の%sは、外した派遣先の節にだけ出さず、その節の題字と事実表とほかの派遣先の文は残す',
+      (_label, key, textsOf) => {
+        const [stripped, ...others] = assignmentCareer.detail.assignments ?? []
+        if (stripped === undefined) throw new Error('派遣先が無い')
+        const strippedTexts = textsOf(stripped)
+        // 前提: 外す派遣先もほかの派遣先も、外す前はその項目を持つ。持たなければ外した差を見ていない
+        expect(strippedTexts.length).toBeGreaterThan(0)
+        expect(others.every(other => textsOf(other).length > 0)).toBe(true)
+
+        renderDirectory(
+          withCareer(
+            withDetail(assignmentCareer, {
+              assignments: [{ ...stripped, [key]: undefined }, ...others],
+            })
+          )
+        )
+        const panel = panelOf(assignmentCareer)
+        const strippedSection = sectionIn(panel, stripped.client)
+        for (const text of strippedTexts) {
+          expect(within(strippedSection).queryByText(text)).toBeNull()
+        }
+        expect(factPairsIn(strippedSection)).toEqual(pairsOf(stripped.facts))
+        for (const other of others) {
+          for (const text of textsOf(other)) {
+            expect(within(sectionIn(panel, other.client)).getByText(text)).toBeTruthy()
+          }
+        }
+      }
+    )
   })
 })
