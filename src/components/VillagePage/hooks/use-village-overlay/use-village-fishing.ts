@@ -15,8 +15,17 @@ import {
   isCollectionComplete,
   pickCatch,
 } from '@/lib/village/fishing'
+import type { FishingPosePhase } from '@/lib/village/player-pose'
 
-export type FishingPhase = 'idle' | 'casting' | 'bite' | 'landing' | 'caught'
+export type FishingPhase = 'idle' | FishingPosePhase
+
+// 釣りの段階と、浮きと巻物を置く水のマス。マスは投げてから釣り上げまでの間だけ持ち、やめれば null に戻る。
+// 2 つを 1 つの形にまとめ、マスがある間は段階が idle でないことを型で持たせる
+// (浮きを描く FishingFloat は idle を受けず、置く側の WorldLayer はマスの有無だけを見ればよい)
+export type FishingCast = { at: null; phase: 'idle' } | { at: Cell; phase: FishingPosePhase }
+
+// 投げていない間の形。state は投げている間だけ値を持ち、無い間はこれを返す
+const IDLE: FishingCast = { at: null, phase: 'idle' }
 
 export type VillageFishingOptions = {
   text: VillageText
@@ -27,12 +36,9 @@ export type VillageFishingOptions = {
   setSpeech: Dispatch<SetStateAction<string>>
 }
 
-export type UseVillageFishing = {
-  phase: FishingPhase
+export type UseVillageFishing = FishingCast & {
   // 結果窓に出す文言。それ以外の間は null
   stop: StopText | null
-  // 浮きと巻物を置く水のマス。投げてから釣り上げまでの間だけ持ち、やめれば null
-  at: Cell | null
   // 全部を釣り上げたか。最後の 1 つを釣り上げて結果窓に出した瞬間に立ち、釣った一覧と同じく
   // タブを開いている間は下ろさない。立っている間は start が何もしない
   exhausted: boolean
@@ -47,9 +53,9 @@ export function useVillageFishing({
   world,
   setSpeech,
 }: VillageFishingOptions): UseVillageFishing {
-  const [phase, setPhase] = useState<FishingPhase>('idle')
+  // 投げている間の段階と水のマス。段階とマスを別の state にすると、片方だけが替わった描画を型で拒めないので 1 つに持つ
+  const [cast, setCast] = useState<{ at: Cell; phase: FishingPosePhase } | null>(null)
   const [caught, setCaught] = useState<CareerFeature | null>(null)
-  const [at, setAt] = useState<Cell | null>(null)
   const [exhausted, setExhausted] = useState(false)
   // これまでに釣り上げた名前。まだ釣っていない物を先に出すため pickCatch へ渡す
   const caughtNamesRef = useRef(new Set<string>())
@@ -75,9 +81,8 @@ export function useVillageFishing({
       clearTimeout(landTimerRef.current)
       landTimerRef.current = null
     }
-    setPhase('idle')
+    setCast(null)
     setCaught(null)
-    setAt(null)
   }, [])
 
   // 投げる。呼ぶのは重ね表示の openTalk だけで、openTalk は釣れる中身が無い時・全部を釣り上げた後には呼ばず、
@@ -85,12 +90,11 @@ export function useVillageFishing({
   // ここへ来る時はいつも、釣り残しがあり、段階は idle で、タイマーも動いていない
   const start = useCallback(
     (cell: Cell) => {
-      setAt(cell)
-      setPhase('casting')
+      setCast({ at: cell, phase: 'casting' })
       setSpeech(text.fishing.cast)
       castTimerRef.current = setTimeout(() => {
         castTimerRef.current = null
-        setPhase('bite')
+        setCast({ at: cell, phase: 'bite' })
         setSpeech(text.fishing.bite)
         biteTimerRef.current = setTimeout(() => {
           biteTimerRef.current = null
@@ -98,7 +102,7 @@ export function useVillageFishing({
           // ここへ来る時は必ず釣り残しがある。pickCatch が null を返すのは中身が空の時だけで、空なら start は呼ばれない
           const picked = pickCatch(catches, caughtNamesRef.current)!
           setCaught(picked)
-          setPhase('landing')
+          setCast({ at: cell, phase: 'landing' })
           // 釣った物として数えるのは結果窓に出した物だけ。巻物が浮いている間に閉じた物は釣っていない
           // 扱いで、また釣れる。ここではまだ数えず、これで全部が揃うかどうかだけを見て会話窓の文言を選ぶ
           const completesNow =
@@ -115,7 +119,7 @@ export function useVillageFishing({
               completedRef.current = true
               setExhausted(true)
             }
-            setPhase('caught')
+            setCast({ at: cell, phase: 'caught' })
           }, FISHING_LAND_MS)
         }, FISHING_BITE_MS)
       }, FISHING_CAST_MS)
@@ -123,16 +127,17 @@ export function useVillageFishing({
     [catches, text, setSpeech]
   )
 
+  const current = cast ?? IDLE
   const stop = useMemo<StopText | null>(() => {
-    if (phase === 'caught' && caught !== null)
+    if (current.phase === 'caught' && caught !== null)
       return catchToStop(caught, text.fishing, roleLabels, exhausted)
     return null
-  }, [phase, caught, text, roleLabels, exhausted])
+  }, [current.phase, caught, text, roleLabels, exhausted])
 
   // ワープ(ワールド変更)とアンマウントでは釣りとタイマーを持ち越さない。
   // world が変わると前の回の後始末として reset が走る。effect の本体で呼んでいた頃と同じ
   // passive effect の一括処理の中なので、止まる時機は変わらない
   useEffect(() => reset, [world, reset])
 
-  return { phase, stop, at, exhausted, start, reset }
+  return { ...current, stop, exhausted, start, reset }
 }

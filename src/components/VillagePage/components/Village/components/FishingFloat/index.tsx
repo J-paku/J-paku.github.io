@@ -20,7 +20,8 @@ export type FishingFloatProps = {
   at: Cell
   // 竿を持って立っているマス(ワールド座標)。浮きのマスとの差が糸を渡す向きになる
   from: Cell
-  phase: FishingPosePhase | 'idle'
+  // 竿を持つ間の段階。待機(idle)の間は置くマスが無く、WorldLayer がこの部品を置かない
+  phase: FishingPosePhase
   sprites: SheetLayout
 }
 
@@ -28,8 +29,8 @@ export type FishingFloatProps = {
 type FloatStyle = SpriteStyle & { '--land-ms': string }
 type LineStyle = SpriteStyle & { '--swing-ms': string }
 
-// 段階ごとの絵。待機中は水面に何も無いので持たない
-const FLOAT_ART: Partial<Record<FishingFloatProps['phase'], string>> = {
+// 段階ごとの絵。待機中は水面に何も無く、この部品も置かれないので持たない
+const FLOAT_ART: Record<FishingPosePhase, string> = {
   casting: 'bobber',
   bite: 'bobber-bite',
   landing: 'scroll',
@@ -41,7 +42,6 @@ const LINE_PHASES: ReadonlySet<FishingFloatProps['phase']> = new Set(['casting',
 
 export function FishingFloat({ at, from, phase, sprites }: FishingFloatProps) {
   const art = FLOAT_ART[phase]
-  if (art === undefined) return null
 
   // 跳ね上がりの長さは待ち時間と同じにする。秒数の正本は lib 側の定数 1 か所だけ
   const style: FloatStyle = {

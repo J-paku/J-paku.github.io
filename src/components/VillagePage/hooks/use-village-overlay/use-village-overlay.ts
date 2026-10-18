@@ -14,7 +14,7 @@ import { pickDefaultSpeech } from '../../components/Village/utils/pick-default-s
 import type { VillageRuntime } from '../use-village-runtime'
 import { useCourseProgress } from './use-course-progress'
 import { useFishingPose } from './use-fishing-pose'
-import { useVillageFishing, type FishingPhase } from './use-village-fishing'
+import { useVillageFishing, type FishingCast } from './use-village-fishing'
 import { useVillageHint } from './use-village-hint'
 import { useVillageTravel } from './use-village-travel'
 
@@ -52,9 +52,9 @@ type UseVillageOverlay = {
   hintText: string | null
   // 案内文(SpeechBox・role='status')の一言を差し替える手。時計の設定窓が結果を伝えるのに使う
   announce: (message: string) => void
-  // 釣りの進み具合と、結果窓に出す文言、浮きを置く水のマス、全部を釣り上げたか。
+  // 釣りの進み具合と浮きを置く水のマス(マスがある間は段階が idle でない)、結果窓に出す文言、全部を釣り上げたか。
   // 出す物が無ければ stop は null
-  fishing: { phase: FishingPhase; stop: StopText | null; at: Cell | null; exhausted: boolean }
+  fishing: FishingCast & { stop: StopText | null; exhausted: boolean }
 }
 
 export function useVillageOverlay({
@@ -72,13 +72,13 @@ export function useVillageOverlay({
 }: VillageOverlayOptions): UseVillageOverlay {
   const [mode, setMode] = useState<Mode>('walk')
   const { hintText, showHint, clearHint } = useVillageHint({ world })
+  // 段階とマスは 1 つの形(FishingCast)のまま受ける。別の変数へ分けると、マスがある間は idle でないことが型から落ちる
   const {
-    phase: fishingPhase,
     stop: fishingStop,
-    at: fishingAt,
     exhausted: fishingExhausted,
     start: startFishing,
     reset: resetFishing,
+    ...fishingCast
   } = useVillageFishing({ text, catches, roleLabels, world, setSpeech })
   const { markVisited, celebrateIfComplete } = useCourseProgress({
     worldSet,
@@ -97,7 +97,7 @@ export function useVillageOverlay({
   }, [mode, runtime])
 
   // 錠の effect の後に登録する(effect の実行順を保つ)
-  useFishingPose(fishingPhase, runtime)
+  useFishingPose(fishingCast.phase, runtime)
 
   // 錠の間に呼ばれるのは 1 つの場合だけ。autoTalk の地点(ロボットなど)に着くと歩行ループのフレームの中で onTalk が呼ばれ、
   // 描き直す前に Z が届くと、mode が walk のままの古い pressA(runtime.buttons)がもう一度ここを呼ぶ。開き直しても会話・時計の窓は 1 つのまま
@@ -212,9 +212,8 @@ export function useVillageOverlay({
     hintText,
     announce: setSpeech,
     fishing: {
-      phase: fishingPhase,
+      ...fishingCast,
       stop: fishingStop,
-      at: fishingAt,
       exhausted: fishingExhausted,
     },
   }

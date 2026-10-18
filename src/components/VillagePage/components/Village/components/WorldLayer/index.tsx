@@ -26,8 +26,9 @@ export type WorldLayerProps = {
   destination: Cell | null
   // 主人公の今のマス。釣り糸の根元と、考え事の吹き出しの土台の最初の位置に使う
   playerCell: Cell
-  // 釣りの進み具合と浮きを置く水のマス。釣っていない間は at が null
-  fishing: { at: Cell | null; phase: FishingFloatProps['phase'] }
+  // 釣りの進み具合と浮きを置く水のマス。釣っていない間は at が null で、段階は idle。
+  // マスがある間は段階が竿を持つ間の物に限られるので、at を見るだけで FishingFloat へそのまま渡せる
+  fishing: { at: null; phase: 'idle' } | Pick<FishingFloatProps, 'at' | 'phase'>
   locatorVisible: boolean
   // 話しかける物の上の吹き出し。位置か台詞が null の間と、会話(mode が 'talk')の間は出さない
   talkAt: { x: number; y: number } | null

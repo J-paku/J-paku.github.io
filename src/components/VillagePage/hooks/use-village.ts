@@ -16,7 +16,7 @@ import { useVillageButtons } from './use-village-buttons'
 import { useVillageInput } from './use-village-input'
 import { useStageScale } from './use-stage-scale'
 import { useVillageGuide } from './use-village-guide/use-village-guide'
-import type { FishingPhase } from './use-village-overlay/use-village-fishing'
+import type { FishingCast } from './use-village-overlay/use-village-fishing'
 import { useVillageOverlay } from './use-village-overlay/use-village-overlay'
 import { useVillageWorld } from './use-village-world'
 import { useWalkLoop } from './use-walk-loop/use-walk-loop'
@@ -84,9 +84,9 @@ type UseVillage = {
   // 話せる相手がいない時の考え事の吹き出し。2.5 秒で消える。位置は hintRef が毎フレーム追従する
   hintText: string | null
   mode: 'walk' | 'talk' | 'map' | 'clock' | 'fishing'
-  // 釣りの進み具合と、結果窓に出す文言、浮きを置く水のマス、全部を釣り上げたか。
+  // 釣りの進み具合と浮きを置く水のマス(マスがある間は段階が idle でない)、結果窓に出す文言、全部を釣り上げたか。
   // 出す物が無ければ stop は null。exhausted の間は水辺の吹き出しが考え事になり、A を押しても投げない
-  fishing: { phase: FishingPhase; stop: StopText | null; at: Cell | null; exhausted: boolean }
+  fishing: FishingCast & { stop: StopText | null; exhausted: boolean }
   setHeld: VillageInput['setHeld']
   // 会話窓が開いている間の上下入力。StopModal が本文スクロールに読む
   scrollHeldRef: VillageRuntime['scrollHeld']
