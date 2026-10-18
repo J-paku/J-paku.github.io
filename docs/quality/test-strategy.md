@@ -310,11 +310,13 @@ E2E は `out/` を配る。**先に `npm run build` を済ませる。**
 - 落とせない変異が出たら、テストを足して落とす。対象から外す(`scripts/gate-targets.mjs`の規則や名指しを変える)・`break`を下げるにはADRが要る
 - 走らせ方は3段([../decisions/0013-incremental-mutation-on-push.md](../decisions/0013-incremental-mutation-on-push.md))。gitのフックでcommitのたびに走らせることはしない。
   純粋モジュール(変異テストの対象)かそのテストを変えたときだけ、commitの直前に手で走らせる([../agents/verification.md](../agents/verification.md))。
-  push(CI)と手元の既定の実行は`incremental`で前回の結果を引き継ぎ、変わった変異体だけを走らせる(CIは結果をキャッシュで持ち回り、キャッシュが無い最初のpushでは全部が走る)。
+  push(CI)と手元の既定の実行は`incremental`で前回の結果を引き継ぎ、変わった変異体だけを走らせる(CIは最も新しく保存された結果をキャッシュで持ち回り、キャッシュが無い最初のpushでは全部が走る。
+  手元で結果ファイルが無いときは、`scripts/run-mutation.mjs`が同じリポジトリのほかの作業ツリーの最も新しい結果を写して引き継ぎ、どこにも無ければ全部が走る。[../decisions/0023-inherit-latest-mutation-result.md](../decisions/0023-inherit-latest-mutation-result.md))。
   全部を走らせるのは週1回、手で`npm run test:mutation -- --force`
 - `incremental`が前回と比べるのは`mutate`のファイルとテストファイルだけ。`mutate`のファイルがimportする別のファイル・テストがimportする別のファイル(`*.test-helper.ts`・`*.fixture.ts`など)・依存パッケージ・設定だけが変わっても気付かず、
   前回落とした変異体は、今は生き残るとしても落としたままと数える(2026-10-18に実測)。
-  CIはキャッシュの鍵に`package-lock.json`・`stryker.config.mjs`・`vitest.config.ts`の指紋を入れて、依存・設定が変わると全部を走らせる。importする別のファイルの変更は週1回の`--force`まで見落としうる
+  依存・設定(`package-lock.json`・`stryker.config.mjs`・`vitest.config.ts`)が変わっても、CIも手元も全部は走らせずに前回の結果を引き継ぐ。
+  依存・設定とimportする別のファイルの変更は週1回の`--force`まで見落としうる
 - 逆向きに、Strykerは前回生き残った変異体を、その変異体を通るテストが増えた・変わったと分かったときしか測り直さない。
   モジュールを読む時に1回だけ評価される静的な変異体は、どのテストに通られたかの記録が残らないので、テストを直しても足しても前回の生き残りを使い回して落ち続ける。
   テストがimportする別のファイルだけを直したときは、関数の中の変異体でも同じことが起きる(どちらも2026-10-18に実測)。

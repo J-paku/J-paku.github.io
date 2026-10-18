@@ -35,12 +35,14 @@ const config = {
   reporters: ['clear-text', 'progress', 'html'],
   htmlReporter: { fileName: 'reports/mutation/index.html' },
   // 前回の結果をファイルに残し、次の実行では変わった変異体だけを走らせる。CI はこのファイルを
-  // キャッシュで持ち回るので、push ごとに全部を走らせずに済む。
+  // キャッシュで持ち回るので、push ごとに全部を走らせずに済む。結果ファイルが無い新しい作業ツリーでは、
+  // scripts/run-mutation.mjs がほかの作業ツリーの最も新しい結果を写して引き継ぐ。
   // 穴: 比べるのは mutate のファイルとテストファイルだけで、依存パッケージ・設定・mutate のファイルが
   // import する別のファイル・テストが import する別のファイル(*.test-helper.ts・*.fixture.ts など)が変わっても
   // 気付かず、前回の結果を使い回す。前回落とした変異体は、今は生き残るとしても落としたままと数える(2026-10-18 に実測)。
-  // 埋め方: 週1回、手で npm run test:mutation -- --force を走らせて全部を測り直す。CI のキャッシュの鍵には
-  // package-lock.json・この設定・vitest.config.ts の指紋を入れ、どれかが変わると結果を引き継がずに全部を走らせる。
+  // 埋め方: 週1回、手で npm run test:mutation -- --force を走らせて全部を測り直す。CI も手元も、package-lock.json・
+  // この設定・vitest.config.ts が変わっても全部は走らせず、最も新しい結果を引き継ぐ
+  // (docs/decisions/0023-inherit-latest-mutation-result.md)。
   // 逆向きの穴(前回の生き残りを使い回し、テストを直しても落ち続ける)は、npm run test:mutation の入口の
   // scripts/run-mutation.mjs が埋める。走らせる前に結果ファイルから落とせなかった変異体と時間切れを取り除き、毎回測り直させる
   // (npx stryker run を直接叩くと通らず、時間切れでも落ちない。理由と実測は scripts/run-mutation.mjs の注釈)

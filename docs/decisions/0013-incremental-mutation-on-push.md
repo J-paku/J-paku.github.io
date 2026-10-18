@@ -17,6 +17,10 @@ Accepted(2026-10-11、利用者の決定)。[0011](0011-extreme-constraints.md)�
 一部を [0021](0021-fail-on-mutation-timeout.md) が置き換えた(2026-10-18。下の Consequences の「走らせた変異体と引き継いだ結果を合わせて`break` 100で判定する」は、
 `break` 100 に「時間切れ(Timeout)の変異体が1体も無い」を足した判定に替わり、時間切れは前回の結果から引き継がなくなった。走らせ方の3段・対象・しきい値は変えない)
 
+一部を [0023](0023-inherit-latest-mutation-result.md) が置き換えた(2026-10-18。下の Decision の2のうち、キャッシュの鍵に`package-lock.json`・`stryker.config.mjs`・`vitest.config.ts`の指紋を入れ、
+指紋が変わると復元せずに全部を走らせる部分と、Consequences の、その指紋で依存・設定の変更を埋める部分。鍵はコミットのハッシュだけになり、いつも最も新しく保存された結果を復元する。
+手元で結果ファイルが無いときは、同じリポジトリのほかの作業ツリーの最も新しい結果を写して引き継ぐ。走らせ方の3段・対象・しきい値は変えない)
+
 ## Context
 
 - 0011で変異テストをCIの門に加え、pushのたびに対象の変異体を全部走らせていた(`.github/workflows/deploy.yml`)

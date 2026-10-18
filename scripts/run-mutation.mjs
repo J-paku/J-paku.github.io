@@ -36,8 +36,17 @@
 // ファイルを、渡さないときは stryker.config.mjs の incrementalFile を見る。Stryker と同じく cwd からの相対で読む。
 // Stryker は同じプロセスの中で動かす(終了コードと、割り込まれたときに途中の結果を残す Stryker の処理を、中継せずにそのまま使う)
 //
+// 結果ファイルが無いとき(新しく作った作業ツリーなど): 同じリポジトリのほかの作業ツリー(git worktree list --porcelain)の
+// 結果ファイル(stryker.config.mjs の incrementalFile)のうち、JSON として読めて更新時刻が最も新しいものを写してから始め、
+// 変わった変異体だけを走らせる(docs/decisions/0023-inherit-latest-mutation-result.md)。写した元を1行出す。読めない候補は
+// 1行出して飛ばす。どこにも無い・作業ツリーの一覧を取れないときはその旨を1行出し、Stryker が全部を走らせる。
+// --force のとき(全部を測り直す)と、--incrementalFile で結果ファイルを名指ししたときは写さない。
+// 結果ファイルの files・testFiles の名前はリポジトリ直下からの相対なので、別の作業ツリーの結果もそのまま比べられる。
+// CI の checkout にはほかの作業ツリーが無いので、CI は .github/workflows/deploy.yml のキャッシュで結果を持ち回る
+//
 // 使い方: node scripts/run-mutation.mjs [stryker run の引数]
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { Stryker, StrykerCli } from '@stryker-mutator/core'
 import config from '../stryker.config.mjs'
@@ -55,7 +64,78 @@ const incrementalFileFromArgs = () => {
   return joined?.slice('--incrementalFile='.length)
 }
 
-const incrementalFile = incrementalFileFromArgs() ?? config.incrementalFile
+const namedIncrementalFile = incrementalFileFromArgs()
+const incrementalFile = namedIncrementalFile ?? config.incrementalFile
+
+// 同じリポジトリの作業ツリーの直下の絶対パス(この作業ツリーも含む)。git が無い・リポジトリの中でないなどで
+// 一覧を取れないときは、1行出して空にする(写す元が無いときと同じく、Stryker が全部を走らせる)
+const worktreeRoots = () => {
+  try {
+    return execFileSync('git', ['worktree', 'list', '--porcelain'], {
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+      .split('\n')
+      .filter(line => line.startsWith('worktree '))
+      .map(line => line.slice('worktree '.length))
+  } catch (error) {
+    console.log(
+      `run-mutation: 作業ツリーの一覧を取れない(git worktree list --porcelain: ${error.message.trim().split('\n').at(-1)})`
+    )
+    return []
+  }
+}
+
+// 候補の中身。ほかの作業ツリーの Stryker が書いている途中のもの・書き込みが中断されたものは JSON として読めないので、
+// 1行出して飛ばす(読めない写しをこの作業ツリーに残さない)
+const readableResult = file => {
+  try {
+    const text = readFileSync(file, 'utf-8')
+    JSON.parse(text)
+    return { file, text }
+  } catch (error) {
+    console.log(
+      `run-mutation: ほかの作業ツリーの結果を読めないので飛ばす(${file}: ${error.message})`
+    )
+    return undefined
+  }
+}
+
+// ほかの作業ツリーの結果ファイルのうち、JSON として読めるものの中で更新時刻が最も新しいもの。
+// この作業ツリー自身の結果ファイルは候補から外す
+const newestResultElsewhere = () => {
+  const own = path.resolve(incrementalFile)
+  return (
+    worktreeRoots()
+      .map(root => path.join(root, config.incrementalFile))
+      .filter(file => file !== own)
+      .map(file => ({ file, stat: statSync(file, { throwIfNoEntry: false }) }))
+      .filter(({ stat }) => stat !== undefined)
+      .sort((a, b) => b.stat.mtimeMs - a.stat.mtimeMs)
+      // 新しい順に読み、読めた最初の1つから先は読まない
+      .reduce((found, { file }) => found ?? readableResult(file), undefined)
+  )
+}
+
+if (
+  namedIncrementalFile === undefined &&
+  !args.includes('--force') &&
+  !existsSync(incrementalFile)
+) {
+  const borrowed = newestResultElsewhere()
+  if (borrowed === undefined) {
+    console.log(
+      `run-mutation: 結果ファイル(${incrementalFile})が無く、ほかの作業ツリーにも読める結果が無いので、全部を走らせる`
+    )
+  } else {
+    // 読めると確かめた中身をそのまま書く(確かめた後に元が書き換わっても、写しは読めたものになる)
+    mkdirSync(path.dirname(incrementalFile), { recursive: true })
+    writeFileSync(incrementalFile, borrowed.text, 'utf-8')
+    console.log(
+      `run-mutation: 結果ファイル(${incrementalFile})が無いので、ほかの作業ツリーの最も新しい結果を写して引き継ぐ(${borrowed.file})`
+    )
+  }
+}
 
 if (existsSync(incrementalFile)) {
   const report = JSON.parse(readFileSync(incrementalFile, 'utf-8'))
