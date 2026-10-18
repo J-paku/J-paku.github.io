@@ -6,6 +6,7 @@ import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 import nextConfig from './next.config'
+import { SCREEN_CONTAINER_DIRS } from './scripts/container-dirs.mjs'
 
 // 画面(コンテナ)の props は node でしか組めない(fs・zlib・crypto を使う)ので、I/O コンテナのフォルダの
 // container.fixture.ts(そのフォルダの __tests__/ の中か、container.tsx の隣)がテストの前に node で組んで provide する。
@@ -23,10 +24,12 @@ if (CONTAINER_FIXTURES.length === 0) {
   throw new Error(`src の下に container.fixture.ts が 1 つも見つからない(探した起点: ${ROOT})`)
 }
 
-// フックとコンテナはファイルごとに、文・分岐・関数・行のすべてを100%にする
-// (フックは docs/decisions/0018-move-e2e-and-gate-all-hooks.md、コンテナは docs/decisions/0019-hooks-make-containers.md)。
-// 対象は src の下の hooks フォルダの全部(src/hooks/ を含む)と、src の下の container.tsx の全部(I/O コンテナも状態コンテナも)。
-// 一覧を手で並べず設定を読むたびに拾うので、新しいフック・コンテナは置いた時点で対象になる。表示部品は下の全体の床にだけ入る。
+// フックとコンテナと表示部品はファイルごとに、文・分岐・関数・行のすべてを100%にする
+// (フックは docs/decisions/0018-move-e2e-and-gate-all-hooks.md、コンテナは docs/decisions/0019-hooks-make-containers.md、
+// 表示部品は docs/decisions/0022-colocate-integration-tests.md)。
+// 対象は src の下の hooks フォルダの全部(src/hooks/ を含む)と、src の下の container.tsx の全部(I/O コンテナも状態コンテナも)と、
+// src/components の下の表示部品の全部(画面の3つのサーバのローダーは表示部品でなく、下の SCREEN_LOADERS で外す)。
+// 一覧を手で並べず設定を読むたびに拾うので、新しいフック・コンテナ・表示部品は置いた時点で対象になる。src/app/ は下の全体の床にだけ入る。
 // Vitest の thresholds の perFile は glob ごとには分けられず、上の全体の床までファイル別にしてしまう
 // (node_modules/vitest の coverage の checkThresholds が thresholds.perFile だけを見る。4.1.10 で確認)。
 // そこでファイルのパスを1つずつ glob として並べてファイル別にする(単体の vitest.config.ts の COVERAGE_TARGETS と同じ形)。
@@ -44,7 +47,52 @@ const CONTAINER_FILES = globSync('src/**/container.tsx', { cwd: ROOT })
 if (CONTAINER_FILES.length === 0) {
   throw new Error(`src の下に container.tsx が 1 つも見つからない(探した起点: ${ROOT})`)
 }
-const PER_FILE_TARGETS = [...HOOK_FILES, ...CONTAINER_FILES]
+// src/components の下の .tsx のうち、container.tsx とテストの側(*.test.tsx と __tests__/ の中)でない物の全部。
+// 表示部品(フックを呼ばない部品)と、画面の3つのサーバのローダーがここに入る
+const COMPONENT_FILES = globSync('src/components/**/*.tsx', {
+  cwd: ROOT,
+  exclude: [
+    'src/components/**/container.tsx',
+    'src/components/**/*.test.tsx',
+    'src/components/**/__tests__/**',
+  ],
+})
+  .map(file => file.split(path.sep).join('/'))
+  .sort()
+// 画面の3つのサーバのローダー(画面のフォルダの index.tsx。ADR 0017 の D2)。ビルドの時に node で content を読んでコンテナへ渡すだけで、
+// ブラウザでは走らないので統合テスト(ブラウザ)では測れない(どれも0%)。ファイル別100%の対象から名指しで外し、全体の床にだけ入れる。
+// glob で広く外すと、表示部品まで黙って門の外へ出る。そこで名前を並べ、下で実物と合うかを設定を読む時点で確かめる
+const SCREEN_LOADERS = [
+  'src/components/Directory/index.tsx',
+  'src/components/Story/index.tsx',
+  'src/components/VillagePage/index.tsx',
+]
+// 名指しは、画面のフォルダの一覧の正本(scripts/container-dirs.mjs の SCREEN_CONTAINER_DIRS)の各フォルダの index.tsx と同じでなければ落とす。
+// 数を手で書いた定数と比べると、名指しと定数を一緒に直すだけで表示部品を黙って門の外へ出せるので、手で書かない一覧と比べる。
+// 一覧の側を変えるには ADR が要る(npm run test:boundary の自己検査が一覧を固定している。ADR 0022)。並びは問わず、重なりは違いとして落とす
+const EXPECTED_LOADERS = SCREEN_CONTAINER_DIRS.map(dir => `${dir}/index.tsx`).sort()
+if (JSON.stringify([...SCREEN_LOADERS].sort()) !== JSON.stringify(EXPECTED_LOADERS)) {
+  throw new Error(
+    `ファイル別100%から外す画面のローダー(SCREEN_LOADERS)が、画面のフォルダ(scripts/container-dirs.mjs の SCREEN_CONTAINER_DIRS)の index.tsx と違う: ` +
+      `名指し ${SCREEN_LOADERS.join(', ')} / 画面のフォルダから ${EXPECTED_LOADERS.join(', ')}。` +
+      '外してよいのは画面の3つのサーバのローダーだけで、表示部品は外さない(ADR 0022)'
+  )
+}
+// 名指しと画面のフォルダの一覧が揃ったまま実物が無い(移動・改名)と、本物のローダーが門に入って 0% で落ち、落ちた訳が分かりにくい
+const MISSING_LOADERS = SCREEN_LOADERS.filter(file => !COMPONENT_FILES.includes(file))
+if (MISSING_LOADERS.length > 0) {
+  throw new Error(
+    `ファイル別100%から外す画面のローダー(SCREEN_LOADERS)が、src/components の下の .tsx(container.tsx とテストの側を除く)に見つからない: ${MISSING_LOADERS.join(', ')}(探した起点: ${ROOT})。` +
+      '移した・名前を変えたなら、SCREEN_LOADERS と scripts/container-dirs.mjs を実物に合わせる(画面のフォルダの一覧を変えるには ADR が要る)'
+  )
+}
+// 表示部品(上からローダーの3つを除いた残り)。表示部品は自分のテストを持たず、それを描く親のコンテナの統合テストが覆う(ADR 0022)
+const DISPLAY_FILES = COMPONENT_FILES.filter(file => !SCREEN_LOADERS.includes(file))
+// 1 つも拾えないと門が黙って空になる。パターンや起点の誤りを、設定を読む時点で止める
+if (DISPLAY_FILES.length === 0) {
+  throw new Error(`src/components の下に表示部品が 1 つも見つからない(探した起点: ${ROOT})`)
+}
+const PER_FILE_TARGETS = [...HOOK_FILES, ...CONTAINER_FILES, ...DISPLAY_FILES]
 // 1ファイルを文・分岐・関数・行のすべてで100%に固定するしきい値(単体の vitest.config.ts の FULL_COVERAGE と同じ)
 const FULL_COVERAGE = { statements: 100, branches: 100, functions: 100, lines: 100 }
 
@@ -60,8 +108,9 @@ const COVERAGE_EXCLUDE = [
   'src/**/*.test-helper.ts',
   'src/**/__tests__/**',
 ]
-// フックとコンテナが1つ残らずカバレッジで測られることを、設定を読む時点で確かめる。thresholds の glob に当たるファイルがカバレッジの表に無いと、
-// Vitest は空の表を100%と数えて黙って通す。exclude に掛かる名前のフック(hooks/ の下の *.fixture.ts など)は、ファイル別100%の門を素通りする。
+// フックとコンテナと表示部品が1つ残らずカバレッジで測られることを、設定を読む時点で確かめる。thresholds の glob に当たるファイルがカバレッジの表に無いと、
+// Vitest は空の表を100%と数えて黙って通す。exclude に掛かる名前のフック(hooks/ の下の *.fixture.ts など)や表示部品(*.fixture.tsx など)は、
+// ファイル別100%の門を素通りする。
 // 当て方は Vitest と同じにする: coverage の include に当たり、exclude と test.include(Vitest が exclude へ足す)に当たらない物だけを測る。
 // Vitest は picomatch を contains・dot 付きで絶対パスへ当てる(node_modules/vitest の coverage の isIncluded。4.1.10 で確認)。
 // contains は前後を固定しないので、'src/**/*.fixture.ts' は x.fixture.tsx にも当たる(node:path の matchesGlob では拾えない)。
@@ -89,6 +138,13 @@ if (UNCOVERED_CONTAINERS.length > 0) {
   throw new Error(
     `カバレッジの include から外れるか exclude に掛かるコンテナがある(ファイル別100%の門を黙って素通りする): ${UNCOVERED_CONTAINERS.join(', ')}。` +
       'コンテナ(container.tsx)を exclude に掛からない場所へ置く(ADR 0019)'
+  )
+}
+const UNCOVERED_DISPLAYS = DISPLAY_FILES.filter(isUncovered)
+if (UNCOVERED_DISPLAYS.length > 0) {
+  throw new Error(
+    `カバレッジの include から外れるか exclude に掛かる表示部品がある(ファイル別100%の門を黙って素通りする): ${UNCOVERED_DISPLAYS.join(', ')}。` +
+      '表示部品の名前を exclude に掛からない名前にするか、テストの部品なら決まった名前(*.test-helper.ts・*.fixture.ts)と置き場に合わせる(ADR 0022)'
   )
 }
 
@@ -213,9 +269,10 @@ export default defineConfig({
       commands: { holdKey },
     },
     // 測るのは --coverage を付けたときだけ。フックとコンポーネントもここで測る(単体の設定はフックと components の .tsx を外す)。
-    // フックとコンテナは全部をファイル別100%で固める(上の HOOK_FILES・CONTAINER_FILES。ADR 0018・0019)。統合テストで構造上届かない行(E2E だけが作れる場合)だけを、
+    // フックとコンテナと表示部品は全部をファイル別100%で固める(上の HOOK_FILES・CONTAINER_FILES・DISPLAY_FILES。ADR 0018・0019・0022)。
+    // フックとコンテナでは、統合テストで構造上届かない行(E2E だけが作れる場合)だけを、
     // その行を見ている E2E を名指しする注釈 `/* v8 ignore next -- e2e: tests/<file>.spec.ts > <E2E のテスト名> */` で外し、
-    // 名指しした E2E が実在するかを npm run test:boundary(scripts/check-coverage-ignores.mjs)が確かめる
+    // 名指しした E2E が実在するかを npm run test:boundary(scripts/check-coverage-ignores.mjs)が確かめる。表示部品にはこの注釈も置けない(同じ検査が落とす)
     coverage: {
       provider: 'v8',
       enabled: false,
@@ -231,7 +288,7 @@ export default defineConfig({
         branches: 77,
         functions: 75,
         lines: 75,
-        // フックとコンテナのファイル別100%(一覧は上の HOOK_FILES・CONTAINER_FILES)
+        // フックとコンテナと表示部品のファイル別100%(一覧は上の HOOK_FILES・CONTAINER_FILES・DISPLAY_FILES)
         ...Object.fromEntries(PER_FILE_TARGETS.map(file => [file, FULL_COVERAGE])),
       },
     },

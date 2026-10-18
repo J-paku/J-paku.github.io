@@ -43,7 +43,8 @@ last_reviewed: 2026-10-17
   一覧と正本は [boundaries.md](boundaries.md) の「コンテナと表示部品」
 - コンポーネントを描くテストは、`container.tsx` のあるフォルダに置く統合テストだけ(コンテナごとに1本以上。1本なら隣の `container.integration.test.tsx`、2本以上ならそのフォルダの `__tests__` の中の `<動作>.integration.test.tsx`。表示部品は自分のテストを持たず、それを描くコンテナのテストで見る)
   → [../quality/test-strategy.md](../quality/test-strategy.md)・[ADR 0022](../decisions/0022-colocate-integration-tests.md)。
-  `hooks` フォルダの中のファイルと全部の `container.tsx` は、統合テストのカバレッジでファイル別100%
+  `hooks` フォルダの中のファイルと全部の `container.tsx` と全部の表示部品(画面の3つのサーバのローダーは入らない)は、統合テストのカバレッジでファイル別100%。
+  表示部品のどの分岐も、それを描く親のコンテナの統合テストが通らなければ落ちる
 
 ## コンポーネントのフォルダ
 

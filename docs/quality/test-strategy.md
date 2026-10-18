@@ -165,7 +165,7 @@ last_reviewed: 2026-10-18
 - 落ちた時の画面の写しは `test-results/vitest-screenshots/`、添付は `test-results/vitest-attachments/` に出る(git は追わない)
 - 走らせると React の「not wrapped in act(...)」の `console.error` が出力に混ざる。テストは通る。既知のもので、まだ手当てしていない
 - カバレッジは `npm run test:integration -- --coverage` で測り、フックとコンポーネントも含む。報告は `coverage/integration` に出て、全体の床を下回るか、
-  フックかコンテナ(`container.tsx`)のどれかがファイル別100%に届かないと落ちる([カバレッジの床](#カバレッジの床))
+  フック・コンテナ(`container.tsx`)・表示部品(画面の3つのサーバのローダーは入らない)のどれかがファイル別100%に届かないと落ちる([カバレッジの床](#カバレッジの床))
 
 ## E2E から統合への移行
 
@@ -253,17 +253,22 @@ E2E は `out/` を配る。**先に `npm run build` を済ませる。**
 - **統合の門。** `npm run test:integration -- --coverage`(`vitest.integration.config.ts`の`coverage`)はフックとコンポーネントも含めて測り、報告を`coverage/integration`へ出し、全体の床を下回ると落ちる。
   床の決め方は単体と同じく実測から2pt引いた値で、正本は`vitest.integration.config.ts`の`coverage`。数値はここへ書き写さない。
   CI(`.github/workflows/deploy.yml` の build ジョブ)は `npm run test:boundary` の後に Playwright の Chromium を入れ、これを走らせる
-- **フックとコンテナのファイル別100%:** 統合のカバレッジで、`src/**/hooks/**` の全部(`src/hooks/` を含む)と、すべての `container.tsx` を、ファイルごとに文・分岐・関数・行のそれぞれ100%にし、1つでも届かなければ落ちる。
-  表示部品(フックを呼ばないコンポーネント)は、今は全体の床にだけ入る(表示部品もファイル別100%にすることを [../decisions/0022-colocate-integration-tests.md](../decisions/0022-colocate-integration-tests.md) で決めたが、門はまだ掛けていない)。
-  一覧は手で持たず、`vitest.integration.config.ts` が設定を読むたびに拾うので、新しいフック・コンテナは置いた時点で対象になる(フックが1つも拾えないと設定を読む時点で落ちる。
+- **フックとコンテナと表示部品のファイル別100%:** 統合のカバレッジで、`src/**/hooks/**` の全部(`src/hooks/` を含む)と、すべての `container.tsx` と、
+  `src/components/**` のすべての表示部品(`.tsx` のうち `container.tsx` とテストの側(`*.test.tsx`・`__tests__` の中)と、下の画面の3つのサーバのローダーでない物)を、ファイルごとに文・分岐・関数・行のそれぞれ100%にし、1つでも届かなければ落ちる
+  (表示部品は [../decisions/0022-colocate-integration-tests.md](../decisions/0022-colocate-integration-tests.md))。
+  画面の3つのサーバのローダー(`src/components/Directory/index.tsx`・`src/components/Story/index.tsx`・`src/components/VillagePage/index.tsx`)は表示部品でなく、ファイル別100%から外して全体の床にだけ入れる。
+  ビルドの時に node で content を読んでコンテナへ渡すだけでブラウザでは走らないので、統合テストでは測れない(どれも0%)。
+  外すのは名前を並べた一覧(`vitest.integration.config.ts` の `SCREEN_LOADERS`)で、glob で広く外さない。一覧が画面のフォルダの一覧の正本(`scripts/container-dirs.mjs` の `SCREEN_CONTAINER_DIRS`)の各フォルダの `index.tsx` と違うか(数を手で書いた定数とは比べない。名指しと定数を一緒に直せば表示部品を黙って外せるため)、名指しした名前が実物に無い(移動・改名)と、設定を読む時点で落ちる。
+  `src/app/` も全体の床にだけ入る。
+  一覧は手で持たず(上のローダーの3つを除く)、`vitest.integration.config.ts` が設定を読むたびに拾うので、新しいフック・コンテナ・表示部品は置いた時点で対象になる(フック・コンテナ・表示部品のどれかが1つも拾えないと設定を読む時点で落ちる。
   [../decisions/0018-move-e2e-and-gate-all-hooks.md](../decisions/0018-move-e2e-and-gate-all-hooks.md)・[../decisions/0019-hooks-make-containers.md](../decisions/0019-hooks-make-containers.md))。
-  フックの振る舞いはそれを使うコンテナの統合テストが、コンテナの振る舞いはそのコンテナ自身の統合テストが見る
-  - フックの名前がカバレッジの include から外れるか exclude(`*.fixture.ts`・`*.test-helper.ts` など)に掛かると、そのフックは表に載らず、Vitest は空の表を100%と数えて門を黙って素通りさせる。
-    そこで `vitest.integration.config.ts` は、拾ったフックを Vitest と同じ当て方(picomatch の contains・dot 付き。test.include も exclude に足す)で1つずつ確かめ、掛かるものがあれば設定を読む時点で投げる。
+  フックの振る舞いはそれを使うコンテナの統合テストが、コンテナの振る舞いはそのコンテナ自身の統合テストが、表示部品の振る舞いはそれを描く親のコンテナの統合テストが見る
+  - フック・コンテナ・表示部品の名前がカバレッジの include から外れるか exclude(`*.fixture.ts`・`*.test-helper.ts` など)に掛かると、そのファイルは表に載らず、Vitest は空の表を100%と数えて門を黙って素通りさせる。
+    そこで `vitest.integration.config.ts` は、拾ったフック・コンテナ・表示部品を Vitest と同じ当て方(picomatch の contains・dot 付き。test.include も exclude に足す)で1つずつ確かめ、掛かるものがあれば設定を読む時点で投げる。
     contains は前後を固定しないので、`*.fixture.ts` は `x.fixture.tsx` にも当たる。
     テストの部品・フィクスチャ(`*.test-helper.ts`・`*.fixture.ts`)を `hooks` フォルダの下に置くこと自体は `npm run test:boundary` が落とす([テストの境界](#テストの境界))
   - 統合テストで構造上届かない行(`IntersectionObserver` の無い環境のように、E2E だけが作れる場合)だけを、その行の前に
-    `/* v8 ignore next -- e2e: tests/<file>.spec.ts > <E2E のテスト名> */` を書いて外す。注釈を置ける場所は `scripts/check-coverage-ignores.mjs` が決め、単体の門(純粋モジュール)の対象を E2E で外すことはしない。
+    `/* v8 ignore next -- e2e: tests/<file>.spec.ts > <E2E のテスト名> */` を書いて外す。注釈を置ける場所は `scripts/check-coverage-ignores.mjs` が決め(フックと `container.tsx` だけで、表示部品には置けない)、単体の門(純粋モジュール)の対象を E2E で外すことはしない。
     名指しした spec が git に追跡されていて、その名前の走るテストがあるかを `scripts/check-coverage-ignores.mjs`(`npm run test:boundary` が走らせる)が確かめ、
     理由(e2e の参照)の無い除外の注釈と、ほかの形の除外の注釈は落とす。注釈が指す E2E を消したり名前を変えたりすると、この検査が落ちる
   - 注釈の直後に置けるのは、1行に収まる文(`if (…) return` など)だけ。`v8 ignore next` は注釈の直後から始まる構文をまるごと外すので、
