@@ -2,6 +2,7 @@
 import type { Locale } from '@content/types/content'
 import type { World, WorldSet, Cell, Rect, VillageText } from '@content/types/world'
 import { isWalkable, structureRect } from '@/lib/village/collision'
+import { reachCells } from '@/lib/village/reach-cells'
 
 // 屋外の開始セル(自宅前)からどの会話地点までも、この歩数以内に収める。
 // 町を 20×14 から 30×20 マスへ広げた分だけ上限も引き上げた。1マス256msなので16歩で約4秒
@@ -22,25 +23,10 @@ const containsRect = (outer: Rect, inner: Rect): boolean =>
 const rectInBounds = (world: World, r: Rect): boolean =>
   r.x >= 0 && r.y >= 0 && r.x + r.w <= world.width && r.y + r.h <= world.height
 
-// 開始セルから 4 方向 BFS で各マスまでの最短歩数を返す
+// 開始セルから 4 方向 BFS(reach-cells.ts)で各マスまでの最短歩数を返す
 const stepsFromStart = (world: World): Map<string, number> => {
-  const steps = new Map<string, number>([[key(world.start), 0]])
-  const queue: Cell[] = [world.start]
-  while (queue.length > 0) {
-    const cur = queue.shift() as Cell
-    // キューへ積むマスは積む前に歩数を記録しているので、必ず歩数を持つ
-    const curSteps = steps.get(key(cur)) as number
-    for (const next of [
-      { x: cur.x + 1, y: cur.y },
-      { x: cur.x - 1, y: cur.y },
-      { x: cur.x, y: cur.y + 1 },
-      { x: cur.x, y: cur.y - 1 },
-    ]) {
-      if (steps.has(key(next)) || !isWalkable(world, next)) continue
-      steps.set(key(next), curSteps + 1)
-      queue.push(next)
-    }
-  }
+  const steps = new Map<string, number>()
+  for (const reach of reachCells(world, world.start)) steps.set(key(reach.cell), reach.steps)
   return steps
 }
 

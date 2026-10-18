@@ -50,7 +50,7 @@ describe('findPath', () => {
     expect(findPath(world, { x: 0, y: 2 }, { x: 0, y: 2 })).toEqual([])
   })
   it('四方を塞がれて一歩も動けないマスでも、from === to なら空配列(届かない null と区別する)', () => {
-    // (0,0) の右と下は水。探索では出発点へ戻って来られないので、入口の一致だけが空配列を返せる
+    // (0,0) の右と下は水。探索は出発点を最初に出すので、一歩も動けなくても from === to はそこで空配列になる
     const cornered: World = {
       ...world,
       tiles: [
