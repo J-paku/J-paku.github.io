@@ -4,7 +4,7 @@ read_when:
   - 既存の設計を置き換えようとするとき
   - なぜこの作りなのかを問われたとき
 source_of_truth: false
-last_reviewed: 2026-10-17
+last_reviewed: 2026-10-18
 ---
 
 # decisions/(ADR)
@@ -33,6 +33,7 @@ last_reviewed: 2026-10-17
 | [0017](0017-screen-containers.md)                  | ファイルを utils・lib、コンテナ、表示部品の3層に分け、コンポーネントを描くテストをコンテナの統合テストへ集める                      | Accepted(コンテナを6つのフォルダに限る部分・表示部品の UI のフック・統合テストの名前と置き場は Superseded by 0019)                                                                                                  |
 | [0018](0018-move-e2e-and-gate-all-hooks.md)        | 統合へ移す E2E の11本を1つの PR で移し、フックの全部をファイル別100%にして、統合テストで届かない行だけを E2E を名指しする注釈で外す | Accepted(統合テストの名前と置き場は Superseded by 0019)                                                                                                                                                             |
 | [0019](0019-hooks-make-containers.md)              | フックを1つでも呼ぶコンポーネントをコンテナ(`container.tsx`)にし、統合テストをリポジトリ直下の `__tests__` に動作ごとに分けて置く   | Accepted                                                                                                                                                                                                            |
+| [0020](0020-direct-push-to-main.md)                | PR の方式をやめ、`main` へ直接 push して push のときの CI で検査する                                                                | Accepted                                                                                                                                                                                                            |
 
 ## 書くときの決まり
 

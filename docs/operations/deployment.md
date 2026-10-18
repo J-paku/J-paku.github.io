@@ -5,19 +5,18 @@ read_when:
   - 配信が反映されないとき
   - 配信を戻したいとき
 source_of_truth: true
-last_reviewed: 2026-10-14
+last_reviewed: 2026-10-18
 ---
 
 # 配信
 
 **`main` への push = リリース。** 別のリリース手順もステージング環境も無い。
-`main`へのPRでも同じ検査が走るが、配信はしない。
 正本は `.github/workflows/deploy.yml`。ここにはその読み方と、ローカルで再現する方法を書く。
 
 ## 流れ
 
 ```
-push to main / PR to main
+push to main / workflow_dispatch
   → build ジョブ(直列。前段が落ちたら後段は走らない)
       docs:check → typecheck → lint → format:check → test:coverage(カバレッジの床) → test:boundary
       → Playwright Chromium をキャッシュから戻す(miss なら入れる。hit でも OS 側の依存は入れる)
@@ -26,18 +25,18 @@ push to main / PR to main
       → build → test:e2e
       → out/ を :4173 で配信 → wait-on
       → axe(6経路) → Lighthouse CI(同じ6経路) → CJK フォントの .deb をキャッシュから戻して入れる → 日本語改行検査
-      → upload-pages-artifact(PRでは飛ばす)
-  → deploy ジョブ(GitHub Pages。needs: build なので build ジョブが通ったときだけ走る。PRでは飛ばす)
+      → upload-pages-artifact
+  → deploy ジョブ(GitHub Pages。needs: build なので build ジョブが通ったときだけ走る)
       configure-pages → deploy-pages
 ```
 
 - Node は `.nvmrc`。ローカルと同じ版を使う
-- `concurrency`の組はpush・`workflow_dispatch`なら`pages`、PRなら`pr-<番号>`。`cancel-in-progress`なので、同じ組への連続pushでは後の1本だけが生き残る。PRは`main`の配信と組が分かれるので、互いに取り消し合わない
-- 権限は最上位が`contents: read`だけで、buildジョブはそれを引き継ぐ。`pages: write`・`id-token: write`はdeployジョブにだけ渡す。buildジョブはマージ前のPRのコードや、Dependabotが上げた新しいパッケージの`npm ci`を走らせるので、配信の権限を持たせない
+- `concurrency: pages` + `cancel-in-progress` なので、連続 push では後の1本だけが生き残る
+- 権限は最上位が`contents: read`だけで、buildジョブはそれを引き継ぐ。`pages: write`・`id-token: write`はdeployジョブにだけ渡す。buildジョブはDependabotが上げた新しいパッケージの`npm ci`を走らせるので、配信の権限を持たせない
 - Pages の設定は **Settings → Pages → Source = GitHub Actions**
 - 計測先は **Settings → Secrets and variables → Actions → Variables** の `GOATCOUNTER_URL`。build step が `NEXT_PUBLIC_GOATCOUNTER_URL` として渡し、未設定なら計測タグを出さない
 - カバレッジの床の正本は、単体が`vitest.config.ts`、統合が`vitest.integration.config.ts`(どちらも`coverage.thresholds`。[../quality/test-strategy.md](../quality/test-strategy.md))、Lighthouse CIの経路と基準の正本は`lighthouserc.json`([../quality/performance.md](../quality/performance.md))。Lighthouse CIの報告は外へ上げない(`upload`を設定しない)
-- 依存の更新は`.github/dependabot.yml`がnpmとGitHub Actionsをそれぞれ1つのPRにまとめて毎週知らせる。そのPRでもこのワークフローの検査が走る(配信はしない)ので、取り込む前にそのPRの検査が通ったことを確かめる。TypeScript・ESLint・Vitestの大きな版上げは、周りのパッケージ(typescript-eslint・eslint-plugin-react・Strykerのvitest-runnerなど)が対応するまで`ignore`で止めている
+- 依存の更新は`.github/dependabot.yml`がnpmとGitHub Actionsをそれぞれ1つのPRにまとめて毎週知らせる。このワークフローはPRでは走らないので、取り込む前に下の「ローカルで CI を再現する」を通す。TypeScript・ESLint・Vitestの大きな版上げは、周りのパッケージ(typescript-eslint・eslint-plugin-react・Strykerのvitest-runnerなど)が対応するまで`ignore`で止めている
 
 ## キャッシュ
 
@@ -57,7 +56,7 @@ push to main / PR to main
 
 ## ローカルで CI を再現する
 
-PRのCIが落ちたとき、その原因を手元で追うのに使う。依存の版・ワークフローを変えたときも、確かめるのはPRを開いてそのPRのCI(buildジョブ)が通ることで、ここを通しておくことは求めない([../agents/verification.md](../agents/verification.md))。落ちる場所は CI と同じ順に出る。
+依存の版・ワークフローを変えたときは、push する前にこれを通しておく(それ以外の変更は CI に任せる。[../agents/verification.md](../agents/verification.md))。落ちる場所は CI と同じ順に出る。
 
 ```bash
 npm run docs:check && npm run typecheck && npm run lint && npm run format:check && npm run test:coverage && npm run test:boundary && npm run test:integration && npm run build

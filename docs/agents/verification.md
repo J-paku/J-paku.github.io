@@ -4,7 +4,7 @@ read_when:
   - 変更を確かめる前
   - 「完了」と報告する前
 source_of_truth: true
-last_reviewed: 2026-10-17
+last_reviewed: 2026-10-18
 ---
 
 # 何を走らせるか
@@ -30,9 +30,9 @@ last_reviewed: 2026-10-17
 | 設定(`next.config.ts` / `tsconfig.json` / `eslint.config.mjs` / `vitest.config.ts` / `vitest.integration.config.ts` / `playwright.config.ts`)                    | `npm run typecheck` → `npm run lint` → `npm run test:coverage`(`vitest.config.ts` を変えたとき) → `npm run test:integration -- --coverage`(`vitest.integration.config.ts` を変えたとき) → `npm run build` → `npm run test:e2e` 全体                                                    |
 | `vitest.config.ts`の`coverage`(測る範囲・床)                                                                                                                     | `npm run test:coverage`。床を変えたら、一度だけ実測より上に置いて落ちるのを見てから戻す                                                                                                                                                                                                |
 | `lighthouserc.json`(経路・下限)                                                                                                                                  | `npm run build` → `npm run start`と`npx wait-on http://localhost:4173` → `npx -y @lhci/cli@0.15.1 collect && npx -y @lhci/cli@0.15.1 assert`(版の正本は`.github/workflows/deploy.yml`)                                                                                                 |
-| 依存の版(`package.json` / `package-lock.json`。Dependabot(`.github/dependabot.yml`)の PR を取り込むときも)                                                       | PRを開き、そのPRのCI(`.github/workflows/deploy.yml`のbuildジョブ)が通ったことを確かめる。手元での再現([../operations/deployment.md](../operations/deployment.md) の「ローカルで CI を再現する」)はCIが落ちた原因を手元で追うときに使う                                                 |
+| 依存の版(`package.json` / `package-lock.json`。Dependabot(`.github/dependabot.yml`)の PR を取り込むときも)                                                       | [../operations/deployment.md](../operations/deployment.md) の「ローカルで CI を再現する」のコマンドを全部通す                                                                                                                                                                          |
 | `scripts/`                                                                                                                                                       | そのスクリプトを実際に引数付きで実行                                                                                                                                                                                                                                                   |
-| `.github/workflows/`                                                                                                                                             | PRを開き、そのPRのCI(buildジョブ)が通ったことを確かめる。CIが落ちた原因を手元で追うときは [../operations/deployment.md](../operations/deployment.md) の「ローカルで CI を再現する」                                                                                                    |
+| `.github/workflows/`                                                                                                                                             | [../operations/deployment.md](../operations/deployment.md) の「ローカルで CI を再現する」のコマンドを全部通す                                                                                                                                                                          |
 | 文書(`docs/` / `*.md`)                                                                                                                                           | `npm run docs:check`                                                                                                                                                                                                                                                                   |
 
 ## commit の直前
@@ -53,10 +53,10 @@ last_reviewed: 2026-10-17
 `typecheck` は反復中の速い確認として上の表に残す。
 
 表が指していないかぎり、**E2E の全体・変異テスト・axe・Lighthouse CI・日本語改行検査は手元で走らせない。**
-CI(`.github/workflows/deploy.yml`)が `main` への push と `main` への PR のたびにこれらを走らせ(PR では配信しない)、`deploy` ジョブは `needs: build` なので、どれか1つでも落ちれば公開されない。
+CI(`.github/workflows/deploy.yml`)が `main` への push のたびにこれらを走らせ、`deploy` ジョブは `needs: build` なので、どれか1つでも落ちれば公開されない。
 手元で同じものを回すのは、同じ門を2回通るだけである。そのかわり**完了は CI が通ったことで言う**(ローカルの PASS だけで完了と言わない)。
 
-例外は、表の「依存の版」と「`.github/workflows/`」の行。そのときは門そのもの(道具の版・CI の手順)が変わるので、`main`へ直接pushせず、表のとおりPRを開いてそのPRのCIが通ってから取り込む(手元での再現はCIが落ちた原因を追うときだけ)。
+例外は、表の「依存の版」と「`.github/workflows/`」の行。そのときは門そのもの(道具の版・CI の手順)が変わるので、表のとおり push の前に [../operations/deployment.md](../operations/deployment.md) の「ローカルで CI を再現する」のコマンドを全部通す(`main` に入る前に CI で試す場は無い。[../decisions/0020-direct-push-to-main.md](../decisions/0020-direct-push-to-main.md))。
 
 配信に関わる変更なら、さらに配信版で受け入れ確認を繰り返す([../operations/deployment.md](../operations/deployment.md))。
 

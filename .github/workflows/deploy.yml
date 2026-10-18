@@ -3,18 +3,14 @@ name: deploy
 on:
   push:
     branches: [main]
-  # PRでも同じ検査を走らせる。配信はしない
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
-# 最上位は読むだけ。buildジョブはマージ前のPRのコードや、依存の更新PRが入れる新しいパッケージのnpm ciを走らせるので、配信の権限を持たせない
+# 最上位は読むだけ。buildジョブは依存の更新PRが入れる新しいパッケージのnpm ciを走らせるので、配信の権限を持たせない
 permissions:
   contents: read
 
 concurrency:
-  # PRはPR番号ごとの組にして、mainの配信と互いに取り消し合わないようにする
-  group: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'pages' }}
+  group: pages
   cancel-in-progress: true
 
 jobs:
@@ -100,17 +96,13 @@ jobs:
         run: sudo dpkg -i ~/.cache/apt-fonts/*.deb || sudo apt-get install -f -y
       - name: Japanese line-break check
         run: node scripts/check-ja-linebreak.mjs http://localhost:4173 / /ko/ /list/ /ko/list/ /works/meishi-cross-platform/ /ko/works/meishi-cross-platform/
-      # PRでは配信しないので、成果物の受け渡しも飛ばす
       - uses: actions/upload-pages-artifact@v5
-        if: github.event_name != 'pull_request'
         with:
           path: out
 
   deploy:
     needs: build
-    # PRでは配信しない
-    if: github.event_name != 'pull_request'
-    # 配信の権限はこのジョブにだけ渡す。マージ前のPRのコードに配信の権限を渡さない
+    # 配信の権限はこのジョブにだけ渡す
     permissions:
       pages: write
       id-token: write
@@ -119,7 +111,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      # 配信の準備もPagesの権限が要るので、buildジョブではなくここで行う(PRではジョブごと飛ぶので条件は付けない)
+      # 配信の準備もPagesの権限が要るので、buildジョブではなくここで行う
       - uses: actions/configure-pages@v6
       - id: deployment
         uses: actions/deploy-pages@v5
