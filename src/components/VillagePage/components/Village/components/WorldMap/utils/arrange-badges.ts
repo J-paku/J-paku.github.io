@@ -1,4 +1,5 @@
 // 拡大地図で重なった地点の印(✓/? の字 + 番号の札)を実測でずらして離す
+import { range } from '@/utils/range'
 
 // 印(✓/? の字 + 右上の番号の札)どうしに空ける最小の隙間(px)
 const BADGE_GAP = 6
@@ -79,10 +80,9 @@ export const arrangeBadges = (canvas: HTMLElement) => {
       bottom: Math.max(...rects.map(rect => rect.bottom)),
     }
     let box = origin
-    // ずらす回数は置いた印の数 + 1 までで打ち切る(行き場が無い時に回り続けないため)
-    let steps = placed.length + 1
-    while (steps > 0) {
-      steps -= 1
+    // ずらす回数は置いた印の数 + 1 までで打ち切る(行き場が無い時に回り続けないため)。
+    // 残りの回数を数える式を持たず、その長さの並びの上を回す(数える式を壊した変異体が終わらないループにならない)
+    for (const _step of range(0, placed.length + 1)) {
       const hit = placed.find(other => badgesTouch(other, box))
       if (hit === undefined) break
       const from = centerOf(hit)

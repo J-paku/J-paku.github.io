@@ -12,10 +12,14 @@ export type RgbaImage = {
 const SIGNATURE = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
 const BYTES_PER_PIXEL = 4
 
+// 1バイトの8ビット。CRC の表の1つは n から始めて、この並びの上を1ビットずつ畳む。
+// 回数を数える式を持たないので、数える式を壊した変異体がモジュールを読む時に終わらないループにならない。
+// 表の256個で使い回す(Array.from({ length }) は1回ごとに数百ナノ秒かかる。2026-10-18 に実測)
+const BYTE_BITS = Array.from({ length: 8 })
+
 // CRC-32(IEEE 802.3)。PNG の各チャンクは型名とデータに対するこの値を末尾に持つ
 const CRC_TABLE = Uint32Array.from({ length: 256 }, (_, n) => {
-  let c = n
-  for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1
+  const c = BYTE_BITS.reduce<number>(crc => (crc & 1 ? 0xedb88320 ^ (crc >>> 1) : crc >>> 1), n)
   return c >>> 0
 })
 

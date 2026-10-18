@@ -1,6 +1,7 @@
 // 構造物を 1 マスずつのスプライトへ展開する。描画側はこの配列をそのまま並べるだけでよい
 import type { Cell, Structure } from '@content/types/world'
 import type { SpriteKey } from '@/lib/pixel/sprites'
+import { range } from '@/utils/range'
 
 export type FacadeCell = { cell: Cell; key: SpriteKey }
 
@@ -48,18 +49,20 @@ export const facadeCells = (structure: Structure): FacadeCell[] => {
   const { area, solid, roof, doorX } = structure
   const left = area.x
   const right = area.x + area.w - 1
+  // 左端から右端までの列。屋根行・壁行のどれも同じ列を左から右へ埋める
+  const columns = range(left, area.w)
   const cells: FacadeCell[] = []
   // 屋根行 = area のうち solid より上の行。最上段だけが輪郭付きで、下の行は続きの -low
-  for (let y = area.y; y < solid.y; y += 1) {
+  for (const y of range(area.y, solid.y - area.y)) {
     const suffix = y === area.y ? '' : '-low'
-    for (let x = left; x <= right; x += 1) {
+    for (const x of columns) {
       cells.push({ cell: { x, y }, key: `roof-${roof}-${side(x, left, right)}${suffix}` })
     }
   }
   const wallTop = solid.y
   const wallBottom = solid.y + solid.h - 1
-  for (let y = wallTop; y <= wallBottom; y += 1) {
-    for (let x = left; x <= right; x += 1) {
+  for (const y of range(wallTop, solid.h)) {
+    for (const x of columns) {
       // 壁行が 1 段しかない家では扉を優先する(扉の無い家は作らない規約)
       if (y === wallBottom) {
         const width = structure.doorWidth ?? 1

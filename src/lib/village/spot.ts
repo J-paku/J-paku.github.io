@@ -2,6 +2,7 @@
 // 押した物の地点(objectSpotAt)と、その物に話しかけられる最短のマスまでの経路(routeToSpot)もここに置く。
 // コース順(order)は全ワールド通しの通番なので、次の地点はワールドをまたいで探す
 import type { Cell, Direction, Rect, Spot, Structure, World, WorldSet } from '@content/types/world'
+import { range } from '@/utils/range'
 
 import { inRect, isWalkable, structureRect } from './collision'
 import { findPath } from './path'
@@ -113,8 +114,8 @@ export const routeToSpot = (world: World, from: Cell, spot: Spot): Cell[] | null
   if (structure === undefined) return null
   const r = objectRect(structure)
   const candidates: Cell[] = [spot.cell]
-  for (let x = r.x; x < r.x + r.w; x++) candidates.push({ x, y: r.y - 1 }, { x, y: r.y + r.h })
-  for (let y = r.y; y < r.y + r.h; y++) candidates.push({ x: r.x - 1, y }, { x: r.x + r.w, y })
+  for (const x of range(r.x, r.w)) candidates.push({ x, y: r.y - 1 }, { x, y: r.y + r.h })
+  for (const y of range(r.y, r.h)) candidates.push({ x: r.x - 1, y }, { x: r.x + r.w, y })
   let best: Cell[] | null = null
   for (const side of candidates) {
     if (spotAt(world, side)?.id !== spot.id) continue

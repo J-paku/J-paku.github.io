@@ -1,4 +1,5 @@
 // PNG 符号化(チャンク構造・CRC・フィルタ 0 の行・data URI)のテスト
+import { crc32 as zlibCrc32 } from 'node:zlib'
 import { crc32, encodePng, pngDataUri } from './png'
 import { bytesOfDataUri, decodePng, pixelAt, readChunks } from './png.test-helper'
 
@@ -15,6 +16,12 @@ describe('crc32', () => {
   })
   it('空列は 0', () => {
     expect(crc32(new Uint8Array(0))).toBe(0)
+  })
+  it('1 バイトの列は 256 通りすべてで node:zlib の crc32 と一致する(表の 256 個を 1 つずつ引く)', () => {
+    const mismatched = Array.from({ length: 256 }, (_, b) => Uint8Array.of(b)).filter(
+      bytes => crc32(bytes) !== zlibCrc32(bytes)
+    )
+    expect(mismatched).toEqual([])
   })
 })
 
