@@ -1,6 +1,7 @@
 // 変異テスト(npm run test:mutation)の入口。stryker run を呼ぶ前に、前回の結果ファイル(stryker.config.mjs の
 // incrementalFile)から、落とせなかった変異体(生き残った Survived・どのテストも通らない NoCoverage)と時間切れ(Timeout)の
 // 変異体(どれもこの入口で落とす結果)を取り除く。取り除いた変異体は Stryker から見て新しい変異体になり、その回に必ず測り直される。
+// 前回落とした変異体のうち、落としたテストから import をたどって届くファイルが変わったものも取り除く(下の「届くファイルが変わったテスト」)。
 // 走り終えたら、その回の結果に時間切れが1体でもあれば落とす(下の「時間切れを落とす」)。
 //
 // なぜ要るか: Stryker 10.0.0 の incremental は、前回生き残った変異体を「その変異体を通るテストが増えた・変わった」と
@@ -14,7 +15,24 @@
 // 落ちる判定をいつもその回に測った結果にするため、落とせなかった変異体だけは引き継がない。時間切れも落とす結果なので、
 // 同じ理由で引き継がない(引き継ぐと、コードを直しても前回の時間切れを使い回して落ち続けうる)。
 // 落とした変異体(Killed)は今までどおり引き継ぐので、通っている状態の push の速さは変わらない。
-// 引き継いだ Killed が今は生き残るのに通ってしまう向きは、これでは埋まらない(stryker.config.mjs の incremental の注釈)
+// 引き継いだ Killed が今は生き残るのに通ってしまう向きは、これでは埋まらない。そのうち、テストから import をたどって届くファイルの変化は
+// 下の「届くファイルが変わったテスト」が埋め、依存パッケージ・設定の変化は週1回の --force に任せる(stryker.config.mjs の incremental の注釈)
+//
+// 届くファイルが変わったテスト: Stryker が前回の結果と比べるのは mutate のファイルとテストファイルの中身だけで、前回落とした変異体は、
+// 落としたテストが同じなら使い回す。そのため、テストが import をたどって届く別のファイル(*.test-helper.ts・*.fixture.ts・間に挟んで
+// import するモジュール・content)だけが変わると、そのテストが落とした変異体を測り直さない。そこで Stryker を呼ぶ前に、テストファイルごとの
+// 指紋(届くファイルの中身。取り方と、指紋に入らないものは scripts/fingerprint-tests.mjs)を、結果ファイルの隣の指紋のファイルに残した
+// 前回の指紋と比べ、指紋が違う・どちらかに無いテストファイルのテストが落とした変異体(Killed で、killedBy にそのテストが1つでも入るもの)も
+// 結果ファイルから取り除き、測り直すテストファイルの数と取り除いた数を1行出す(docs/decisions/0025-remeasure-kills-on-test-deps.md)。
+// 前回の指紋が無い(初めて・指紋の無い結果を写した・指紋の版が違う)ときは、全部のテストファイルを変わったと見る。
+// --force のときも同じに取り除く(どのみち Stryker が全部を測り直す)。
+// 今の指紋は、取り除いた結果ファイルを書いた後、Stryker を呼ぶ前に書く。結果ファイルに残る Killed は、どれも落としたテストの指紋が
+// 今と同じものだけなので、この後 Stryker が投げても、割り込まれて途中の結果を書いても、結果ファイルと指紋は食い違わない
+// (走り終えた後に書く形だと、割り込まれて書かれた途中の結果が古い指紋と組みになり、届くファイルを前の中身へ戻したときに、
+// 戻す前の中身で測った結果を使い回しうる)。
+// 走り終えたら、その回の結果ファイルで変異体を落としたテストのファイルが全部今の指紋にあるかを見て、無ければ終了コードを 1 にする
+// (Vitest に選ばせたテストファイルと Stryker が走らせたテストファイルが食い違っている。見落としにはならないが、
+// そのテストの結果を毎回測り直して黙って遅くなる)
 //
 // 時間切れを落とす: Stryker 10 は時間切れ(Timeout)を落とした数に入れて点数を出すので、時間切れがあってもしきい値の
 // break 100 を通る(2026-10-18 に実測)。時間切れは「テストが止まった」ことしか言わず、変異を見抜いた証拠として弱いうえ、
@@ -42,14 +60,29 @@
 // 1行出して飛ばす。どこにも無い・作業ツリーの一覧を取れないときはその旨を1行出し、Stryker が全部を走らせる。
 // --force のとき(全部を測り直す)と、--incrementalFile で結果ファイルを名指ししたときは写さない。
 // 結果ファイルの files・testFiles の名前はリポジトリ直下からの相対なので、別の作業ツリーの結果もそのまま比べられる。
-// CI の checkout にはほかの作業ツリーが無いので、CI は .github/workflows/deploy.yml のキャッシュで結果を持ち回る
+// 写すときは、写す元の結果ファイルの隣の指紋を前回の指紋として使う(無ければ前回の指紋が無いのと同じ。この作業ツリーに残っていた指紋は使わない)。
+// 指紋を先に、結果ファイルを後に読む(ほかの作業ツリーの入口も、取り除いた結果ファイルを先に、指紋を後に書くので、この順なら食い違わない組みを読む)。
+// 今の指紋は写す前に取り(取れずに投げたときは何も写さない)、写した結果を書く直前に、この作業ツリーに残っていた指紋のファイルを消す。
+// 写した後に投げても、写した結果がこの作業ツリーの古い指紋と組みにならず、次の実行は前回の指紋が無いと見て全部を測り直す
+// (組みになると、次の実行は写した結果を写す元の指紋ではなくこの作業ツリーの古い指紋と比べるので、写す元と今とで届くファイルが違うのに
+// 古い指紋と今が同じテストの変異体を測り直さない)。
+// CI の checkout にはほかの作業ツリーが無いので、CI は .github/workflows/deploy.yml のキャッシュで結果と指紋を持ち回る
 //
 // 使い方: node scripts/run-mutation.mjs [stryker run の引数]
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { Stryker, StrykerCli } from '@stryker-mutator/core'
 import config from '../stryker.config.mjs'
+import {
+  changedTestFiles,
+  collectFingerprint,
+  dropStaleKills,
+  fingerprintFileOf,
+  killersOutside,
+  readFingerprint,
+  writeFingerprint,
+} from './fingerprint-tests.mjs'
 
 // 引き継がずにその回に測り直す結果。どれも落とす結果(Survived・NoCoverage はしきい値の break 100 を割り、
 // Timeout はこの入口が落とす)。これ以外(Killed・Ignored・CompileError・RuntimeError)は引き継ぐ
@@ -66,6 +99,8 @@ const incrementalFileFromArgs = () => {
 
 const namedIncrementalFile = incrementalFileFromArgs()
 const incrementalFile = namedIncrementalFile ?? config.incrementalFile
+// 結果ファイルの隣の指紋のファイル(上の注釈の「届くファイルが変わったテスト」)
+const fingerprintFile = fingerprintFileOf(incrementalFile)
 
 // 同じリポジトリの作業ツリーの直下の絶対パス(この作業ツリーも含む)。git が無い・リポジトリの中でないなどで
 // 一覧を取れないときは、1行出して空にする(写す元が無いときと同じく、Stryker が全部を走らせる)
@@ -86,13 +121,15 @@ const worktreeRoots = () => {
   }
 }
 
-// 候補の中身。ほかの作業ツリーの Stryker が書いている途中のもの・書き込みが中断されたものは JSON として読めないので、
+// 候補の中身と、その隣の指紋(無い・読めなければ undefined)。指紋を先に読む(上の注釈)。
+// ほかの作業ツリーの Stryker が書いている途中のもの・書き込みが中断されたものは JSON として読めないので、
 // 1行出して飛ばす(読めない写しをこの作業ツリーに残さない)
 const readableResult = file => {
+  const fingerprint = readFingerprint(fingerprintFileOf(file))
   try {
     const text = readFileSync(file, 'utf-8')
     JSON.parse(text)
-    return { file, text }
+    return { file, text, fingerprint }
   } catch (error) {
     console.log(
       `run-mutation: ほかの作業ツリーの結果を読めないので飛ばす(${file}: ${error.message})`
@@ -117,25 +154,32 @@ const newestResultElsewhere = () => {
   )
 }
 
-if (
-  namedIncrementalFile === undefined &&
-  !args.includes('--force') &&
-  !existsSync(incrementalFile)
-) {
-  const borrowed = newestResultElsewhere()
-  if (borrowed === undefined) {
-    console.log(
-      `run-mutation: 結果ファイル(${incrementalFile})が無く、ほかの作業ツリーにも読める結果が無いので、全部を走らせる`
-    )
-  } else {
-    // 読めると確かめた中身をそのまま書く(確かめた後に元が書き換わっても、写しは読めたものになる)
-    mkdirSync(path.dirname(incrementalFile), { recursive: true })
-    writeFileSync(incrementalFile, borrowed.text, 'utf-8')
-    console.log(
-      `run-mutation: 結果ファイル(${incrementalFile})が無いので、ほかの作業ツリーの最も新しい結果を写して引き継ぐ(${borrowed.file})`
-    )
-  }
+// 今の指紋。Stryker と同じく cwd をリポジトリ直下として見る。写す前に取る(上の注釈)
+const currentFingerprint = await collectFingerprint(process.cwd(), config.vitest?.configFile)
+
+const borrowing =
+  namedIncrementalFile === undefined && !args.includes('--force') && !existsSync(incrementalFile)
+const borrowed = borrowing ? newestResultElsewhere() : undefined
+if (borrowing && borrowed === undefined) {
+  console.log(
+    `run-mutation: 結果ファイル(${incrementalFile})が無く、ほかの作業ツリーにも読める結果が無いので、全部を走らせる`
+  )
 }
+if (borrowed !== undefined) {
+  // 写した結果がこの作業ツリーの古い指紋と組みにならないよう、書く直前に古い指紋のファイルを消す(上の注釈)
+  rmSync(fingerprintFile, { force: true })
+  // 読めると確かめた中身をそのまま書く(確かめた後に元が書き換わっても、写しは読めたものになる)
+  mkdirSync(path.dirname(incrementalFile), { recursive: true })
+  writeFileSync(incrementalFile, borrowed.text, 'utf-8')
+  console.log(
+    `run-mutation: 結果ファイル(${incrementalFile})が無いので、ほかの作業ツリーの最も新しい結果を写して引き継ぐ(${borrowed.file})`
+  )
+}
+
+// 前回の指紋。写したときは写した元の結果ファイルの隣の指紋(無ければ無いのと同じ)、写さないときはこの作業ツリーの指紋のファイル。
+// 結果ファイルより先に読む(上の注釈)
+const storedFingerprint =
+  borrowed === undefined ? readFingerprint(fingerprintFile) : borrowed.fingerprint
 
 if (existsSync(incrementalFile)) {
   const report = JSON.parse(readFileSync(incrementalFile, 'utf-8'))
@@ -150,14 +194,31 @@ if (existsSync(incrementalFile)) {
     (sum, [name, file]) => sum + file.mutants.length - files[name].mutants.length,
     0
   )
-  if (dropped > 0) {
+  // 届くファイルが変わったテストが前回落とした変異体も取り除く(上の注釈の「届くファイルが変わったテスト」)
+  const changed = changedTestFiles(storedFingerprint, currentFingerprint, report.testFiles)
+  const stale = dropStaleKills({ ...report, files }, changed)
+  if (dropped + stale.dropped > 0) {
     // Stryker が書くときと同じ形(2文字の字下げ)で書き戻す
-    writeFileSync(incrementalFile, JSON.stringify({ ...report, files }, null, 2), 'utf-8')
+    const kept = { ...report, files: stale.files }
+    writeFileSync(incrementalFile, JSON.stringify(kept, null, 2), 'utf-8')
+  }
+  if (dropped > 0) {
     console.log(
       `run-mutation: 前回落とせなかった変異体と時間切れ ${dropped} 体を引き継がず、この回に測り直す(${incrementalFile})`
     )
   }
+  if (storedFingerprint === undefined) {
+    console.log(
+      `run-mutation: 前回の指紋(${fingerprintFile})が無いか読めないので、結果ファイルのテストファイルを全部、届くファイルが変わったと見る`
+    )
+  }
+  console.log(
+    `run-mutation: 届くファイルが変わったテストファイル ${changed.length} 件のテストが前回落とした変異体 ${stale.dropped} 体を引き継がず、この回に測り直す(${fingerprintFile} と比べた)`
+  )
 }
+
+// 取り除いた結果ファイルを書いた後、Stryker を呼ぶ前に今の指紋を書く(上の注釈の「届くファイルが変わったテスト」)
+writeFingerprint(fingerprintFile, currentFingerprint.tests)
 
 // 結果の fileName は絶対パス。出すときは cwd からの相対にし、ファイル・行・列の順に並べる
 const describeMutant = mutant => {
@@ -183,6 +244,20 @@ const runMutationTest = async options => {
         `run-mutation: 時間切れ(Timeout)の変異体が ${timedOut.length} 体ある。時間切れも落とす(docs/decisions/0021-fail-on-mutation-timeout.md)。`,
         '変異で止まらなくなるループ・再帰は、変異しても終わる形に書き直す(待ち時間は延ばさない)',
         ...timedOut.map(describeMutant),
+      ].join('\n')
+    )
+    process.exitCode = 1
+  }
+  // その回の結果ファイルで変異体を落としたテストのファイルが、全部今の指紋にあるか(上の注釈の「届くファイルが変わったテスト」)
+  const unfingerprinted = existsSync(incrementalFile)
+    ? killersOutside(JSON.parse(readFileSync(incrementalFile, 'utf-8')), currentFingerprint)
+    : []
+  if (unfingerprinted.length > 0) {
+    console.error(
+      [
+        `run-mutation: 変異体を落としたテストのファイル ${unfingerprinted.length} 件が、指紋を取ったテストファイル(scripts/fingerprint-tests.mjs が Vitest に選ばせたもの)に無い。`,
+        'Stryker が走らせたテストファイルと指紋の範囲が食い違っていて、このままではそのテストの結果を毎回測り直す。テストファイルの選び方(stryker.config.mjs の vitest・Vitest の版)が変わっていないかを見て、指紋の取り方を合わせる',
+        ...unfingerprinted.map(file => `  ${file}`),
       ].join('\n')
     )
     process.exitCode = 1

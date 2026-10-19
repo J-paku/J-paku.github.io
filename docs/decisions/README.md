@@ -4,7 +4,7 @@ read_when:
   - 既存の設計を置き換えようとするとき
   - なぜこの作りなのかを問われたとき
 source_of_truth: false
-last_reviewed: 2026-10-18
+last_reviewed: 2026-10-19
 ---
 
 # decisions/(ADR)
@@ -38,6 +38,7 @@ last_reviewed: 2026-10-18
 | [0022](0022-colocate-integration-tests.md)         | 統合テストをコンテナのフォルダに置き、1本なら隣の `container.integration.test.tsx`、2本以上ならそのフォルダの `__tests__` に置く             | Accepted(対のファイルとフィクスチャの名前・統合テストが自分のコンテナを import する形・画面のローダーをファイル別100%から外す一覧は Superseded by 0024)                                                                                                       |
 | [0023](0023-inherit-latest-mutation-result.md)     | 変異テストは依存・設定が変わっても最も新しい結果を引き継ぎ、手元で結果が無ければほかの作業ツリーの結果を写す                                 | Accepted                                                                                                                                                                                                                                                      |
 | [0024](0024-containers-as-index.md)                | コンテナも入口を `index.tsx` にして `container.tsx` を無くし、画面のローダーを `src/app/` へ、ScenePlayer の表示部品を下の SceneStack へ移す | Accepted                                                                                                                                                                                                                                                      |
+| [0025](0025-remeasure-kills-on-test-deps.md)       | 変異テストは、テストから import をたどって届くファイルが変わったら、そのテストが前回落とした変異体を測り直す                                 | Accepted                                                                                                                                                                                                                                                      |
 
 ## 書くときの決まり
 

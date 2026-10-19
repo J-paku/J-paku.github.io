@@ -316,10 +316,15 @@ E2E は `out/` を配る。**先に `npm run build` を済ませる。**
   push(CI)と手元の既定の実行は`incremental`で前回の結果を引き継ぎ、変わった変異体だけを走らせる(CIは最も新しく保存された結果をキャッシュで持ち回り、キャッシュが無い最初のpushでは全部が走る。
   手元で結果ファイルが無いときは、`scripts/run-mutation.mjs`が同じリポジトリのほかの作業ツリーの最も新しい結果を写して引き継ぎ、どこにも無ければ全部が走る。[../decisions/0023-inherit-latest-mutation-result.md](../decisions/0023-inherit-latest-mutation-result.md))。
   全部を走らせるのは週1回、手で`npm run test:mutation -- --force`
-- `incremental`が前回と比べるのは`mutate`のファイルとテストファイルだけ。`mutate`のファイルがimportする別のファイル・テストがimportする別のファイル(`*.test-helper.ts`・`*.fixture.ts`など)・依存パッケージ・設定だけが変わっても気付かず、
+- Strykerの`incremental`が前回と比べるのは`mutate`のファイルとテストファイルの中身だけ。それだけでは、テストがimportする別のファイル(`*.test-helper.ts`・`*.fixture.ts`・間に挟むモジュール・content)だけが変わっても気付かず、
   前回落とした変異体は、今は生き残るとしても落としたままと数える(2026-10-18に実測)。
-  依存・設定(`package-lock.json`・`stryker.config.mjs`・`vitest.config.ts`)が変わっても、CIも手元も全部は走らせずに前回の結果を引き継ぐ。
-  依存・設定とimportする別のファイルの変更は週1回の`--force`まで見落としうる
+  そこで入口の`scripts/run-mutation.mjs`が、Strykerを呼ぶ前に、テストファイルごとの指紋(テストファイル自身と、そこからimportの文をたどって届くsrc・contentのファイルの中身。型だけのimportはたどらない)を、
+  結果ファイルの隣に残した前回の指紋(結果ファイルの名前の`.json`を`.test-deps.json`にしたもの。gitは追跡しない)と比べ、指紋が変わったテストが前回落とした変異体を取り除いて測り直させる。
+  変えた位置に関わらず、そのテストが前回落とした変異体を全部測り直す([../decisions/0025-remeasure-kills-on-test-deps.md](../decisions/0025-remeasure-kills-on-test-deps.md))
+- 指紋に入らないものは、変わっても週1回の`--force`まで見落としうる。
+  依存・設定(`package-lock.json`・`stryker.config.mjs`・`vitest.config.ts`)が変わっても、CIも手元も全部は走らせずに前回の結果を引き継ぐ([../decisions/0023-inherit-latest-mutation-result.md](../decisions/0023-inherit-latest-mutation-result.md))。
+  ほかに、src・contentの外のファイル、式で組んだ`import()`の先、`vi.mock`などに文字列で書くだけのパス、テストが`fs`で読むファイル(今あるものの一覧は0025のConsequences)も指紋に入らない。
+  これらだけを変えたときは、手で`npm run test:mutation -- --force`を走らせる([../agents/verification.md](../agents/verification.md)の「commit の直前」)
 - 逆向きに、Strykerは前回生き残った変異体を、その変異体を通るテストが増えた・変わったと分かったときしか測り直さない。
   モジュールを読む時に1回だけ評価される静的な変異体は、どのテストに通られたかの記録が残らないので、テストを直しても足しても前回の生き残りを使い回して落ち続ける。
   テストがimportする別のファイルだけを直したときは、関数の中の変異体でも同じことが起きる(どちらも2026-10-18に実測)。

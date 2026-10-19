@@ -4,7 +4,7 @@ read_when:
   - 変更を確かめる前
   - 「完了」と報告する前
 source_of_truth: true
-last_reviewed: 2026-10-18
+last_reviewed: 2026-10-19
 ---
 
 # 何を走らせるか
@@ -16,7 +16,7 @@ last_reviewed: 2026-10-18
 | `content/` の文言(既存キーの書き換え)                                                                                                                            | `npm run typecheck` → `npm run build`                                                                                                                                                                                                                                                                         |
 | `content/` に作品・経歴・地点を追加                                                                                                                              | `npm run typecheck` → `npm run test`(村なら) → `npm run build` → 関連 spec                                                                                                                                                                                                                                    |
 | `content/world.ts`(地形・構造物・地点)                                                                                                                           | `npm run test`(`validate-world` と `village`)→ `npm run build` → `npx playwright test tests/journey.spec.ts`                                                                                                                                                                                                  |
-| 純粋モジュール(`src/lib/` `src/utils/`・コンポーネント専用の utils)の追加・変更。どれも変異テストとファイル別100%の対象(規則の正本は `scripts/gate-targets.mjs`) | 隣の `*.test.ts` → `npm run typecheck` → `npm run test:coverage` → `npm run test:mutation`(既定は変わった変異体だけ。依存・設定の変更も同じ。変えたファイルを別の純粋モジュールが import しているときは `npm run test:mutation -- --force`)。`src/lib/pixel/` と外部境界は下の行も足す                        |
+| 純粋モジュール(`src/lib/` `src/utils/`・コンポーネント専用の utils)の追加・変更。どれも変異テストとファイル別100%の対象(規則の正本は `scripts/gate-targets.mjs`) | 隣の `*.test.ts` → `npm run typecheck` → `npm run test:coverage` → `npm run test:mutation`(既定は変わった変異体と、import をたどって届くファイルが変わったテストが前回落とした変異体だけを測り直す。依存・設定の変更は、週1回の`--force`(0023)まで測り直さない)。`src/lib/pixel/` と外部境界は下の行も足す    |
 | `hooks` フォルダの下へファイルを足す・コンポーネント(`index.tsx`。コンテナか表示部品)を足す・部品にフックを足す                                                  | `npm run test:boundary` → `npm run test:integration -- --coverage`(フック・コンテナ・表示部品のどれかがファイル別100%に届かないと落ちる。[0018](../decisions/0018-move-e2e-and-gate-all-hooks.md)・[0022](../decisions/0022-colocate-integration-tests.md)・[0024](../decisions/0024-containers-as-index.md)) |
 | 統合テスト(コンテナのフォルダの `*.integration.test.tsx`)とその部品(`*.test-helper.ts`・`index.fixture.ts`)の追加・変更、`vitest.integration.config.ts`          | `npm run test:integration`(ビルド不要。設定を変えたときは `npm run test:integration -- --coverage`) → `npm run test:boundary`。落ちた時の画面の写しは `test-results/vitest-screenshots/`                                                                                                                      |
 | `src/lib/pixel/`(絵・パレット)                                                                                                                                   | `npm run test` → `npm run build` → 見た目を目視 → `npx playwright test tests/day-night.spec.ts`                                                                                                                                                                                                               |
@@ -45,7 +45,9 @@ last_reviewed: 2026-10-18
 - E2E は表が指す spec だけ(`npx playwright test tests/journey.spec.ts` のように)
 - `npm run test:mutation` は、純粋モジュール(変異テストの対象。`scripts/gate-targets.mjs` の `MUTATION_TARGETS`)かそのテストを変えたときだけ。
   既定は前回の結果を引き継ぎ、変わった変異体だけを走らせる。git のフックで毎回走らせることはしない。
-  テストが import する補助のファイル(`*.test-helper.ts`・`*.fixture.ts`)だけを変えたときも `-- --force` を付ける(既定の実行はそのファイルを比べず、前回落とした変異体を落としたままと数える)。
+  テストが import する補助のファイル(`*.test-helper.ts`・`*.fixture.ts`)や、テストが間に挟んで import するファイル・content だけを変えたときも、既定の実行で測り直す
+  (入口の `scripts/run-mutation.mjs` が、テストから import をたどって届くファイルが変わったテストの前回落とした変異体を取り除いてから走らせる。[../decisions/0025-remeasure-kills-on-test-deps.md](../decisions/0025-remeasure-kills-on-test-deps.md))。
+  ただし、テストが `fs` で読むファイル・src と content の外のファイル・式で組んだ `import()` の先だけを変えたときは、既定の実行では測り直さないので `npm run test:mutation -- --force` で走らせる(指紋に入らないものと、今ある `fs` の読み出しの一覧は 0025 の Consequences)。
   変異体を全部走らせるのは週1回、手で `npm run test:mutation -- --force`([../decisions/0013-incremental-mutation-on-push.md](../decisions/0013-incremental-mutation-on-push.md))。
   依存・設定を変えたときも、その場では全部を走らせず、この週1回で測り直す(今は手で走らせ、定期的に走らせる形は後の課題。[../decisions/0023-inherit-latest-mutation-result.md](../decisions/0023-inherit-latest-mutation-result.md))
 

@@ -5,7 +5,7 @@ read_when:
   - 配信が反映されないとき
   - 配信を戻したいとき
 source_of_truth: true
-last_reviewed: 2026-10-18
+last_reviewed: 2026-10-19
 ---
 
 # 配信
@@ -21,7 +21,8 @@ push to main / workflow_dispatch
       docs:check → typecheck → lint → format:check → test:coverage(カバレッジの床) → test:boundary
       → Playwright Chromium をキャッシュから戻す(miss なら入れる。hit でも OS 側の依存は入れる)
       → test:integration -- --coverage(統合テスト。ビルド無し。統合のカバレッジの床を下回ると落ちる)
-      → Stryker の最も新しく保存された結果をキャッシュから戻す(依存・設定が変わっても戻す) → test:mutation(変わった変異体と、前回落とせなかった変異体・時間切れだけ。時間切れが1体でもあれば落ちる) → 結果をキャッシュへ保存(test:mutation が落ちても保存する)
+      → Stryker の最も新しく保存された結果を、隣の指紋(reports/stryker-incremental.test-deps.json。同じキャッシュに入れる)と一緒にキャッシュから戻す(依存・設定が変わっても戻す)
+      → test:mutation(変わった変異体と、前回落とせなかった変異体・時間切れと、指紋が変わったテストが前回落とした変異体だけ。時間切れが1体でもあれば落ちる) → 結果と指紋をキャッシュへ保存(test:mutation が落ちても保存する)
       → build → test:e2e
       → out/ を :4173 で配信 → wait-on
       → axe(6経路) → Lighthouse CI(同じ6経路) → CJK フォントの .deb をキャッシュから戻して入れる → 日本語改行検査
