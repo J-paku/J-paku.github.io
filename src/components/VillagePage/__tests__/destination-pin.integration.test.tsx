@@ -8,13 +8,16 @@ import { writePosition } from '@/lib/preferences'
 import { isWalkable } from '@/lib/village/collision'
 import { headToSpeech } from '@/components/VillagePage/components/Village/utils/spot-text'
 import {
+  FRAME_MS,
   SETTLE_MS,
   advanceUntil,
   cellCenter,
+  click,
   emulateReducedMotion,
   expectLoopIdle,
   focusVillage,
   loopState,
+  mouse,
   press,
   readCell,
   runFor,
@@ -35,11 +38,11 @@ afterEach(async () => {
 })
 
 // ---- 地面の行き先の印(Ground) ----
-// 地図で選んだ地点へ向かう間に地面に立てる行き先の印の位置と、歩いて届かない地点へ向かう時の印と案内文を、
-// 利用者に見える振る舞いで確かめる(後ろの 3 本は、E2E を移した検査が通らないフックの分岐を通す検査から分けたもの)。
+// 地図で選んだ地点へ向かう間と、舞台のマスを押した時・押したまま指先を動かした時に地面に立てる行き先の印の位置と、
+// 歩いて届かない地点へ向かう時の印と案内文を、利用者に見える振る舞いで確かめる(後ろの 3 本は、E2E を移した検査が通らないフックの分岐を通す検査から分けたもの)。
 // 実際のコンテンツでは作れない配置は、地点の並びを差し替えた版の村(village-spots.test-helper.ts)で作る。
 // 時計は Vitest の偽の時計(rAF・performance.now・タイマー・Date)で止め、テストが 1 フレーム(16ms)ずつ進める(手順は village-walk.test-helper.ts)。
-// 歩く・押すは実際のキー入力(userEvent)で行う。
+// 歩く・押すは実際のキー入力(userEvent)、舞台を押すのは CDP の Input で行う。
 // 偽の時計・歩いた位置と訪問・ブラウザの環境(動きを控える・タッチ)は、ファイル先頭の afterEach が戻す
 describe('地面の行き先の印', () => {
   const setId = villageJa.worldSet.id
@@ -78,6 +81,15 @@ describe('地面の行き先の印', () => {
       name: text.fastTravel.replace('{place}', text.stops[id]?.place ?? id),
     })
   const destinationPin = () => document.querySelector('[data-village-destination]')
+  // 行き先の印の箱の真ん中から、マスの真ん中までの距離(px)。印が無ければ無限大(どのマスにも立っていない)。
+  // 箱もマスの位置もワールドの層から読むので、カメラが動いている間でも同じ瞬間の値どうしで比べられる
+  const pinGap = (cell: Cell) => {
+    const pin = destinationPin()
+    if (!(pin instanceof HTMLElement)) return Number.POSITIVE_INFINITY
+    const box = pin.getBoundingClientRect()
+    const center = cellCenter(cell)
+    return Math.hypot(box.x + box.width / 2 - center.x, box.y + box.height / 2 - center.y)
+  }
   const ROOM_ENTRY = { worldId: room.id, cell: { x: 4, y: 6 } }
 
   test('地図で選んだ地点へ向かう間は、行き先のマスの真ん中に行き先の印の絵を立て、着くと下ろす', async () => {
@@ -104,6 +116,42 @@ describe('地面の行き先の印', () => {
     )
     await advanceUntil(sameCell({ worldId: town.id, cell: monument.cell }), '経歴碑へ着く', 10_000)
     expect(destinationPin(), '着くと印を下ろす').toBeNull()
+  })
+
+  test('舞台のマスを押すと、そのマスの真ん中に行き先の印を立て、着くと下ろす', async () => {
+    await openAt({ worldId: town.id, cell: town.start, facing: town.startFacing })
+    // 自宅前 (14,12) から右へ 3 マスの道
+    const goal = { x: 17, y: 12 }
+    expect(isWalkable(town, goal), '自宅前の右の道').toBe(true)
+    expect(destinationPin(), '押す前は印が無い').toBeNull()
+    // 押してすぐ離す。時計を進める前に離すので、押したままの指先へ向かう経路は作られず、印は押した時の処理だけが立てる
+    const point = cellCenter(goal)
+    await click(point.x, point.y)
+    await advanceUntil(() => destinationPin() !== null, '行き先の印が立つ')
+    expect(pinGap(goal), '印の真ん中から押したマスの真ん中まで(px)').toBeLessThanOrEqual(1)
+    await advanceUntil(sameCell({ worldId: town.id, cell: goal }), '押したマスへ着く')
+    expect(destinationPin(), '着くと印を下ろす').toBeNull()
+  })
+
+  test('舞台を押したまま指先を別のマスへ動かすと、行き先の印を指先のマスへ移し、着くと下ろす', async () => {
+    await openAt({ worldId: town.id, cell: town.start, facing: town.startFacing })
+    // 自宅前 (14,12) の右の道を押してから、指先を左の道へ動かす。左へ向かう経路は押したマスを通らないので、
+    // 着くまで印を下ろすのは指先のマスへの到着だけになる
+    const first = { x: 17, y: 12 }
+    const second = { x: 12, y: 12 }
+    expect(isWalkable(town, first) && isWalkable(town, second), '自宅前の左右の道').toBe(true)
+    const from = cellCenter(first)
+    await mouse.move(from.x, from.y, false)
+    await mouse.down(from.x, from.y)
+    await runFor(FRAME_MS * 2)
+    expect(pinGap(first), '前提: 押したマスに印が立つ(px)').toBeLessThanOrEqual(1)
+    const to = cellCenter(second)
+    await mouse.move(to.x, to.y, true)
+    await advanceUntil(() => pinGap(second) <= 1, '行き先の印が指先のマスの真ん中へ移る')
+    await advanceUntil(sameCell({ worldId: town.id, cell: second }), '指先のマスへ着く')
+    expect(destinationPin(), '着くと印を下ろす').toBeNull()
+    await mouse.up(to.x, to.y)
+    await expectLoopIdle()
   })
 
   test('次の地点へ歩いて届かない時の「次へ」は行き先の印と案内だけ立て、地図からその地点を選んでも何もしない', async () => {
