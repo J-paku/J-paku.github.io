@@ -51,7 +51,7 @@ test('取れなかった場面(503・通信の失敗)は準備中の文言に替
   await expect
     .poll(shownArt, { message: '添字 0 に戻ると取れた場面の絵が見える' })
     .toEqual([ART[0]])
-  expect(requested, '一度失敗した場面は、この部品が消えるまで取り直さない').toEqual(
+  expect(requested, '一度失敗した場面は、URL が同じならこの部品が消えるまで取り直さない').toEqual(
     scenes.map(scene => scene.image)
   )
 })
@@ -71,4 +71,36 @@ test('取れなかった場面は、部品を作り直すと取り直して絵�
   await waitForArt(ART)
   expect(placeholders().elements()).toHaveLength(0)
   expect(requested, '取り直すのは失敗した場面だけ').toEqual([scenes[1].image])
+})
+
+test('取れなかった場面も、同じ id のまま URL が替われば新しい URL を取りに行って絵を出す。失敗した URL のまま渡し直しても取り直さない', async () => {
+  const scenes = makeScenes()
+  stubSceneFetch(scenes, { 'scene-2': 'unavailable' })
+  const { rerender } = render(
+    <ScenePlayer scenes={scenes} activeIndex={0} placeholder={PLACEHOLDER} />
+  )
+  await expect.element(placeholders()).toBeInTheDocument()
+  await waitForArt([ART[0], ART[2]])
+
+  // まず失敗した URL のまま、新しい配列・新しい要素で渡し直す。取り直せば今度は取れる応答にしておき、
+  // 取り直したかは問い合わせの記録で見る
+  const sameScenes = scenes.map(scene => ({ ...scene }))
+  const againRequested = stubSceneFetch(sameScenes)
+  rerender(<ScenePlayer scenes={sameScenes} activeIndex={0} placeholder={PLACEHOLDER} />)
+
+  // 次に、取れなかった2つ目の場面だけ、id はそのままで URL と絵を替えて渡し直す
+  const nextArt = `${ART[1]} v2`
+  const nextScenes = scenes.map(scene =>
+    scene.id === 'scene-2'
+      ? { ...scene, image: scene.image.replace('.svg', '-v2.svg') }
+      : { ...scene }
+  )
+  const requested = stubSceneFetch(nextScenes, {}, [ART[0], nextArt, ART[2]])
+  rerender(<ScenePlayer scenes={nextScenes} activeIndex={0} placeholder={PLACEHOLDER} />)
+
+  await expect.element(artOf(nextArt)).toBeInTheDocument()
+  expect(placeholders().elements(), '新しい URL の絵が出た場面は文言に替わらない').toHaveLength(0)
+  await waitForArt([ART[0], ART[2]])
+  expect(againRequested, '失敗した URL のままなら、渡し直しても取り直さない').toEqual([])
+  expect(requested, '新しく取りに行くのは URL が替わった場面だけ').toEqual([nextScenes[1].image])
 })
