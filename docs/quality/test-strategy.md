@@ -5,7 +5,7 @@ read_when:
   - どのテストを走らせるか決めるとき
   - ロジックをどこに置き、どのテストで固めるか決めるとき
 source_of_truth: true
-last_reviewed: 2026-10-18
+last_reviewed: 2026-10-19
 ---
 
 # テスト
@@ -376,7 +376,9 @@ E2E は `out/` を配る。**先に `npm run build` を済ませる。**
 - 同じコマンドで走る `scripts/check-layers.mjs` はテストではなく層を見る(表示部品と状態コンテナが外の世界へ届く import を、つながりをたどって落とす。
   `fetch`・`localStorage` など import の要らない外の世界の入口を I/O コンテナの外で使うこと、画面のコンテナをその画面のローダー(`src/app/<名前>-screen.tsx`)と自分の画面のフォルダの統合テスト・フィクスチャの外から import することも落とす。
   I/O コンテナとその隣の `hooks` フォルダが content の読み出し(`src/lib/content/` の下)へ届くこと(content を読むのは画面のローダーだけ)と、I/O コンテナの一覧のフォルダの `index.tsx`・画面のローダーのファイルが無いことも落とす)。
-  決まりは [../architecture/boundaries.md](../architecture/boundaries.md) の「コンテナと表示部品」
+  import の向き(`eslint.config.mjs` の `no-restricted-imports`)も、src と `content/` のコードのファイルの import の先のファイルを別名に書き直して同じ規則に当てて見る
+  (規則 7。相対パス・再 export・型だけの import・`import()` で書いても落ちる)。
+  決まりは [../architecture/boundaries.md](../architecture/boundaries.md) の「コンテナと表示部品」(import の向きは「レイヤー」)
 - 同じコマンドで走る `scripts/check-coverage-ignores.mjs` は、カバレッジから行を外す注釈を見る([カバレッジの床](#カバレッジの床)のフックとコンテナのファイル別100%)
 - 同じコマンドで走る `scripts/check-hook-rule.mjs` は、ESLint の規則 `layer/hook-only-in-container` をそのまま使ってフックを呼ぶ所を見る。
   まず規則の判定(偽のコードの断片から拾うフックの名前)と、`eslint.config.mjs` の掛け方(偽のパスで、規則が掛かる所と外れる所)を自己検査し、src のファイル(コンテナのフォルダの統合テストと部品を含む)が lint の対象の外になっていないことも確かめる。

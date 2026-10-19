@@ -1,5 +1,5 @@
-// 層の境界検査(ADR 0017 の D2〜D4・ADR 0019・ADR 0024)。表示部品と状態コンテナが外の世界に触れていないかを、import のつながりと、
-// import の要らない大域の名前で見る。
+// 層の境界検査(ADR 0004・ADR 0017 の D2〜D4・ADR 0019・ADR 0024)。表示部品と状態コンテナが外の世界に触れていないかを、import のつながりと、
+// import の要らない大域の名前で見る。import の向き(utils ← lib ← hooks ← components ← app)も、書いた指定子ではなく import の先のファイルで見る(規則 7)。
 //
 // 決まり: 外の世界に触れる入口(下の IO_FILES・IO_DIRS・IO_PACKAGES)を import してよいのは、I/O コンテナ(一覧のフォルダの index.tsx)と
 // その隣の hooks/、src/app/(画面のローダーとルート)・src/lib/、テストの側(テストの名前と、コンテナのフォルダの __tests__/ の中の全部)だけ(下の「許す側」)。
@@ -13,7 +13,7 @@
 // なので、この検査は状態コンテナと表示部品を分けずに見る。状態コンテナの隣の hooks/ も、許す側に入らない。
 // 画面のローダー(content を読んで画面のコンテナへ渡すサーバの入口)は src/app/<名前>-screen.tsx で、画面のフォルダごとに1つ(下の SCREEN_LOADER_OF)。
 //
-// 規則は6つ。
+// 規則は7つ。
 //   1. 許す側の外のファイルは、入口と、染まったファイルを import しない。
 //      ただし I/O コンテナは染まりを外へ伝えない(横断部品のコンテナは、外から @/components/ui/<名前> を指して表示部品が描く決まり)
 //   2. 許す側の外のファイルは、I/O コンテナの隣の hooks/(一覧のフォルダの直下の hooks/ の下)を import しない。
@@ -29,10 +29,27 @@
 //      content を読むのは src/app のローダーだけで、コンテナは読み出した値を props で受け取る(ADR 0024)。
 //      ローダーを src/components の中へ戻す(I/O コンテナの index.tsx が content を読む)とここで落ちる。
 //      許す側の外のファイルが content へ届くのは規則 1 が落とすので、ここでは重ねない
+//   7. import の向き(utils ← lib ← hooks ← components ← app。content の実データを読むのは src/lib/content だけ)。
+//      向きの正本は eslint.config.mjs の no-restricted-imports で、ESLint は書いた指定子の文字列を patterns(group・regex)に当てるだけなので、
+//      別名(@/…)で書けば落ちる import を、相対パスで書くと(import でも export … from でも)見逃す。import() は別名でも見ない。そこで src と content のコードのファイルの
+//      import の先のファイル(src・content の中)を別名の指定子(@/ + src の下のパス、content は @content/ + content の下のパス)に書き直し、
+//      import するファイルに ESLint が掛ける patterns に当てる(content から src を相対パスで指す向きも、content に掛かる patterns が落とす)。
+//      掛かる patterns は ESLint に聞き(calculateConfigForFile)、当てるのも ESLint の no-restricted-imports そのもの(Linter)で、表をここに書き写さない。
+//      別名は拡張子と index を省いた形も作り、どれか1つが当たれば落とす(ESLint は書いた形だけを見るので、どの形で書いても落ちるように)。
+//      patterns に、取り出す名前や型だけかで分ける欄(importNames・allowTypeImports など)があると、先のファイルだけでは決まらないので落とす。
+//      paths(バレル禁止の '.'・'..')はここでは見ない(書いた指定子の形の決まりで、向きではない)
 // 規則 1〜3・6 では、型だけの import(import type・import { type X }・export type)は数えない。実行時に読み込まれないため(表示部品の props に型を使う)。
+// 規則 7 では型だけの import も import() も数える。ESLint の no-restricted-imports が型だけの import も落とす(allowTypeImports を付けていない)ので同じにする。
+// import() は ESLint の no-restricted-imports が見ないが、向きは書き方ではなく先のファイルで決まるので数える。
 // import の読み方は scripts/read-imports.mjs(require('…') の呼び出しは ESLint が src の全部で落とすので集めない)。
-// 指定子の解決は tsconfig.json と同じ(@/ は src、@content/ は content で対象の外、相対パス、拡張子と index の省略)。
-// src の中を指すのに解決できない import があれば、見逃しを避けるため落とす。名指しした入口が実在しないときも落とす。
+// 指定子の解決は scripts/resolve-import.mjs で、tsconfig.json と同じ(@/ は src、@content/ は content、相対パス、拡張子と index の省略)。
+// 規則 1〜6 のつながりの図と規則 5 の大域の名前には src の中のファイルだけを入れる。content のコードのファイルの import は規則 7 でだけ読み、
+// src のファイルから content の中を指す import(@content/ と、content を指す相対パス)も規則 7 でだけ見る。
+// src の中を指すのに解決できない import があれば、見逃しを避けるため落とす(content の中を指して見つからないものと、content のファイルの import で
+// 見つからないものは型検査が落とすので、ここでは数えない)。
+// 名指しした入口が実在しないときも落とす。src と content のコードのファイルに ESLint の設定が掛からない(lint の対象の外)ときも、規則 7 で見られないので落とす。
+// ESLint の設定の基準のフォルダは、このファイルの場所から求めたリポジトリ直下にする(check-hook-rule.mjs と同じ。作業ツリーが親のリポジトリの
+// .claude/ の下にあっても、作業ツリーのファイルが .claude/** に当たって無視されないように)。
 //
 // 見るのは git の追跡ではなく作業ツリー(check-test-boundary.mjs と同じ)。
 // 判定の関数が壊れて違反を見逃すようになっていないかは、走るたびに最初に確かめる(下の「自己検査」)。
@@ -41,6 +58,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { ESLint, Linter } from 'eslint'
 import ts from 'typescript'
 import {
   SCREEN_CONTAINER_DIRS,
@@ -50,11 +68,20 @@ import {
 } from './container-dirs.mjs'
 import { CONTAINER_ENTRY, isIoContainer } from './find-containers.mjs'
 import { importsOf, parseSource } from './read-imports.mjs'
+import {
+  ALIAS_ROOTS,
+  RESOLVE_SUFFIXES,
+  basePathOf,
+  findFile,
+  resolveImport,
+} from './resolve-import.mjs'
 
 // cwd に依存しない。どこから呼んでもリポジトリ直下を見る
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 // 読むフォルダ(統合テストもコンテナのフォルダに置くので src だけ。リポジトリ直下の __tests__/ は check-test-boundary.mjs が落とす)
 const SCAN_DIRS = ['src']
+// content のフォルダ。中のファイルは指定子の解決先になり、コードのファイルの import は規則 7 でだけ見る(規則 1〜6 の図と規則 5 には入れない)
+const CONTENT_SCAN_DIR = 'content'
 const SKIP_DIRS = new Set(['node_modules', '.git'])
 
 // 外の世界に触れる入口(ADR 0017 の D3)
@@ -103,26 +130,20 @@ const LOADER_NAME = /^src\/app\/[a-z0-9]+(?:-[a-z0-9]+)*-screen\.tsx$/
 const CONTENT_DIR = 'src/lib/content/'
 // import を読むファイル。それ以外(CSS など)は指定子の解決先としてだけ数える
 const CODE_FILE = /\.(?:tsx?|jsx?|mjs|cjs)$/
-// 拡張子と index を省いた指定子に、tsconfig.json(moduleResolution: bundler)と同じ順で足して探す
-const RESOLVE_SUFFIXES = [
-  '',
-  '.ts',
-  '.tsx',
-  '.d.ts',
-  '.js',
-  '.jsx',
-  '/index.ts',
-  '/index.tsx',
-  '/index.d.ts',
-  '/index.js',
-  '/index.jsx',
-]
 // テストの側(Vitest が拾う名前・フィクスチャ・テストの部品)。コンテナのフォルダの __tests__/ の中は名前を問わずテストの側
 // (置ける名前は check-test-boundary.mjs が見る)
 const TEST_SIDE = /\.test\.tsx?$|\.fixture\.ts$|\.test-helper\.ts$/
 // 画面のコンテナを import してよい、画面のフォルダの下の統合テストとフィクスチャの名前
 const INTEGRATION_TEST = /\.integration\.test\.tsx$/
 const CONTAINER_FIXTURE = 'index.fixture.ts'
+// 規則 7 で当てる ESLint の規則と、その設定を読んだ後の重さ(off は 0)
+const RESTRICTED_IMPORTS = 'no-restricted-imports'
+const OFF = 0
+// 規則 7 が写せる patterns の欄。これ以外(importNames・allowImportNames・importNamePattern・allowImportNamePattern・allowTypeImports)は
+// 取り出す名前や型だけかで判定が分かれ、import の先のファイルだけでは決まらない
+const LAYER_PATTERN_KEYS = ['group', 'regex', 'message', 'caseSensitive']
+// 規則 7 で指定子を ESLint に当てるときの、偽のファイルの名前(.mjs は ESLint が既定で import 文として読む)
+const PROBE_FILE = 'check-layers-probe.mjs'
 
 // 違反ごとに出す理由。落ちた人がこのファイルを開かなくても直し方が分かるように書く
 const REASON_IO =
@@ -150,6 +171,11 @@ const REASON_LOADER =
 const REASON_LOADERS =
   '画面のローダーの対(この検査の SCREEN_LOADER_OF)が、画面のフォルダの一覧(scripts/container-dirs.mjs の SCREEN_CONTAINER_DIRS)と合わないか、' +
   'ローダーが src/app/ の直下の <名前>-screen.tsx でないか、同じローダーを2つの画面に当てている。画面のコンテナを import してよい所を広げないため、対は画面ごとに src/app の1つだけにする(ADR 0024)'
+// 規則 7 は、この後ろに ESLint の報告(当たった別名の指定子と、eslint.config.mjs の message)を付けて出す
+const REASON_LAYER =
+  'import の向き(utils ← lib ← hooks ← components ← app。content の実データを読むのは src/lib/content だけ)の正本は eslint.config.mjs の no-restricted-imports。' +
+  'この検査は import の先のファイルを別名(@/…。content は @content/…)で書き直して同じ規則に掛けるので、相対パス・再 export・import()・型だけの import で書いても、' +
+  '別名で書けば ESLint が落とすものは落ちる。指定子の書き方を変えて通すのではなく、ファイルの置き場所か import の向きを直す(docs/architecture/boundaries.md・ADR 0004)。ESLint の報告: '
 const REASONS = new Map([
   ['io', REASON_IO],
   ['hooks', REASON_HOOKS],
@@ -157,6 +183,7 @@ const REASONS = new Map([
   ['missing', REASON_MISSING],
   ['global', REASON_GLOBAL],
   ['loader', REASON_LOADER],
+  ['layer', REASON_LAYER],
 ])
 
 // 壊れたシンボリックリンクで statSync が例外を投げないよう、実体の無い入口は集める前に落とす
@@ -174,19 +201,95 @@ const toPosix = p => p.split(path.sep).join('/')
 const isIo = node =>
   IO_FILES.includes(node) || IO_DIRS.some(dir => node.startsWith(dir)) || IO_PACKAGES.includes(node)
 
-// 指定子の解決。src の中のファイルはリポジトリ直下からのパス、入口のパッケージはその名前(前方一致)、
+// 指定子の解決(規則 1〜6 のつながりの図)。src の中のファイルはリポジトリ直下からのパス、入口のパッケージはその名前(前方一致)、
 // それ以外のパッケージ・@content/・src の外は null(図に入れない)、その中を指すのに見つからなければ undefined
 const resolveSpecifier = (from, specifier, files) => {
   if (specifier === undefined) return undefined
   const ioPackage = IO_PACKAGES.find(name => specifier.startsWith(name))
   if (ioPackage !== undefined) return ioPackage
-  let base
-  if (specifier.startsWith('@/')) base = `src/${specifier.slice(2)}`
-  else if (/^\.\.?(?:\/|$)/.test(specifier))
-    base = path.posix.join(path.posix.dirname(from), specifier)
-  else return null
-  if (!base.startsWith('src/')) return null
-  return RESOLVE_SUFFIXES.map(suffix => `${base}${suffix}`).find(candidate => files.has(candidate))
+  const base = basePathOf(from, specifier)
+  if (base === null || !base.startsWith('src/')) return null
+  return findFile(base, files)
+}
+
+// ファイルを指せる別名の指定子の全部(src/components/ui/Logo/index.tsx なら @/components/ui/Logo/index.tsx・@/components/ui/Logo/index・
+// @/components/ui/Logo)。拡張子と index を省く形は、解決のときに足す並び(RESOLVE_SUFFIXES)と同じものを外して作る。
+// 並びは長い形(拡張子を付けたまま)から短い形へ
+const aliasFormsOf = file => {
+  const [root, alias] = ALIAS_ROOTS.find(([prefix]) => file.startsWith(prefix))
+  const rest = file.slice(root.length)
+  const suffixes = RESOLVE_SUFFIXES.filter(
+    suffix => rest.endsWith(suffix) && rest.length > suffix.length
+  )
+  return suffixes.map(suffix => `${alias}${rest.slice(0, rest.length - suffix.length)}`)
+}
+
+// ESLint の設定を読んだ後のファイルの組みから、no-restricted-imports の patterns を取り出す。
+// lint の対象の外(設定が無い)は undefined、規則が off か paths だけ(文字列の配列・name の組みの配列)なら空
+const layerPatternsOf = config => {
+  if (config === undefined) return undefined
+  const [severity, options] = config.rules?.[RESTRICTED_IMPORTS] ?? [OFF]
+  if (severity === OFF || options === null || typeof options !== 'object') return []
+  return options.patterns ?? []
+}
+
+// patterns のうち、規則 7 が写せない欄の名前(重ならず並べたもの)。文字列の pattern は group と同じなので写せる
+const unsupportedKeysOf = patterns => {
+  const objects = patterns.filter(pattern => typeof pattern !== 'string')
+  const keys = objects.flatMap(pattern => Object.keys(pattern))
+  return [...new Set(keys.filter(key => !LAYER_PATTERN_KEYS.includes(key)))].sort()
+}
+
+// 別名の指定子を、ESLint の no-restricted-imports そのものに patterns だけを掛けて判定する。
+// 指定子ごとに import の1行を並べた断片を Linter に掛け、報告の出た行の指定子 → 最初の報告の文面を返す
+const linter = new Linter({ cwd: ROOT })
+const restrictedFormsOf = (patterns, forms) => {
+  const code = forms.map(form => `import ${JSON.stringify(form)}`).join('\n')
+  const rules = { [RESTRICTED_IMPORTS]: ['error', { patterns }] }
+  const config = [{ files: [`**/${PROBE_FILE}`], rules }]
+  const messages = linter.verify(code, config, { filename: path.join(ROOT, PROBE_FILE) })
+  // 読めない断片(構文の誤り)や、ほかの規則の報告があれば、判定を信じられない
+  const unexpected = messages.find(
+    message => message.fatal === true || message.ruleId !== RESTRICTED_IMPORTS
+  )
+  if (unexpected !== undefined) {
+    throw new Error(`check-layers: 規則 7 の断片を ESLint が判定できない(${unexpected.message})`)
+  }
+  const reports = new Map()
+  for (const { line, message } of messages) {
+    if (!reports.has(forms[line - 1])) reports.set(forms[line - 1], message)
+  }
+  return reports
+}
+
+// 規則 7。layerTargets: パス → import の先(規則 7 で見るもの)、patternsOf: パス → そのファイルに ESLint が掛ける patterns。
+// 同じ patterns のファイル(同じ層)はまとめて、ESLint に1回で聞く。import の先の別名のどれか1つでも当たれば落とす
+const layerViolationsOf = (layerTargets, patternsOf) => {
+  const formsByPatterns = new Map()
+  for (const [file, targets] of layerTargets) {
+    const patterns = patternsOf.get(file) ?? []
+    if (patterns.length === 0) continue
+    const key = JSON.stringify(patterns)
+    const forms = formsByPatterns.get(key)?.forms ?? new Set()
+    for (const target of targets) {
+      for (const form of aliasFormsOf(target)) forms.add(form)
+    }
+    formsByPatterns.set(key, { patterns, forms })
+  }
+  const reportsByPatterns = new Map()
+  for (const [key, { patterns, forms }] of formsByPatterns) {
+    reportsByPatterns.set(key, restrictedFormsOf(patterns, [...forms]))
+  }
+  return [...layerTargets].flatMap(([file, targets]) => {
+    const reports = reportsByPatterns.get(JSON.stringify(patternsOf.get(file) ?? []))
+    if (reports === undefined) return []
+    return targets.flatMap(target => {
+      // 出す指定子は短い形(拡張子と index を省いた形)から選ぶ。落とすかどうかは、どの形が当たっても同じ
+      const form = [...aliasFormsOf(target)].reverse().find(candidate => reports.has(candidate))
+      if (form === undefined) return []
+      return [{ rule: 'layer', file, target, message: reports.get(form) }]
+    })
+  })
 }
 
 // 名指しした入口のうち実在しないもの。改名・移動で名指しが空振りすると、入口へ届く import を黙って見逃すため
@@ -280,17 +383,29 @@ const globalIoOf = source => {
 
 // files: リポジトリ直下からのパス → 中身(import を読まないファイルは undefined)。
 // dirs: I/O コンテナを置くフォルダの一覧(screenDirs は画面、sharedDirs は横断部品)と、画面のフォルダ → ローダー(loaders)。
-// 返すのは違反の一覧と、解決できなかった import の一覧
-const checkLayers = (files, { screenDirs, sharedDirs, loaders }) => {
-  // 実行時の import だけを辺にする(型だけの import は数えない)。大域の入口もここで集める
+// layers: content のファイル(contentFiles。files と同じ形のパス → 中身。指定子の解決先になり、コードのファイルの import は規則 7 でだけ見る)と、
+// パス → そのファイルに ESLint が掛ける patterns(patternsOf。規則 7)。
+// 返すのは違反の一覧と、解決できなかった import の一覧と、ESLint の設定が掛からず規則 7 で見られないファイル(src と content のコードのファイル)の一覧
+const checkLayers = (files, { screenDirs, sharedDirs, loaders }, { contentFiles, patternsOf }) => {
+  // 実行時の import だけを辺にする(型だけの import は数えない)。大域の入口もここで集める。
+  // 規則 7 の import の先は、型だけのものも import() も、content の中も集める(図とは別に持つ)
   const edges = new Map()
   const globals = new Map()
+  const layerTargets = new Map()
   const unresolved = []
+  const unlinted = []
+  const known = new Set([...files.keys(), ...contentFiles.keys()])
+  // 規則 7 で見る import の先(src か content の中のファイル)。見つからないもの・その外は数えない
+  const layerTargetsOf = (file, imports) => {
+    const found = imports.map(({ specifier }) => resolveImport(file, specifier, known))
+    return [...new Set(found.filter(target => typeof target === 'string'))].sort()
+  }
   for (const [file, code] of files) {
     if (code === undefined) continue
     const source = parseSource(file, code)
+    const imports = importsOf(source)
     const targets = new Set()
-    for (const { specifier, typeOnly } of importsOf(source)) {
+    for (const { specifier, typeOnly } of imports) {
       const target = resolveSpecifier(file, specifier, files)
       if (target === undefined)
         unresolved.push({ file, specifier: specifier ?? '(式で組んだ指定子)' })
@@ -298,6 +413,14 @@ const checkLayers = (files, { screenDirs, sharedDirs, loaders }) => {
     }
     edges.set(file, [...targets].sort())
     globals.set(file, globalIoOf(source))
+    layerTargets.set(file, layerTargetsOf(file, imports))
+    if (patternsOf.get(file) === undefined) unlinted.push(file)
+  }
+  // content のコードのファイルは規則 7 でだけ見る(つながりの図・大域の名前には入れない。content から src を相対パスで指す向きもここで落ちる)
+  for (const [file, code] of contentFiles) {
+    if (code === undefined) continue
+    layerTargets.set(file, layerTargetsOf(file, importsOf(parseSource(file, code))))
+    if (patternsOf.get(file) === undefined) unlinted.push(file)
   }
 
   const containerDirs = [...screenDirs, ...sharedDirs]
@@ -386,7 +509,14 @@ const checkLayers = (files, { screenDirs, sharedDirs, loaders }) => {
     if (loader !== undefined && !files.has(loader))
       violations.push({ rule: 'missing', file: loader })
   }
-  return { violations, unresolved, edgeCount: [...edges.values()].flat().length }
+  violations.push(...layerViolationsOf(layerTargets, patternsOf))
+  return {
+    violations,
+    unresolved,
+    unlinted,
+    edgeCount: [...edges.values()].flat().length,
+    layerCount: [...layerTargets.values()].flat().length,
+  }
 }
 
 // 画面のローダーの対が、画面のフォルダの一覧と同じフォルダを持ち、ローダーが src/app/<名前>-screen.tsx で重ならないか(合えば undefined)
@@ -409,11 +539,22 @@ const formatViolation = ({ rule, file, target, chain, line }) => {
 // 自己検査で照合する形。同じ形の行(hooks と screen)を取り違えないよう、規則の名前を前に付ける
 const keyOf = violation => `${violation.rule} ${formatViolation(violation)}`
 
+// ESLint の設定(基準のフォルダはリポジトリ直下)。規則 7 の patterns を、ファイルごとに ESLint に聞く
+const eslint = new ESLint({ cwd: ROOT, overrideConfigFile: path.join(ROOT, 'eslint.config.mjs') })
+// パス → そのファイルに ESLint が掛ける patterns(import を読むファイルだけ。lint の対象の外は undefined)。
+// 掛かるかはパスだけで決まるので、偽のパスでもよい。files はパス → 中身の組みの並び(src と content を続けて渡す)
+const patternsAt = async file => layerPatternsOf(await eslint.calculateConfigForFile(file))
+const patternsFor = async files => {
+  const paths = [...files].filter(([, code]) => code !== undefined).map(([file]) => file)
+  return new Map(await Promise.all(paths.map(async file => [file, await patternsAt(file)])))
+}
+
 // ---- 自己検査 ----
-// 型だけの判定・指定子の解決・許す側の判定・染まりのたどり方・大域の名前の判定が壊れると、違反を見逃したまま「違反なし」で通る。
-// そこで違反と分かっているファイルと違反でないファイルを並べた偽の src を、実際の検査と同じ関数でメモリの上で判定し、
-// 違反の一覧(道を含む)が期待とぴったり同じでなければ落とす。コンテナの一覧とローダーの対も偽のものを渡す
-// (Gone は index.tsx もローダーも無い。Reader は content を読む I/O コンテナ)
+// 型だけの判定・指定子の解決・許す側の判定・染まりのたどり方・大域の名前の判定・ESLint の patterns への当て方が壊れると、
+// 違反を見逃したまま「違反なし」で通る。そこで違反と分かっているファイルと違反でないファイルを並べた偽の src と content を、実際の検査と同じ関数で
+// メモリの上で判定し、違反の一覧(道を含む)が期待とぴったり同じでなければ落とす。コンテナの一覧とローダーの対も偽のものを渡す
+// (Gone は index.tsx もローダーも無い。Reader は content を読む I/O コンテナ)。
+// 規則 7 の patterns は、偽のファイルにも本物の eslint.config.mjs から聞く(向きの正本を写さないため。eslint.config.mjs の向きを変えたら、下の期待も直す)
 const FAKE_DIRS = {
   screenDirs: ['src/components/Screen', 'src/components/Gone'],
   sharedDirs: ['src/components/ui/Player', 'src/components/ui/Reader'],
@@ -623,6 +764,42 @@ const FAKE_SRC = new Map(
     // 大域の入口に触れる表示部品
     'src/components/Bad/global.tsx': GLOBAL_CASES.map(([line]) => line).join('\n'),
     'src/hooks/use-socket.ts': `export const useSocket = () => new WebSocket('ws://a')`,
+    // 規則 7(import の向き)で落ちるもの: lib から components へ(別名・相対パス・再 export・型だけの相対パス・import() の相対パスのどれでも)、
+    // utils から lib へ(相対パス)、content の外の lib から content の実データへ(相対パス)。
+    // 上の src/utils/bad.ts(utils から lib)と src/components/Bad/via-loader.tsx(components から app)も、別名のまま規則 7 に掛かる
+    'src/lib/layer/alias.ts': `import Logo from '@/components/ui/Logo'`,
+    'src/lib/layer/relative.ts': `import Logo from '../../components/ui/Logo'`,
+    'src/lib/layer/reexport.ts': `export { default as Logo } from '../../components/ui/Logo'`,
+    'src/lib/layer/type-relative.ts': `import type Logo from '../../components/ui/Logo'`,
+    'src/lib/layer/dynamic.ts': `export const load = () => import('../../components/ui/Logo')`,
+    'src/utils/layer-relative.ts': `import { grid } from '../lib/village/grid'`,
+    'src/lib/layer/content-data.ts': `import { profile } from '../../../content/ja/profile'`,
+    // 規則 7 で通るもの: components から lib・utils へ、lib から utils へ(相対パス)、どこからでも content/types へ(相対パス。型だけでなくても)、
+    // src/lib/content から content の実データへ(相対パスと別名)
+    'src/components/Layer/index.tsx': [
+      `import { grid } from '../../lib/village/grid'`,
+      `import { clamp } from '../../utils/clamp'`,
+      `import type { Locale } from '../../../content/types/content'`,
+    ].join('\n'),
+    'src/lib/layer/pure.ts': `import { clamp } from '../../utils/clamp'\nimport { LOCALES } from '../../../content/types/content'`,
+    'src/utils/layer-types.ts': `export type { Locale } from '../../content/types/content'`,
+    'src/hooks/use-layer.ts': `import type { Locale } from '../../content/types/content'`,
+    'src/app/layer.tsx': `import { LOCALES } from '../../content/types/content'`,
+    'src/lib/content/layer.ts': `import { profile } from '../../../content/ja/profile'\nimport { world } from '@content/world'`,
+  })
+)
+// 偽の content のファイル(パス → 中身。実データ・型と、src の指定子の解決先)。content のコードのファイルは規則 7 でだけ見る:
+// src を相対パスで指すと落ち(bad.ts・via-src.ts)、content/types を指すのは型だけでも通る(ok.ts)。規則 1〜6 の図と規則 5 には入れないので、
+// 入口を import しても大域の入口に触れても、規則 7 のほかでは数えない(図に入れると via-src.ts が規則 1 でも、world.ts が規則 5 でも落ちる)
+const FAKE_CONTENT = new Map(
+  Object.entries({
+    'content/ja/profile.ts': 'export const profile = {}',
+    'content/world.ts': 'export const world = () => localStorage',
+    'content/types/content.ts': `export type Work = { id: string }\nexport const LOCALES = ['ja']`,
+    'content/ja/bad.ts': `import { clamp } from '../../src/utils/clamp'`,
+    'content/ja/ok.ts': `import type { Work } from '../types/content'`,
+    'content/ko/via-src.ts': `import { readTheme } from '../../src/lib/preferences'`,
+    'content/README.md': undefined,
   })
 )
 const io = (file, ...chain) => keyOf({ rule: 'io', file, target: chain[0], chain })
@@ -631,6 +808,7 @@ const hooks = (file, target) => keyOf({ rule: 'hooks', file, target })
 const screen = (file, target) => keyOf({ rule: 'screen', file, target })
 const globalIo = (file, line, target) => keyOf({ rule: 'global', file, target, line })
 const missingAt = file => keyOf({ rule: 'missing', file })
+const layered = (file, target) => keyOf({ rule: 'layer', file, target })
 const PREFERENCES = 'src/lib/preferences.ts'
 const CONTENT_READ = 'src/lib/content/read.ts'
 const CONTENT_PARSE = 'src/lib/content/parse.ts'
@@ -706,6 +884,17 @@ const EXPECTED_VIOLATIONS = [
     globalIo('src/components/Bad/global.tsx', index + 1, name)
   ),
   globalIo('src/hooks/use-socket.ts', 1, 'WebSocket'),
+  layered('src/lib/layer/alias.ts', LOGO_CONTAINER),
+  layered('src/lib/layer/relative.ts', LOGO_CONTAINER),
+  layered('src/lib/layer/reexport.ts', LOGO_CONTAINER),
+  layered('src/lib/layer/type-relative.ts', LOGO_CONTAINER),
+  layered('src/lib/layer/dynamic.ts', LOGO_CONTAINER),
+  layered('src/utils/layer-relative.ts', 'src/lib/village/grid.ts'),
+  layered('src/lib/layer/content-data.ts', 'content/ja/profile.ts'),
+  layered('src/utils/bad.ts', PREFERENCES),
+  layered('src/components/Bad/via-loader.tsx', 'src/app/fake-screen.tsx'),
+  layered('content/ja/bad.ts', 'src/utils/clamp.ts'),
+  layered('content/ko/via-src.ts', PREFERENCES),
 ].sort()
 // [ローダーの対, 画面のフォルダ, 期待する理由]。画面のフォルダが足りない・余る・ローダーが src/app の <名前>-screen.tsx でない・重なるのは落ちる
 const SCREEN_DIRS = ['src/components/A', 'src/components/B']
@@ -776,11 +965,43 @@ const EXPECTED_UNRESOLVED = [
   'src/components/A/__tests__/b.integration.test.tsx ./gone.test-helper',
   'src/components/A/__tests__/b.integration.test.tsx ../gone',
 ]
+// ESLint の設定が掛からないファイルの拾い方。上の偽の src と、content のコードのファイル1つとコードでないファイル1つに patterns を1つも渡さない
+// (全部が lint の対象の外と同じ)ので、src と content のコードのファイルが全部並ぶ
+const FAKE_UNLINTED_CONTENT = new Map([
+  ['content/ja/lost.ts', 'export const lost = 0'],
+  ['content/README.md', undefined],
+])
+const EXPECTED_UNLINTED = [...FAKE_UNRESOLVED.keys(), 'content/ja/lost.ts'].sort()
+// lint の対象の外のパス(eslint.config.mjs の ignores の .claude/** の下。作業ツリーを .claude/ の下に置いた形)。ESLint が設定を返さない
+// (patternsAt が undefined)ことを確かめる。空の patterns を返すようになると、lint の対象の外のファイルが規則 7 の外へ黙って抜ける
+const IGNORED_PATHS = [
+  '.claude/worktrees/fake/src/utils/bad.ts',
+  '.claude/worktrees/fake/content/ja/bad.ts',
+]
 
-const fake = checkLayers(FAKE_SRC, FAKE_DIRS)
+// 規則 7 が写せない欄の判定。文字列の pattern と group・regex・message・caseSensitive は写せ、ほかの欄は名前を返す
+const UNSUPPORTED_PATTERNS = [
+  '@/a/**',
+  { group: ['@/b/**'], message: 'b', caseSensitive: true },
+  { regex: '^@/c/', importNames: ['c'] },
+  { group: ['@/d/**'], allowTypeImports: true, importNames: ['d'] },
+]
+const EXPECTED_UNSUPPORTED = ['allowTypeImports', 'importNames']
+
+const fake = checkLayers(FAKE_SRC, FAKE_DIRS, {
+  contentFiles: FAKE_CONTENT,
+  patternsOf: await patternsFor([...FAKE_SRC, ...FAKE_CONTENT]),
+})
 const fakeViolations = fake.violations.map(keyOf).sort()
-const fakeUnresolved = checkLayers(FAKE_UNRESOLVED, FAKE_DIRS).unresolved.map(
-  ({ file, specifier }) => `${file} ${specifier}`
+const fakeRun = checkLayers(FAKE_UNRESOLVED, FAKE_DIRS, {
+  contentFiles: FAKE_UNLINTED_CONTENT,
+  patternsOf: new Map(),
+})
+const fakeUnresolved = fakeRun.unresolved.map(({ file, specifier }) => `${file} ${specifier}`)
+const fakeUnlinted = [...fakeRun.unlinted].sort()
+const fakeUnsupported = unsupportedKeysOf(UNSUPPORTED_PATTERNS)
+const ignoredPatterns = await Promise.all(
+  IGNORED_PATHS.map(async file => [file, await patternsAt(file)])
 )
 const selfCheckFailures = [
   // 本物のローダーの対が、画面のフォルダの一覧と合わない
@@ -803,6 +1024,21 @@ const selfCheckFailures = [
     ? [`違反の数 ${fakeViolations.length}(期待 ${EXPECTED_VIOLATIONS.length})`]
     : []),
   ...(fake.unresolved.length > 0 ? ['偽の src で解決できない import がある'] : []),
+  ...(fake.unlinted.length > 0
+    ? [`偽の src・content に ESLint の設定が掛からないファイルがある: ${fake.unlinted.join(', ')}`]
+    : []),
+  ...(JSON.stringify(fakeUnlinted) !== JSON.stringify(EXPECTED_UNLINTED)
+    ? [`ESLint の設定が掛からないファイルの拾い方 ${JSON.stringify(fakeUnlinted)}`]
+    : []),
+  ...ignoredPatterns
+    .filter(([, patterns]) => patterns !== undefined)
+    .map(
+      ([file]) =>
+        `lint の対象の外のパスに ESLint の設定が掛かる(lint の対象の外を拾えない): ${file}`
+    ),
+  ...(JSON.stringify(fakeUnsupported) !== JSON.stringify(EXPECTED_UNSUPPORTED)
+    ? [`規則 7 が写せない欄の判定 ${JSON.stringify(fakeUnsupported)}`]
+    : []),
   ...(JSON.stringify(fakeUnresolved) !== JSON.stringify(EXPECTED_UNRESOLVED)
     ? [`解決できない import の判定 ${JSON.stringify(fakeUnresolved)}`]
     : []),
@@ -815,15 +1051,22 @@ if (selfCheckFailures.length > 0) {
   throw new Error(`check-layers: 自己検査に失敗(期待と違う判定): ${selfCheckFailures.join(', ')}`)
 }
 
-const files = new Map(
-  SCAN_DIRS.filter(dir => existsSync(path.join(ROOT, dir)))
-    .flatMap(dir => walk(path.join(ROOT, dir)))
-    .map(file => toPosix(path.relative(ROOT, file)))
-    .sort()
-    .map(file => [
-      file,
-      CODE_FILE.test(file) ? readFileSync(path.join(ROOT, file), 'utf8') : undefined,
-    ])
+// リポジトリ直下からのパス → 中身(import を読まないファイルは undefined)。パスの順に並べる
+const readFiles = paths =>
+  new Map(
+    paths
+      .map(file => toPosix(path.relative(ROOT, file)))
+      .sort()
+      .map(file => [
+        file,
+        CODE_FILE.test(file) ? readFileSync(path.join(ROOT, file), 'utf8') : undefined,
+      ])
+  )
+
+const files = readFiles(
+  SCAN_DIRS.filter(dir => existsSync(path.join(ROOT, dir))).flatMap(dir =>
+    walk(path.join(ROOT, dir))
+  )
 )
 
 // 1件も拾えないときは、違反が無いのではなく見る場所を間違えている
@@ -841,12 +1084,45 @@ if (missing.length > 0) {
   process.exit(1)
 }
 
+// content のファイル(指定子の解決先。コードのファイルは import も読んで規則 7 で見る)。1件も無いと、content を指す import と
+// content のファイルの import が全部規則 7 の外へ黙って抜ける
+const contentDir = path.join(ROOT, CONTENT_SCAN_DIR)
+const contentFiles = readFiles(existsSync(contentDir) ? walk(contentDir) : [])
+if (contentFiles.size === 0) {
+  console.error('check-layers: content にファイルが1件も無い。対象の指定を疑うこと')
+  process.exit(1)
+}
+
+// 規則 7 で当てる patterns(src と content のコードのファイルごとに ESLint に聞く)。写せない欄があれば、先のファイルだけでは判定できないので落とす
+const patternsOf = await patternsFor([...files, ...contentFiles])
+const allPatterns = [...patternsOf.values()].flatMap(patterns => patterns ?? [])
+const unsupported = unsupportedKeysOf(allPatterns)
+if (unsupported.length > 0) {
+  console.error(
+    `check-layers: eslint.config.mjs の ${RESTRICTED_IMPORTS} の patterns に、規則 7 が写せない欄がある(${unsupported.join(', ')})。` +
+      '取り出す名前や型だけかで判定が分かれる欄は、import の先のファイルだけでは決まらない。向きを決める patterns は group・regex(と message・caseSensitive)だけで書くか、規則 7 の写し方を直す'
+  )
+  process.exit(1)
+}
+
 const containerCount = SCREEN_CONTAINER_DIRS.length + SHARED_CONTAINER_DIRS.length
-const { violations, unresolved, edgeCount } = checkLayers(files, {
+const dirs = {
   screenDirs: SCREEN_CONTAINER_DIRS,
   sharedDirs: SHARED_CONTAINER_DIRS,
   loaders: SCREEN_LOADER_OF,
+}
+const { violations, unresolved, unlinted, edgeCount, layerCount } = checkLayers(files, dirs, {
+  contentFiles,
+  patternsOf,
 })
+
+if (unlinted.length > 0) {
+  console.error(
+    `check-layers: ESLint の設定が掛からない(lint の対象の外の)src・content のコードのファイル ${unlinted.length} 件。import の向き(規則 7)を見られない(eslint.config.mjs の ignores か、基準のフォルダを疑う)`
+  )
+  for (const file of unlinted) console.error(`  - ${file}`)
+  process.exit(1)
+}
 
 if (unresolved.length > 0) {
   console.error(
@@ -859,11 +1135,15 @@ if (unresolved.length > 0) {
 if (violations.length > 0) {
   console.error(`check-layers: ${violations.length} 件の違反`)
   for (const violation of violations) {
-    console.error(`  - ${formatViolation(violation)}: ${REASONS.get(violation.rule)}`)
+    // 規則 7 は ESLint の報告(当たった別名の指定子と eslint.config.mjs の message)を後ろに付ける
+    console.error(
+      `  - ${formatViolation(violation)}: ${REASONS.get(violation.rule)}${violation.message ?? ''}`
+    )
   }
   process.exit(1)
 }
 
+const contentCodeCount = [...contentFiles.values()].filter(code => code !== undefined).length
 console.log(
-  `check-layers: src のファイル ${files.size} 件(import ${edgeCount} 本)と I/O コンテナの一覧 ${containerCount} か所・画面のローダー ${SCREEN_LOADER_OF.size} 本を検査 — 違反なし`
+  `check-layers: src のファイル ${files.size} 件(import ${edgeCount} 本)・content のコードのファイル ${contentCodeCount} 件(import の向きは両方を合わせ、型だけ・content を指すものも含めて ${layerCount} 本)と I/O コンテナの一覧 ${containerCount} か所・画面のローダー ${SCREEN_LOADER_OF.size} 本を検査 — 違反なし`
 )

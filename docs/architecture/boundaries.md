@@ -7,13 +7,13 @@ read_when:
   - 'use client' を足す・動かすとき
   - 新しいレイヤーやフォルダを作ろうとするとき
 source_of_truth: true
-last_reviewed: 2026-10-18
+last_reviewed: 2026-10-19
 ---
 
 # 境界
 
 このリポジトリには3種類の境界がある。**レイヤー(import の向き。コンテナと表示部品の分け方を含む)**、**server と client**、**データとコード**。
-1つ目は機械が守らせる(import の向きとフックを呼んでよい所は ESLint、外の世界に触れてよい所は `scripts/check-layers.mjs`、テストと `hooks` フォルダの置き場は `npm run test:boundary`)。残り2つも一部は機械化済みで、`content/` から `src/` への import は ESLint が落とし(`eslint.config.mjs`)、
+1つ目は機械が守らせる(import の向きは ESLint と `scripts/check-layers.mjs`(相対パスで書いた import も先のファイルで見る)、フックを呼んでよい所は ESLint、外の世界に触れてよい所は `scripts/check-layers.mjs`、テストと `hooks` フォルダの置き場は `npm run test:boundary`)。残り2つも一部は機械化済みで、`content/` から `src/` への import は ESLint が落とし(`eslint.config.mjs`。相対パスで書いたものは `scripts/check-layers.mjs`)、
 `src/lib/content/read.ts` をクライアントへ持ち込むと先頭の `import 'server-only'` でビルドが落ちる。
 それ以外(`'use client'` を島だけに置く・`content/` に判定・検証を持ち込まない)は規約として守る。
 
@@ -41,6 +41,17 @@ utils ← lib ← hooks ← components ← app
 
 正本は `eslint.config.mjs`。**この表を信じる前に、落ちたときのメッセージを読む**(禁止理由がそのまま書いてある)。
 規則を変えるときは表ではなく `eslint.config.mjs` を直し、この文書を直す。→ [ADR 0004](../decisions/0004-lint-enforced-layer-boundaries.md)
+
+ESLint の `no-restricted-imports` は書いた指定子の文字列しか見ないので、別名なら落ちる import も、同じファイルを相対パスで書くと(`import` でも `export … from` でも)通ってしまう。`import()` は別名でも見ない。
+そこで `scripts/check-layers.mjs`(`npm run test:boundary`)の規則 7 が、`src/` と `content/` のコードのファイルの import の先のファイル(`src/`・`content/` の中)を別名(`@/` + `src/` の下のパス、`content/` は `@content/` + その下のパス。拡張子と `index` を省いた形も)に書き直し、
+import するファイルに ESLint が掛ける patterns(`eslint.config.mjs` の group・regex)へ、ESLint 自身で当てる。形のどれか1つでも当たれば落ちる。
+
+- 向きの表は書き写していない。そのファイルに掛かる patterns は ESLint に聞き(`calculateConfigForFile`)、当てるのも ESLint の `no-restricted-imports` そのもの。`eslint.config.mjs` を直せば、この検査も同じに変わる
+- 型だけの import(`import type`・`import { type X }`・`export type`)と `import()` も数える(ESLint も型だけの import を落とすため。向きは書き方ではなく先のファイルで決まる)
+- バレル禁止(`paths`)は見ない。patterns に、取り出す名前や型だけかで分ける欄(`importNames`・`allowTypeImports` など)を足すと、先のファイルだけでは決まらないので落ちる
+- src と `content/` のコードのファイルに ESLint の設定が掛からない(lint の対象の外)と落ちる
+- `content/` のコードのファイルの import も読むので、`content/` から `src/` を相対パスで指す向きも落ちる(`content/` に掛かる patterns で)。
+  `content/` のファイルは、下の「コンテナと表示部品」のつながりの図と大域の名前の検査には入れない
 
 ### コンテナと表示部品(機械が守らせる)
 
