@@ -7,7 +7,7 @@ import { findPath } from '@/lib/village/path'
 import { spotAt } from '@/lib/village/spot'
 import { warpAt } from '@/lib/village/warp'
 import { writePosition } from '@/lib/preferences'
-import type { EnterWorld } from '../use-village-world'
+import type { EnterWorld, SetDestination } from '../use-village-world'
 import { findWorld } from '../../components/Village/utils/find-world'
 import type { VillageRuntime } from '../use-village-runtime'
 import { pickDefaultSpeech } from '../../components/Village/utils/pick-default-speech'
@@ -18,7 +18,7 @@ type VillageArriveOptions = {
   text: VillageText
   runtime: VillageRuntime
   coarseRef: RefObject<boolean>
-  setDestination: Dispatch<SetStateAction<Cell | null>>
+  setDestination: SetDestination
   setPlayerCell: Dispatch<SetStateAction<Cell>>
   setActiveSpot: Dispatch<SetStateAction<Spot | null>>
   setSpeech: Dispatch<SetStateAction<string>>
@@ -79,7 +79,6 @@ export function useVillageArrive({
           const goal = runtime.pendingGoal.current
           if (goal !== null && goal.worldId === warp.target.worldId) {
             runtime.pendingGoal.current = null
-            runtime.destination.current = goal.spot.cell
             setDestination(goal.spot.cell)
             setSpeech(headToSpeech(text, goal.spot))
             // 次へ・地図からの自動歩行が続いている時だけ、到着ワールドの経路を作り直す(利用者が途中で割り込んだら目的地の印と案内だけ残す)。
@@ -105,7 +104,6 @@ export function useVillageArrive({
       setPlayerCell(cell)
       const goal = runtime.destination.current
       if (goal !== null && goal.x === cell.x && goal.y === cell.y) {
-        runtime.destination.current = null
         setDestination(null)
       }
       const spot = spotAt(here, cell)

@@ -12,6 +12,7 @@ import { isMoving } from '@/lib/village/is-moving'
 import { facedCell } from '@/lib/village/spot'
 import { pickDefaultSpeech } from '../../components/Village/utils/pick-default-speech'
 import type { VillageRuntime } from '../use-village-runtime'
+import type { SetDestination } from '../use-village-world'
 import { useCourseProgress } from './use-course-progress'
 import { useFishingPose } from './use-fishing-pose'
 import { useVillageFishing, type FishingCast } from './use-village-fishing'
@@ -34,7 +35,7 @@ export type VillageOverlayOptions = {
   // runtime.fishingPose には釣っている間だけ段階とその段階に入った時刻(performance.now())を入れる。
   // 錠を外した・竿の印を変えた・経路を置いた後は runtime.wake で眠っている歩行ループを起こす
   runtime: VillageRuntime
-  setDestination: Dispatch<SetStateAction<Cell | null>>
+  setDestination: SetDestination
   setVisited: Dispatch<SetStateAction<ReadonlySet<string>>>
   setSpeech: Dispatch<SetStateAction<string>>
   arrive: (cell: Cell) => void

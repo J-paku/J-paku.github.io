@@ -35,7 +35,8 @@ export type WalkLoopOptions = {
   bump: (cell: Cell) => void
   tapped: Cell | null
   consumeTap: () => void
-  // 行き先の印(赤いピン)を立てる。地図からの移動と同じく、着いた時に到着の処理が下ろす
+  // 行き先の印(赤いピン)を立てる。地図からの移動と同じく、着いた時に到着の処理が下ろす。
+  // rAF の中の到着が読む runtime の写しも一緒に書く(use-village-world)
   setDestination: (cell: Cell | null) => void
   // 会話地点(吹き出しの元)を書き換える。到着の処理が立て、飛び立った時はここが下ろす
   setActiveSpot: (spot: Spot | null) => void
@@ -142,16 +143,6 @@ export function useWalkLoop({
     [applyPose, reduceMotion, dom, runtime, veilSprites, onFishingTarget]
   )
 
-  // 押したまま指を動かして向かうマスが変わった時、行き先の印を指先のマスへ移す。
-  // 呼ばれるのは経路を置き直した時の 1 回だけなので、state を触る頻度は到着時と同じに収まる
-  const retarget = useCallback(
-    (cell: Cell) => {
-      runtime.destination.current = cell
-      setDestination(cell)
-    },
-    [runtime, setDestination]
-  )
-
   // 飛び立った時、立っていたマスの会話地点を下ろす。吹き出しとその行動ボタンは会話地点から描くので一緒に消える。
   // 歩きなら次のマスへの到着が下ろすが、飛ぶ間は着地まで到着しないので、飛び立った 1 回だけここで下ろす。
   // rAF の中の setState は次のタスクまで描かれず、同じフレームで書く data-flying='true' と食い違って
@@ -178,7 +169,9 @@ export function useWalkLoop({
             paint,
             arrive,
             bump,
-            retarget,
+            // 押したまま指を動かして向かうマスが変わった時、行き先の印を指先のマスへ移す。
+            // 呼ばれるのは経路を置き直した時の 1 回だけなので、state を触る頻度は到着時と同じに収まる
+            retarget: setDestination,
             liftOff: leaveSpot,
             umbrellaBusy: isUmbrellaBusy,
           },
@@ -197,7 +190,7 @@ export function useWalkLoop({
     bump,
     paint,
     applyPose,
-    retarget,
+    setDestination,
     leaveSpot,
     isUmbrellaBusy,
     reduceMotion,
@@ -227,7 +220,6 @@ export function useWalkLoop({
     if (tapped === null) return
     const plan = queueTapRoute(runtime, tapped)
     if (plan?.kind === 'walk') {
-      runtime.destination.current = plan.goal
       setDestination(plan.goal)
       runtime.wake.current()
     } else if (plan?.kind === 'talk') {

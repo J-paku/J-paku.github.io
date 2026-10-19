@@ -4,7 +4,7 @@
 import { useRef, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import type { Cell, Spot, VillageText, World, WorldSet } from '@content/types/world'
-import type { EnterWorld } from '../use-village-world'
+import type { EnterWorld, SetDestination } from '../use-village-world'
 import type { VillageRuntime } from '../use-village-runtime'
 import { pickDefaultSpeech } from '../../components/Village/utils/pick-default-speech'
 import { useVillageArrive } from './use-village-arrive'
@@ -19,7 +19,7 @@ export type VillageGuideOptions = {
   world: World
   raining: boolean
   runtime: VillageRuntime
-  setDestination: Dispatch<SetStateAction<Cell | null>>
+  setDestination: SetDestination
   setPlayerCell: Dispatch<SetStateAction<Cell>>
   enterWorld: EnterWorld
 }

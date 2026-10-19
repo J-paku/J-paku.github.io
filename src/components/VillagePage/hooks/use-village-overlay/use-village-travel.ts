@@ -11,13 +11,14 @@ import {
   type TravelPlan,
 } from '../../components/Village/utils/plan-travel'
 import type { VillageRuntime } from '../use-village-runtime'
+import type { SetDestination } from '../use-village-world'
 
 type VillageTravelOptions = {
   worldSet: WorldSet
   text: VillageText
   // 経路を置いたら runtime.wake で眠っている歩行ループを起こす
   runtime: VillageRuntime
-  setDestination: Dispatch<SetStateAction<Cell | null>>
+  setDestination: SetDestination
   setSpeech: Dispatch<SetStateAction<string>>
   arrive: (cell: Cell) => void
   closeOverlay: () => void
@@ -71,7 +72,6 @@ export function useVillageTravel({
       if (plan.kind === 'mark') {
         runtime.pendingGoal.current = null
         setSpeech(plan.speech)
-        runtime.destination.current = plan.destination
         setDestination(plan.destination)
         return
       }
@@ -80,7 +80,6 @@ export function useVillageTravel({
       runtime.pendingRoute.current = plan.route
       runtime.pendingFast.current = true
       runtime.autoTalk.current = plan.autoTalk
-      runtime.destination.current = plan.destination
       setDestination(plan.destination)
       runtime.wake.current()
     },

@@ -6,11 +6,12 @@ import { enterRuntimeWorld, resolveWorld } from '../components/Village/utils/ent
 import type { VillageRuntime } from './use-village-runtime'
 
 export type EnterWorld = (id: string, next: World, cell: Cell, facing: Direction) => void
+export type SetDestination = (cell: Cell | null) => void
 
 type UseVillageWorld = {
   world: World
   destination: Cell | null
-  setDestination: Dispatch<SetStateAction<Cell | null>>
+  setDestination: SetDestination
   playerCell: Cell
   setPlayerCell: Dispatch<SetStateAction<Cell>>
   enterWorld: EnterWorld
@@ -23,15 +24,25 @@ export function useVillageWorld(worldSet: WorldSet, runtime: VillageRuntime): Us
   const [worldId, setWorldId] = useState<string>(worldSet.startWorldId)
   const world = resolveWorld(worldSet, worldId)
 
-  const [destination, setDestination] = useState<Cell | null>(null)
+  const [destination, setDestinationState] = useState<Cell | null>(null)
   const [playerCell, setPlayerCell] = useState<Cell>(startWorld.start)
+
+  // 行き先の印は ref(rAF ループの到着判定が読む)と state(Ground が描く)の 2 か所に持つ。
+  // 両方へ書くのはここ(setDestination・enterWorld)だけで、ほかのフックはこの setDestination を呼ぶ
+  const setDestination = useCallback(
+    (cell: Cell | null) => {
+      runtime.destination.current = cell
+      setDestinationState(cell)
+    },
+    [runtime]
+  )
 
   // ワールドの移動は ref と state を同時に置き換える。ref の置き換え方は utils/enter-world.ts。
   // 歩行ループは新しいタイルが DOM に載るのを待って描き直すので、眠っていれば起こす
   const enterWorld = useCallback(
     (id: string, next: World, cell: Cell, facing: Direction) => {
       enterRuntimeWorld(runtime, id, next, cell, facing)
-      setDestination(null)
+      setDestinationState(null)
       setWorldId(id)
       setPlayerCell(cell)
       runtime.wake.current()
