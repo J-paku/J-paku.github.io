@@ -62,14 +62,14 @@ export default defineConfig({
       ],
       reporter: ['text-summary'],
       reportsDirectory: 'coverage',
-      // 2026-10-14の実測(statements 97.45%・branches 98.74%・functions 95.27%・lines 97.31%)から2pt引いて切り捨てた値。
-      // コンポーネント(components/ の .tsx)を統合テストのカバレッジへ移し、単体の測る対象から外したので測り直した(ADR 0017)。
-      // 目標値ではなく、テストを消したり使われないコードを増やしたりしたときに落とすための床
+      // 測る対象の全体も、文・分岐・関数・行のすべてで100%に固める。node で走るコード(src/app のルート・画面のローダー・<html> の枠など)と
+      // 純粋モジュールは単体テストで100%にする(フックとコンポーネントは上の exclude で外し、統合テスト(vitest.integration.config.ts)のファイル別100%で固める)。
+      // 床ではなく、単体テストが一度も通らない行・分岐を残さないための固定(src/app を単体テストで覆って全体が100%になった)
       thresholds: {
-        statements: 95,
-        branches: 96,
-        functions: 93,
-        lines: 95,
+        statements: 100,
+        branches: 100,
+        functions: 100,
+        lines: 100,
         // ファイル別100%(一覧は scripts/gate-targets.mjs の COVERAGE_TARGETS)
         ...Object.fromEntries(COVERAGE_TARGETS.map(file => [file, FULL_COVERAGE])),
       },
