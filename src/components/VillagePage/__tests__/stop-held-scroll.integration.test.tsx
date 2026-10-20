@@ -12,6 +12,7 @@ import {
   tapHeld,
   villageFrame,
 } from './village-walk.test-helper'
+import { PHASE_CLOCKS, startVillageClock } from './village-time.test-helper'
 import { prepareVillage, resetVillage, villageJa } from './village.test-helper'
 
 // 晴れの天気を敷き、タッチの模擬を持ち越していないことを確かめる(village.test-helper.ts の prepareVillage)
@@ -28,14 +29,21 @@ afterEach(async () => {
 // tests/journey.spec.ts が見ている窓の中の操作のうち、本文送りのフック(use-held-scroll)の分岐を統合で通すもの。
 // journey の行き先はこの段では決めていないので、journey はそのまま残す(ADR 0018)。
 // E2E と同じく利用者に見える物(role・名前・焦点・送り位置)で断定する。
-// 時間は E2E と同じく実時間で進める(rAF・タイマー・performance.now は本物)。差し替えるのは天気(ネットワーク)だけで、
-// 歩く・押す・待つは village-walk.test-helper.ts の手順
+// 時計は Vitest の偽の時計(rAF・performance.now・タイマー・Date)で止め、テストが 1 フレーム(16ms)ずつ進める(手順は village-walk.test-helper.ts)。
+// 本文送りは、戻る向きを押し続けると 300ms ごとに焦点をもう 1 つ遡る(use-held-scroll.ts の FOCUS_BACK_REPEAT_MS)。
+// rAF が本物の時は、押した瞬間の 1 回のつもりの押下(tapHeld)でも、押してから離すまでの間のフレームの時刻の幅が 300ms を越えるともう 1 つ遡る。
+// 2026-10-20 にカバレッジ付きの全体を回した 1 回で、上 1 回のつもりが見出しまで戻って落ち、押す間にテストの iframe を 350ms 止めると
+// 同じ断定が同じ焦点(見出し)で落ちた(250ms では落ちない)。離す指示が届くまでの遅れと、押す間に止まった時間が幅に入るため。
+// 偽の時計なら、押す長さは偽の時計の上の 2 フレーム(32ms)で、離す指示の遅れも止まった間も時間に入らない。
+// 差し替えるのは天気(ネットワーク)と時間だけで、歩く・押す・待つは village-walk.test-helper.ts の手順
 describe('会話窓の本文送り', () => {
   const { text } = villageJa
 
-  // 画面は既定で PC(E2E の既定と同じ 1280×720)
+  // 画面は既定で PC(E2E の既定と同じ 1280×720)。描く前に偽の時計を入れる(本文送りのループが最初に読む rAF から偽物にする)。
+  // 日付も偽物になるので、途中で昼夜の段階が替わらないよう昼に止める
   beforeEach(async () => {
     await page.viewport(1280, 720)
+    startVillageClock(PHASE_CLOCKS.day, 'frames')
   })
 
   // DOM から 1 つ引く。無ければ前提が崩れているのでその場で落とす
@@ -88,29 +96,32 @@ describe('会話窓の本文送り', () => {
 
     // 下を押し続けると本文が送られ、送り切ったフレームで先頭の操作へ焦点が渡る
     await userEvent.keyboard('{ArrowDown>}')
-    await expect
-      .poll(() => panel.scrollTop, { message: '押している間は本文が送られる' })
-      .toBeGreaterThan(0)
-    await expectFocusOn(items[0], '送り切ると先頭の操作へ焦点が移る')
+    await advanceUntil(() => panel.scrollTop > 0, '押している間は本文が送られる')
+    await advanceUntil(
+      () => document.activeElement === items[0],
+      '送り切ると先頭の操作へ焦点が移る'
+    )
     // 押し続けても次の操作へは流れない(前へ渡すのは押した瞬間だけ)
     await runFor(FRAME_MS * SETTLE_FRAMES)
     expect(document.activeElement, '押し続けても先頭の操作に留まる').toBe(items[0])
     await userEvent.keyboard('{/ArrowDown}')
+    // 偽の時計はテストが進めた分しかフレームが来ないので、離したのを 1 フレームで読ませてから押し直す
+    // (読ませないと、同じ向きの押し直しを押しっぱなしの続きと読む)
+    await runFor(FRAME_MS * 2)
 
     // 押し直すたびに下は 1 つ先へ、上は 1 つ前へ
     await tapHeld('ArrowDown')
     await expectFocusOn(items[1], '下をもう 1 回で次の操作へ')
     await tapHeld('ArrowUp')
     await expectFocusOn(items[0], '上 1 回で 1 つ前へ')
+    await runFor(FRAME_MS * 2)
     // 先頭から上は本文(見出し)へ戻り、押し続ければ本文が先頭まで巻き戻る
     await userEvent.keyboard('{ArrowUp>}')
-    await expectFocusOn(title.element(), '先頭の操作から上で見出しへ戻る')
-    await expect
-      .poll(() => panel.scrollTop, {
-        message: '上を押し続けると本文が先頭まで巻き戻る',
-        timeout: 5_000,
-      })
-      .toBe(0)
+    await advanceUntil(
+      () => document.activeElement === title.element(),
+      '先頭の操作から上で見出しへ戻る'
+    )
+    await advanceUntil(() => panel.scrollTop === 0, '上を押し続けると本文が先頭まで巻き戻る', 5_000)
     await userEvent.keyboard('{/ArrowUp}')
   })
 

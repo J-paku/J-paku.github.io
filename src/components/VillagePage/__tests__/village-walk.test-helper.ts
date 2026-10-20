@@ -1,5 +1,6 @@
 // 村の統合テスト(src/components/VillagePage の下の *.integration.test.tsx)で歩く・押す・待つ・保存された現在地と見え方を読む共通の手順。
-// E2E の tests/village.helpers.ts と同じ押し方(1 マス分押して離し、到着を保存位置の変化で知る)で歩く。
+// 1 マス分押して離し、到着を保存位置の変化で知って歩く。押す長さは、rAF まで偽物の時は E2E の tests/village.helpers.ts と同じ
+// HOLD_MS(偽の時計の上)で、rAF が本物の時は主人公が歩き出したのを画面で見届けるまで(holdUntilStep)。
 // 時間はテストのファイルごとに 2 通りで進む(偽の時計の掛け方は village-time.test-helper.ts の startVillageClock)。
 //   - rAF まで偽の時計に載せた時(frames): 1 フレーム(16ms)ずつ偽の時計を進める。歩行ループ・釣り・傘・飛行の時間割は
 //     テストが進めた分だけ進み、実時間の揺れを受けない。React の確定は偽にしない MessageChannel で回るので、
@@ -7,16 +8,18 @@
 //   - rAF が本物の時(Date だけ止めた時・偽の時計を入れない時): 本物の次のフレームを待つ
 // どちらでも、時間を進める手(stepFrame・runFor・advanceUntil)とそれを使う手(walk・press など)は同じ物を使い、
 // 経った時間は performance.now() で測る(rAF まで偽物の時は performance.now も偽の時計の上で進む)。
-// 押す・叩くは実際の入力(vitest/browser の userEvent と CDP の Input、rAF が本物の時の press・tapHeld は node の側の
+// 押す・叩くは実際の入力(vitest/browser の userEvent と CDP の Input、rAF が本物の時の press・walk・tapHeld は node の側の
 // Playwright の keyboard)で行い、DOM へ作り物のイベントを投げない
 import { cdp, commands, server, userEvent } from 'vitest/browser'
 import type { Cell } from '@content/types/world'
 import { readPosition } from '@/lib/preferences'
+import { TURN_MS } from '@/lib/village/movement'
 
 // 押す長さと、離してから到着を待つ上限(tests/village.helpers.ts の HOLD_MS・SETTLE_MS と同じ値)。
 // 短押しは旋回だけ(TURN_MS 64ms)なので、旋回を越えて 1 マス分の移動を始めるまで押す。
 // 始まった移動は離しても最後まで進む(CELL_MS 256ms)。旋回から始めても押してから 64 + 256ms 余りで着くので、
-// 離してから SETTLE_MS を過ぎても着かない回は、ぶつかって向きだけ変わった(= 進めなかった)とみなす
+// 離してから SETTLE_MS を過ぎても着かない回は、ぶつかって向きだけ変わった(= 進めなかった)とみなす。
+// press・walk がこの 2 つで押して待つのは rAF まで偽物の時だけで、rAF が本物の時は時間で押さない(holdUntilStep)
 export const HOLD_MS = 150
 export const SETTLE_MS = 320
 // 時間で替わるもの(眠り・段階・到着)を待つ上限(E2E の SLACK_MS と同じ値。偽の時計なら偽の時計の上の ms)
@@ -155,21 +158,58 @@ export const readCell = (setId: string): { worldId: string; cell: Cell } | null 
 
 const savedText = (setId: string) => JSON.stringify(readPosition(setId))
 
-// rAF が本物の時に、キーを押したまま待って離す手(vitest.integration.config.ts の holdKey)。押す・待つ・離すを node の側でまとめて行う。
-// ここで待ってから離すと、離す指示がこの iframe から Vitest(node)・Playwright を回って Chromium へ届くまでの遅れが
-// 押す長さに足され、負荷の高い時は 1 マス分のつもりの押下が次のマスまで続く(数字は holdKey の注)
+// rAF が本物の時に、node の側でキーを押して離す手(vitest.integration.config.ts の holdUntilStep・holdKey)。
+// 押す・待つ・離すを node の側でまとめて行う。待つ間はこの iframe の中で、主人公の動き(holdUntilStep)か rAF の数(holdKey)を見る
 declare module 'vitest/browser' {
   interface BrowserCommands {
-    holdKey: (key: string, hold: { ms: number } | { frames: number }) => Promise<void>
+    holdUntilStep: (
+      key: string,
+      watch: { frame: string; player: string; layer: string; turnMs: number; slackMs: number }
+    ) => Promise<boolean>
+    holdKey: (key: string, hold: { frames: number }) => Promise<void>
   }
+}
+
+// rAF が本物の時に方向キーを 1 マス分押す。押したまま本物のフレームを見て、主人公が歩き出したのを見届けたら離す。
+// 歩き出したら true、旋回の分(TURN_MS)のフレームが経っても動かなければ(通れない先へ向きを変えただけ)離して false。
+// 押す・見る・離すは node の側の holdUntilStep(vitest.integration.config.ts)がまとめて行い、見るのはこの iframe の中で、
+// 主人公がワールドの層のどこに立って見えるかの動きで見る(カメラは層ごと動かすので、層から見た位置は主人公自身の歩みでしか変わらない)。
+// 押す長さを時間では決めない。決めた時間だけ押しても、負荷の高い時は歩行ループが見るフレームとずれる
+// (2026-10-20 の実測。カバレッジ付きの全体を 9 回回すと、node の側で HOLD_MS 待って離す形では 3 回で、
+// この iframe で測って 159ms 押していてもキーを見たフレームが 2 つ(フレームの時刻で 40ms 分)しかなく、旋回を終える前に離れて
+// 最初の 1 押しが歩き出さなかった。逆に離すのが遅れて 380ms 押したままになった 1 回は、1 マス着いた時にまだ押されていて
+// 次のマスまで歩いた。卓上時計の前へ歩く最後の右でこれが起きると、時計の右隣で上を押して吹き出しが出ない)。
+// 歩行ループは旋回の待ちを、キーを見た最初のフレームからのフレームの時刻の差で数える(lib の step)。ここも同じフレームの時刻で数え、
+// TURN_MS が経ったフレーム(歩けるならそこで歩き出す)から 2 フレーム先まで見て動かなければ、歩き出さないとみなす
+// (歩行ループがキーを見た最初のフレームとここが数え始めるフレームが 1 つずれても、歩き出しを見落とさないよう 1 フレーム余分に見る)。
+// 歩き出した移動は離しても最後まで進む(CELL_MS 256ms)ので、着く前に押しっぱなしの向きが空になれば次のマスへ続かない。
+// 離す指示が Chromium へ届くのを待つと、負荷の高い時はその遅れが 256ms を越えて次のマスまで歩いたので、歩き出しを見たらこの iframe の中で
+// 焦点を一度外して向きを捨てさせてから離す(数字は vitest.integration.config.ts の holdUntilStep の注)
+const holdUntilStep = async (key: WalkKey): Promise<boolean> => {
+  // 歩き出したかを画面の上の主人公の動きで見る。動きを控える設定では村が動きを省いて描く所がある(歩く姿のコマ・カメラ)ので、
+  // その下でこの見方が成り立つかは確かめていない。使わせず、偽の時計の上で時間で押させる
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    throw new Error(
+      'rAF が本物の時の press・walk は、動きを控える設定(prefers-reduced-motion: reduce)の下では使わない' +
+        '(歩き出したかを画面の上の主人公の動きで見て離すので)。' +
+        '動きを控えるテストは、rAF を偽の時計に載せて(village-time.test-helper.ts の startVillageClock の frames)時間で押す'
+    )
+  }
+  return commands.holdUntilStep(key, {
+    frame: '[data-village]',
+    player: '[data-village-player]',
+    layer: '[data-world]',
+    turnMs: TURN_MS,
+    slackMs: SLACK_MS,
+  })
 }
 
 // 方向キーを 1 マス分だけ押して離す。到着も描画も待たない。
 // rAF まで偽物の時は、押す長さを偽の時計で数える(離す指示の遅れは偽の時計を進めないので、押す長さに入らない)。
-// rAF が本物の時は、E2E と同じく node の側で HOLD_MS 待ってから離す
+// rAF が本物の時は、歩き出すまで押して離す(holdUntilStep)
 export const press = async (key: WalkKey) => {
   if (!framesFaked()) {
-    await commands.holdKey(key, { ms: HOLD_MS })
+    await holdUntilStep(key)
     return
   }
   await userEvent.keyboard(`{${key}>}`)
@@ -179,8 +219,10 @@ export const press = async (key: WalkKey) => {
 
 // 押しっぱなしの向きを rAF で読む経路(会話窓の本文送り・窓の外から焦点を入れる方向)へ、押した瞬間の 1 回として読ませる。
 // 押してすぐ離すと、同じフレームの間に離されて rAF が向きを 1 度も読まないことがあるので、2 フレーム置いてから離す
-// (押し続けた時の繰り返しは 300ms 先からなので、2 フレームでは始まらない)。歩くための 1 マス分の押し方は press。
-// rAF が本物の時は、2 フレームをこの iframe の rAF で数えるのも離すのも node の側で行う(press と同じ理由)
+// (押し続けた時の繰り返しは 300ms 先からなので、偽の時計の上の 2 フレームでは始まらない)。歩くための 1 マス分の押し方は press。
+// rAF が本物の時は、node の側で押し、この iframe の rAF を 2 フレーム数えてから離す(vitest.integration.config.ts の holdKey)。
+// 離す指示が届くまでの遅れと、押す間にこの iframe が止まった時間の分だけ長く押すので、その間のフレームの時刻の幅が 300ms を越えると
+// 繰り返しになる(2026-10-20 の実測は stop-held-scroll.integration.test.tsx の注)。繰り返さないことを確かめるテストは、rAF を偽の時計に載せて叩く
 export const tapHeld = async (key: WalkKey) => {
   if (!framesFaked()) {
     await commands.holdKey(key, { frames: 2 })
@@ -192,14 +234,26 @@ export const tapHeld = async (key: WalkKey) => {
 }
 
 // 方向キーで cells マス歩く。1 マスごとに押して離し、到着(保存位置の変化)を待ってから次へ進む。
-// 戻り値は実際に到着したマス数(壁や水へ向きを変えただけの 1 回は数えない)
+// 戻り値は実際に到着したマス数(壁や水へ向きを変えただけの 1 回は数えない)。
+// rAF まで偽物の時は、離してから SETTLE_MS(偽の時計)の間に着かなければ進めなかったとみなす。
+// rAF が本物の時は、歩き出したかを押す側(holdUntilStep)が見届けるので、歩き出した回だけ着くまで待つ
+// (着くまでの時間も負荷で延びるので、SETTLE_MS では打ち切らず SLACK_MS まで待つ)。
+// 歩き出さないと見た回も、画面が動かないまま歩いていることがある(ワールドを移った直後、新しいタイルが載るまで
+// 前の場面を据え置く間。walk-loop の wait-world-tiles.ts)ので、rAF まで偽物の時と同じく離してから SETTLE_MS の間は
+// 保存位置を見て、変われば着いたと数える
 export const walk = async (setId: string, key: WalkKey, cells: number): Promise<number> => {
   let arrived = 0
   for (let i = 0; i < cells; i += 1) {
     const before = savedText(setId)
-    await press(key)
-    const until = performance.now() + SETTLE_MS
     let moved = false
+    if (framesFaked()) {
+      await press(key)
+    } else if (await holdUntilStep(key)) {
+      await advanceUntil(() => savedText(setId) !== before, `${key} で歩き出したマスに着く`)
+      moved = true
+    }
+    // 離してから SETTLE_MS の間に保存位置が変われば着いたと数える(rAF が本物の時は、歩き出さないと見た回だけ)
+    const until = performance.now() + SETTLE_MS
     while (!moved && performance.now() < until) {
       await stepFrame()
       moved = savedText(setId) !== before

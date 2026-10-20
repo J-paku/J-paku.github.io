@@ -5,7 +5,7 @@ read_when:
   - どのテストを走らせるか決めるとき
   - ロジックをどこに置き、どのテストで固めるか決めるとき
 source_of_truth: true
-last_reviewed: 2026-10-19
+last_reviewed: 2026-10-20
 ---
 
 # テスト
@@ -129,14 +129,19 @@ last_reviewed: 2026-10-19
   `vitest.integration.config.ts` がファイルごとに別のブラウザの instance(結果の行頭の名前は `touch:<ファイル>`)で走らせ、ほかのファイルとページを共にさせない。
   `emulateTouch` はその instance の外では投げ、模擬を切るのは入れたファイルだけ。村と一覧のテストは各テストの始めに、ページがマウスの端末(`(hover: hover) and (pointer: fine)`)のままであることを前提として確かめる
   (タッチの模擬を使うファイルの中では、前のテストが切った後の `none` が残るので、`pointer: coarse` でないことだけを確かめる)
-- rAF が本物のまま歩く村のテストは、キーを押す・待つ・離すを node の側でまとめて行う(`vitest.integration.config.ts` の `holdKey`。E2E と同じく node の時計で待つ)。
-  テストの iframe の中で待ってから離すと、離す指示が Chromium へ届くまでの遅れが押す長さに足され、負荷の高い時に 1 マス分のつもりの押下が次のマスまで歩いた(2026-10-17 の実測)
+- rAF が本物のまま歩く村のテストは、時間で押さない。1 マス分の押下は node の側で押し、主人公が歩き出したのをテストの iframe の中で画面の位置の動きで見届けたら、
+  その場で村の枠から焦点を一度外して押しっぱなしの向きを捨てさせ(村の枠の `onBlur`)、それから離す(`vitest.integration.config.ts` の `holdUntilStep`。
+  呼ぶのは `src/components/VillagePage/__tests__/village-walk.test-helper.ts` の `press`・`walk`)。
+  E2E と同じく決めた時間(`HOLD_MS`)だけ押す形は、負荷の高い時に歩行ループが見るフレームとずれ、旋回を終える前に離れて歩き出さなかったり、離すのが遅れて次のマスまで歩いたりした。
+  歩き出しを見てから離す形でも、離す指示が Chromium へ届くまでの遅れが1マスの歩行(256ms)を越えて行き過ぎた(どちらも 2026-10-20 の実測。数字は `holdUntilStep` の注)。
+  押しっぱなしの向きを rAF で読む経路へ押した瞬間の 1 回として読ませる `tapHeld` は、node の側で押し、テストの iframe の rAF を2フレーム数えてから離す(`vitest.integration.config.ts` の `holdKey`)。
+  どちらも離す指示が Chromium へ届くまでの遅れの分だけ長く押すので、押し続けると繰り返す操作(会話窓の本文送りで戻る向きなど、300ms ごと)の「1回だけ」を確かめるテストは偽の時計で叩く
 - 差し替えるのはネットワークと時間だけ。`fetch` は `vi.stubGlobal` で差し替え、`afterEach` で `vi.unstubAllGlobals()` して戻す
   (村は天気の応答と、段階が替わる時に読むシートの絵の取得。シートは `Image` を差し替えて応答を決める)
 - 時間は Vitest の偽の時計(`vi.useFakeTimers`)で差し替える。掛け方はファイルごとに違い、正本は村の `src/components/VillagePage/__tests__/village-time.test-helper.ts` の `startVillageClock` と各テストの `vi.useFakeTimers`。
-  - 村の歩く・待つ・釣り・傘・飛ぶを見るファイル(歩行ループの眠り・池での釣り・雨の日の傘・自動移動の直線飛行・村の入力と道中の配線など)は、rAF・`performance.now`・タイマー・Date を全部偽の時計に載せ、
+  - 村の歩く・待つ・釣り・傘・飛ぶを見るファイル(歩行ループの眠り・池での釣り・雨の日の傘・自動移動の直線飛行・村の入力と道中の配線など)と卓上時計のファイルは、rAF・`performance.now`・タイマー・Date を全部偽の時計に載せ、
     テストが 1 フレーム 16ms ずつ進めた分だけ時間が経つ(E2E の `page.clock.install` に当たる)
-  - 村の昼夜と卓上時計のファイル(昼夜と天気・夜の灯り・卓上時計)は、rAF・タイマー・`performance.now` を本物のまま使い、段階を決めるテストだけ Date を止める(`page.clock.setFixedTime` に当たる)。
+  - 村の昼夜のファイル(昼夜と天気・夜の灯り)は、rAF・タイマー・`performance.now` を本物のまま使い、段階を決めるテストだけ Date を止める(`page.clock.setFixedTime` に当たる)。
     開いたまま時間帯が替わるテストは、Date と、段階を1分ごとに確かめ直す `setInterval` を止めてテストが進める
   - 村の舞台の寸法・窓の焦点・会話窓の中身・拡大地図などのファイルは、時間を差し替えない
   - 作品ストーリーと一覧は、場面の自動送りの `setTimeout` だけを止める

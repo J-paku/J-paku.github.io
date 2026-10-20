@@ -128,38 +128,140 @@ const touchProjectName = (file: string) =>
   TOUCH_PROJECT_PREFIX +
   file.replace(/^src\/components\//, '').replace(/\.integration\.test\.tsx$/, '')
 
-// キーを押したまま待って離す手。村の統合テストが rAF の本物の時に使う
-// (src/components/VillagePage/__tests__/village-walk.test-helper.ts の press・tapHeld)。
-// 押す・待つ・離すを node の側でまとめて行い、E2E(tests/village.helpers.ts の press)と同じく node の時計で待つ。
-// テストの iframe の中で待ってから離すと、離す指示が iframe から Vitest(node)・Playwright を回って Chromium へ届くまでの遅れが
-// 押す長さに足される。負荷が高いと 1 マス分(150ms)のつもりの押下が 1 マスの歩行(256ms)より長く続き、次のマスまで歩いた
-// (2026-10-17 の実測。2 コアに 8 ページで全体を回し、keydown から keyup までをテストの iframe で測ると、
-// iframe の中で待つ形は中央 233ms・最長 915ms で、卓上時計の前へ歩く 16 回のうち 6 回が 1〜2 マス行き過ぎた。
-// node の側で待つ形は中央 185ms・最長 451ms で、13 回とも行き過ぎなかった)。
-// 待ち方は ms(node の時計で待つ)か frames(テストの iframe の rAF を数える。rAF を偽の時計に載せていない時だけ使える)
-type Hold = { ms: number } | { frames: number }
+// rAF が本物の時に村の統合テストがキーを押す手(src/components/VillagePage/__tests__/village-walk.test-helper.ts の press・walk・tapHeld)。
+// 押す・待つ・離すを node の側でまとめて行い、待つ間はテストの iframe の中で見る(tester.evaluate に渡す関数は文字列にして送られるので、
+// 外の名前を使わず、引数と iframe の大域だけで書く。渡せるのも直列化できる値だけ)。
+// 決めた時間だけ待って離す形(E2E の tests/village.helpers.ts の press と同じく node の時計で HOLD_MS)は、負荷の高い時に歩行ループが見る
+// フレームとずれたのでやめた(数字は village-walk.test-helper.ts の holdUntilStep の注)。
 // 待つ間に落ちても(テストの iframe が外れたなど)押したままにせず、必ず離す。
 // Vitest が userEvent で押したままのキーを離すのは各テストの前とファイルの終わりだけで(node_modules/@vitest/browser の tester の
 // onBeforeTryTask・cleanup が呼ぶ userEvent.cleanup)、ここで押したキーはその数に入らない
-const holdKey: BrowserCommand<[key: string, hold: Hold]> = async ({ page, frame }, key, hold) => {
+
+// 歩き出しを見る相手(村の枠・主人公・ワールドの層の選択子)と、旋回の時間(TURN_MS)・待つ上限(SLACK_MS)
+type StepWatch = { frame: string; player: string; layer: string; turnMs: number; slackMs: number }
+// テストの iframe の中で、押す前に走らせる。押す前の立ち位置を控え、村の枠が受け取る keydown を待ち受け、
+// 主人公が歩き出したら true、TURN_MS が経ったフレームから 2 フレーム先まで動かなければ false で終わる done を返す
+// (判定の理由は village-walk.test-helper.ts の holdUntilStep の注)。押す前から見るのは、押す指示が node へ戻るまでの間に
+// 歩き出した分を見落とさないためと、受け取る前に始まったフレームを数えないため
+const watchStep = ({ frame, player, layer, key, turnMs, slackMs }: StepWatch & { key: string }) => {
+  const required = (selector: string) => {
+    const element = document.querySelector<HTMLElement>(selector)
+    if (element === null) throw new Error(`${selector} が描かれていない`)
+    return element
+  }
+  const village = required(frame)
+  // 主人公がワールドの層のどこに立って見えるか(px)
+  const place = () => {
+    const playerBox = required(player).getBoundingClientRect()
+    const layerBox = required(layer).getBoundingClientRect()
+    return { x: playerBox.left - layerBox.left, y: playerBox.top - layerBox.top }
+  }
+  const from = place()
+  let receivedAt: number | null = null
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key === key && receivedAt === null) receivedAt = performance.now()
+  }
+  village.addEventListener('keydown', onKeyDown, true)
+  // 歩き出したら、離す指示が Chromium へ届くのを待たずに押しっぱなしの向きを捨てさせる。焦点のある村の枠(か枠の中の要素)から
+  // 焦点を一度外すと、村の枠の onBlur(use-village-input.ts)が押しっぱなしの向きを空にするので、すぐ同じ要素へ焦点を戻す。
+  // 後から届く keyup は、向きが空なので何も変えない
+  const letGo = () => {
+    const active = document.activeElement
+    if (!(active instanceof HTMLElement) || !village.contains(active)) return
+    active.blur()
+    active.focus({ preventScroll: true })
+  }
+  // 本物の次のフレームを待ち、そのフレームの時刻を返す。同じフレームの rAF(歩行ループの歩みと DOM への書き込み)が
+  // 走り終えてから見るよう、1 タスク渡してから戻る
+  const nextFrame = () =>
+    new Promise<number>(resolve => {
+      requestAnimationFrame(time => {
+        const channel = new MessageChannel()
+        channel.port1.onmessage = () => {
+          channel.port1.close()
+          resolve(time)
+        }
+        channel.port2.postMessage(null)
+      })
+    })
+  const watch = async () => {
+    // キーを受け取った後の最初のフレームの時刻と、TURN_MS が経ったフレームより後に動かないまま見たフレームの数(経つ前は null)
+    let firstSeen: number | null = null
+    let framesAfterTurn: number | null = null
+    const until = performance.now() + slackMs
+    while (performance.now() < until) {
+      const time = await nextFrame()
+      // 層と主人公の箱の引き算に残る端数(カメラだけが動いた時)を、歩いたと取り違えないよう 0.01px 未満は動いていないとみなす
+      const now = place()
+      if (Math.abs(now.x - from.x) >= 0.01 || Math.abs(now.y - from.y) >= 0.01) {
+        letGo()
+        return true
+      }
+      if (framesAfterTurn !== null) {
+        framesAfterTurn += 1
+        if (framesAfterTurn === 2) return false
+        continue
+      }
+      // 受け取る前に始まったフレームは、歩行ループがキーを見たとは限らないので数えない
+      if (receivedAt === null || time <= receivedAt) continue
+      if (firstSeen === null) firstSeen = time
+      if (time - firstSeen >= turnMs) framesAfterTurn = 0
+    }
+    return false
+  }
+  return { done: watch().finally(() => village.removeEventListener('keydown', onKeyDown, true)) }
+}
+// 方向キーを 1 マス分押す(holdUntilStep の手)。歩き出しを見届けたら押しっぱなしの向きを捨てさせて(watchStep の letGo)離し、歩き出したかを返す。
+// 離す指示が Chromium へ届くまでの遅れが 1 マスの歩行(CELL_MS 256ms)を越えると、着いた時にまだ押されていて次のマスまで歩く。
+// 2026-10-20 の実測(カバレッジ付きの全体。歩き出しを見てから keyup がテストの iframe に届くまで):
+//   - 離すのをテストの iframe から頼む形(iframe → Vitest(node)→ Playwright → Chromium)は、10 回・1030 回で中央 8ms・最長 286ms(200ms を越えたのが 2 回)
+//   - node の側で見届けの知らせを受けてすぐ離す形は、同じく 10 回・1030 回で中央 10ms・最長 631ms(1 回ごとの中央は 4〜26ms)。
+//     機器が遅くなった後半の 6 回(1 回 66〜88 秒。前半は約 58 秒)に延びた。2 つの形を交互に 4 回ずつ回すと、iframe から頼む形は
+//     1 回ごとの中央 32〜39ms・最長 398ms、node の側の形は中央 13〜27ms・最長 512ms で、どちらも卓上時計の前で 1 マス行き過ぎて落ちた回が 2 回あった
+// 遅れはどちらの形でも 256ms を越えうるので、歩き出したら離す指示を待たずに押しっぱなしの向きを捨てさせる。node の側で離すのを 400ms 遅らせると、
+// 捨てさせない形は卓上時計の2ファイル14件が全部時計の前で行き過ぎて落ち、捨てさせる形は14件とも通った
+const holdUntilStep: BrowserCommand<[key: string, watch: StepWatch]> = async (
+  { page, frame },
+  key,
+  watch
+) => {
+  const tester = await frame()
+  const watcher = await tester.evaluateHandle(watchStep, { ...watch, key })
+  try {
+    await page.keyboard.down(key)
+    try {
+      return await watcher.evaluate(started => started.done)
+    } finally {
+      await page.keyboard.up(key)
+    }
+  } finally {
+    await watcher.dispose()
+  }
+}
+
+// キーを押したまま、テストの iframe の rAF を決めた数だけ数えてから離す手(tapHeld の手)。
+// 押しっぱなしの向きを rAF で読む経路(会話窓の本文送り・窓の外から焦点を入れる方向)へ、押した瞬間の 1 回として読ませる。
+// 離す指示が Chromium へ届くまでの遅れの分だけ長く押すので、その間のフレームの時刻が押し続けた時の繰り返しの間隔(300ms)を越えると、
+// 1 回のつもりが繰り返しになる。繰り返さないことを確かめるテストは、rAF を偽の時計に載せて叩く(tapHeld の注)
+const holdKey: BrowserCommand<[key: string, hold: { frames: number }]> = async (
+  { page, frame },
+  key,
+  hold
+) => {
   await page.keyboard.down(key)
   try {
-    if ('ms' in hold) {
-      await new Promise(resolve => setTimeout(resolve, hold.ms))
-    } else {
-      const tester = await frame()
-      await tester.evaluate(
-        count =>
-          new Promise<void>(resolve => {
-            const next = (left: number) => {
-              if (left === 0) resolve()
-              else requestAnimationFrame(() => next(left - 1))
-            }
-            next(count)
-          }),
-        hold.frames
-      )
-    }
+    const tester = await frame()
+    await tester.evaluate(
+      count =>
+        new Promise<void>(resolve => {
+          const next = (left: number) => {
+            if (left === 0) resolve()
+            else requestAnimationFrame(() => next(left - 1))
+          }
+          next(count)
+        }),
+      hold.frames
+    )
   } finally {
     await page.keyboard.up(key)
   }
@@ -220,8 +322,8 @@ export default defineConfig({
         })),
       ],
       screenshotDirectory: 'test-results/vitest-screenshots',
-      // テストから commands.holdKey で呼ぶ(上の holdKey の注)
-      commands: { holdKey },
+      // テストから commands.holdUntilStep・commands.holdKey で呼ぶ(上の注)
+      commands: { holdUntilStep, holdKey },
     },
     // 測るのは --coverage を付けたときだけ。フックとコンポーネントもここで測る(単体の設定はフックと components の .tsx を外す)。
     // フックとコンポーネント(コンテナと表示部品)は全部をファイル別100%で固める(上の HOOK_FILES・COMPONENT_FILES。ADR 0018・0019・0022・0024)。

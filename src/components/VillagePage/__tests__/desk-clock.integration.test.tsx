@@ -32,9 +32,16 @@ afterEach(async () => {
 
 // E2E(tests/clock.spec.ts)が見ていた卓上時計の窓の断定を、E2E からこの統合テストへ移したもの(ADR 0018 の「統合へ移す」)。
 // E2E と同じく利用者に見える物(role・名前・aria・要素の有無・計算されたスタイル)で断定する。
-// 時間は E2E と同じく実時間で進める(rAF・タイマー・performance.now は本物)。段階を決めるので Date だけを止める
-// (startVillageClock の date。E2E の page.clock.setFixedTime)。差し替えるのは天気とシートの絵の取得(ネットワーク)と時間だけで、
-// 歩く・押す・待つは village-walk.test-helper.ts の手順。
+// 時計は Vitest の偽の時計(rAF・performance.now・タイマー・Date)で止め、テストが 1 フレーム(16ms)ずつ進める(手順は village-walk.test-helper.ts)。
+// 段階を決めるので日付は昼に止める(E2E は page.clock.setFixedTime で Date だけを止め、rAF・タイマーは実時間のまま)。
+// 窓は押しっぱなしの向きを rAF で読み、押し続けると 1 段目は 300ms ごとに焦点を、2 段目は 300ms 待ってから針を動かし直す
+// (step-clock-time.ts の CHOOSE_REPEAT_MS・DIAL_REPEAT_DELAY_MS)。rAF が本物の時は、押した瞬間の 1 回のつもりの押下(tapHeld・
+// 2 フレームだけ倒すスティック・押して 2 フレーム後に数える D)でも、その間のフレームの時刻の幅が 300ms を越えるともう 1 つ動く。
+// 2026-10-20 に、Date だけを止めた形で押す間にテストの iframe を 350ms 止めると、窓の外からの上・D の押しっぱなし・
+// スティックの 1 段目と 2 段目の 4 件が、どれも 1 回のつもりが 2 つ以上動いて落ちた。
+// 偽の時計なら、押す長さは偽の時計の上のフレームの数で決まり、離す指示の遅れも止まった間も時間に入らない
+// (同じ所で 350ms 止めても 13 件とも通った)。
+// 差し替えるのは天気とシートの絵の取得(ネットワーク)と時間だけで、歩く・押す・待つは village-walk.test-helper.ts の手順。
 // タッチ端末(E2E の isMobile・hasTouch)のスティックは、CDP のタッチの模擬(emulateTouch)で描く。
 // 模擬を切った後は pointer も hover も none のまま戻らない(resetEmulation の注)が、村は pointer: coarse かどうかだけで分けるので、
 // 続くテストの振る舞いは変わらない。
@@ -113,22 +120,24 @@ describe('卓上時計(tests/clock.spec.ts)', () => {
   }
 
   // 時計の前まで歩いて昼から始める。どのテストも同じ出発点に揃え、「昼から変わったか」を段階で見る。
-  // 段階が替わる時に読むシートの絵(ビルドが焼く PNG)は、どれも届く応答に差し替える
+  // 段階が替わる時に読むシートの絵(ビルドが焼く PNG)は、どれも届く応答に差し替える。
+  // 描く前に偽の時計を入れる(歩行ループと窓の押しっぱなしのループが最初に読む rAF・performance.now から偽物にする)
   const startAtClock = async () => {
     routeSheets(async () => {})
-    startVillageClock(PHASE_CLOCKS.day, 'date')
+    startVillageClock(PHASE_CLOCKS.day, 'frames')
     await renderVillage()
     expect(phase(), '出発は実時刻の昼').toBe('day')
     // 部屋の開始マス (4,4) から時計の前 (7,3) へ。右 3 マスは PC 机の下・テーブルの上を通る行なので素通りでき、
     // 最後の上 1 マスで卓上時計 (7,2) と向き合う
     expect(await walk(setId, 'ArrowRight', 3), '時計と同じ列まで歩けた').toBe(3)
     expect(await walk(setId, 'ArrowUp', 1), '時計の前まで歩けた').toBe(1)
-    await expect
-      .poll(() => document.querySelector('[data-village-bubble]')?.textContent, {
-        message: '時計の前に立つと吹き出しが出る',
-        timeout: 3_000,
-      })
-      .toContain(clock.arrive)
+    // 吹き出しは歩行ループ(rAF)が着いたマスから決めるので、フレームを進めて待つ
+    await advanceUntil(
+      () =>
+        document.querySelector('[data-village-bubble]')?.textContent?.includes(clock.arrive) ===
+        true,
+      '時計の前に立つと吹き出しが出る'
+    )
   }
 
   // 決めた 20:00 を窓から決める(昼から夜へ動かす)
@@ -419,13 +428,12 @@ describe('卓上時計(tests/clock.spec.ts)', () => {
     // 押した瞬間の 1 つを処理させてから数える。繰り返しはまだ始まらないので、ここではちょうど 1 つ
     await runFor(FRAME_MS * 2)
     await expect.poll(hourSteps, { message: '押した瞬間にちょうど 1 つ進む' }).toBe(1)
-    await expect
-      .poll(hourSteps, { message: '押し続けると繰り返して進む', timeout: 3_000 })
-      .toBeGreaterThanOrEqual(2)
+    // 繰り返しは窓の rAF が進めるので、フレームを進めて待つ
+    await advanceUntil(() => hourSteps() >= 2, '押し続けると繰り返して進む')
     await userEvent.keyboard('{/d}')
 
     // 離した後は止まる。止まった値を決定の一言と突き合わせる。押し続けていれば繰り返しの間隔(2 段目は 120ms)ごとに
-    // 進むので、その 2 回ぶんを超える 20 フレーム(約 333ms)の間に進まないことを見る
+    // 進むので、その 2 回ぶんを超える 20 フレーム(320ms)の間に進まないことを見る
     await runFor(FRAME_MS * 2)
     const hour = hourOf()
     await runFor(FRAME_MS * 20)
@@ -508,6 +516,9 @@ describe('卓上時計(tests/clock.spec.ts)', () => {
       await mouse.move(x, y, true)
       await mouse.up(x, y)
       await expect.element(button(clock.custom)).toHaveFocus()
+      // 中央へ戻したのを 1 フレーム以上読ませる。偽の時計はテストが進めた分しかフレームが来ないので、
+      // 読ませないと 2 段目で同じ右へ倒し直したのを、倒しっぱなしの続きと読む(押した瞬間の 1 つが動かない)
+      await runFor(FRAME_MS * 2)
 
       // A でカスタム時間を押して 2 段目へ。焦点は決定へ移る
       await tapA()
@@ -524,10 +535,8 @@ describe('卓上時計(tests/clock.spec.ts)', () => {
       // 1 以上で見ると、押した瞬間に 2 つ進む二重の発火まで通ってしまう
       await runFor(FRAME_MS * 2)
       await expect.poll(hourSteps, { message: '押した瞬間にちょうど 1 つ進む' }).toBe(1)
-      // 繰り返しが始まるまでの待ちは、次の poll が 2 以上になるまで待つことで兼ねる
-      await expect
-        .poll(hourSteps, { message: '倒し続けると繰り返して進む', timeout: 3_000 })
-        .toBeGreaterThanOrEqual(2)
+      // 繰り返しが始まるまでの待ちは、次に 2 以上になるまでフレームを進めることで兼ねる
+      await advanceUntil(() => hourSteps() >= 2, '倒し続けると繰り返して進む')
       await mouse.move(x, y, true)
       await mouse.up(x, y)
 
