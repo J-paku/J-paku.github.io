@@ -110,6 +110,21 @@ describe('マウスで倒す', () => {
     expect(held, '離すと向きなしを知らせる').toEqual(['right', 'down', null])
   })
 
+  test('左へ倒すと左を知らせ、左へ倒したまま上へ少しずらしても、横のずれの方が大きい間は左のまま', async () => {
+    const { knob, center, held } = renderStick()
+    await mouse.move(center.x, center.y, false)
+    await mouse.down(center.x, center.y)
+    await mouse.move(center.x - 20, center.y, true)
+    await expectKnobAt(knob, { x: -20, y: 0 }, '左へ倒れる')
+    expect(held).toEqual(['left'])
+    await mouse.move(center.x - 20, center.y - 8, true)
+    await expectKnobAt(knob, { x: -20, y: -8 }, 'つまみは指に付いて上へもずれる')
+    expect(held, '同じ向きのままなら知らせ直さない').toEqual(['left'])
+    await mouse.up(center.x - 20, center.y - 8)
+    await expectKnobAt(knob, CENTER, '離すと中央へ戻る')
+    expect(held, '離すと向きなしを知らせる').toEqual(['left', null])
+  })
+
   test('倒せる距離を越えて土台の外まで引いても、つまみは土台の幅から決まる縁で止まって指を追い続け、土台の外で離しても中央へ戻す', async () => {
     const { base, knob, center, held } = renderStick()
     // 倒せる距離は押した時の土台の幅(枠線の内側)に比で掛けて決める

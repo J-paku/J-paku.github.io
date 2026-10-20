@@ -115,4 +115,49 @@ describe('地図の描き方', () => {
       []
     )
   })
+
+  test('地図の上端の近くで縦に重なる印は、上へ押し出すと地図の外へはみ出すので横へずらし、どちらも地図の中に収める', () => {
+    // 北の道に縦に並ぶ 2 地点。印は番号の順に置くので、後に置く上の段の印が前の印(下の段)から上へ押し出される向きになる
+    const [first, second] = entries
+    const lower = { x: 14, y: 3 }
+    const upper = { x: 14, y: 2 }
+    const stacked = [
+      { ...first, cell: lower },
+      { ...second, cell: upper },
+    ]
+    render(
+      <WorldMap
+        {...mapProps(
+          { onTravel: vi.fn(), onTravelTo: vi.fn(), onClose: vi.fn() },
+          { current: null },
+          { current: null }
+        )}
+        entries={stacked}
+      />
+    )
+    const frame = mapCanvas(dialog.element()).getBoundingClientRect()
+    const [placed, moved] = badgeBoxes(dialog.element())
+    expect([placed.id, moved.id], '印は渡した順に並ぶ').toEqual([first.id, second.id])
+    // 前提: 上の段の印は、ずらす前(下の段の印を 1 マス上へ動かした所)なら地図の中にあり、
+    // 上へ押し出して下の段の印から隙間(6px)を空けると地図の上端を越える
+    const cell = frame.height / town.height
+    const height = placed.bottom - placed.top
+    expect(placed.top - cell, '前提: ずらす前の上の段の印は地図の中').toBeGreaterThanOrEqual(
+      frame.top
+    )
+    expect(placed.top - 6 - height, '前提: 上へ押し出すと地図の上端を越える').toBeLessThan(
+      frame.top
+    )
+    expect(overlapping(dialog.element()), '印どうしは重ならない').toEqual([])
+    for (const box of [placed, moved]) {
+      expect(
+        box.left >= frame.left &&
+          box.right <= frame.right &&
+          box.top >= frame.top &&
+          box.bottom <= frame.bottom,
+        `${box.id} の印は地図の中に収まる`
+      ).toBe(true)
+    }
+    expect(moved.left, '上の段の印は下の段の印の右へずらす').toBeGreaterThanOrEqual(placed.right)
+  })
 })

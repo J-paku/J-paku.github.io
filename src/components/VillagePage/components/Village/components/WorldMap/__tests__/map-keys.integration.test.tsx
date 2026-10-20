@@ -106,4 +106,44 @@ describe('地図の焦点とキー', () => {
     await expect.poll(focusedSpot).toBe(entries[0].id)
     await cycleWithTab(dialog.element(), MAP_FOCUSABLE_SELECTOR)
   })
+
+  test('地点の印が 1 つも無い地図では、閉じるボタンで方向キーを押しても焦点は動かず、どこへも向かわない', async () => {
+    // 対照: 地点の印がある地図では、閉じるボタン(地点でない所)で方向キーを押すと番号 1 の地点へ焦点が移る
+    // (spotToward の、今の焦点が地点でない時の道)。印が無い地図で焦点が動かないのを、方向キーを読まないせいと取り違えないため
+    const shown = renderMap()
+    await expect.poll(focusedSpot).toBe(entries[0].id)
+    const shownClose = dialog.getByRole('button', { name: text.closeMap })
+    for (const key of Object.values(ARROW_KEYS)) {
+      shownClose.element().focus()
+      await expect.element(shownClose).toHaveFocus()
+      await userEvent.keyboard(`{${key}}`)
+      await expect
+        .poll(focusedSpot, { message: `対照: 印がある地図では ${key} で番号 1 の地点へ移る` })
+        .toBe(entries[0].id)
+    }
+    shown.unmount()
+
+    const handlers = { onTravel: vi.fn(), onTravelTo: vi.fn(), onClose: vi.fn() }
+    const opener = placeOpener()
+    render(
+      <WorldMap
+        {...mapProps(handlers, { current: opener }, { current: null })}
+        entries={[]}
+        doors={[]}
+      />
+    )
+    expect(dialog.element().querySelectorAll('[data-spot-id]').length, '前提: 地点の印が無い').toBe(
+      0
+    )
+    // 焦点を置く最初の地点が無いので、開いても焦点は開く前の所に残る。Tab で入るのと同じく閉じるボタンへ置く
+    const close = dialog.getByRole('button', { name: text.closeMap })
+    close.element().focus()
+    await expect.element(close).toHaveFocus()
+    for (const key of Object.values(ARROW_KEYS)) {
+      await userEvent.keyboard(`{${key}}`)
+      await expect.element(close, { message: `${key} の後も焦点は閉じるボタン` }).toHaveFocus()
+    }
+    expect(handlers.onTravel, 'どこへも向かわない').not.toHaveBeenCalled()
+    expect(handlers.onClose, '閉じもしない').not.toHaveBeenCalled()
+  })
 })

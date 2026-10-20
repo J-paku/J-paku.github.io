@@ -104,3 +104,27 @@ test('取れなかった場面も、同じ id のまま URL が替われば新�
   expect(againRequested, '失敗した URL のままなら、渡し直しても取り直さない').toEqual([])
   expect(requested, '新しく取りに行くのは URL が替わった場面だけ').toEqual([nextScenes[1].image])
 })
+
+test('同じ画像の URL を使う場面が2つあって取れないと、その URL は1回だけ取りに行き、どちらの場面も準備中の文言に替わる', async () => {
+  // 2つ目と3つ目の場面が同じ画像を指す(id と題は別)。どちらの取得も同じ1つの失敗を受け取り、失敗の印を2回付けに来る
+  const base = makeScenes()
+  const scenes = base.map(scene =>
+    scene.id === 'scene-3' ? { ...scene, image: base[1].image } : scene
+  )
+  const requested = stubSceneFetch(scenes, { 'scene-2': 'unavailable' })
+
+  render(<ScenePlayer scenes={scenes} activeIndex={0} placeholder={PLACEHOLDER} />)
+
+  await expect
+    .poll(() => placeholders().elements().length, {
+      message: '同じ画像を指す2場面がどちらも文言に替わる',
+    })
+    .toBe(2)
+  await waitForArt([ART[0]])
+  expect(artOf(ART[1]).query()).toBeNull()
+  expect(artOf(ART[2]).query()).toBeNull()
+  expect(requested, '同じ URL は場面が2つでも1回だけ取りに行く').toEqual([
+    scenes[0].image,
+    scenes[1].image,
+  ])
+})
