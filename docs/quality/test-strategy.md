@@ -171,8 +171,8 @@ last_reviewed: 2026-10-20
   外すとこの機器では `Asia/Tokyo` になった(2026-10-13 の実測)。村の統合テストは前提としてブラウザの時間帯が UTC であることを先に確かめる
 - 落ちた時の画面の写しは `test-results/vitest-screenshots/`、添付は `test-results/vitest-attachments/` に出る(git は追わない)
 - 走らせると React の「not wrapped in act(...)」の `console.error` が出力に混ざる。テストは通る。既知のもので、まだ手当てしていない
-- カバレッジは `npm run test:integration -- --coverage` で測り、フックとコンポーネントも含む。報告は `coverage/integration` に出て、全体の床を下回るか、
-  フック・コンテナ・表示部品のどれかがファイル別100%に届かないと落ちる([カバレッジの床](#カバレッジの床))
+- カバレッジは `npm run test:integration -- --coverage` で測り、フックとコンポーネントも含む。測るのはブラウザで動くコード(部品とフックから import でたどって届くファイル)だけで、
+  報告は `coverage/integration` に出て、全体の床を下回るか、フック・コンテナ・表示部品のどれかがファイル別100%に届かないと落ちる([カバレッジの床](#カバレッジの床))
 
 ## E2E から統合への移行
 
@@ -254,18 +254,32 @@ E2E は `out/` を配る。**先に `npm run build` を済ませる。**
 
 `npm run test:coverage`は`npm run test`と同じテストをv8のカバレッジ付きで走らせ、床を下回ると落ちる。CIはこちらを走らせる(手元の`npm run test`は測らない)。
 
-- 測る範囲・外す名前(テスト・`*.fixture.ts`・`*.test-helper.ts`・`src/**/hooks/**`・`src/components/**/*.tsx`)・床の値の正本は`vitest.config.ts`の`coverage`。数値はここへ書き写さない
+- **どのファイルも、単体か統合の少なくとも1か所で100%にする**([../decisions/0026-browser-code-denominator.md](../decisions/0026-browser-code-denominator.md))。
+  node で走るコードと純粋モジュール(ブラウザでも動く物を含む)は単体の門が、フックとコンポーネント(コンテナと表示部品)は統合の門が100%にする。
+  単体の全体の床は文・分岐・関数・行のすべて100。統合の全体の床は実測を整数へ切り捨てた値で、100ではない(ブラウザで動く純粋モジュールの、画面からは届かない防御の分岐が残るため。下の「統合の門」)。
+  どちらでも測らないファイルは、統合の設定を読む時点で落ちる(下の「統合の門」)
+- 単体の測る範囲・外す名前(テスト・`*.fixture.ts`・`*.test-helper.ts`・`src/**/hooks/**`・`src/components/**/*.tsx`)・床の正本は`vitest.config.ts`の`coverage`、統合のものは`vitest.integration.config.ts`の`coverage`。統合の床の数値はここへ書き写さない
 - **単体の門ではフックとコンポーネントを測らない**(`vitest.config.ts`が`src/**/hooks/**`と`src/components/**/*.tsx`を外す)。どちらも単体テストを置かない層で、
   コンテナの統合テストが描いて測る([../decisions/0017-screen-containers.md](../decisions/0017-screen-containers.md))
-- 画面の3つのローダー(`src/app/<名前>-screen.tsx`)は `src/components/` の外へ出たので([../decisions/0024-containers-as-index.md](../decisions/0024-containers-as-index.md))、ルートの `src/app/**/page.tsx` と同じく単体の全体の床の分母に入る(どの単体テストも import しない。移した後の 2026-10-18 の実測は文 97.08%(2030/2091)・分岐 98.57%・関数 94.83%・行 96.93% で、床は下回らない)
-- **統合の門。** `npm run test:integration -- --coverage`(`vitest.integration.config.ts`の`coverage`)はフックとコンポーネントも含めて測り、報告を`coverage/integration`へ出し、全体の床を下回ると落ちる。
-  床の決め方は単体と同じく実測から2pt引いた値で、正本は`vitest.integration.config.ts`の`coverage`。数値はここへ書き写さない。
+- 画面の3つのローダー(`src/app/<名前>-screen.tsx`)は `src/components/` の外へ出たので([../decisions/0024-containers-as-index.md](../decisions/0024-containers-as-index.md))、ルートの `src/app/**/page.tsx` と同じく単体の分母に入る。
+  `src/app/` の全部はブラウザで動かないので統合の分母に入らず、単体テストで100%にする。
+  `src/app/` の単体テストは描かずに(`render` を使わず)、ルート・枠・画面のローダーの関数を呼んで返る React 要素の型と props、書き出すメタデータを見る。
+  単体には `*.test.tsx` を置けない([テストの境界](#テストの境界))ので、子に渡す要素は JSX ではなく `createElement` で作る(例: `src/app/html-shell.test.ts`)
+- **統合の門。** `npm run test:integration -- --coverage`(`vitest.integration.config.ts`の`coverage`)は、ブラウザで動くコードだけをフックとコンポーネントも含めて測り、報告を`coverage/integration`へ出し、全体の床を下回ると落ちる。
+  ブラウザで動くコードは、`src/components` の `index.tsx`(`hooks`・`__tests__` の中を除く)と `hooks` フォルダの `use-*.ts(x)`(`src/hooks/` を含む)を入口に、実行時の import(型だけの import を除く)でたどって届く src のファイル(テストの側を除く)。
+  決め方の正本は `scripts/find-browser-code.mjs` で、一覧は手で持たず設定を読むたびに求める。届かないファイル(`src/app/` の全部・content の読み出し・スプライトの合成・props の組み立てなど)は、
+  画面の props を `index.fixture.ts` が node で組むのでブラウザでは読み込まれず、単体の門が測る。
+  `vitest.integration.config.ts` は設定を読む時点で、入口が無い・たどれない import(見つからない・式で組んだ `import()`・src と content の外を指す相対パス)がある・
+  `coverage` の include と exclude で測る物がブラウザで動くコードと食い違う・テストの側でない src のファイルが統合の分母にも単体の `coverage`(`vitest.config.ts` から読む)にも入らない、のどれかで投げる。
+  ブラウザで動く純粋モジュール(部品とフックから import で届く utils・lib)は、単体の全体の100とファイル別100%で100%にし、統合では全体の床にだけ入る(統合のファイル別100%は掛けない)。
+  統合の全体の床が100でないのは、そうした純粋モジュールに、画面からは届かない防御の分岐(製品の呼び出し元の無い関数・古いブラウザ向けの代わりの道など)が残るため。
+  統合で届かない所は、どれも単体と変異テストで100%のファイルにある(2026-10-20 の実測とファイルの一覧は [../decisions/0026-browser-code-denominator.md](../decisions/0026-browser-code-denominator.md))。その分岐が増えて統合の全体の床を下回ると、統合の門が落ちる。
   CI(`.github/workflows/deploy.yml` の build ジョブ)は `npm run test:boundary` の後に Playwright の Chromium を入れ、これを走らせる
 - **フックとコンテナと表示部品のファイル別100%:** 統合のカバレッジで、`src/**/hooks/**` の全部(`src/hooks/` を含む)と、
   `src/components/**` のすべての `.tsx`(コンテナと表示部品。テストの側(`*.test.tsx`・`__tests__` の中)は除く)を、ファイルごとに文・分岐・関数・行のそれぞれ100%にし、1つでも届かなければ落ちる
   (表示部品は [../decisions/0022-colocate-integration-tests.md](../decisions/0022-colocate-integration-tests.md))。
-  画面の3つのサーバのローダー(`src/app/directory-screen.tsx`・`src/app/story-screen.tsx`・`src/app/village-screen.tsx`)は `src/components/` の外にあり、`src/app/` のほかのファイルと同じく全体の床にだけ入る。
-  ビルドの時に node で content を読んでコンテナへ渡すだけでブラウザでは走らないので、統合テストでは測れない(どれも0%)。
+  画面の3つのサーバのローダー(`src/app/directory-screen.tsx`・`src/app/story-screen.tsx`・`src/app/village-screen.tsx`)は `src/components/` の外にあり、
+  ビルドの時に node で content を読んでコンテナへ渡すだけでブラウザでは走らないので、`src/app/` のほかのファイルと同じく統合の分母に入らない(上の統合の門)。
   ローダーを `src/components/` の外へ出したので、ファイル別100%から名前を並べて外す一覧は持たない([../decisions/0024-containers-as-index.md](../decisions/0024-containers-as-index.md))。
   対象の一覧も手で持たず、`vitest.integration.config.ts` が設定を読むたびに拾うので、新しいフック・コンテナ・表示部品は置いた時点で対象になる(フック(`HOOK_FILES`)か、コンテナと表示部品を合わせた `src/components/**` の `.tsx`(`COMPONENT_FILES`)のどちらかが1つも拾えないと設定を読む時点で落ちる。
   コンテナと表示部品は分けて数えないので、どちらか一方だけが0でもここでは落ちない。
@@ -274,6 +288,7 @@ E2E は `out/` を配る。**先に `npm run build` を済ませる。**
   - フック・コンテナ・表示部品の名前がカバレッジの include から外れるか exclude(`*.fixture.ts`・`*.test-helper.ts` など)に掛かると、そのファイルは表に載らず、Vitest は空の表を100%と数えて門を黙って素通りさせる。
     そこで `vitest.integration.config.ts` は、拾ったフック・コンテナ・表示部品を Vitest と同じ当て方(picomatch の contains・dot 付き。test.include も exclude に足す)で1つずつ確かめ、掛かるものがあれば設定を読む時点で投げる。
     contains は前後を固定しないので、`*.fixture.ts` は `x.fixture.tsx` にも当たる。
+    入口から import で届かない(どこからも使われない)`index.tsx` でないコンポーネントの `.tsx` は、統合の分母に入らず単体の設定も `src/components/**/*.tsx` を外すので、どちらの設定でも測らないファイルの検査が落とす。
     テストの部品・フィクスチャ(`*.test-helper.ts`・`*.fixture.ts`)を `hooks` フォルダの下に置くこと自体は `npm run test:boundary` が落とす([テストの境界](#テストの境界))
   - 統合テストで構造上届かない行(`IntersectionObserver` の無い環境のように、E2E だけが作れる場合)だけを、その行の前に
     `/* v8 ignore next -- e2e: tests/<file>.spec.ts > <E2E のテスト名> */` を書いて外す。注釈を置ける場所は `scripts/check-coverage-ignores.mjs` が決め(フックとコンテナの `index.tsx` だけで、表示部品には置けない)、単体の門(純粋モジュール)の対象を E2E で外すことはしない。
@@ -284,12 +299,14 @@ E2E は `out/` を配る。**先に `npm run build` を済ませる。**
     直後に構文の無い注釈(閉じ括弧・別の注釈の前・ファイルの終わり)は何も外さない。どちらも同じ検査が落とす。外したい所は、注釈のすぐ下の1行の文に切り出す
   - どの層のテストも通れない防御の分岐(起きない null の検査など)は注釈で外さず、振る舞いを変えずに分岐の生まれない形へ書き換える(ref のコールバックで要素を受け取る・純粋関数へ切り出して単体で測る、など)
 - 単体の床は2種類ある。全体の床と、純粋モジュールのファイルごとのファイル別100%
-- 全体の床は目標値ではなく、テストを消したり測られないコードを増やしたりしたときに落とすためのもの。決め方(実測から2pt引いて切り捨て)は`vitest.config.ts`の注釈にある
+- 全体の床は文・分岐・関数・行のすべて100([../decisions/0026-browser-code-denominator.md](../decisions/0026-browser-code-denominator.md))。
+  単体の分母(フックと `src/components/**/*.tsx` を除く src の全部。`src/app/`・ファイル別100%に入らないデータのファイル・ブラウザで動く純粋モジュールも入る)のどの行も、単体テストが通る。
+  もとは実測から2pt引いて切り捨てた値で、テストを消したり測られないコードを増やしたりしたときに落とすための床だった
 - ファイル別100%は`vitest.config.ts`の`FULL_COVERAGE`(文・分岐・関数・行をそれぞれ100)で、そのファイルに4つのどれかで測られない所が1つでもあれば落ちる
 - 対象は**純粋モジュールの置き場(`src/lib/`・`src/utils/`・コンポーネント専用のutils)にある`.ts`の全部**で、一覧を手で並べない。
   `scripts/gate-targets.mjs`が設定を読むたびに`src`をたどって規則で選ぶので、新しいファイルは置いた時点で対象になる(足し忘れが起きない)。
   テスト・`*.d.ts`・`*.fixture.ts`・`*.test-helper.ts`・`types.ts`・`hooks`フォルダの下は外す([../decisions/0014-gate-all-pure-modules.md](../decisions/0014-gate-all-pure-modules.md))
-- データのファイルは名指しで扱いを分ける。ドット絵の行列(`src/lib/pixel/`の絵)と`linkedom`の差し替えはどちらの門にも入れず、
+- データのファイルは名指しで扱いを分ける。ドット絵の行列(`src/lib/pixel/`の絵)と`linkedom`の差し替えはどちらの門にも入れず(単体の全体の100には入る)、
   `src/lib/pixel/flight-art.ts`(飛ぶ姿の絵)と`src/lib/pixel/palette.ts`(色の表)は[ミューテーションテスト](#ミューテーションテスト)から外してこちらだけで固める。
   外す理由の正本は`scripts/gate-targets.mjs`の注釈
 - 規則と名指しの正本は`scripts/gate-targets.mjs`(ファイル別100%の一覧は`COVERAGE_TARGETS`)で、ここへ書き写さない。名指ししたパスが実在しないと、設定を読み込む時に落ちる(名指しが空振りしたまま黙って通らないように)

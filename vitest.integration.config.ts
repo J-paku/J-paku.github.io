@@ -6,6 +6,8 @@ import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 import nextConfig from './next.config'
+import unitConfig from './vitest.config'
+import { findBrowserCode } from './scripts/find-browser-code.mjs'
 
 // 画面(コンテナ)の props は node でしか組めない(fs・zlib・crypto を使う)ので、I/O コンテナのフォルダの
 // index.fixture.ts(そのフォルダの __tests__/ の中か、index.tsx の隣)がテストの前に node で組んで provide する。
@@ -29,9 +31,10 @@ if (CONTAINER_FIXTURES.length === 0) {
 // 対象は src の下の hooks フォルダの全部(src/hooks/ を含む)と、src/components の下の .tsx の全部(テストの側を除く)。
 // コンテナ(フックを使う index.tsx と I/O コンテナの index.tsx)も表示部品(フックを使わない index.tsx)も同じ門に入るので、ここではどちらかを分けない
 // (分けるのは scripts/find-containers.mjs で、テストの置き場の検査が使う)。
-// 画面の3つのサーバのローダーは src/app/<名前>-screen.tsx にあり(ビルドの時に node で content を読むだけで、ブラウザでは測れない)、下の全体の床にだけ入る。
+// 画面の3つのサーバのローダーは src/app/<名前>-screen.tsx にあり(ビルドの時に node で content を読むだけで、ブラウザでは測れない)、
+// src/app/ のほかのファイルと同じく、この設定のカバレッジの分母に入らない(単体の vitest.config.ts が測る。下の COVERAGE_INCLUDE)。
 // src/components の中にローダーを戻す(content を読む I/O コンテナ)と npm run test:boundary(scripts/check-layers.mjs の規則 6)が落とす。
-// 一覧を手で並べず設定を読むたびに拾うので、新しいフック・コンテナ・表示部品は置いた時点で対象になる。src/app/ は下の全体の床にだけ入る。
+// 一覧を手で並べず設定を読むたびに拾うので、新しいフック・コンテナ・表示部品は置いた時点で対象になる。
 // Vitest の thresholds の perFile は glob ごとには分けられず、上の全体の床までファイル別にしてしまう
 // (node_modules/vitest の coverage の checkThresholds が thresholds.perFile だけを見る。4.1.10 で確認)。
 // そこでファイルのパスを1つずつ glob として並べてファイル別にする(単体の vitest.config.ts の COVERAGE_TARGETS と同じ形)。
@@ -61,7 +64,6 @@ const FULL_COVERAGE = { statements: 100, branches: 100, functions: 100, lines: 1
 // 統合テストの名前(test.include)と、カバレッジで測る物・外す物。下の検査と test・coverage の設定が同じ一覧を使う。
 // 統合テストはコンテナのフォルダ(コンテナの index.tsx の隣か、そのフォルダの __tests__/ の中)に置く(ADR 0022・ADR 0024)
 const INTEGRATION_TESTS = ['src/**/*.integration.test.tsx']
-const COVERAGE_INCLUDE = ['src/**/*.{ts,tsx}']
 // テストの側の物(統合テスト・テストの部品・フィクスチャ)も src の中にあるので、測る物から外して分母に入れない。
 // *.test.{ts,tsx} は統合テスト(*.integration.test.tsx)にも当たる。__tests__/ の中はテストの側の物だけを置く所なので、名前を問わず外す
 const COVERAGE_EXCLUDE = [
@@ -70,24 +72,85 @@ const COVERAGE_EXCLUDE = [
   'src/**/*.test-helper.ts',
   'src/**/__tests__/**',
 ]
-// フックとコンポーネント(コンテナと表示部品)が1つ残らずカバレッジで測られることを、設定を読む時点で確かめる。thresholds の glob に当たるファイルがカバレッジの表に無いと、
-// Vitest は空の表を100%と数えて黙って通す。exclude に掛かる名前のフック(hooks/ の下の *.fixture.ts など)や表示部品(*.fixture.tsx など)は、
-// ファイル別100%の門を素通りする。
-// 当て方は Vitest と同じにする: coverage の include に当たり、exclude と test.include(Vitest が exclude へ足す)に当たらない物だけを測る。
+// カバレッジで測る物の判定は Vitest と同じ当て方にする: coverage の include に当たり、exclude と test.include(Vitest が exclude へ足す)に当たらない物だけを測る。
 // Vitest は picomatch を contains・dot 付きで絶対パスへ当てる(node_modules/vitest の coverage の isIncluded。4.1.10 で確認)。
-// contains は前後を固定しないので、'src/**/*.fixture.ts' は x.fixture.tsx にも当たる(node:path の matchesGlob では拾えない)。
+// contains は前後を固定しないので、'src/**/*.fixture.ts' は x.fixture.tsx にも、'src/a.ts' は src/a.tsx にも当たる(node:path の matchesGlob では拾えない)。
 // picomatch は Vitest の依存(型は入っていない)なので createRequire で読み、使う形だけを型に書く
 type Matcher = (
   glob: string[],
   options: { contains: boolean; dot: boolean; ignore: string[] }
 ) => (file: string) => boolean
 const picomatch: Matcher = createRequire(import.meta.url)('picomatch')
-const isCovered = picomatch(COVERAGE_INCLUDE, {
-  contains: true,
-  dot: true,
-  ignore: [...COVERAGE_EXCLUDE, ...INTEGRATION_TESTS],
-})
-const isUncovered = (file: string) => !isCovered(path.join(ROOT, file).split(path.sep).join('/'))
+// include・exclude から、起点からの '/' 区切りのパスを測るかの判定を作る
+const coverageMatcher = (include: string[], exclude: string[]) => {
+  const matches = picomatch(include, { contains: true, dot: true, ignore: exclude })
+  return (file: string) => matches(path.join(ROOT, file).split(path.sep).join('/'))
+}
+// src のコードのファイルの全部と、そのうちテストの側でない物(どちらかの設定で測るべき物)の判定
+const SRC_CODE = ['src/**/*.{ts,tsx}']
+const SRC_CODE_FILES = globSync(SRC_CODE, { cwd: ROOT })
+  .map(file => file.split(path.sep).join('/'))
+  .sort()
+const isProductCode = coverageMatcher(SRC_CODE, [...COVERAGE_EXCLUDE, ...INTEGRATION_TESTS])
+
+// 分母はブラウザで動くコードだけにする(ADR 0026)。統合テストはコンテナを実際の Chromium で描くので、ブラウザで読み込まれるのは、
+// src/components の index.tsx とフック(hooks フォルダの use-*.ts(x))から実行時の import でたどって届くファイルだけ。
+// 届かないファイル(src/app の全部・content の読み出し・スプライトの合成・props の組み立てなど。画面の props は上の index.fixture.ts が node で組む)は
+// どの統合テストも通れないので分母に入れず、単体の vitest.config.ts が測る(下の UNMEASURED の検査で、どちらでも測らないファイルを残さない)。
+// 入口とたどり方の正本は scripts/find-browser-code.mjs で、手で並べず設定を読むたびに求める(たどれない import があればそこで投げる)
+const BROWSER_CODE = findBrowserCode(ROOT)
+// 入口が1つも無いと分母が空になり、Vitest は空の表を100%と数えて黙って通す。入口の判定や起点の誤りを、設定を読む時点で止める
+if (BROWSER_CODE.entries.length === 0) {
+  throw new Error(
+    `ブラウザで動くコードの入口(src/components の index.tsx・hooks フォルダの use-*.ts(x))が 1 つも見つからない(探した起点: ${ROOT})`
+  )
+}
+const BROWSER_FILES = BROWSER_CODE.files.filter(isProductCode)
+if (BROWSER_FILES.length === 0) {
+  throw new Error(
+    `入口から届く、テストの側でない src のコードのファイルが 1 つも無い(入口 ${BROWSER_CODE.entries.length} 個。探した起点: ${ROOT})`
+  )
+}
+const BROWSER_FILE_SET = new Set(BROWSER_FILES)
+// ファイルのパスをそのまま glob にする。glob で意味を持つ文字は前に \ を付けて文字として当てる
+// (今の分母の道には無いが、ルートグループの (ja) や [slug] のような名前のフォルダが分母に入っても取り違えない)
+const COVERAGE_INCLUDE = BROWSER_FILES.map(file => file.replace(/[\\*?[\]{}()!+@]/g, '\\$&'))
+const isCovered = coverageMatcher(COVERAGE_INCLUDE, [...COVERAGE_EXCLUDE, ...INTEGRATION_TESTS])
+// include をファイルのパスで並べても、contains は前後を固定しないので、名前の後ろに文字を足しただけの別のファイル(a.ts に対する a.tsx など)にも当たる。
+// Vitest と同じ当て方で、src のコードのファイルの全部について「測る」と「ブラウザで動くコード」がぴったり重なるかを確かめる
+const MISMATCHED = SRC_CODE_FILES.filter(file => isCovered(file) !== BROWSER_FILE_SET.has(file))
+if (MISMATCHED.length > 0) {
+  throw new Error(
+    `カバレッジの include・exclude で測る物が、ブラウザで動くコード(scripts/find-browser-code.mjs)と食い違う: ${MISMATCHED.join(', ')}。` +
+      '名前の後ろに文字を足しただけの別のファイル(a.ts に対する a.tsx など)が無いか、glob で意味を持つ文字を文字として当てているかを見る'
+  )
+}
+// どちらの設定でも測らないファイルを残さない(ADR 0026)。ブラウザで動かないコードは、単体の vitest.config.ts の coverage に入っていなければならない。
+// 単体の側の判定も Vitest と同じ当て方にし、include・exclude・test.include はその設定から読む(ここに書き写さない)
+const UNIT_TEST = unitConfig.test
+const UNIT_COVERAGE = UNIT_TEST?.coverage
+if (UNIT_COVERAGE?.include === undefined) {
+  throw new Error(
+    '単体の設定(vitest.config.ts)の test.coverage.include を読めない。どちらの設定でも測らないファイルが無いかを確かめられない'
+  )
+}
+const isUnitCovered = coverageMatcher(UNIT_COVERAGE.include, [
+  ...(UNIT_COVERAGE.exclude ?? []),
+  ...(UNIT_TEST?.include ?? []),
+])
+const UNMEASURED = SRC_CODE_FILES.filter(
+  file => isProductCode(file) && !isCovered(file) && !isUnitCovered(file)
+)
+if (UNMEASURED.length > 0) {
+  throw new Error(
+    `統合の分母(ブラウザで動くコード)にも単体の設定(vitest.config.ts)の coverage にも入らないファイルがある(どちらの100%の門も通らない): ${UNMEASURED.join(', ')}。` +
+      'ブラウザで動くなら入口から import で届くようにし、node でしか動かないなら単体の設定の coverage で測る(ADR 0026)'
+  )
+}
+// フックとコンポーネント(コンテナと表示部品)が1つ残らずカバレッジで測られることも確かめる。thresholds の glob に当たるファイルがカバレッジの表に無いと、
+// Vitest は空の表を100%と数えて黙って通す。exclude に掛かる名前のフック(hooks/ の下の *.fixture.ts など)や表示部品(*.fixture.tsx など)は、
+// ファイル別100%の門を素通りする(入口から import で届かないフック・コンポーネントは、単体の設定も hooks/ と components の .tsx を外すので、上の UNMEASURED が先に落とす)
+const isUncovered = (file: string) => !isCovered(file)
 const UNCOVERED_HOOKS = HOOK_FILES.filter(isUncovered)
 if (UNCOVERED_HOOKS.length > 0) {
   throw new Error(
@@ -326,6 +389,7 @@ export default defineConfig({
       commands: { holdUntilStep, holdKey },
     },
     // 測るのは --coverage を付けたときだけ。フックとコンポーネントもここで測る(単体の設定はフックと components の .tsx を外す)。
+    // 測るのはブラウザで動くコードだけ(上の COVERAGE_INCLUDE。ADR 0026)。
     // フックとコンポーネント(コンテナと表示部品)は全部をファイル別100%で固める(上の HOOK_FILES・COMPONENT_FILES。ADR 0018・0019・0022・0024)。
     // フックとコンテナでは、統合テストで構造上届かない行(E2E だけが作れる場合)だけを、
     // その行を見ている E2E を名指しする注釈 `/* v8 ignore next -- e2e: tests/<file>.spec.ts > <E2E のテスト名> */` で外し、
@@ -337,14 +401,16 @@ export default defineConfig({
       exclude: COVERAGE_EXCLUDE,
       reporter: ['text-summary'],
       reportsDirectory: 'coverage/integration',
-      // 2026-10-15の実測(statements 76.55%・branches 79.21%・functions 77.03%・lines 77.81%)から2pt引いて切り捨てた値。
-      // 測る対象は src の全部で、統合テストが通らない純粋モジュール(単体の門で100%に固めている)も分母に入るので低く見える。
-      // 目標値ではなく、統合テストを消したり使われないコードを増やしたりしたときに落とすための床(ADR 0017)
+      // 全体の床は、2026-10-20 の実測(文 98.46%・分岐 96.2%・関数 99.56%・行 99.48%。統合テスト95ファイル・351件)を整数へ切り捨てた値(ADR 0026)。
+      // 100にしないのは、届かない所(文 45・分岐 60・関数 3・行 13)がどれも、ブラウザで動く純粋モジュール(src/lib・src/utils・コンポーネントの utils)の
+      // 28ファイルにある、画面からは届かない防御の分岐だから(製品の呼び出し元の無い関数・起きない値の検査・古い実行環境の代わりの道など。一覧は ADR 0026)。
+      // その28ファイルは単体(vitest.config.ts の全体の100とファイル別100%)と変異テストの門で100%なので、どのファイルも少なくとも1か所で100%になる。
+      // 目標値ではなく、統合テストを消したり、ブラウザで動くコードに統合テストの通らない所を増やしたりしたときに落とすための床
       thresholds: {
-        statements: 74,
-        branches: 77,
-        functions: 75,
-        lines: 75,
+        statements: 98,
+        branches: 96,
+        functions: 99,
+        lines: 99,
         // フックとコンポーネントのファイル別100%(一覧は上の HOOK_FILES・COMPONENT_FILES)
         ...Object.fromEntries(PER_FILE_TARGETS.map(file => [file, FULL_COVERAGE])),
       },
