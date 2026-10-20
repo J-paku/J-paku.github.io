@@ -1,4 +1,4 @@
-// import の指定子を、リポジトリ直下からのファイルのパスに解決する(check-layers.mjs が使う)。
+// import の指定子を、リポジトリ直下からのファイルのパスに解決する(check-layers.mjs・find-browser-code.mjs が使う)。
 // 決まりは tsconfig.json と同じ(paths の @/ は src、@content/ は content、相対パス、moduleResolution: bundler の拡張子と index の省略)。
 // ほかのスクリプトも同じ決まりで import の先のファイルを求められるよう、check-layers.mjs から分けてある。
 // 判定が壊れていないかは、使う側の自己検査が偽のファイルで確かめる。

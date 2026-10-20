@@ -52,6 +52,10 @@ const eslintConfig = [
           varsIgnorePattern: '^_',
         },
       ],
+      // tsconfig の verbatimModuleSyntax では `import { type U } from './x'` が `import {} from './x'` として残り、実行時に x を読む。
+      // import を読む scripts/read-imports.mjs はこの形を型だけとみなすので、ブラウザで動くコードの分母(scripts/find-browser-code.mjs)や
+      // 層の境界の検査が x を取りこぼす。形そのものを落とし、型だけなら `import type { U }` と書かせる
+      '@typescript-eslint/no-import-type-side-effects': 'error',
       // バレルインポート禁止: from '.' → from './index' を強制
       'no-restricted-imports': ['error', { paths: BARREL_PATHS }],
       // 村の rAF ループ・入力フックは ref.current を直接書き換える設計(VillagePage/AGENTS.md 5番)のため無効化

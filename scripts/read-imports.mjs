@@ -2,6 +2,7 @@
 //   - check-layers.mjs: src と content のコードのファイル(コンテナのフォルダに置く統合テストも)
 //   - check-test-boundary.mjs: src とリポジトリ直下の __tests__/ のファイル
 //   - fingerprint-tests.mjs: テストファイルと、そこから import をたどって届く src・content のコードのファイル
+//   - find-browser-code.mjs: src/components の index.tsx・hooks フォルダの use-*.ts(x) と、そこから import をたどって届く src・content のコードのファイル
 // 構文木を作る parseSource だけを、check-coverage-ignores.mjs と find-containers.mjs も使う(src のファイル)。
 // 正規表現で読むと、注釈・文字列の中の import を拾い、型だけの import と実行時に読み込まれる import を分けられないため。
 // 判定が壊れていないかは、使う側の自己検査が偽のファイルで確かめる。
